@@ -1,14 +1,20 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
+Require Import QArith.
+
+(*Avoid clash with Ssreflect*)
+Delimit Scope Q_scope with coq_Qscope.
+Definition Qcoq := Q.
+
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import extrema dist.
-Require Import games smooth christodoulou.
+Require Import extrema dist numerics.
+Require Import games compile smooth christodoulou.
 
 Local Open Scope ring_scope.
 
@@ -335,6 +341,53 @@ Next Obligation. by apply: resourceSmoothnessAxiom. Qed.
 
 Instance resourceSmoothInstance N
   : @smooth [finType of resource] N rat_realFieldType _ _ _ _ _ _ _ _.
+
+(** Resource games are compilable *)
+
+Instance resourceCTypeInstance : CType [finType of resource] :=
+  [:: RYes; RNo].
+
+Program Instance resourceRefineTypeAxiomInstance
+  : @RefineTypeAxiomClass [finType of resource] _.
+Next Obligation. by move => r; rewrite mem_enum; case: r. Qed.
+
+Instance resourceRefineTypeInstance
+  : @RefineTypeClass [finType of resource] _ _.
+
+Definition ctraffic (m : M.t resource) : Qcoq :=
+  M.fold (fun i r acc =>
+            match r with
+            | RYes => (acc + 1)%coq_Qscope
+            | RNo => acc
+            end)
+         m 0%coq_Qscope.
+
+Definition resource_ccost (i : OrdPos.t) (m : M.t resource) : Qcoq :=
+  match M.find i m with
+  | Some RYes => ctraffic m
+  | Some RNo => 0%coq_Qscope
+  | None => 0%coq_Qscope (*won't occur when i < N*)
+  end.
+
+Instance resourceCCostInstance : CCostClass [finType of resource]
+  := resource_ccost.
+
+Program Instance resourceRefineCostAxiomInstance N
+  : @RefineCostAxiomClass N [finType of resource] _ _.
+Next Obligation.  
+  rewrite /(ccost) /resourceCCostInstance /resource_ccost.
+  rewrite (H i pf).
+  rewrite /(cost) /resourceCostInstance /= /resourceCostFun /=.
+  case H2: (s _) => //.
+  rewrite /ctraffic M.fold_1 trafficP /traffic'.
+  admit. (*TODO*)
+Admitted.
+
+Instance resourceRefineCostInstance N
+  : @RefineCostClass N [finType of resource] _ _ _.
+
+Instance resource_cgame N
+  : cgame (N:=N) (T:=[finType of resource]) _ _ _.
 
 (** Location Games *)
 

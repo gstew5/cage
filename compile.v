@@ -56,23 +56,25 @@ Class CType (T : Type) :=
 Notation "'enumerate' T" := (@ctype_fun T _) (at level 30).
 
 Class RefineTypeAxiomClass (T : finType)
-      `(ctypeClass : CType T) :=
+      (ctypeClass : CType T) :=
   refineTypeAxiom_fun :
-    enumerate T = enum T.
+    enumerate T =i enum T.
 
 Class RefineTypeClass (T : finType)
-      `(ctypeClass : CType T)
+      (ctypeClass : CType T)
       `(@RefineTypeAxiomClass T ctypeClass).
 
-(** An operational type class for "compiled" cost functions *)
+(** An operational type class for "compiled" cost functions, 
+    from positive player indices and maps (positive -> strategy) 
+    to Q-valued costs *)
 
 Class CCostClass (T : Type) :=
   ccost_fun : OrdPos.t -> M.t T -> Q.
 Notation "'ccost'" := (@ccost_fun _) (at level 30).
 
 Class RefineCostAxiomClass N (T : finType)
-      `(costClass : CostClass N rat_realFieldType T)
-      `(ccostClass : CCostClass T) :=
+      (costClass : CostClass N rat_realFieldType T)
+      (ccostClass : CCostClass T) :=
   refineCostAxiom_fun :
     forall (i : OrdPos.t) (pf : (nat_of_pos i < N)%nat) m (s : {ffun 'I_N -> T}),
       let: i' := Ordinal pf in
@@ -82,8 +84,8 @@ Class RefineCostAxiomClass N (T : finType)
       ccost i m = rat_to_Q (cost i' s).
 
 Class RefineCostClass N (T : finType)
-      `(costClass : CostClass N rat_realFieldType T)
-      `(ccostClass : CCostClass T)
+      (costClass : CostClass N rat_realFieldType T)
+      (ccostClass : CCostClass T)
       `(@RefineCostAxiomClass N T costClass ccostClass).
 
 (** A compilable game is one:
@@ -92,9 +94,9 @@ Class RefineCostClass N (T : finType)
 
 Class cgame N (T : finType)
       `(RefineTypeClass T)
-      (costClass : CostClass N rat_realFieldType T)
-      (costAxiomClass : @CostAxiomClass N rat_realFieldType T costClass)
-      (ccostClass : CCostClass T)
-      (refineCostAxiomClass : @RefineCostAxiomClass N T costClass ccostClass)
-      (refineCostClass : @RefineCostClass N T costClass ccostClass refineCostAxiomClass)
-      `(@game T N rat_realFieldType costClass costAxiomClass).
+      `(costClass : CostClass N rat_realFieldType T)
+      `(costAxiomClass : @CostAxiomClass N rat_realFieldType T costClass)
+      `(ccostClass : CCostClass T)
+      `(refineCostAxiomClass : @RefineCostAxiomClass N T costClass ccostClass)
+      `(refineCostClass : @RefineCostClass N T costClass ccostClass refineCostAxiomClass)
+      `(@game T N rat_realFieldType costClass costAxiomClass) : Type := {}.
