@@ -23,7 +23,7 @@ Section int_to_Z.
   Definition int_to_positive : positive :=
     match i with
     | Posz n => Pos.of_nat n
-    | Negz n => Pos.of_succ_nat n (* Pos.of_nat (n + 1) *)
+    | Negz n => Pos.of_succ_nat n
     end.
 
   Definition int_to_Z : Z :=
@@ -205,10 +205,8 @@ Lemma int_to_positive_mul (s r : int) :
   r <> Posz(0%N) ->
   int_to_positive (s * r) = Pos.mul (int_to_positive s) (int_to_positive r).
 Proof.
-  move => Hs Hr.
-  destruct s as [sn|sn]; destruct r as [rn|rn].
-  (* case: s=> sn. *)
-  (* - case: r=> rn. *)
+  case: s=> sn; move => Hs.
+  - case: r=> rn; move => Hr.
     + simpl. rewrite Nat2Pos.inj_mul //; auto.
     + rewrite /GRing.mul /=. 
       have H0: ((sn * rn.+1)%N = ((sn * rn.+1 - 1).+1)%N).
@@ -216,7 +214,7 @@ Proof.
       rewrite H0 -NegzE /= of_succ_nat_of_nat_plus_1 addn1 -H0.
       rewrite Nat2Pos.inj_mul; auto.
       rewrite of_succ_nat_of_nat_plus_1 addn1 //.
-  (* - case: r=> rn. *)
+  - case: r=> rn; move => Hr.
       + rewrite /GRing.mul /=. 
         have H0: ((rn * sn.+1)%N = ((rn * sn.+1 - 1).+1)%N).
         { apply: int_to_positive_mul_1. auto. }
@@ -393,7 +391,7 @@ Section rat_to_Q_lemmas.
     admit.
   Admitted.
 
-  Lemma rat_to_Q_helper (x : int) P :
+  Lemma lt_and_P_ne_0 (x : int) P :
     (0 < x) && P ->
     x <> 0.
   Proof.
@@ -424,8 +422,8 @@ Qed.
     by [].
     by case: (andP H).
     by case: (andP H2).
-    apply: rat_to_Q_helper H.
-    apply: rat_to_Q_helper H2.
+    apply: lt_and_P_ne_0 H.
+    apply: lt_and_P_ne_0 H2.
   Qed.
   
   Lemma rat_to_Q_mul (r s : rat) :
@@ -443,8 +441,8 @@ Qed.
     rewrite /Qmult /=.
     rewrite int_to_positive_mul.
     by rewrite -int_to_Z_mul.
-    apply: rat_to_Q_helper i.
-    apply: rat_to_Q_helper i'.
+    apply: lt_and_P_ne_0 i.
+    apply: lt_and_P_ne_0 i'.
   Qed.
 End rat_to_Q_lemmas.    
 
