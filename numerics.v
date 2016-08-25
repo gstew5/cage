@@ -376,10 +376,11 @@ Section rat_to_Q_lemmas.
     move=> H.
     rewrite /fracq /rat_to_Q /=.
     have ->: (y == 0) = false.
-    { admit. }
+    { rewrite lt0r in H. move: H => /andP [H1 H2].
+      apply /eqP. apply /eqP. apply H1. }
     rewrite -int_to_Z_mul.
     have ->: y < 0 = false.
-    { admit. }
+    { rewrite ltrNge in H. move: H => /negP H. apply /negP. auto. }
     simpl.
     case H2: (x < 0).
     { rewrite /nat_of_bool.
