@@ -520,12 +520,41 @@ Section rat_to_R_lemmas.
     by apply: rat_to_Q_mul.
   Qed.
 
-  Lemma rat_to_R_inv (r : rat) : rat_to_R r^-1 = Rinv (rat_to_R r).
+  Lemma rat_to_R_0_center (r : rat) : rat_to_R r = 0%R -> r == 0.
   Proof.
-    rewrite /rat_to_R.
-    rewrite /GRing.inv /= /invq.
-  Admitted.
+    move =>  H.
+    (*have H0 : rat_to_R r = rat_to_R (-r) by
+      rewrite -mulN1r rat_to_R_mul H Rmult_0_r => //. *)
+    rewrite -numq_eq0.
+    rewrite -rat_to_R0 /rat_to_R /rat_to_Q in H.
+    rewrite /numq.
+    destruct (valq r) as (r1, r2) => /=.
+    simpl in H.
+    apply eqR_Qeq in H.
+    rewrite /Qeq in H. simpl in H.
+    ring_simplify in H.
+    induction r1 => //.
+  Qed.
 
+  Lemma rat_to_R_inv (r : rat) : (r != 0) -> rat_to_R r^-1 = Rinv (rat_to_R r).
+  Proof.
+    (*
+    case H0 : (r == 0).
+    - move/eqP: H0 => H0.
+      rewrite H0. rewrite invr0 => //.
+      rewrite /rat_to_R /rat_to_Q /Q2R => /=.
+      rewrite Rmult_0_l.
+    *)
+    move => H.
+    apply Rmult_eq_reg_l with (r := rat_to_R r).
+    rewrite -rat_to_R_mul Rinv_r.
+    rewrite mulfV; first by apply rat_to_R1.
+    apply H.
+    move => H0.
+    apply rat_to_R_0_center in H0. apply negbTE in H. congruence.
+    move => H0.
+    apply rat_to_R_0_center in H0. apply negbTE in H. congruence.
+  Qed. 
   Lemma rat_to_R_opp (r : rat) : rat_to_R (- r) = Ropp (rat_to_R r).
   Proof.
     have ->: -r = -1 * r by rewrite mulNr mul1r.
