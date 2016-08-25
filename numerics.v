@@ -603,13 +603,16 @@ Section Z_to_int_lemmas.
     { case H2: s => [|q|q].
       { by rewrite addr0. }
       { by rewrite /= Pos2Nat.inj_add. }
-      by rewrite /= Z_to_int_pos_sub. }
+        by rewrite /= Z_to_int_pos_sub. }
     case H2: s => [|q|q].
     { by rewrite addr0. }
     { by rewrite /= Z_to_int_pos_sub. }
     rewrite /= Pos2Nat.inj_add 3!NegzE.
-    admit. (*easy*)
-  Admitted.
+    rewrite !prednK; try (apply /ltP; apply Pos2Nat.is_pos).
+    rewrite -oppz_add //.
+    rewrite addn_gt0. apply /orP. left. apply /ltP.
+    by apply: Pos2Nat.is_pos.
+  Qed.
       
   Lemma Z_to_int_mul (r s : Z) :
     Z_to_int (r * s) = (Z_to_int r * Z_to_int s)%R.
@@ -623,15 +626,20 @@ Section Z_to_int_lemmas.
       have ->: (Pos.to_nat q).-1.+1 = Pos.to_nat q.
       { apply: Pos_to_natNS. }
       rewrite mulrN.
-      admit. }
+      rewrite prednK. auto. rewrite muln_gt0. apply /andP.
+      split; apply /ltP; apply Pos2Nat.is_pos. }
     case H2: s => [|q|q].
     { by rewrite mulr0. }
     { rewrite /= Pos2Nat.inj_mul -2!opp_posz_negz Pos_to_natNS.
       rewrite -(S_pred (Pos.to_nat _ * _)%coq_nat 0); first by rewrite mulNr.
-      admit. (*easy*) }
+      Search (0 < _ * _).
+      have ->: ((0 < (Pos.to_nat p * Pos.to_nat q)%coq_nat)%coq_nat =
+                (0 < Pos.to_nat p * Pos.to_nat q)%coq_nat) by [].
+      apply /ltP. rewrite muln_gt0. apply /andP.
+      split; apply /ltP; apply Pos2Nat.is_pos. }
     rewrite /= Pos2Nat.inj_mul -2!opp_posz_negz 2!Pos_to_natNS.
     by rewrite mulNr mulrN opprK.
-  Admitted.      
+  Qed.
 End Z_to_int_lemmas.
       
 Section Q_to_rat.
@@ -665,4 +673,3 @@ Section Q_to_rat_lemmas.
     by rewrite Pos2Nat.inj_mul.
   Qed.
 End Q_to_rat_lemmas.
-  
