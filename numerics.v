@@ -520,8 +520,16 @@ Section rat_to_R_lemmas.
   Qed.
 
   Lemma rat_to_R_inv (r : rat) : rat_to_R r^-1 = Rinv (rat_to_R r).
+  Proof.
   Admitted.
 
   Lemma rat_to_R_opp (r : rat) : rat_to_R (- r) = Ropp (rat_to_R r).
-  Admitted.
+  Proof.
+    have ->: -r = -1 * r by rewrite mulNr mul1r.
+    have ->: (-rat_to_R r = -1 * rat_to_R r)%R.
+    { by rewrite Ropp_mult_distr_l_reverse Rmult_1_l. }
+    rewrite rat_to_R_mul; f_equal.
+    rewrite /rat_to_R /rat_to_Q /Q2R /= Ropp_mult_distr_l_reverse Rmult_1_l.
+    by apply: Ropp_eq_compat; rewrite Rinv_1.
+  Qed.
 End rat_to_R_lemmas.
