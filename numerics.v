@@ -522,6 +522,8 @@ Section rat_to_R_lemmas.
 
   Lemma rat_to_R_inv (r : rat) : rat_to_R r^-1 = Rinv (rat_to_R r).
   Proof.
+    rewrite /rat_to_R.
+    rewrite /GRing.inv /= /invq.
   Admitted.
 
   Lemma rat_to_R_opp (r : rat) : rat_to_R (- r) = Ropp (rat_to_R r).
@@ -534,3 +536,104 @@ Section rat_to_R_lemmas.
     by apply: Ropp_eq_compat; rewrite Rinv_1.
   Qed.
 End rat_to_R_lemmas.
+
+Section Z_to_int.
+  Variable z : Z.
+
+  Definition Z_to_int : int :=
+    match z with
+    | Z0 => Posz 0
+    | Zpos p => Posz (Pos.to_nat p)
+    | Zneg p => Negz (Pos.to_nat p).-1
+    end.
+End Z_to_int.
+
+Lemma Pos_to_natNS p : (Pos.to_nat p).-1.+1 = Pos.to_nat p.
+Proof.
+  rewrite -(S_pred _ 0) => //.
+  apply: Pos2Nat.is_pos.
+Qed.  
+
+Lemma PosN0 p : Pos.to_nat p != O%N.
+Proof.
+  apply/eqP => H.
+  move: (Pos2Nat.is_pos p); rewrite H.
+  inversion 1.
+Qed.  
+
+Section Z_to_int_lemmas.
+  Lemma Z_to_int_pos_sub p q :
+    Z_to_int (Z.pos_sub q p) = (Posz (Pos.to_nat q) + Negz (Pos.to_nat p).-1)%R.
+  Admitted.                                
+  
+  Lemma Z_to_int_plus (r s : Z) :
+    Z_to_int (r + s) = (Z_to_int r + Z_to_int s)%R.
+  Proof.
+    case H: r => [|p|p].
+    { by rewrite add0r Zplus_0_l. }
+    { case H2: s => [|q|q].
+      { by rewrite addr0. }
+      { by rewrite /= Pos2Nat.inj_add. }
+      by rewrite /= Z_to_int_pos_sub. }
+    case H2: s => [|q|q].
+    { by rewrite addr0. }
+    { by rewrite /= Z_to_int_pos_sub. }
+    rewrite /= Pos2Nat.inj_add 3!NegzE.
+    admit. (*easy*)
+  Admitted.
+      
+  Lemma Z_to_int_mul (r s : Z) :
+    Z_to_int (r * s) = (Z_to_int r * Z_to_int s)%R.
+  Proof.
+    case H: r => [|p|p].
+    { by rewrite /= mul0r. }
+    { case H2: s => [|q|q].
+      { by rewrite mulr0. }
+      { by rewrite /= Pos2Nat.inj_mul. }
+      rewrite /= 2!NegzE Pos2Nat.inj_mul.
+      have ->: (Pos.to_nat q).-1.+1 = Pos.to_nat q.
+      { apply: Pos_to_natNS. }
+      rewrite mulrN.
+      admit. }
+    case H2: s => [|q|q].
+    { by rewrite mulr0. }
+    { rewrite /= Pos2Nat.inj_mul -2!opp_posz_negz Pos_to_natNS.
+      rewrite -(S_pred (Pos.to_nat _ * _)%coq_nat 0); first by rewrite mulNr.
+      admit. (*easy*) }
+    rewrite /= Pos2Nat.inj_mul -2!opp_posz_negz 2!Pos_to_natNS.
+    by rewrite mulNr mulrN opprK.
+  Admitted.      
+End Z_to_int_lemmas.
+      
+Section Q_to_rat.
+  Variable q : Q.
+
+  Definition Q_to_rat : rat :=
+    fracq (Z_to_int (Qnum q), Z_to_int (Zpos (Qden q))).
+End Q_to_rat.
+
+Section Q_to_rat_lemmas.
+  Lemma Q_to_rat1 : Q_to_rat 1 = 1%R.
+  Proof. by rewrite /Q_to_rat /= Pos2Nat.inj_1 fracqE /= divr1. Qed.
+    
+  Lemma Q_to_rat_plus (r s : Q) :
+    Q_to_rat (r + s) = (Q_to_rat r + Q_to_rat s)%Q.
+  Proof.
+    rewrite /Q_to_rat !Z_to_int_plus.
+    case: r => a b; case s => c d /=.
+    rewrite !Z_to_int_mul /= addq_frac /=.
+    f_equal; rewrite /addq_subdef //=; f_equal.
+    by rewrite Pos2Nat.inj_mul.
+    by apply: PosN0.
+    by apply: PosN0.    
+  Qed.
+
+  Lemma Q_to_rat_mul (r s : Q) :
+    Q_to_rat (r * s) = (Q_to_rat r * Q_to_rat s)%Q.
+  Proof.
+    rewrite /Q_to_rat /=; case: r => a b; case s => c d /=.
+    rewrite Z_to_int_mul mulq_frac /mulq_subdef /=; f_equal.
+    by rewrite Pos2Nat.inj_mul.
+  Qed.
+End Q_to_rat_lemmas.
+  
