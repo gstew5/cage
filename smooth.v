@@ -78,7 +78,8 @@ Class NegativeCostSmoothnessAxiomClass
     forall t t' : (cT ^ cN)%type,
       \sum_(i : 'I_cN) cost i (upd i t t') <=
       lambda of cT * Cost t' + mu of cT * Cost t.
-Notation "'negative_cost_smooth_ax'" := (@NegativeCostSmoothnessAxiom _ _ _ _ _ _ _ _ _ _ _ _).
+Notation "'negative_cost_smooth_ax'" :=
+  (@NegativeCostSmoothnessAxiom _ _ _ _ _ _ _ _ _ _ _ _).
 
 Class negative_cost_smooth
       `(negativeCostSmoothnessAxiomInstance :
@@ -97,14 +98,14 @@ Class PayoffMuAxiomClass
   payoff_mu_axiom : 0 <= mu of mT.
 
 Class PayoffSmoothnessAxiomClass
-      (cT : finType) (cN : nat) (rty : realFieldType)
-      `(gameInstance : payoff_game cT cN rty)
-      `(lambdaAxiomInstance : LambdaAxiomClass cT rty)
-      `(payoffMuAxiomInstance : PayoffMuAxiomClass cT rty) : Type :=
+      (pT : finType) (pN : nat) (rty : realFieldType)
+      `(gameInstance : payoff_game pT pN rty)
+      `(lambdaAxiomInstance : LambdaAxiomClass pT rty)
+      `(payoffMuAxiomInstance : PayoffMuAxiomClass pT rty) : Type :=
   PayoffSmoothnessAxiom :
-    forall t t' : (cT ^ cN)%type,
-      \sum_(i : 'I_cN) payoff i (upd i t t') >=
-      lambda of cT * Payoff t' - mu of cT * Payoff t.
+    forall t t' : (pT ^ pN)%type,
+      \sum_(i : 'I_pN) payoff i (upd i t t') >=
+      lambda of pT * Payoff t' - mu of pT * Payoff t.
 Notation "'payoff_smooth_ax'" := (@PayoffSmoothnessAxiom _ _ _ _ _ _ _ _ _ _ _ _).
 
 Class payoff_smooth

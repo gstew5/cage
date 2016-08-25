@@ -23,7 +23,7 @@ Section int_to_Z.
   Definition int_to_positive : positive :=
     match i with
     | Posz n => Pos.of_nat n
-    | Negz n => Pos.of_nat n
+    | Negz n => Pos.of_succ_nat n (* Pos.of_nat (n + 1) *)
     end.
 
   Definition int_to_Z : Z :=
@@ -174,10 +174,81 @@ Proof.
   by rewrite pos_of_succ_nat_plus.
 Qed.
 
+Lemma of_succ_nat_of_nat_plus_1 (n : nat):
+  Pos.of_succ_nat n = Pos.of_nat (n + 1).
+Proof.
+  elim n. auto.
+  move => n' IHn /=.
+  case H: ((n' + 1)%Nrec).
+  by rewrite -addnE addn1 in H; congruence.
+  by rewrite -H -addnE IHn.
+Qed.
+
+Lemma le_plus_minus_r (a : nat):
+  (0 < a)%N ->
+  a = (a - 1 + 1)%N.
+Proof. move => H. by rewrite addnC subnKC. Qed.
+
+Lemma int_to_positive_mul_1 (a b : nat) (H : (a <> 0)%N) :
+  (a * b.+1)%N = ((a * b.+1 - 1).+1)%N.
+Proof.
+   rewrite -[(_ * _ - 1).+1] addn1 -le_plus_minus_r //. rewrite muln_gt0.
+   apply /andP. split; auto. rewrite lt0n. apply /eqP. auto.
+Qed.
+
+Lemma foiln (a b c d : nat) :
+  ((a + b) * (c + d) = a * c + b * c + a * d + b * d)%N.
+Proof. by rewrite mulnDr mulnDl mulnDl addnA. Qed.
+
 Lemma int_to_positive_mul (s r : int) :
+  s <> Posz(0%N) ->
+  r <> Posz(0%N) ->
   int_to_positive (s * r) = Pos.mul (int_to_positive s) (int_to_positive r).
 Proof.
-Admitted.
+  move => Hs Hr.
+  destruct s as [sn|sn]; destruct r as [rn|rn].
+  (* case: s=> sn. *)
+  (* - case: r=> rn. *)
+    + simpl. rewrite Nat2Pos.inj_mul //; auto.
+    + rewrite /GRing.mul /=. 
+      have H0: ((sn * rn.+1)%N = ((sn * rn.+1 - 1).+1)%N).
+      { apply: int_to_positive_mul_1. auto. }
+      rewrite H0 -NegzE /= of_succ_nat_of_nat_plus_1 addn1 -H0.
+      rewrite Nat2Pos.inj_mul; auto.
+      rewrite of_succ_nat_of_nat_plus_1 addn1 //.
+  (* - case: r=> rn. *)
+      + rewrite /GRing.mul /=. 
+        have H0: ((rn * sn.+1)%N = ((rn * sn.+1 - 1).+1)%N).
+        { apply: int_to_positive_mul_1. auto. }
+        rewrite H0 -NegzE /= of_succ_nat_of_nat_plus_1 addn1 -H0 mulnC.
+        rewrite Nat2Pos.inj_mul; auto.
+        rewrite of_succ_nat_of_nat_plus_1 addn1 //.
+      + rewrite /GRing.mul /=.
+        case H0: ((rn + (sn * rn.+1)%Nrec)%coq_nat).
+        * have ->: ((rn = 0)%N).
+          { rewrite -mulnE in H0. omega. }
+          have ->: ((sn = 0)%N).
+          { rewrite -mulnE -addn1 in H0.
+            case H1: (sn == 0%N).
+            move: H1 => /eqP H1. apply H1.
+            move: H1 => /eqP /eqP H1. rewrite -lt0n in H1.
+            have H2: ((0 < rn + sn * (rn + 1))%N).
+            { rewrite addn_gt0. apply /orP. right. rewrite muln_gt0.
+              apply /andP. split. auto. rewrite addn1 //. }
+            have H3: ((rn + sn * (rn + 1))%N = 0%N). apply H0.
+            rewrite H3 in H2. inversion H2. }
+            by [].
+        * rewrite -H0 -mulnE -Nat2Pos.inj_succ -add1n addnC.
+          rewrite !of_succ_nat_of_nat_plus_1 -add1n -Nat2Pos.inj_mul.
+          rewrite mulnDr muln1 addnC 2!addnA.
+          have ->: (Pos.of_nat ((sn + 1) * (rn + 1))%coq_nat =
+                    Pos.of_nat ((sn + 1) * (rn + 1))) by [].
+          rewrite foiln mul1n !muln1 addnC addnA [(1 + _)%N] addnC.
+          rewrite addnA -addnA [(1 + _)%N] addnC addnA //.
+          by rewrite addn1.
+          by rewrite addn1.
+          rewrite -mulnE in H0. by rewrite addn1 H0.
+Qed.
 
 Lemma int_to_Z_mul (s r : int) :
   Zmult (int_to_Z s) (int_to_Z r) = int_to_Z (s * r).
@@ -320,7 +391,17 @@ Section rat_to_Q_lemmas.
       admit. }
     rewrite /nat_of_bool /Qeq /Qnum /Qden expr0z.
     admit.
-  Admitted.  
+  Admitted.
+
+  Lemma rat_to_Q_helper (x : int) P :
+    (0 < x) && P ->
+    x <> 0.
+  Proof.
+    move => /andP [H0 H1].
+    case H2: (x == 0).
+    move: H2 => /eqP H2. by rewrite H2 in H0.
+    by move: H2 => /eqP H2.
+Qed.
     
   Lemma rat_to_Q_plus (r s : rat) :
     Qeq (rat_to_Q (r + s)) (Qplus (rat_to_Q r) (rat_to_Q s)).
@@ -343,7 +424,9 @@ Section rat_to_Q_lemmas.
     by [].
     by case: (andP H).
     by case: (andP H2).
-  Qed.      
+    apply: rat_to_Q_helper H.
+    apply: rat_to_Q_helper H2.
+  Qed.
   
   Lemma rat_to_Q_mul (r s : rat) :
     Qeq (rat_to_Q (r * s)) (Qmult (rat_to_Q r) (rat_to_Q s)).
@@ -360,7 +443,9 @@ Section rat_to_Q_lemmas.
     rewrite /Qmult /=.
     rewrite int_to_positive_mul.
     by rewrite -int_to_Z_mul.
-  Qed.      
+    apply: rat_to_Q_helper i.
+    apply: rat_to_Q_helper i'.
+  Qed.
 End rat_to_Q_lemmas.    
 
 Section rat_to_R.
