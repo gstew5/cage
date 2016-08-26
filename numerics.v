@@ -458,15 +458,62 @@ Lemma int_to_Z_pos_of_nat (a : nat):
       { apply ltz0_abs. by apply: H2. }
       have H5: ((@normr int_numDomainType x) = absz x) by [].
       by rewrite -H5 H4 opprK.
-
-      rewrite divn_gt0. admit.
-      admit.
-      rewrite divn_gt0. admit.
-      admit.
-      rewrite divn_gt0. admit.
-      admit. }
+      rewrite divn_gt0.
+      {
+        case: (dvdn_gcdr `|x| `|y|)%N => H3.
+        apply dvdn_leq => //.
+        rewrite absz_gt0.
+        rewrite ltr_neqAle in H.
+        case/andP: H => H1 H4.
+        apply/eqP.
+        move/eqP: H1 => H1 H5.
+        symmetry in H5. contradiction.
+      }
+      {
+        rewrite gcdn_gt0. apply/orP; right.
+        rewrite absz_gt0.
+        rewrite ltr_neqAle in H.
+        case/andP: H => H1 H4.
+        apply/eqP.
+        move/eqP: H1 => H1 H5.
+        symmetry in H5. contradiction.
+      }
+      rewrite divn_gt0.
+      {
+        case: (dvdn_gcdl `|x| `|y|)%N => H3.
+        apply dvdn_leq => //.
+        rewrite absz_gt0.
+        rewrite ltr_neqAle in H2.
+        case/andP: H2 => //.
+      }
+      {
+        rewrite gcdn_gt0. apply/orP; right.
+        rewrite absz_gt0.
+        rewrite ltr_neqAle in H.
+        case/andP: H => H1 H4.
+        apply/eqP.
+        move/eqP: H1 => H1 H5.
+        symmetry in H5. contradiction.
+      }
+      rewrite divn_gt0.
+      {
+        case: (dvdn_gcdl `|x| `|y|)%N => H3.
+        apply dvdn_leq => //.
+        rewrite absz_gt0.
+        rewrite ltr_neqAle in H2.
+        case/andP: H2 => //.
+      }
+      {
+        rewrite gcdn_gt0. apply/orP; right.
+        rewrite absz_gt0.
+        rewrite ltr_neqAle in H.
+        case/andP: H => H1 H4.
+        apply/eqP.
+        move/eqP: H1 => H1 H5.
+        symmetry in H5. contradiction.
+      }
+    }
     rewrite /nat_of_bool /Qeq /Qnum /Qden expr0z.
-    admit.
   Admitted.
 
   Lemma lt_and_P_ne_0 (x : int) P :
@@ -670,6 +717,25 @@ Qed.
 Section Z_to_int_lemmas.
   Lemma Z_to_int_pos_sub p q :
     Z_to_int (Z.pos_sub q p) = (Posz (Pos.to_nat q) + Negz (Pos.to_nat p).-1)%R.
+  Proof.
+(*    rewrite Z.pos_sub_spec.
+    case H: (q ?= p)%positive; *)
+    rewrite NegzE => //;
+    move: (Pos2Nat.is_pos p) => H0;
+    rewrite Nat.succ_pred_pos => //.
+    have H: (Posz(Pos.to_nat q) - Posz(Pos.to_nat p))%R
+              = (minus (Pos.to_nat q) (Pos.to_nat p))%R.
+    admit.
+    rewrite H.
+(*    SearchAbout Pos.to_nat.
+    SearchAbout Posz. rewrite PoszD. *)
+(*
+    rewrite -nat_of_P_minus_morphism.    
+    rewrite -Pos2Nat.inj_add.
+    SearchAbout Pos.to_nat.
+    SearchAbout Negz.
+    destruct (Z.pos_sub_discr q p).
+    simpl. *)
   Admitted.                                
   
   Lemma Z_to_int_plus (r s : Z) :
