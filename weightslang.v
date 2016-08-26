@@ -29,6 +29,7 @@ Section com.
   | EBinop : binop -> expr -> expr -> expr.
 
   Inductive com : Type :=
+  | CSkip : com
   | CUpdate : (A -> expr) -> com
   | CRecv : com
   | CSend : com
@@ -39,21 +40,26 @@ End com.
 Arguments EVal [A] _.
 Arguments EEps [A].
 
+Arguments CSkip [A].
 Arguments CRecv [A].
 Arguments CSend [A].
 Arguments CRepeat [A] _.
 
 Definition mult_weights (A : Type) : com A :=
-  CRepeat
-    (CSeq
-       CRecv
-       (CSeq (CUpdate (fun a : A =>
-                         (EBinop BMult
-                              (EWeight a)
-                              (EBinop BPlus
-                                      (EVal (QVal 1))
-                                      (EBinop BMult EEps (ECost a))))))
-             CSend)).
+  CSeq
+    (** 1. Initialize weights to uniform *)
+    (CUpdate (fun a : A => EVal (QVal 1)))
+    (** 2. The main MWU loop *)
+    (CRepeat
+       (CSeq
+          CRecv
+          (CSeq (CUpdate (fun a : A =>
+                            (EBinop BMult
+                                    (EWeight a)
+                                    (EBinop BPlus
+                                            (EVal (QVal 1))
+                                            (EBinop BMult EEps (ECost a))))))
+                CSend))).
 
 Section semantics.
   Local Open Scope ring_scope.
@@ -100,7 +106,7 @@ Section semantics.
     by move => H a; apply: (CMAXP _ (projT2 cs) c' H a).
   Defined.
     
-  Inductive step : com A -> state -> state -> Prop :=
+  Inductive step : com A -> state -> com A -> state -> Prop :=
   | SUpdate :
       forall f s,
         let: s' :=
@@ -113,7 +119,7 @@ Section semantics.
              (SEpsilonOk s)
              (SOutputs s) 
         in
-        step (CUpdate f) s s'
+        step (CUpdate f) s CSkip s'
              
   | SRecv :
       forall (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]) s,
@@ -127,7 +133,7 @@ Section semantics.
              (SEpsilonOk s)
              (SOutputs s)
         in 
-        step CRecv s s'
+        step CRecv s CSkip s'
 
   | SSend :
       forall s,
@@ -142,16 +148,65 @@ Section semantics.
              (pdist a0 (SEpsilonOk s) (CMAXb_CMAX (projT2 (SPrevCosts s)))
                     :: SOutputs s)
         in 
-        step CSend s s
+        step CSend s CSkip s'
 
-  | SSeq :
-      forall c1 c2 s1 s2 s3,
-        step c1 s1 s2 ->
-        step c2 s2 s3 ->
-        step (CSeq c1 c2) s1 s3
+  | SSeq1 :
+      forall c2 s,
+        step (CSeq CSkip c2) s c2 s
+             
+  | SSeq2 :
+      forall c1 c1' c2 s1 s2,
+        step c1 s1 c1' s2 ->
+        step (CSeq c1 c2) s1 (CSeq c1' c2) s2
 
   | SRepeat :
-      forall c s s',
-        step (CSeq c (CRepeat c)) s s' ->
-        step (CRepeat c) s s'.
+      forall c s,
+        step (CRepeat c) s (CSeq c (CRepeat c)) s
+
+  | STrans :
+      forall c1 c2 c3 s1 s2 s3,
+        step c1 s1 c2 s2 ->
+        step c2 s2 c3 s3 ->
+        step c1 s1 c3 s3.
 End semantics.
+
+Require Import Reals Rpower Ranalysis Fourier.
+
+Section semantics_lemmas.
+  Local Open Scope ring_scope.
+  Variable A : finType.
+  Variable a0 : A. (*A must be inhabited.*)
+
+  (** The number of cost vectors received from the environment *)
+  Definition T (s : state A) := INR (size (projT1 (SPrevCosts s))).+1.
+
+  (** Current append previous cost vectors *)  
+  Definition all_costs (s : state A) :=
+    CMAX_costs_seq_cons (SCostsOk s) (SPrevCosts s).
+
+  (** The total expected cost of state [s] *)    
+  Definition state_expCost (s : state A) :=
+    big_sum (zip (projT1 (all_costs s)) (SOutputs s))
+            (fun p =>
+               let: (c, d) := p in
+               rat_to_R (expectedValue d (fun a => c a))).
+
+  (** The best fixed action (in hindsight) for state [s] *)      
+  Definition astar (s : state A) :=
+    best_action a0 (projT1 (all_costs s)).
+
+  Definition OPT (s : state A) :=
+    \sum_(c <- projT1 (all_costs s)) c (astar s).
+  Definition OPTR (s : state A) := rat_to_R (OPT s).
+
+  Definition eps (s : state A) := rat_to_R (SEpsilon s).
+
+  Notation size_A := (rat_to_R #|A|%:R).
+
+  Lemma MWU_epsilon_no_regret :
+    forall (c' : com A) (s s' : state A),
+      step a0 (mult_weights A) s c' s' ->
+      ((state_expCost s' - OPTR s') / T s' <= eps s + ln size_A / (eps s * T s'))%R.
+  Proof.
+  Admitted. (*GS TODO*)    
+End semantics_lemmas.
