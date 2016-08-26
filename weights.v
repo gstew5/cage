@@ -434,7 +434,8 @@ Section weights.
     case: (andP eps_range)=> H1 H2.
     have H3: (1 / 2 = rat_to_R (1 / 2%:R))%R.
     { rewrite /Rdiv rat_to_R_mul rat_to_R1; f_equal.
-      by rewrite rat_to_R_inv rat_to_R2. }
+      rewrite rat_to_R_inv => //.
+      by rewrite rat_to_R2. }
     by rewrite H3; apply: rat_to_R_le.
   Qed.
   
