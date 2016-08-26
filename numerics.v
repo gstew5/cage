@@ -369,6 +369,60 @@ Section rat_to_Q_lemmas.
   Delimit Scope R with R_ssr.  
   Delimit Scope R_scope with R.
 
+  Lemma Z_of_nat_pos_of_nat (a : nat):
+    (0 < a)%N ->
+    Z.of_nat a =
+    Z.pos (Pos.of_nat a).
+  Proof.
+    rewrite /Z.of_nat. case: a. move => H. inversion H.
+    move => n H. rewrite of_succ_nat_of_nat_plus_1. rewrite addn1.
+      by [].
+  Qed.
+
+Lemma int_to_Z_pos_of_nat (a : nat):
+    (0 < a)%N ->
+    int_to_Z (Posz a) =
+    Z.pos (Pos.of_nat a).
+  Proof.
+    case: a. move => H. inversion H.
+    move => n H. by rewrite -Z_of_nat_pos_of_nat.
+  Qed.
+
+  Lemma int_to_Z_pos_of_nat_mul (a : int) (b : nat) (H : (0 < b)%N):
+    Zmult (int_to_Z a) (Z.pos (Pos.of_nat b)) = int_to_Z (a * Posz b).
+  Proof.
+    rewrite -int_to_Z_pos_of_nat //. by rewrite int_to_Z_mul.
+  Qed.
+
+  Lemma int_to_Z_inj (a b : int) :
+    int_to_Z a = int_to_Z b ->
+    a = b.
+  Proof.
+    rewrite /int_to_Z.
+    case a=>n; case b=>n0; move => H.
+    apply Nat2Z.inj_iff in H. auto.
+    have H1: (Zle 0 (Z.of_nat n)).
+    { apply Nat2Z.is_nonneg. }
+    have H2: (Zlt (Z.neg (Pos.of_succ_nat n0)) 0).
+    { apply Zlt_neg_0. }
+    omega.
+    have H1: (Zle 0 (Z.of_nat n0)).
+    { apply Nat2Z.is_nonneg. }
+    have H2: (Zlt (Z.neg (Pos.of_succ_nat n)) 0).
+    { apply Zlt_neg_0. }
+    omega.
+    inversion H. apply SuccNat2Pos.inj_iff in H1. auto.
+  Qed.
+
+  Lemma int_to_Z_inj_iff (a b : int) :
+    int_to_Z a = int_to_Z b <-> a = b.
+  Proof.
+    split. apply: int_to_Z_inj. move => H. by rewrite H. Qed.
+
+  Lemma pos_muln (a b : nat) :
+    Posz a * Posz b = Posz (muln a b).
+  Proof. by []. Qed.
+
   Lemma rat_to_Q_fracq_pos (x y : int) :
     0 < y -> 
     Qeq (rat_to_Q (fracq (x, y))) (int_to_Z x # int_to_positive y).
@@ -387,6 +441,29 @@ Section rat_to_Q_lemmas.
       rewrite expr1z.
       rewrite /Qeq /Qnum /Qden.
       rewrite posint_to_positive => //.
+
+      rewrite Z_of_nat_pos_of_nat.
+      rewrite int_to_Z_pos_of_nat_mul.
+      rewrite int_to_Z_mul.
+      rewrite -int_to_Z_pos_of_nat.
+      rewrite int_to_Z_mul.
+      apply int_to_Z_inj_iff.
+      rewrite [_%N * y] mulrC mulrA [y * -1] mulrC -mulrA.
+      have H1: (`|y| = y%N) by apply: gtz0_abs.
+      rewrite -{1}H1.
+      have H3: ((@normr int_numDomainType y) = absz y) by [].
+      rewrite H3 /=. rewrite pos_muln -muln_divCA_gcd.
+      rewrite mulN1r -pos_muln -mulNr.
+      have H4: (`|x| = - x).
+      { apply ltz0_abs. by apply: H2. }
+      have H5: ((@normr int_numDomainType x) = absz x) by [].
+      by rewrite -H5 H4 opprK.
+
+      rewrite divn_gt0. admit.
+      admit.
+      rewrite divn_gt0. admit.
+      admit.
+      rewrite divn_gt0. admit.
       admit. }
     rewrite /nat_of_bool /Qeq /Qnum /Qden expr0z.
     admit.
@@ -603,7 +680,7 @@ Section Z_to_int_lemmas.
     { case H2: s => [|q|q].
       { by rewrite addr0. }
       { by rewrite /= Pos2Nat.inj_add. }
-        by rewrite /= Z_to_int_pos_sub. }
+      by rewrite /= Z_to_int_pos_sub. }
     case H2: s => [|q|q].
     { by rewrite addr0. }
     { by rewrite /= Z_to_int_pos_sub. }
@@ -626,15 +703,12 @@ Section Z_to_int_lemmas.
       have ->: (Pos.to_nat q).-1.+1 = Pos.to_nat q.
       { apply: Pos_to_natNS. }
       rewrite mulrN.
-      rewrite prednK. auto. rewrite muln_gt0. apply /andP.
-      split; apply /ltP; apply Pos2Nat.is_pos. }
+      rewrite prednK //. rewrite muln_gt0. apply /andP.
+      split; apply /ltP; apply: Pos2Nat.is_pos. }
     case H2: s => [|q|q].
     { by rewrite mulr0. }
     { rewrite /= Pos2Nat.inj_mul -2!opp_posz_negz Pos_to_natNS.
       rewrite -(S_pred (Pos.to_nat _ * _)%coq_nat 0); first by rewrite mulNr.
-      Search (0 < _ * _).
-      have ->: ((0 < (Pos.to_nat p * Pos.to_nat q)%coq_nat)%coq_nat =
-                (0 < Pos.to_nat p * Pos.to_nat q)%coq_nat) by [].
       apply /ltP. rewrite muln_gt0. apply /andP.
       split; apply /ltP; apply Pos2Nat.is_pos. }
     rewrite /= Pos2Nat.inj_mul -2!opp_posz_negz 2!Pos_to_natNS.
