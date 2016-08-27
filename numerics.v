@@ -742,25 +742,37 @@ Section Z_to_int_lemmas.
   Lemma Z_to_int_pos_sub p q :
     Z_to_int (Z.pos_sub q p) = (Posz (Pos.to_nat q) + Negz (Pos.to_nat p).-1)%R.
   Proof.
-(*    rewrite Z.pos_sub_spec.
-    case H: (q ?= p)%positive; *)
-    rewrite NegzE => //;
-    move: (Pos2Nat.is_pos p) => H0;
-    rewrite Nat.succ_pred_pos => //.
-    have H: (Posz(Pos.to_nat q) - Posz(Pos.to_nat p))%R
-              = (minus (Pos.to_nat q) (Pos.to_nat p))%R.
-    admit.
-    rewrite H.
-(*    SearchAbout Pos.to_nat.
-    SearchAbout Posz. rewrite PoszD. *)
-(*
-    rewrite -nat_of_P_minus_morphism.    
-    rewrite -Pos2Nat.inj_add.
-    SearchAbout Pos.to_nat.
-    SearchAbout Negz.
-    destruct (Z.pos_sub_discr q p).
-    simpl. *)
-  Admitted.                                
+    rewrite Z.pos_sub_spec.
+    case H: (q ?= p)%positive.
+    {
+      apply Pos.compare_eq_iff in H.
+      rewrite NegzE H => //.
+      case: (Pos2Nat.is_succ p) => n0 H1.
+      rewrite H1 -pred_Sn addrN => //.
+    }
+    {
+      rewrite NegzE => //;
+      move: (Pos2Nat.is_pos p) => H0;
+      rewrite Nat.succ_pred_pos => //.
+      rewrite /Z_to_int NegzE prednK.
+      rewrite -opprB. apply /eqP.
+      rewrite eqr_opp. apply /eqP.
+      rewrite nat_of_P_minus_morphism => /=.
+    
+      admit.
+      admit.
+      admit.
+    }
+    {
+      rewrite NegzE => //;
+      move: (Pos2Nat.is_pos p) => H0;
+      rewrite Nat.succ_pred_pos => //.
+      rewrite /Z_to_int.
+      rewrite nat_of_P_minus_morphism => /=.
+      admit.
+      admit.
+    }
+    Admitted.
   
   Lemma Z_to_int_plus (r s : Z) :
     Z_to_int (r + s) = (Z_to_int r + Z_to_int s)%R.
