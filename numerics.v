@@ -423,6 +423,65 @@ Lemma int_to_Z_pos_of_nat (a : nat):
     Posz a * Posz b = Posz (muln a b).
   Proof. by []. Qed.
 
+  Lemma le_0_pos_num_gcdn (a b : int) (H : 0 < a) :
+    (0 < `|a| %/ gcdn `|b| `|a|)%N.
+  Proof.
+    rewrite divn_gt0.
+    {
+      case: (dvdn_gcdr `|a| `|b|)%N => H3.
+      apply dvdn_leq => //.
+      rewrite absz_gt0.
+      rewrite ltr_neqAle in H.
+      case/andP: H => H1 H4.
+      apply/eqP.
+      move/eqP: H1 => H1 H5.
+      symmetry in H5. contradiction.
+      by apply: dvdn_gcdr.
+    }
+    {
+      rewrite gcdn_gt0. apply/orP; right.
+      rewrite absz_gt0.
+      rewrite ltr_neqAle in H.
+      case/andP: H => H1 H4.
+      apply/eqP.
+      move/eqP: H1 => H1 H5.
+      symmetry in H5. contradiction.
+    }
+  Qed.
+
+  Lemma le_0_neg_num_gcdn (a b : int) (H : 0 < b) (H2 : a < 0) :
+    (0 < `|a| %/ gcdn `|a| `|b|)%N.
+  Proof.
+    rewrite divn_gt0.
+    {
+      case: (dvdn_gcdl `|a| `|b|)%N => H3.
+      apply dvdn_leq => //.
+      rewrite absz_gt0.
+      rewrite ltr_neqAle in H2.
+      case/andP: H2 => //.
+    }
+    {
+      rewrite gcdn_gt0. apply/orP; right.
+      rewrite absz_gt0.
+      rewrite ltr_neqAle in H.
+      case/andP: H => H1 H4.
+      apply/eqP.
+      move/eqP: H1 => H1 H5.
+      symmetry in H5. contradiction.
+    }
+  Qed.
+
+Lemma int_to_positive_to_Z (a : int) :
+  0 < a ->
+  Z.pos (int_to_positive a) = int_to_Z a.
+Proof.
+  rewrite /int_to_positive.
+  rewrite /int_to_Z.
+  case: a=> an H.
+  by rewrite Z_of_nat_pos_of_nat.
+  inversion H.
+Qed.
+
   Lemma rat_to_Q_fracq_pos (x y : int) :
     0 < y -> 
     Qeq (rat_to_Q (fracq (x, y))) (int_to_Z x # int_to_positive y).
@@ -441,11 +500,10 @@ Lemma int_to_Z_pos_of_nat (a : nat):
       rewrite expr1z.
       rewrite /Qeq /Qnum /Qden.
       rewrite posint_to_positive => //.
-
-      rewrite Z_of_nat_pos_of_nat.
-      rewrite int_to_Z_pos_of_nat_mul.
+      rewrite Z_of_nat_pos_of_nat; last by apply: le_0_neg_num_gcdn.
+      rewrite int_to_Z_pos_of_nat_mul; last by apply: le_0_neg_num_gcdn.
       rewrite int_to_Z_mul.
-      rewrite -int_to_Z_pos_of_nat.
+      rewrite -int_to_Z_pos_of_nat; last by apply: le_0_pos_num_gcdn.
       rewrite int_to_Z_mul.
       apply int_to_Z_inj_iff.
       rewrite [_%N * y] mulrC mulrA [y * -1] mulrC -mulrA.
@@ -457,64 +515,30 @@ Lemma int_to_Z_pos_of_nat (a : nat):
       have H4: (`|x| = - x).
       { apply ltz0_abs. by apply: H2. }
       have H5: ((@normr int_numDomainType x) = absz x) by [].
-      by rewrite -H5 H4 opprK.
-      rewrite divn_gt0.
-      {
-        case: (dvdn_gcdr `|x| `|y|)%N => H3.
-        apply dvdn_leq => //.
-        rewrite absz_gt0.
-        rewrite ltr_neqAle in H.
-        case/andP: H => H1 H4.
-        apply/eqP.
-        move/eqP: H1 => H1 H5.
-        symmetry in H5. contradiction.
-      }
-      {
-        rewrite gcdn_gt0. apply/orP; right.
-        rewrite absz_gt0.
-        rewrite ltr_neqAle in H.
-        case/andP: H => H1 H4.
-        apply/eqP.
-        move/eqP: H1 => H1 H5.
-        symmetry in H5. contradiction.
-      }
-      rewrite divn_gt0.
-      {
-        case: (dvdn_gcdl `|x| `|y|)%N => H3.
-        apply dvdn_leq => //.
-        rewrite absz_gt0.
-        rewrite ltr_neqAle in H2.
-        case/andP: H2 => //.
-      }
-      {
-        rewrite gcdn_gt0. apply/orP; right.
-        rewrite absz_gt0.
-        rewrite ltr_neqAle in H.
-        case/andP: H => H1 H4.
-        apply/eqP.
-        move/eqP: H1 => H1 H5.
-        symmetry in H5. contradiction.
-      }
-      rewrite divn_gt0.
-      {
-        case: (dvdn_gcdl `|x| `|y|)%N => H3.
-        apply dvdn_leq => //.
-        rewrite absz_gt0.
-        rewrite ltr_neqAle in H2.
-        case/andP: H2 => //.
-      }
-      {
-        rewrite gcdn_gt0. apply/orP; right.
-        rewrite absz_gt0.
-        rewrite ltr_neqAle in H.
-        case/andP: H => H1 H4.
-        apply/eqP.
-        move/eqP: H1 => H1 H5.
-        symmetry in H5. contradiction.
-      }
-    }
+      by rewrite -H5 H4 opprK. }
     rewrite /nat_of_bool /Qeq /Qnum /Qden expr0z.
-  Admitted.
+    apply negbT in H2. rewrite -lerNgt in H2.
+    move: H2. case: x => xn H2; last by inversion H2.
+    { rewrite lez_nat leq_eqVlt in H2.
+      move: H2 => /orP [H2|H2].
+      move: H2 => /eqP H2. subst.
+      rewrite div0n /= //.
+      rewrite Z_of_nat_pos_of_nat;
+        last by rewrite gcdnC; apply: le_0_pos_num_gcdn.
+      rewrite !int_to_Z_pos_of_nat_mul;
+        try (rewrite gcdnC; apply: le_0_pos_num_gcdn => //);
+        try (apply le_0_pos_num_gcdn => //).
+      rewrite mul1r.
+      rewrite int_to_positive_to_Z //.
+      rewrite int_to_Z_mul.
+      rewrite int_to_Z_inj_iff.
+      rewrite mulrC.
+      have H1: (`|y| = y%N) by apply: gtz0_abs.
+      rewrite -{1}H1.
+      have H3: ((@normr int_numDomainType y) = absz y) by [].
+      rewrite H3 /=. rewrite 2!pos_muln. 
+      by rewrite -muln_divCA_gcd. }
+  Qed.
 
   Lemma lt_and_P_ne_0 (x : int) P :
     (0 < x) && P ->
