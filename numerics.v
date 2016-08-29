@@ -758,10 +758,28 @@ Section Z_to_int_lemmas.
       rewrite -opprB. apply /eqP.
       rewrite eqr_opp. apply /eqP.
       rewrite nat_of_P_minus_morphism => /=.
-    
-      admit.
-      admit.
-      admit.
+      apply nat_of_P_lt_Lt_compare_morphism in H.
+      generalize dependent (Pos.to_nat p);
+      induction n => H0 H1;
+        first by inversion H1.
+      inversion H0.
+      {
+        rewrite H2 -minus_Sn_m; last by left.
+        rewrite minus_diag [Posz n.+1] intS -addrA addrN => //.
+      }
+      {
+        apply IHn in H2.
+        rewrite -minus_Sn_m. rewrite !intS H2 addrA => //.
+        omega. omega.
+      } 
+      case: (Pos.compare_lt_iff q p) => H1 _.
+      apply Pos.compare_gt_iff. apply H1 in H => //.
+      case: (Pos.compare_lt_iff q p) => H1 H2.
+      apply H1 in H.
+      rewrite nat_of_P_minus_morphism.
+      rewrite subn_gt0. apply/ltP.
+      apply nat_of_P_lt_Lt_compare_morphism => //.
+      apply Pos.compare_gt_iff => //.
     }
     {
       rewrite NegzE => //;
@@ -769,11 +787,23 @@ Section Z_to_int_lemmas.
       rewrite Nat.succ_pred_pos => //.
       rewrite /Z_to_int.
       rewrite nat_of_P_minus_morphism => /=.
-      admit.
-      admit.
+      apply nat_of_P_gt_Gt_compare_morphism in H.
+      generalize dependent (Pos.to_nat q).
+      induction n => H1;
+        first by inversion H1.
+      inversion H1.
+      {
+        rewrite H2 -minus_Sn_m; last by left.
+        rewrite minus_diag [Posz n.+1] intS -addrA addrN => //.
+      }
+      {
+        apply IHn in H2.
+        rewrite -minus_Sn_m. rewrite !intS H2 addrA => //.
+        omega.
+      }
+      by [].
     }
-    Admitted.
-  
+  Qed.  
   Lemma Z_to_int_plus (r s : Z) :
     Z_to_int (r + s) = (Z_to_int r + Z_to_int s)%R.
   Proof.
