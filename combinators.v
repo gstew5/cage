@@ -362,7 +362,7 @@ Definition ctraffic (m : M.t resource) : Qcoq :=
             end)
          m 0%coq_Qscope.
 
-Definition resource_ccost (i : OrdPos.t) (m : M.t resource) : Qcoq :=
+Definition resource_ccost (i : OrdNat.t) (m : M.t resource) : Qcoq :=
   match M.find i m with
   | Some RYes => ctraffic m
   | Some RNo => 0%coq_Qscope
