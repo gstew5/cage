@@ -177,12 +177,12 @@ Section semantics_lemmas.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
 
-  (** The number of cost vectors received from the environment *)
-  Definition T (s : state A) := INR (size (projT1 (SPrevCosts s))).+1.
-
   (** Current append previous cost vectors *)  
   Definition all_costs (s : state A) :=
     CMAX_costs_seq_cons (SCostsOk s) (SPrevCosts s).
+
+  (** The number of cost vectors received from the environment *)
+  Definition T (s : state A) := INR (size (projT1 (all_costs s))).
 
   (** The total expected cost of state [s] *)    
   Definition state_expCost (s : state A) :=
@@ -202,11 +202,23 @@ Section semantics_lemmas.
   Definition eps (s : state A) := rat_to_R (SEpsilon s).
 
   Notation size_A := (rat_to_R #|A|%:R).
-
-  Lemma MWU_epsilon_no_regret :
+  
+  Lemma mult_weights_refines_MWU :
+    forall (c' : com A) (s s' : state A),
+      step a0 (mult_weights A) s c' s' ->
+      state_expCost s' =
+      expCostsR a0 (CMAXb_CMAX (projT2 (all_costs s'))) (SEpsilonOk s).
+  Proof.
+  Admitted. (*GS TODO*)
+  
+  Lemma mult_weights_epsilon_no_regret :
     forall (c' : com A) (s s' : state A),
       step a0 (mult_weights A) s c' s' ->
       ((state_expCost s' - OPTR s') / T s' <= eps s + ln size_A / (eps s * T s'))%R.
   Proof.
-  Admitted. (*GS TODO*)    
+    move => c' s s' H.
+    rewrite (mult_weights_refines_MWU H) /OPTR /OPT /astar /T /eps.
+    have H2: (0 < size (projT1 (all_costs s')))%N by [].
+    by apply: perstep_weights_noregret.
+  Qed.
 End semantics_lemmas.
