@@ -118,3 +118,29 @@ Proof.
   rewrite rat_to_R_mul IH.
     by f_equal; rewrite rat_to_R_plus rat_to_R_opp rat_to_R_mul.
 Qed.    
+
+(** Q bigops *)
+
+Delimit Scope Q_scope with Q.
+
+Fixpoint big_sumQ (T : Type) (cs : seq T) (f : T -> Q) : Q :=
+  if cs is [:: c & cs'] then (f c + big_sumQ cs' f)%Q
+  else 0%Q.
+
+Lemma big_sumQ_nmul (T : Type) (cs : seq T) (f : T -> Q) :
+  Qeq (big_sumQ cs (fun c => - f c))%Q (- big_sumQ cs [eta f])%Q.
+Proof.
+  elim: cs=> /=; first by [].
+    by move => a l IH; rewrite IH Qopp_plus.
+Qed.
+
+Lemma big_sumQ_ext T (cs cs' : seq T) f f' :
+  cs = cs' -> f =1 f' -> big_sumQ cs f = big_sumQ cs' f'.
+Proof. by move=> <- H; elim: cs=> //= a l ->; f_equal; apply: H. Qed.
+
+Lemma big_sumQ_scalar T (cs : seq T) r f :
+  Qeq (big_sumQ cs (fun c => r * f c))%Q (r * big_sumQ cs (fun c => f c))%Q.
+Proof.
+  elim: cs=> /=. rewrite Qmult_0_r. apply Qeq_refl.
+    by move => a l IH; rewrite IH Qmult_plus_distr_r.
+Qed.
