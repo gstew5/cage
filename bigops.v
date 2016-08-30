@@ -22,6 +22,20 @@ Proof.
     by move=> a l IH; rewrite Ropp_plus_distr IH.
 Qed.      
 
+Lemma big_sum_ext' T U (cs : seq T) (cs' : seq U) f f' :
+  length cs = length cs' ->
+  (List.Forall
+     (fun p =>
+        let: (c, c') := p in
+        f c = f' c')
+     (zip cs cs')) -> 
+  big_sum cs f = big_sum cs' f'.
+Proof.
+  move=> H H2; elim: cs cs' H H2; first by case.
+  move => a l IH; case => // a' l' H H2; case: H => /= H3.
+  by inversion H2; subst; rewrite H1 (IH l').
+Qed.
+
 Lemma big_sum_ext T (cs cs' : seq T) f f' :
   cs = cs' -> f =1 f' -> big_sum cs f = big_sum cs' f'.
 Proof. by move=> <- H; elim: cs=> //= a l ->; f_equal; apply: H. Qed.

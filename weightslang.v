@@ -35,6 +35,16 @@ Section com.
   | CSend : com
   | CSeq : com -> com -> com
   | CRepeat : com -> com.
+
+  Fixpoint size_com (c : com) : nat :=
+    match c with
+    | CSkip => 0
+    | CUpdate _ => 0
+    | CRecv => 0
+    | CSend => 0
+    | CSeq c1 c2 => 1 + size_com c1 + size_com c2
+    | CRepeat c' => 2 + size_com c'
+    end.
 End com.
 
 Arguments EVal [A] _.
@@ -45,21 +55,67 @@ Arguments CRecv [A].
 Arguments CSend [A].
 Arguments CRepeat [A] _.
 
+Lemma val_eq_dec (v1 v2 : val) : {v1=v2}+{v1<>v2}.
+Proof.
+  decide equality.
+  case: q; case: q0 => x y x' y'.
+  case: (positive_eq_dec y y').
+  { move => ->.
+    case: (Z_eq_dec x x').
+    { move => ->.
+      by left. }
+    move => H; right => H2; inversion H2; subst => //. }
+  by move => H; right; inversion 1; subst.
+Qed.    
+
+Lemma eqType_eq_dec (A : eqType) (a s : A) : {a=s}+{a<>s}.
+Proof.                                                         
+  case H: (a == s).
+  { by move: (eqP H) => ->; left. }
+  { by right => H2; subst a; rewrite eq_refl in H. }
+Qed.
+                                                         
+Lemma expr_eq_dec (A : eqType) (e1 e2 : expr A) : {e1=e2}+{e1<>e2}.
+Proof.
+  decide equality.
+  apply: val_eq_dec.
+  apply: eqType_eq_dec.
+  apply: eqType_eq_dec.
+  decide equality.
+Qed.  
+
+(** Commands aren't decidable in general, because they allow 
+    embedded Coq functions in CUpdate. *)
+
+Lemma com_Repeat_dec A (c : com A) :
+  (exists c1, c=CRepeat c1) \/ forall c1, c<>CRepeat c1.
+Proof.
+  case: c; try solve[right => c0 H; congruence].
+  { move => c c0; right => c3; congruence. }
+  by move => c; left; exists c.
+Qed.  
+
+Definition mult_weights_body (A : Type) : com A :=
+  CRepeat
+    (CSeq
+       CRecv
+       (CSeq (CUpdate (fun a : A =>
+                         (EBinop BMult
+                                 (EWeight a)
+                                 (EBinop BPlus
+                                         (EVal (QVal 1))
+                                         (EBinop BMult EEps (ECost a))))))
+             CSend)).
+
+Definition mult_weights_init (A : Type) : com A :=
+  CUpdate (fun a : A => EVal (QVal 1)).
+
 Definition mult_weights (A : Type) : com A :=
   CSeq
     (** 1. Initialize weights to uniform *)
-    (CUpdate (fun a : A => EVal (QVal 1)))
+    (mult_weights_init A)
     (** 2. The main MWU loop *)
-    (CRepeat
-       (CSeq
-          CRecv
-          (CSeq (CUpdate (fun a : A =>
-                            (EBinop BMult
-                                    (EWeight a)
-                                    (EBinop BPlus
-                                            (EVal (QVal 1))
-                                            (EBinop BMult EEps (ECost a))))))
-                CSend))).
+    (mult_weights_body A).
 
 Section semantics.
   Local Open Scope ring_scope.
@@ -105,7 +161,9 @@ Section semantics.
     { by move/eqP => ->; apply/forallP. }
     by move => H a; apply: (CMAXP _ (projT2 cs) c' H a).
   Defined.
-    
+
+  (** The small-step semantics *)
+  
   Inductive step : com A -> state -> com A -> state -> Prop :=
   | SUpdate :
       forall f s,
@@ -127,7 +185,7 @@ Section semantics.
            @mkState
              c
              pf
-             (@CMAX_costs_seq_cons c pf (SPrevCosts s))
+             (@CMAX_costs_seq_cons (SCosts s) (SCostsOk s) (SPrevCosts s))
              (SWeights s)
              (SEpsilon s)             
              (SEpsilonOk s)
@@ -150,6 +208,10 @@ Section semantics.
         in 
         step CSend s CSkip s'
 
+  | SSkip :
+      forall s,
+        step CSkip s CSkip s
+             
   | SSeq1 :
       forall c2 s,
         step (CSeq CSkip c2) s c2 s
@@ -161,15 +223,240 @@ Section semantics.
 
   | SRepeat :
       forall c s,
-        step (CRepeat c) s (CSeq c (CRepeat c)) s
+        step (CRepeat c) s (CSeq c (CRepeat c)) s.
 
-  | STrans :
-      forall c1 c2 c3 s1 s2 s3,
-        step c1 s1 c2 s2 ->
-        step c2 s2 c3 s3 ->
-        step c1 s1 c3 s3.
+  Inductive step_star : com A -> state -> com A -> state -> Prop :=
+  | step_refl :
+      forall c s, step_star c s c s
+  | step_trans :
+      forall c s c'' s'' c' s',
+        step c s c'' s'' ->
+        step_star c'' s'' c' s' -> 
+        step_star c s c' s'.
+
+  (** Here's the corresponding big-step semantics. Note that it's 
+      index by a nat [n], to break the nonwellfounded recursion 
+      in the [CRepeat] case. *)
+  
+  Inductive stepN : nat -> com A -> state -> state -> Prop :=
+  | NUpdate :
+      forall n f s,
+        let: s' :=
+           @mkState
+             (SCosts s)
+             (SCostsOk s)
+             (SPrevCosts s)
+             (finfun (fun a => eval (f a) s))
+             (SEpsilon s)             
+             (SEpsilonOk s)
+             (SOutputs s) 
+        in
+        stepN n (CUpdate f) s s'
+             
+  | NRecv :
+      forall n (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]) s,
+        let: s' :=
+           @mkState
+             c
+             pf
+             (@CMAX_costs_seq_cons (SCosts s) (SCostsOk s) (SPrevCosts s))
+             (SWeights s)
+             (SEpsilon s)             
+             (SEpsilonOk s)
+             (SOutputs s)
+        in 
+        stepN n CRecv s s'
+
+  | NSend :
+      forall n s,
+        let: s' :=
+           @mkState
+             (SCosts s)
+             (SCostsOk s)
+             (SPrevCosts s)
+             (SWeights s)
+             (SEpsilon s)
+             (SEpsilonOk s)             
+             (pdist a0 (SEpsilonOk s) (CMAXb_CMAX (projT2 (SPrevCosts s)))
+                    :: SOutputs s)
+        in 
+        stepN n CSend s s'
+
+  | NSeq :
+      forall n c1 c2 s1 s1' s2,
+        stepN n c1 s1 s1' ->
+        stepN n c2 s1' s2 ->        
+        stepN (S n) (CSeq c1 c2) s1 s2
+
+  | NRepeat :
+      forall n c s s',
+        stepN n (CSeq c (CRepeat c)) s s' -> 
+        stepN (S n) (CRepeat c) s s'.
+
+  Lemma step_star_CSkip c1 s1 c1' s1' :
+    step_star c1 s1 c1' s1' ->
+    c1 = CSkip ->     
+    s1 = s1' /\ c1' = CSkip.
+  Proof.
+    induction 1; first by split.
+    move => H2; subst c; inversion H; subst.
+    by apply: IHstep_star.
+  Qed.
+
+  Lemma step_star_trans c1 c2 c3 s1 s2 s3 :
+    step_star c1 s1 c2 s2 ->
+    step_star c2 s2 c3 s3 ->
+    step_star c1 s1 c3 s3.
+  Proof.
+    move => H H1; induction H; subst => //.
+    apply: step_trans; first by apply: H.
+    by apply: IHstep_star.
+  Qed.    
+
+  Lemma step_star_seq c1 c1' c2 s s' :
+    step_star c1 s c1' s' -> 
+    step_star (CSeq c1 c2) s (CSeq c1' c2) s'.
+  Proof.
+    induction 1; first by constructor.
+    apply: step_star_trans.
+    apply: step_trans.
+    constructor.
+    apply: H.
+    apply: IHstep_star.
+    constructor.
+  Qed.
+
+  Lemma stepN_step_repeat n c s s' :
+    stepN n c s s' ->
+    step_star c s CSkip s'.
+  Proof.
+    move: n c s s'; apply: (well_founded_ind lt_wf) => n IH c.
+    case: (com_Repeat_dec c) => [[]c1 H|].
+    { (* c = CRepeat ... *)
+      move => s s'; subst c; inversion 1; subst.
+      inversion H; subst.
+      inversion H3; subst.
+      apply: step_trans.
+      constructor.
+      apply: step_star_trans.
+      apply: step_star_seq.
+      apply: (IH n); first by omega.
+      apply: H5.
+      apply: step_trans.
+      constructor.
+      by apply: (IH n); first by omega. }
+    case: c.
+    { move => H s s'; inversion 1. }
+    { move => e H s s'; inversion 1; subst.
+      apply: step_trans; constructor. }
+    { move => H s s'; inversion 1; subst.
+      apply: step_trans; constructor. }
+    { move => H s s'; inversion 1; subst.
+      apply: step_trans; constructor. }
+    { move => c c0 H s s'; inversion 1; subst.
+      have Hx: step_star c s CSkip s1'.
+      { apply: (IH n0) => //. }
+      have Hy: step_star c0 s1' CSkip s'.
+      { apply: (IH n0) => //. }
+      apply: step_star_trans.
+      apply: step_star_seq.
+      apply: Hx.
+      apply: step_trans.
+      constructor.
+      apply: Hy. }
+    by move => c; move/(_ c).
+  Qed.
 End semantics.
 
+Section mult_weights_refinement.
+  Local Open Scope ring_scope.
+  Variable A : finType.
+  Variable a0 : A.
+  
+  (* Show that 
+
+    Definition mult_weights (A : Type) : com A :=
+    CSeq
+    (** 1. Initialize weights to uniform *)
+    (CUpdate (fun a : A => EVal (QVal 1)))
+    (** 2. The main MWU loop *)
+    (CRepeat
+       (CSeq
+          CRecv
+          (CSeq (CUpdate (fun a : A =>
+                            (EBinop BMult
+                                    (EWeight a)
+                                    (EBinop BPlus
+                                            (EVal (QVal 1))
+                                            (EBinop BMult EEps (ECost a))))))
+                CSend))).
+
+      is refined by the following functional program: *)
+
+  (** One loop of the functional implementation *)
+  Definition mult_weights'_one
+             (c : {ffun A -> rat})
+             (pf : [forall a, 0 <= c a <= 1])
+             (s : state A)
+    : state A :=
+    @mkState A
+      c
+      pf
+      (@CMAX_costs_seq_cons _ (SCosts s) (SCostsOk s) (SPrevCosts s))
+      (update_weights (SEpsilon s) (SWeights s) c)
+      (SEpsilon s)
+      (SEpsilonOk s)
+      (pdist a0 (SEpsilonOk s) (CMAXb_CMAX (projT2 (SPrevCosts s)))
+             :: SOutputs s).
+
+  (** [length cs] loops of the functional implementation *)
+  Fixpoint mult_weights'
+           (cs : seq {c : {ffun A -> rat} | [forall a, 0 <= c a <= 1]})
+           (s : state A)
+    : state A :=
+    if cs is [:: c & cs'] then mult_weights'_one (projT2 c) (mult_weights' cs' s)
+    else s.
+
+  (* HERE
+
+  Lemma mult_weights_refines_mult_weights'_one :
+    forall s s' : state A,
+      SWeights s = init_weights A -> 
+      stepN a0 (size_com (mult_weights_body A)) (mult_weights_body A) s s' ->
+      exists (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]),
+        mult_weights'_one pf s = s'.
+  Proof.
+    simpl; rewrite !add1n.
+    rewrite /mult_weights_body. 
+    move => s s' H; inversion 1; subst.
+    inversion H3; subst.
+    inversion H5; subst.
+    inversion H6; subst.
+    inversion H10; subst.
+    inversion H7; subst.
+    inversion H12; subst.
+    simpl in *.
+  Qed.
+
+  Lemma mult_weights_init_init :
+    forall (s s' : state A),
+      stepN a0 (size_com (mult_weights_init A)) (mult_weights_init A) s s' ->
+      SWeights s' = init_weights A.
+  Proof. by move => s s'; inversion 1; subst. Qed.
+  
+  Lemma mult_weights_refines_mult_weights'_one :
+    forall n (s s' : state A),
+      let: n' :=
+         (size_com (mult_weights_init A) +
+          size_com (mult_weights_body A) * n)%coq_nat
+      in 
+      stepN a0 n' (mult_weights A) s s' ->
+      exists (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]),
+        mult_weights' pf s = s'.
+  Proof.
+  Admitted.*)
+End mult_weights_refinement.
+    
 Require Import Reals Rpower Ranalysis Fourier.
 
 Section semantics_lemmas.
@@ -209,6 +496,13 @@ Section semantics_lemmas.
       state_expCost s' =
       expCostsR a0 (CMAXb_CMAX (projT2 (all_costs s'))) (SEpsilonOk s).
   Proof.
+    rewrite /expCostsR /state_expCost /expCostR /expCost.
+    move => c' s s' H; apply: big_sum_ext'.
+    { admit. }
+    
+    rewrite /pdist /weights.p /p_aux.
+    
+    
   Admitted. (*GS TODO*)
   
   Lemma mult_weights_epsilon_no_regret :
