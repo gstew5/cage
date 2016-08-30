@@ -7,7 +7,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import dist weights numerics.
+Require Import dist weights numerics bigops.
 
 (** An extremely simple probabilistic programming language, 
     used to implement multiplicative weights update (weights.v) *)
