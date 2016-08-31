@@ -13,7 +13,7 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import extrema dist numerics.
+Require Import extrema dist numerics bigops.
 Require Import games compile smooth christodoulou.
 
 Local Open Scope ring_scope.
@@ -338,11 +338,12 @@ Qed.
 Program Instance resourceSmoothAxiomInstance N
   : @SmoothnessAxiomClass [finType of resource] N rat_realFieldType _ _ _ _ _ _ _.
 Next Obligation. by apply: resourceSmoothnessAxiom. Qed.
-
 Instance resourceSmoothInstance N
   : @smooth [finType of resource] N rat_realFieldType _ _ _ _ _ _ _ _.
 
 (** Resource games are compilable *)
+Section resourceCompilable.
+Parameter (N : OrdNat.t).
 
 Instance resourceCTypeInstance : CType [finType of resource] :=
   [:: RYes; RNo].
@@ -356,11 +357,136 @@ Instance resourceRefineTypeInstance
 
 Definition ctraffic (m : M.t resource) : Qcoq :=
   M.fold (fun i r acc =>
-            match r with
-            | RYes => (acc + 1)%coq_Qscope
-            | RNo => acc
-            end)
+            if (i < N)%N
+              then match r with
+                   | RYes => (acc + 1)%coq_Qscope
+                   | RNo => acc
+                   end
+              else acc)
          m 0%coq_Qscope.
+
+Definition ctraffic' (m : M.t resource) : Qcoq :=
+  big_sumQ (M.elements m)
+    (fun p =>
+      match p with (k, e) =>
+        if (k < N)%N
+          then match e with
+               | RYes => 1%coq_Qscope
+               | RNo => 0%coq_Qscope
+               end
+          else 0%coq_Qscope
+      end).
+
+Definition ctraffic'_filter (m : M.t resource) : Qcoq :=
+  big_sumQ
+    (List.filter
+      (fun p =>
+        match p with (k, e) => (nat_of_bin k < N)%N end)
+      (M.elements m))
+    (fun p =>
+      match p with (k, e) =>
+        match e with
+        | RYes => 1%coq_Qscope
+        | RNo => 0%coq_Qscope
+        end
+      end).
+
+Lemma Qplus_leib_comm x y:
+  (x + y)%coq_Qscope = (y + x)%coq_Qscope.
+Proof.
+  case: x => x1 x2.
+  case: y => y1 y2.
+  rewrite /Qplus /Qnum /Qden => //.
+  f_equal. ring. apply Pmult_comm.
+Qed.
+
+Lemma Qplus_leib_0_l x : (0 + x)%coq_Qscope = x.
+Proof.
+  case: x => x1 x2.
+  rewrite /Qplus /Qnum /Qden.
+  f_equal. ring.
+Qed.
+
+Lemma ctraffic'_eq_ctraffic_filter m :
+  ctraffic' m = ctraffic'_filter m.
+Proof.
+  rewrite /ctraffic' /ctraffic'_filter.
+  induction (M.elements (elt := resource) m) => //=.
+  rewrite IHl.
+  case: a => a1 a2.
+  case: (a1 < N)%N.
+  {
+    case: a2 => /=; by [].
+  }
+  {
+    rewrite Qplus_leib_0_l; by [].
+  }
+Qed.
+
+Lemma ctraffic'_traffic_eq
+  (m : M.t resource)
+  (s : {ffun 'I_N -> resource})
+  (H : forall (j : BinNums.N) (pf' : (j < N)%N),
+    M.find (elt:=resource) j m = Some (s (Ordinal (n:=N) (m:=j) pf'))):
+    ctraffic' m = rat_to_Q (traffic (N:=nat_of_bin N) s)%:R.
+Proof.
+  rewrite ctraffic'_eq_ctraffic_filter trafficP /traffic'
+          /ctraffic'_filter.
+  induction N => /=.
+Admitted.
+
+Lemma ctraffic_rev' l n:
+  let f :=(fun (a0 : Q) (p : M.key * resource) =>
+            if (nat_of_bin p.1 < nat_of_bin N)%N
+            then match p.2 with
+                  | RYes => (a0 + 1)%Q
+                  | RNo => a0
+                 end
+            else a0) in 
+  List.fold_left f l n
+    = 
+  List.fold_left f (List.rev l) n.
+Proof.
+  induction l => //.
+  move => f. unfold f in IHl.
+  fold f in IHl => /=.
+  rewrite {2}/f.
+  case: a => a1 a2 => /=.
+  case: (a1 < N)%N; admit.
+Admitted.
+
+Lemma ctraffic_ctraffic'_eq m : ctraffic m = ctraffic' m.
+Proof.
+  rewrite /ctraffic /ctraffic' M.fold_1.
+  induction (M.elements (elt := resource) m) => //.
+  rewrite ctraffic_rev'.
+  rewrite -List.fold_left_rev_right List.rev_involutive => /=.
+  case: a => a1 a2 => /=.
+  case: (nat_of_bin a1 < nat_of_bin N)%N.
+  {
+    case: a2.
+    {
+      rewrite ctraffic_rev' -List.fold_left_rev_right
+              List.rev_involutive in IHl. 
+      rewrite -IHl Qplus_leib_comm.
+      reflexivity.
+    }
+    {
+      rewrite ctraffic_rev' -List.fold_left_rev_right
+              List.rev_involutive in IHl. 
+      rewrite -IHl. rewrite Qplus_leib_0_l.
+      reflexivity.
+    }
+  }
+  { 
+    {
+      rewrite ctraffic_rev' -List.fold_left_rev_right
+              List.rev_involutive in IHl. 
+      rewrite -IHl. rewrite Qplus_leib_0_l.
+      reflexivity.
+    }
+  }
+Qed.
 
 Definition resource_ccost (i : OrdNat.t) (m : M.t resource) : Qcoq :=
   match M.find i m with
@@ -372,22 +498,24 @@ Definition resource_ccost (i : OrdNat.t) (m : M.t resource) : Qcoq :=
 Instance resourceCCostInstance : CCostClass [finType of resource]
   := resource_ccost.
 
-Program Instance resourceRefineCostAxiomInstance N
+Program Instance resourceRefineCostAxiomInstance
   : @RefineCostAxiomClass N [finType of resource] _ _.
 Next Obligation.  
   rewrite /(ccost) /resourceCCostInstance /resource_ccost.
   rewrite (H i pf).
   rewrite /(cost) /resourceCostInstance /= /resourceCostFun /=.
   case H2: (s _) => //.
-  rewrite /ctraffic M.fold_1 trafficP /traffic'.
-  admit. (*TODO*)
-Admitted.
+  rewrite ctraffic_ctraffic'_eq.
+  apply ctraffic'_traffic_eq; apply H.
+Qed.
 
-Instance resourceRefineCostInstance N
+Instance resourceRefineCostInstance
   : @RefineCostClass N [finType of resource] _ _ _.
 
-Instance resource_cgame N
+Instance resource_cgame 
   : cgame (N:=N) (T:=[finType of resource]) _ _ _.
+
+End resourceCompilable.
 
 (** Location Games *)
 
