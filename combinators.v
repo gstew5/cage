@@ -721,9 +721,9 @@ Next Obligation.
   rewrite /lambda_val /singletonLambdaInstance.
   rewrite /mu_val /singletonMuInstance.
   have ->:
-   \sum_(i < N)
+   \sum_(i < N0)
       (if boolify ([ffun j => if i == j then t' j else t j] i) then 1 else 0) =
-   \sum_(i < N) (if boolify (t' i) then 1 else (0 : rty)).
+   \sum_(i < N0) (if boolify (t' i) then 1 else (0 : rty)).
   { by apply/congr_big => // i _; rewrite ffunE eq_refl. }
   rewrite -[\sum_i (if boolify (t' i) then 1 else 0)]addr0; apply: ler_add.
   rewrite addr0; apply: ler_pemull=> //.

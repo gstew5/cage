@@ -15,7 +15,7 @@ Require Import dist weights numerics bigops.
 Inductive val : Type :=
 | QVal : Q -> val.
 
-Inductive binop : Type := BPlus | BMult.
+Inductive binop : Type := BPlus | BMinus | BMult.
 
 Section com.
   Variable A : Type. (* The game type *)
@@ -96,16 +96,15 @@ Proof.
 Qed.  
 
 Definition mult_weights_body (A : Type) : com A :=
-  CRepeat
-    (CSeq
-       CRecv
-       (CSeq (CUpdate (fun a : A =>
-                         (EBinop BMult
-                                 (EWeight a)
-                                 (EBinop BPlus
-                                         (EVal (QVal 1))
-                                         (EBinop BMult EEps (ECost a))))))
-             CSend)).
+  CSeq
+    CRecv
+    (CSeq (CUpdate (fun a : A =>
+                      (EBinop BMult
+                              (EWeight a)
+                              (EBinop BMinus
+                                      (EVal (QVal 1))
+                                      (EBinop BMult EEps (ECost a))))))
+          CSend).
 
 Definition mult_weights_init (A : Type) : com A :=
   CUpdate (fun a : A => EVal (QVal 1)).
@@ -115,7 +114,7 @@ Definition mult_weights (A : Type) : com A :=
     (** 1. Initialize weights to uniform *)
     (mult_weights_init A)
     (** 2. The main MWU loop *)
-    (mult_weights_body A).
+    (CRepeat (mult_weights_body A)).
 
 Section semantics.
   Local Open Scope ring_scope.
@@ -133,6 +132,13 @@ Section semantics.
       ; SEpsilonOk : 0 < SEpsilon <= 1 / 2%:R 
         (* the history of the generated distributions over actions *)                     
       ; SOutputs : seq (dist A rat_realFieldType) }.
+
+  Definition eval_binop (b : binop) (v1 v2 : rat) :=
+    match b with
+    | BPlus => v1 + v2
+    | BMinus => v1 - v2                      
+    | BMult => v1 * v2
+    end.
   
   Fixpoint eval (e : expr A) (s : state) : rat :=
     match e with
@@ -147,7 +153,7 @@ Section semantics.
     | EBinop b e1 e2 =>
       let: v1 := eval e1 s in
       let: v2 := eval e2 s in
-      v1 + v2
+      eval_binop b v1 v2
     end.
 
   Definition CMAX_costs_seq_cons
@@ -469,7 +475,7 @@ Section mult_weights_refinement.
                                             (EBinop BMult EEps (ECost a))))))
                 CSend))).
 
-      is refined by the following functional program: *)
+      refines the following functional programs: *)
 
   (** One loop of the functional implementation *)
   Definition mult_weights'_one
@@ -477,14 +483,16 @@ Section mult_weights_refinement.
              (pf : [forall a, 0 <= c a <= 1])
              (s : state A)
     : state A :=
+    let: old_costs := @CMAX_costs_seq_cons _ (SCosts s) (SCostsOk s) (SPrevCosts s)
+    in 
     @mkState A
       c
       pf
-      (@CMAX_costs_seq_cons _ (SCosts s) (SCostsOk s) (SPrevCosts s))
+      old_costs
       (update_weights (SEpsilon s) (SWeights s) c)
       (SEpsilon s)
       (SEpsilonOk s)
-      (pdist a0 (SEpsilonOk s) (CMAXb_CMAX (projT2 (SPrevCosts s)))
+      (pdist a0 (SEpsilonOk s) (CMAXb_CMAX (projT2 old_costs))
              :: SOutputs s).
 
   (** [length cs] loops of the functional implementation *)
@@ -495,14 +503,22 @@ Section mult_weights_refinement.
     if cs is [:: c & cs'] then mult_weights'_one (projT2 c) (mult_weights' cs' s)
     else s.
   
-  (*Lemma mult_weights_refines_mult_weights'_one :
-    forall s s' : state A,
-      stepN a0 (size_com (mult_weights_body A)) (mult_weights_body A) s s' ->
+  Lemma stepN_mult_weights_refines_mult_weights'_one :
+    forall n (s s' : state A),
+      stepN a0 n (mult_weights_body A) s s' ->
       exists (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]),
         mult_weights'_one pf s = s'.
   Proof.
+    move => n s s'.
+    inversion 1; subst. clear H.
+    inversion H3; subst. clear H3.
+    inversion H6; subst. clear H6.
+    inversion H2; subst. simpl in *. clear H2.
+    inversion H5; subst. simpl in *. clear H5.
+    by exists c, pf.
+  Qed.      
     
-  Lemma mult_weights_init_init :
+ (*Lemma mult_weights_init_init :
     forall (s s' : state A),
       stepN a0 (size_com (mult_weights_init A)) (mult_weights_init A) s s' ->
       SWeights s' = init_weights A.
