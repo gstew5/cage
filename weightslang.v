@@ -523,7 +523,7 @@ Section mult_weights_refinement.
       stepN a0 (size_com (mult_weights_init A)) (mult_weights_init A) s s' ->
       SWeights s' = init_weights A.
   Proof. by move => s s'; inversion 1; subst. Qed.
-  
+   
   Lemma mult_weights_refines_mult_weights'_one :
     forall n (s s' : state A),
       let: n' :=
