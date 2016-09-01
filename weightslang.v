@@ -478,7 +478,7 @@ Section mult_weights_refinement.
       refines the following functional programs: *)
 
   (** One loop of the functional implementation *)
-  Definition mult_weights'_one
+  Definition mult_weights1_one
              (c : {ffun A -> rat})
              (pf : [forall a, 0 <= c a <= 1])
              (s : state A)
@@ -496,18 +496,18 @@ Section mult_weights_refinement.
              :: SOutputs s).
 
   (** [length cs] loops of the functional implementation *)
-  Fixpoint mult_weights'
-           (cs : seq {c : {ffun A -> rat} | [forall a, 0 <= c a <= 1]})
+  Fixpoint mult_weights1_loop
+           (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]})
            (s : state A)
     : state A :=
-    if cs is [:: c & cs'] then mult_weights'_one (projT2 c) (mult_weights' cs' s)
+    if cs is [:: c & cs'] then mult_weights1_loop cs' (mult_weights1_one (projT2 c) s)
     else s.
   
-  Lemma stepN_mult_weights_refines_mult_weights'_one :
+  Lemma stepN_mult_weights_refines_mult_weights1_one :
     forall n (s s' : state A),
       stepN a0 n (mult_weights_body A) s s' ->
       exists (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]),
-        mult_weights'_one pf s = s'.
+        mult_weights1_one pf s = s'.
   Proof.
     move => n s s'.
     inversion 1; subst. clear H.
@@ -517,24 +517,66 @@ Section mult_weights_refinement.
     inversion H5; subst. simpl in *. clear H5.
     by exists c, pf.
   Qed.      
-    
- (*Lemma mult_weights_init_init :
-    forall (s s' : state A),
-      stepN a0 (size_com (mult_weights_init A)) (mult_weights_init A) s s' ->
-      SWeights s' = init_weights A.
-  Proof. by move => s s'; inversion 1; subst. Qed.
-   
-  Lemma mult_weights_refines_mult_weights'_one :
+  
+  Lemma stepN_mult_weights_refines_mult_weights1_loop :
     forall n (s s' : state A),
-      let: n' :=
-         (size_com (mult_weights_init A) +
-          size_com (mult_weights_body A) * n)%coq_nat
-      in 
-      stepN a0 n' (mult_weights A) s s' ->
-      exists (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]),
-        mult_weights' pf s = s'.
+      stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
+      exists (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]}),
+        mult_weights1_loop cs s = s'.
   Proof.
-  Admitted.*)
+    set P := fun (n : nat) =>
+               forall (s s' : state A),
+                 stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
+                 exists cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]},
+                   mult_weights1_loop cs s = s'.
+    move => n; change (P n).
+    apply: (well_founded_ind lt_wf); case.
+    { move => _; rewrite /P => s s'; inversion 1. }
+    rewrite /P => m IH s s'; inversion 1; subst. clear H.
+    inversion H2; subst. clear H2.
+    case: (stepN_mult_weights_refines_mult_weights1_one H3) => c []pf H2.
+    have Hn0: (n0 < n0.+2)%coq_nat by omega.
+    case: (IH n0 Hn0 s1' s' H6) => cs H7.
+    by exists [:: existT _ c pf & cs]; rewrite -H2 in H7.
+  Qed.      
+
+  Definition mult_weights1_init
+             (s : state A)
+    : state A :=
+    @mkState A
+      (SCosts s)
+      (SCostsOk s)
+      (SPrevCosts s)
+      (finfun (fun _ => 1))
+      (SEpsilon s)
+      (SEpsilonOk s)
+      (SOutputs s).    
+  
+  Lemma stepN_mult_weights_refines_mult_weights1_init :
+    forall n (s s' : state A),
+      stepN a0 n (mult_weights_init A) s s' ->
+      mult_weights1_init s = s'.
+  Proof. by move => n s s'; inversion 1; subst. Qed.
+
+  Definition mult_weights1
+             (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]})             
+             (s : state A)
+    : state A :=
+    mult_weights1_loop cs (mult_weights1_init s).
+
+  Lemma stepN_mult_weights_refines_mult_weights1 :
+    forall n (s s' : state A),
+      stepN a0 n (mult_weights A) s s' ->
+      exists (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]}),
+        mult_weights1 cs s = s'.
+  Proof.
+    move => n s s'; inversion 1; subst.
+    move: (stepN_mult_weights_refines_mult_weights1_init H3) => H7.
+    rewrite -H7 in H6.
+    rewrite /mult_weights1.
+    apply: stepN_mult_weights_refines_mult_weights1_loop.
+    apply: H6.
+  Qed.    
 End mult_weights_refinement.
     
 Require Import Reals Rpower Ranalysis Fourier.
