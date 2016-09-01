@@ -2,6 +2,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 
 Require Import QArith String.
+Require Import ProofIrrelevance.
 
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
@@ -124,10 +125,11 @@ Section semantics.
   Record state : Type :=
     mkState
       { SCosts : {ffun A -> rat} (* the current cost vector *)
-      ; SCostsOk : [forall a, 0 <= SCosts a <= 1]
+      ; SCostsOk : forall a, 0 <= SCosts a <= 1
         (* the history of cost vectors seen so far *)                   
       ; SPrevCosts : CMAX_costs_seq A
       ; SWeights : {ffun A -> rat} (* current weights *)
+      ; SWeightsOk : forall a, 0 < SWeights a
       ; SEpsilon : rat (* epsilon -- a parameter *)
       ; SEpsilonOk : 0 < SEpsilon <= 1 / 2%:R 
         (* the history of the generated distributions over actions *)                     
@@ -158,27 +160,32 @@ Section semantics.
 
   Definition CMAX_costs_seq_cons
              (c : costs A)
-             (pf : [forall a, 0 <= c a <= 1])
+             (pf : forall a, 0 <= c a <= 1)
              (cs : CMAX_costs_seq A)
     : CMAX_costs_seq A.
   Proof.
     exists (c :: projT1 cs); apply/CMAXP => c'.
     rewrite in_cons; case/orP.
-    { by move/eqP => ->; apply/forallP. }
+    { by move/eqP => ->. }
     by move => H a; apply: (CMAXP _ (projT2 cs) c' H a).
   Defined.
 
+  Lemma CMAX_nil :
+    forall c, c \in (nil : seq (costs A)) -> forall a, 0 <= c a <= 1.
+  Proof. by []. Qed.
+  
   (** The small-step semantics *)
   
   Inductive step : com A -> state -> com A -> state -> Prop :=
   | SUpdate :
-      forall f s,
+      forall f s pf,
         let: s' :=
            @mkState
              (SCosts s)
              (SCostsOk s)
              (SPrevCosts s)
              (finfun (fun a => eval (f a) s))
+             pf
              (SEpsilon s)             
              (SEpsilonOk s)
              (SOutputs s) 
@@ -186,14 +193,15 @@ Section semantics.
         step (CUpdate f) s CSkip s'
              
   | SRecv :
-      forall (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]) s,
+      forall (c : {ffun A -> rat}) (pf : forall a, 0 <= c a <= 1) s,
         let: s' :=
            @mkState
              c
              pf
              (@CMAX_costs_seq_cons (SCosts s) (SCostsOk s) (SPrevCosts s))
              (SWeights s)
-             (SEpsilon s)             
+             (SWeightsOk s)
+             (SEpsilon s)
              (SEpsilonOk s)
              (SOutputs s)
         in 
@@ -207,9 +215,17 @@ Section semantics.
              (SCostsOk s)
              (SPrevCosts s)
              (SWeights s)
+             (SWeightsOk s)
              (SEpsilon s)
              (SEpsilonOk s)             
-             (pdist a0 (SEpsilonOk s) (CMAXb_CMAX (projT2 (SPrevCosts s)))
+             (p_aux_dist
+                a0
+                (SEpsilonOk s)
+                (SWeightsOk s)
+                CMAX_nil (*Important that [cs := nil] here! 
+                           [p_aux_dist] applied to the empty sequence
+                           of cost functions specializes to the distribution formed
+                           by: SWeights w / \Gamma. *)
                     :: SOutputs s)
         in 
         step CSend s CSkip s'
@@ -253,13 +269,14 @@ Section semantics.
       forall n s, stepN n CSkip s s
     
   | NUpdate :
-      forall n f s,
+      forall n f s pf,
         let: s' :=
            @mkState
              (SCosts s)
              (SCostsOk s)
              (SPrevCosts s)
              (finfun (fun a => eval (f a) s))
+             pf
              (SEpsilon s)             
              (SEpsilonOk s)
              (SOutputs s) 
@@ -267,13 +284,14 @@ Section semantics.
         stepN (S n) (CUpdate f) s s'
              
   | NRecv :
-      forall n (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]) s,
+      forall n (c : {ffun A -> rat}) (pf : forall a, 0 <= c a <= 1) s,
         let: s' :=
            @mkState
              c
              pf
              (@CMAX_costs_seq_cons (SCosts s) (SCostsOk s) (SPrevCosts s))
              (SWeights s)
+             (SWeightsOk s)
              (SEpsilon s)             
              (SEpsilonOk s)
              (SOutputs s)
@@ -288,9 +306,14 @@ Section semantics.
              (SCostsOk s)
              (SPrevCosts s)
              (SWeights s)
+             (SWeightsOk s)
              (SEpsilon s)
-             (SEpsilonOk s)             
-             (pdist a0 (SEpsilonOk s) (CMAXb_CMAX (projT2 (SPrevCosts s)))
+             (SEpsilonOk s)
+             (p_aux_dist
+                a0
+                (SEpsilonOk s)
+                (SWeightsOk s)
+                CMAX_nil 
                     :: SOutputs s)
         in 
         stepN (S n) CSend s s'
@@ -457,7 +480,8 @@ Section mult_weights_refinement.
   Variable A : finType.
   Variable a0 : A.
   
-  (* Show that 
+  (* REFINEMENT 1: 
+     Show that 
 
     Definition mult_weights (A : Type) : com A :=
     CSeq
@@ -475,12 +499,12 @@ Section mult_weights_refinement.
                                             (EBinop BMult EEps (ECost a))))))
                 CSend))).
 
-      refines the following functional programs: *)
+      refines the following functional program: *)
 
   (** One loop of the functional implementation *)
   Definition mult_weights1_one
              (c : {ffun A -> rat})
-             (pf : [forall a, 0 <= c a <= 1])
+             (pf : forall a, 0 <= c a <= 1)
              (s : state A)
     : state A :=
     let: old_costs := @CMAX_costs_seq_cons _ (SCosts s) (SCostsOk s) (SPrevCosts s)
@@ -490,23 +514,49 @@ Section mult_weights_refinement.
       pf
       old_costs
       (update_weights (SEpsilon s) (SWeights s) c)
+      (update_weights_gt0 (SEpsilonOk s) pf (SWeightsOk s))
       (SEpsilon s)
       (SEpsilonOk s)
-      (pdist a0 (SEpsilonOk s) (CMAXb_CMAX (projT2 old_costs))
-             :: SOutputs s).
+      (p_aux_dist
+         a0
+         (SEpsilonOk s)
+         (update_weights_gt0 (SEpsilonOk s) pf (SWeightsOk s))         
+         (CMAX_nil (A:=A))
+         :: SOutputs s).
 
   (** [length cs] loops of the functional implementation *)
   Fixpoint mult_weights1_loop
-           (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]})
+           (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
            (s : state A)
     : state A :=
     if cs is [:: c & cs'] then mult_weights1_loop cs' (mult_weights1_one (projT2 c) s)
     else s.
+
+  Definition mult_weights1_init
+             (s : state A)
+    : state A :=
+    @mkState A
+      (SCosts s)
+      (SCostsOk s)
+      (SPrevCosts s)
+      (init_weights A)
+      (init_weights_gt0 (A:=A))
+      (SEpsilon s)
+      (SEpsilonOk s)
+      (SOutputs s).    
+
+  Definition mult_weights1
+             (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
+             (s : state A)
+    : state A :=
+    mult_weights1_loop cs (mult_weights1_init s).
+
+  (** Now the proof: *)
   
   Lemma stepN_mult_weights_refines_mult_weights1_one :
     forall n (s s' : state A),
       stepN a0 n (mult_weights_body A) s s' ->
-      exists (c : {ffun A -> rat}) (pf : [forall a, 0 <= c a <= 1]),
+      exists (c : {ffun A -> rat}) (pf : forall a, 0 <= c a <= 1),
         mult_weights1_one pf s = s'.
   Proof.
     move => n s s'.
@@ -515,19 +565,25 @@ Section mult_weights_refinement.
     inversion H6; subst. clear H6.
     inversion H2; subst. simpl in *. clear H2.
     inversion H5; subst. simpl in *. clear H5.
-    by exists c, pf.
+    exists c, pf.
+    rewrite /mult_weights1_one.
+    f_equal.
+    apply: proof_irrelevance.
+    f_equal.
+    f_equal.
+    apply: proof_irrelevance.
   Qed.      
   
   Lemma stepN_mult_weights_refines_mult_weights1_loop :
     forall n (s s' : state A),
       stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
-      exists (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]}),
+      exists (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}),
         mult_weights1_loop cs s = s'.
   Proof.
     set P := fun (n : nat) =>
                forall (s s' : state A),
                  stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
-                 exists cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]},
+                 exists cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1},
                    mult_weights1_loop cs s = s'.
     move => n; change (P n).
     apply: (well_founded_ind lt_wf); case.
@@ -539,35 +595,21 @@ Section mult_weights_refinement.
     case: (IH n0 Hn0 s1' s' H6) => cs H7.
     by exists [:: existT _ c pf & cs]; rewrite -H2 in H7.
   Qed.      
-
-  Definition mult_weights1_init
-             (s : state A)
-    : state A :=
-    @mkState A
-      (SCosts s)
-      (SCostsOk s)
-      (SPrevCosts s)
-      (finfun (fun _ => 1))
-      (SEpsilon s)
-      (SEpsilonOk s)
-      (SOutputs s).    
   
   Lemma stepN_mult_weights_refines_mult_weights1_init :
     forall n (s s' : state A),
       stepN a0 n (mult_weights_init A) s s' ->
       mult_weights1_init s = s'.
-  Proof. by move => n s s'; inversion 1; subst. Qed.
-
-  Definition mult_weights1
-             (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]})             
-             (s : state A)
-    : state A :=
-    mult_weights1_loop cs (mult_weights1_init s).
+  Proof.
+    move => n s s'; inversion 1; subst.
+    rewrite /mult_weights1_init; f_equal.
+    apply: proof_irrelevance.
+  Qed.
 
   Lemma stepN_mult_weights_refines_mult_weights1 :
     forall n (s s' : state A),
       stepN a0 n (mult_weights A) s s' ->
-      exists (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]}),
+      exists (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}),
         mult_weights1 cs s = s'.
   Proof.
     move => n s s'; inversion 1; subst.
@@ -582,13 +624,20 @@ Section mult_weights_refinement.
     forall (s s' : state A) c',
       step_plus a0 (mult_weights A) s c' s' ->
       final_com c' -> 
-      exists (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]}),
+      exists (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}),
         mult_weights1 cs s = s'.
   Proof.
     move => s s' c'; move/step_plus_stepN => H H2; case: (H H2) => n H3.
     apply: stepN_mult_weights_refines_mult_weights1.
     apply: H3.
   Qed.
+
+  (** REFINEMENT 2:
+      Show that [mult_weights1] refines the Ssreflect spec in weights.v. *)
+
+  (*Lemma mult_weights1_refines_pdist :
+    forall s s' cs,
+      mult_weights1 cs s = s' -> ...*)
 End mult_weights_refinement.
     
 Require Import Reals Rpower Ranalysis Fourier.
