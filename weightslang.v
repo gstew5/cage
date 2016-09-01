@@ -576,7 +576,19 @@ Section mult_weights_refinement.
     rewrite /mult_weights1.
     apply: stepN_mult_weights_refines_mult_weights1_loop.
     apply: H6.
-  Qed.    
+  Qed.
+
+  Lemma step_plus_mult_weights_refines_mult_weights1 :
+    forall (s s' : state A) c',
+      step_plus a0 (mult_weights A) s c' s' ->
+      final_com c' -> 
+      exists (cs : seq {c : {ffun A -> rat} & [forall a, 0 <= c a <= 1]}),
+        mult_weights1 cs s = s'.
+  Proof.
+    move => s s' c'; move/step_plus_stepN => H H2; case: (H H2) => n H3.
+    apply: stepN_mult_weights_refines_mult_weights1.
+    apply: H3.
+  Qed.
 End mult_weights_refinement.
     
 Require Import Reals Rpower Ranalysis Fourier.
