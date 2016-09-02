@@ -92,7 +92,25 @@ Section weights.
     rewrite /update_weights; apply/ffunP=> x; rewrite H !ffunE.
     by rewrite big_cons mulrC.
   Qed.    
-    
+
+  (** Here's an alternative version: fold-left-style [weights_of]: *)
+  Fixpoint weights_of_left (cs : seq costs) (w : weights) : weights :=
+    if cs is [:: c & cs'] then
+      weights_of_left cs' (update_weights w c)
+    else w.
+
+  Lemma weights_of_app cs1 cs2 w :
+    weights_of (cs1 ++ cs2) w =
+    weights_of cs1 (weights_of cs2 w).
+  Proof. by elim: cs1 cs2 w => // c cs1 IH cs2 w /=; rewrite IH. Qed.
+
+  Lemma weights_of_rightleft cs w :
+    weights_of (rev cs) w = weights_of_left cs w.
+  Proof.
+    elim: cs w => // c cs' IH w /=; rewrite -IH.
+    by rewrite rev_cons -cats1 weights_of_app.
+  Qed.  
+  
   Lemma weights_of_gt0 (cs : seq costs) (w : weights) :
     (forall c, c \in cs -> forall a : A, 0 <= c a <= 1) ->     
     (forall a : A, 0 < w a) -> 
@@ -177,6 +195,17 @@ Section weights.
     let w' := weights_of cs w in
     finfun (fun a : A => w' a / gamma w').
 
+  (** The following definition of [p_aux] uses fold-left [weights_of']: *)
+  Definition p_aux_left (cs : seq costs) (w : weights) : weights :=
+    let w' := weights_of_left cs w in
+    finfun (fun a : A => w' a / gamma w').
+
+  Lemma p_aux_aux_left cs w : p_aux (rev cs) w = p_aux_left cs w.
+  Proof.
+    rewrite /p_aux /p_aux_left; apply/ffunP => a; rewrite 2!ffunE.
+    by rewrite weights_of_rightleft.
+  Qed.      
+
   Lemma div1rr (r : rat) : r != 0 -> 1 / r * r == 1.
   Proof. by move=> H; rewrite div1r mulVf. Qed.
 
@@ -220,6 +249,66 @@ Section weights.
     by rewrite /in_mem /=; apply/orP; right.
     by apply: H0=> c0 H2 a; apply: H1; rewrite /in_mem /=; apply/orP; right.
   Qed.    
+
+  Lemma p_aux_dist_axiom (cs : seq costs) (w : weights) :
+    (forall a : A, 0 < w a) -> 
+    (forall c, c \in cs -> forall a : A, 0 <= c a <= 1) -> 
+    dist_axiom (p_aux cs w).
+  Proof.
+    move => Hx H0; rewrite /p_aux /dist_axiom; apply/andP; split.
+    { have H:
+        \sum_(t : A)
+         [ffun a => (weights_of cs w) a /
+                    gamma (weights_of cs w)] t
+      = \sum_(t : A)
+         (weights_of cs w) t /
+         gamma (weights_of cs w).
+      { by apply/congr_big=> // i _; rewrite ffunE. }
+      rewrite H; move {H}.
+      rewrite gamma_normalizes=> //.
+      have H1: 0 < \sum_a (weights_of cs w) a.
+      { apply: sum_weights_of_gt0 => //. }
+      by apply/eqP => H2; rewrite H2 in H1.
+    }
+    change [forall t, 0 <= p_aux cs w t].
+    apply (p_aux_ind H0 Hx).
+    { apply/forallP=> x; rewrite ffunE.
+      apply: mulr_ge0; first by apply: ltrW; apply: Hx.
+      rewrite invr_ge0 /gamma /init_weights; apply/sumr_ge0=> i _.
+      by apply: ltrW; apply: Hx. }
+    move=> w' c cs' H1 H2 H3; apply/forallP=> x; rewrite ffunE.
+    have H4: forall a : A, 0 < update_weights w' c a.
+    { move=> a; apply: update_weights_gt0=> //. }
+    apply: divr_ge0; first by apply/ltrW; apply: (H4 x).
+    by apply: gamma_ge0=> a; apply/ltrW.
+  Qed.
+
+  Lemma p_aux_left_dist_axiom (cs : seq costs) (w : weights) :
+    (forall a : A, 0 < w a) -> 
+    (forall c, c \in cs -> forall a : A, 0 <= c a <= 1) -> 
+    dist_axiom (p_aux_left cs w).
+  Proof.
+    move => H H2; rewrite /p_aux_left.
+    rewrite -weights_of_rightleft; apply: p_aux_dist_axiom => //.
+    move => c H3 a; apply: H2.
+    by rewrite mem_rev in H3.
+  Qed.
+  
+  Definition p_aux_dist
+             (w : weights)
+             (WPOS : forall a : A, 0 < w a)
+             (cs : seq costs)
+             (CMAX : forall c, c \in cs -> forall a : A, 0 <= c a <= 1)             
+    : dist A [numDomainType of rat] :=
+    mkDist (p_aux_dist_axiom WPOS CMAX).
+
+  Definition p_aux_left_dist
+             (w : weights)
+             (WPOS : forall a : A, 0 < w a)
+             (cs : seq costs)
+             (CMAX : forall c, c \in cs -> forall a : A, 0 <= c a <= 1)             
+    : dist A [numDomainType of rat] :=
+    mkDist (p_aux_left_dist_axiom WPOS CMAX).
   
   Definition p (cs : seq costs) : {ffun A -> rat} :=
     p_aux cs init_weights.
@@ -228,32 +317,9 @@ Section weights.
     (forall c, c \in cs -> forall a : A, 0 <= c a <= 1) -> 
     dist_axiom (p cs).
   Proof.
-    move=> H0; rewrite /p /dist_axiom; apply/andP; split.
-    { rewrite /p_aux.
-      have H:
-        \sum_(t : A)
-         [ffun a => (weights_of cs init_weights) a /
-                    gamma (weights_of cs init_weights)] t
-      = \sum_(t : A)
-         (weights_of cs init_weights) t /
-         gamma (weights_of cs init_weights).
-      { by apply/congr_big=> // i _; rewrite ffunE. }
-      rewrite H; move {H}.
-      rewrite gamma_normalizes=> //.
-      by apply: sum_weights_of_not0.
-    }
-    apply (p_aux_ind H0 init_weights_gt0).
-    { apply/forallP=> x; rewrite ffunE.
-      apply: mulr_ge0; first by rewrite /init_weights ffunE.
-      rewrite invr_ge0 /gamma /init_weights; apply/sumr_ge0=> i _.
-      by rewrite ffunE.
-    }
-    move=> w' c cs' H1 H2 H3; apply/forallP=> x; rewrite ffunE.
-    have H4: forall a : A, 0 < update_weights w' c a.
-    { move=> a; apply: update_weights_gt0=> //. }
-    apply: divr_ge0; first by apply/ltrW; apply: (H4 x).
-    by apply: gamma_ge0=> a; apply/ltrW.
-  Qed.
+    move => H; apply: p_aux_dist_axiom => //.
+    apply: init_weights_gt0.
+  Qed.    
 
   Delimit Scope R_scope with R.
   
@@ -1176,6 +1242,3 @@ Section weights_noregret.
     by rewrite H; clear H; apply: Rle_refl.
   Qed.
 End weights_noregret.
-
-  
-

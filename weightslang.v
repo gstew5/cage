@@ -108,7 +108,9 @@ Definition mult_weights_body (A : Type) : com A :=
           CSend).
 
 Definition mult_weights_init (A : Type) : com A :=
-  CUpdate (fun a : A => EVal (QVal 1)).
+  CSeq
+    (CUpdate (fun a : A => EVal (QVal 1)))
+    CSend.
 
 Definition mult_weights (A : Type) : com A :=
   CSeq
@@ -485,8 +487,8 @@ Section mult_weights_refinement.
 
     Definition mult_weights (A : Type) : com A :=
     CSeq
-    (** 1. Initialize weights to uniform *)
-    (CUpdate (fun a : A => EVal (QVal 1)))
+    (** 1. Initialize weights to uniform, then sample *)
+    (CSeq (CUpdate (fun a : A => EVal (QVal 1))) CSend)
     (** 2. The main MWU loop *)
     (CRepeat
        (CSeq
@@ -524,14 +526,39 @@ Section mult_weights_refinement.
          (CMAX_nil (A:=A))
          :: SOutputs s).
 
-  (** [length cs] loops of the functional implementation *)
-  Fixpoint mult_weights1_loop
+  (** [length cs] loops of the functional implementation. 
+      *** NOTE ***  In this implementation of the algorithm, the sequence
+      of cost functions [cs] is given in CHRONOLOGICAL (earliest first) 
+      rather than reverse chronological order, as was done in [weights_of],
+      the Ssreflect spec given in weights.v. *)
+  Fixpoint mult_weights1_loop_left
            (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
            (s : state A)
     : state A :=
-    if cs is [:: c & cs'] then mult_weights1_loop cs' (mult_weights1_one (projT2 c) s)
+    if cs is [:: c & cs'] then mult_weights1_loop_left cs' (mult_weights1_one (projT2 c) s)
     else s.
 
+  (** Here's a fold-right implementation. *)
+  Fixpoint mult_weights1_loop_right
+           (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
+           (s : state A)
+    : state A :=
+    if cs is [:: c & cs'] then mult_weights1_one (projT2 c) (mult_weights1_loop_right cs' s)
+    else s.
+
+  Lemma mult_weights1_loop_right_app cs1 cs2 s :
+    mult_weights1_loop_right (cs1 ++ cs2) s =
+    mult_weights1_loop_right cs1 (mult_weights1_loop_right cs2 s).
+  Proof. by elim: cs1 cs2 s => // c cs1' IH cs2 s /=; rewrite IH. Qed.
+
+  Lemma mult_weights1_loop_leftright cs s :
+    mult_weights1_loop_left cs s =
+    mult_weights1_loop_right (rev cs) s.
+  Proof.
+    elim: cs s => // c cs' IH s /=.
+    by rewrite /rev /= catrevE mult_weights1_loop_right_app IH.
+  Qed.
+    
   Definition mult_weights1_init
              (s : state A)
     : state A :=
@@ -543,13 +570,18 @@ Section mult_weights_refinement.
       (init_weights_gt0 (A:=A))
       (SEpsilon s)
       (SEpsilonOk s)
-      (SOutputs s).    
+      (p_aux_dist
+         a0
+         (SEpsilonOk s)
+         (init_weights_gt0 (A:=A))
+         (CMAX_nil (A:=A))
+         :: SOutputs s).
 
   Definition mult_weights1
              (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
              (s : state A)
     : state A :=
-    mult_weights1_loop cs (mult_weights1_init s).
+    mult_weights1_loop_left cs (mult_weights1_init s).
 
   (** Now the proof: *)
   
@@ -578,13 +610,13 @@ Section mult_weights_refinement.
     forall n (s s' : state A),
       stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
       exists (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}),
-        mult_weights1_loop cs s = s'.
+        mult_weights1_loop_left cs s = s'.
   Proof.
     set P := fun (n : nat) =>
                forall (s s' : state A),
                  stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
                  exists cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1},
-                   mult_weights1_loop cs s = s'.
+                   mult_weights1_loop_left cs s = s'.
     move => n; change (P n).
     apply: (well_founded_ind lt_wf); case.
     { move => _; rewrite /P => s s'; inversion 1. }
@@ -602,7 +634,13 @@ Section mult_weights_refinement.
       mult_weights1_init s = s'.
   Proof.
     move => n s s'; inversion 1; subst.
+    inversion H6; subst.
+    inversion H3; subst.
+    simpl in *.
     rewrite /mult_weights1_init; f_equal.
+    apply: proof_irrelevance.
+    f_equal.
+    f_equal.
     apply: proof_irrelevance.
   Qed.
 
@@ -635,9 +673,115 @@ Section mult_weights_refinement.
   (** REFINEMENT 2:
       Show that [mult_weights1] refines the Ssreflect spec in weights.v. *)
 
-  (*Lemma mult_weights1_refines_pdist :
-    forall s s' cs,
-      mult_weights1 cs s = s' -> ...*)
+  Lemma CMAX_all 
+    (cs : seq {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1}) :
+    forall c, c \in map (fun p => projT1 p) cs -> forall a : A, 0 <= c a <= 1.
+  Proof.
+    elim: cs => // [][]c pf l IH c0.
+    rewrite /in_mem /=; case /orP; first by move/eqP => -> a; apply: pf.
+    by move => H a; apply: IH.
+  Qed.    
+
+  Lemma mult_weights1_loop_right_eps cs s :
+    SEpsilon (mult_weights1_loop_right cs s) = SEpsilon s.
+  Proof. by elim: cs. Qed.
+  
+  Lemma mult_weights1_loop_right_refines_weights_of :
+    forall s cs,
+      let: eps := SEpsilon s in
+      SWeights (mult_weights1_loop_right cs s) =
+      weights_of eps [seq projT1 x | x <- cs] (SWeights s).
+  Proof.
+    move => s cs; elim: cs s => // c' cs IH s.
+    simpl; f_equal; last by apply: IH.
+    by rewrite mult_weights1_loop_right_eps.
+  Qed.                 
+  
+  Lemma mult_weights1_one_hd
+        (c : {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
+        cs
+        (s : state A)
+        d :
+    List.hd_error
+      (SOutputs (mult_weights1_loop_right cs s)) = Some d ->
+    let: s' := mult_weights1_loop_right cs s
+    in
+    List.hd_error
+      (SOutputs (mult_weights1_one (c:=projT1 c) (projT2 c) s')) = 
+    List.hd_error
+      (SOutputs
+         (mult_weights1_one
+            (c:=projT1 c) (projT2 c)
+            (mkState
+               (SCostsOk s')
+               (SPrevCosts s')
+               (SWeightsOk s')
+               (SEpsilonOk s')
+               (d :: SOutputs s)))).
+  Proof. by case H: (mult_weights1_loop_right cs s). Qed.
+  
+  Lemma mult_weights1_loop_right_refines_p_aux_dist :
+    forall s cs1 cs2 (w : weights A) (pf : forall a : A, 0 < w a),
+      List.hd_error (SOutputs s) =
+      Some (@p_aux_dist _ a0 _ (SEpsilonOk s) w pf _ (@CMAX_all cs2)) ->
+      SWeights s = weights_of (A:=A) (SEpsilon s) [seq projT1 p | p <- cs2] w ->
+      let: s' := mult_weights1_loop_right cs1 s
+      in List.hd_error (SOutputs s') =
+         Some (p_aux_dist a0 (SEpsilonOk s) pf (@CMAX_all (cs1 ++ cs2))).
+  Proof.
+    move => s cs1 cs2; elim: cs1 s cs2.
+    { move => s cs2 w pf /= -> //. }
+    move => a cs1' IH s cs2 w pf H Hw; move: (IH _ _ _ _ H Hw) => H2; move {H}.
+    rewrite /mult_weights1_loop_right -/mult_weights1_loop_right.
+    rewrite (@mult_weights1_one_hd
+               a cs1' s
+               (p_aux_dist (A:=A) a0 (eps:=SEpsilon s) 
+                           (SEpsilonOk s) (w:=w) pf
+                           (cs:=[seq projT1 p | p <- cs1' ++ cs2])
+                           (CMAX_all (cs:=cs1' ++ cs2)))) => //.
+    rewrite /= /p_aux_dist /= /p_aux /=; f_equal.
+    move: (p_aux_dist_axiom _ _ _ _).
+    move: (p_aux_dist_axiom _ _ _ _).
+    rewrite mult_weights1_loop_right_eps.    
+    rewrite mult_weights1_loop_right_refines_weights_of.
+    have ->:
+        update_weights (A:=A) (SEpsilon s)
+                         (weights_of (A:=A) (SEpsilon s)
+                            [seq projT1 x | x <- cs1'] 
+                            (SWeights s)) (projT1 a) =
+        update_weights (A:=A) (SEpsilon s)
+                         (weights_of (A:=A) (SEpsilon s)
+                            [seq projT1 p | p <- cs1' ++ cs2] w)
+                         (projT1 a).
+    { by rewrite map_cat weights_of_app; f_equal; f_equal; apply: Hw. }
+    move => Hx Hy; f_equal.
+    apply: proof_irrelevance.
+  Qed.
+
+  (** The initial distribution *)
+  Program Definition init_dist eps (pf : 0 < eps <= 1/2%:R) :=
+    @p_aux_dist A a0 eps pf (init_weights A) _ [::] (CMAX_all (cs:=[::])).
+  Next Obligation. apply: init_weights_gt0. Defined.
+
+  (** Given:
+        - a sequence of cost vectors [cs]
+        - an initial state [s];
+      Running [mult_weights1] over [cs], in state [s], 
+      results in final output distribution equal to that 
+      calculated by [pdist]. *)
+  Lemma mult_weights1_refines_pdist :
+    forall cs (s : state A),
+      List.hd_error (SOutputs (mult_weights1 cs s)) = 
+        Some (pdist a0 (SEpsilonOk s) (@CMAX_all (rev cs))).
+  Proof.
+    move => cs s; rewrite /mult_weights1 mult_weights1_loop_leftright.
+    rewrite (@mult_weights1_loop_right_refines_p_aux_dist _ _ nil (init_weights A)).
+    { apply: init_weights_gt0. }
+    { move => H1; f_equal; rewrite /pdist /p_aux_dist /p cats0; f_equal => /=.
+      by apply: proof_irrelevance. }
+    { by move => H1 /=; f_equal; f_equal; apply: proof_irrelevance. }
+    by [].
+  Qed.      
 End mult_weights_refinement.
     
 Require Import Reals Rpower Ranalysis Fourier.
