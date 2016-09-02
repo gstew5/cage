@@ -343,7 +343,7 @@ Instance resourceSmoothInstance N
 
 (** Resource games are compilable *)
 Section resourceCompilable.
-Parameter (N : OrdNat.t).
+Variable (N : OrdNat.t).
 
 Instance resourceCTypeInstance : CType [finType of resource] :=
   [:: RYes; RNo].
@@ -721,9 +721,9 @@ Next Obligation.
   rewrite /lambda_val /singletonLambdaInstance.
   rewrite /mu_val /singletonMuInstance.
   have ->:
-   \sum_(i < N0)
+   \sum_(i < N)
       (if boolify ([ffun j => if i == j then t' j else t j] i) then 1 else 0) =
-   \sum_(i < N0) (if boolify (t' i) then 1 else (0 : rty)).
+   \sum_(i < N) (if boolify (t' i) then 1 else (0 : rty)).
   { by apply/congr_big => // i _; rewrite ffunE eq_refl. }
   rewrite -[\sum_i (if boolify (t' i) then 1 else 0)]addr0; apply: ler_add.
   rewrite addr0; apply: ler_pemull=> //.
@@ -1227,7 +1227,25 @@ Proof. by case; case; constructor. Qed.
 Definition Unit_eqMixin := EqMixin Unit_eqP.
 Canonical Unit_eqType := Eval hnf in EqType Unit Unit_eqMixin.
 
-Definition unitTy := Wrapper [eqType of Unit] [finType of unit].
+Definition bool_of_unit (u : Unit) : bool := true.
+Definition unit_of_bool (b : bool) : Unit := mkUnit.
+Lemma bool_of_unitK : cancel bool_of_unit unit_of_bool.
+Proof. by case. Qed.
+
+Definition unit_choiceMixin := CanChoiceMixin bool_of_unitK.
+Canonical unit_choiceType :=
+  Eval hnf in ChoiceType Unit unit_choiceMixin.
+Definition unit_countMixin := CanCountMixin bool_of_unitK.
+Canonical unit_countType :=
+  Eval hnf in CountType Unit unit_countMixin.
+
+Definition unit_enum := [:: mkUnit].
+Lemma unit_enumP : Finite.axiom unit_enum.
+Proof. by case. Qed.
+Definition unit_finMixin := Eval hnf in FinMixin unit_enumP.
+Canonical unit_finType := Eval hnf in FinType Unit unit_finMixin.
+
+Definition unitTy := Wrapper [eqType of Unit] [finType of Unit].
 Definition unitType := [finType of unitTy].
 End UnitType.
 
@@ -1277,10 +1295,10 @@ Program Instance unitSmoothAxiomInstance {N rty}
   : @SmoothnessAxiomClass unitType N rty _ _ _ _ _ _ _.
 Next Obligation.
   rewrite mul1r mul0r addr0; have ->: t = t'.
-  { apply/ffunP; case => m i; case: (t _)=> s; case: (t' _)=> s'.
+  { apply/ffunP; case => m i. case: (t _)=> s. case: (t' _)=> s'.
     by f_equal; case: s; case: s'. }
   by [].
-Qed.  
+Qed.
 
 Instance unitSmoothInstance {N rty}
   : @smooth unitType N rty _ _ _ _ _ _ _ _.
@@ -1292,6 +1310,38 @@ Module UnitSmoothTest. Section unitSmoothTest.
   Lemma x0 (t : {ffun 'I_N -> unitType}) (i : 'I_N) :
     cost i t == lambda of unitType. Abort.
 End unitSmoothTest. End UnitSmoothTest.
+
+(** Unit Games are compilable *)
+
+Section unitCompilable.
+  Variable (N : OrdNat.t).
+
+  Instance unitCTypeInstance : CType unitType :=
+    [:: Wrap [eqType of Unit] mkUnit].
+
+  Program Instance unitRefineTypeAxiomInstance
+    : @RefineTypeAxiomClass unitType _.
+  Next Obligation. by move => r; rewrite mem_enum; case: r. Qed.
+
+  Instance unitRefineTypeInstance
+    : @RefineTypeClass unitType  _ _.
+
+  Definition unit_ccost (i : OrdNat.t) (m : M.t unitTy) : Qcoq :=
+    0%coq_Qscope.
+
+  Instance unitCCostInstance : CCostClass unitType
+    := unit_ccost.
+
+  Program Instance unitRefineCostAxiomInstance :
+    @RefineCostAxiomClass N unitType _ _.
+
+  Instance unitRefineCostInstance
+    : @RefineCostClass N unitType _ _ _.
+
+  Instance unit_cgame 
+    : cgame (N:=N) (T:=unitType) _ _ _.
+
+End unitCompilable.
 
 (** Affine Games: C(x) = ax + b, 0 <= a, 0 <= b *)
 
