@@ -781,6 +781,21 @@ Section mult_weights_refinement.
       by apply: proof_irrelevance. }
     { by move => H1 /=; f_equal; f_equal; apply: proof_irrelevance. }
     by [].
+  Qed.
+
+  (** Connect the refinements: *)
+  Lemma step_plus_mult_weights_refines_pdist :
+    forall s c' s',
+      step_plus a0 (mult_weights A) s c' s' ->
+      final_com c' ->
+      exists cs,
+        List.hd_error (SOutputs s') =
+        Some (pdist a0 (SEpsilonOk s) (@CMAX_all (rev cs))).
+  Proof.
+    move => s c' s' H H2.
+    case: (step_plus_mult_weights_refines_mult_weights1 H H2) => cs H3.
+    exists cs; rewrite -H3.
+    by rewrite mult_weights1_refines_pdist.
   Qed.      
 End mult_weights_refinement.
     
