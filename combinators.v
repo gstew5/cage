@@ -343,7 +343,7 @@ Instance resourceSmoothInstance N
 
 (** Resource games are compilable *)
 Section resourceCompilable.
-Variable (N : OrdNat.t).
+Parameter (N : OrdNat.t).
 
 Instance resourceCTypeInstance : CType [finType of resource] :=
   [:: RYes; RNo].
@@ -377,20 +377,6 @@ Definition ctraffic' (m : M.t resource) : Qcoq :=
           else 0%coq_Qscope
       end).
 
-Definition ctraffic'_filter (m : M.t resource) : Qcoq :=
-  big_sumQ
-    (List.filter
-      (fun p =>
-        match p with (k, e) => (nat_of_bin k < N)%N end)
-      (M.elements m))
-    (fun p =>
-      match p with (k, e) =>
-        match e with
-        | RYes => 1%coq_Qscope
-        | RNo => 0%coq_Qscope
-        end
-      end).
-
 Lemma Qplus_leib_comm x y:
   (x + y)%coq_Qscope = (y + x)%coq_Qscope.
 Proof.
@@ -400,93 +386,213 @@ Proof.
   f_equal. ring. apply Pmult_comm.
 Qed.
 
+Lemma Qplus_leib_assoc x y z:
+  (x + (y + z))%coq_Qscope = ((x + y) + z)%coq_Qscope.
+Proof.
+  case x => x1 x2.
+  case y => y1 y2.
+  case z => z1 z2.
+  rewrite !/Qplus !/Qnum !/Qden => //.
+  f_equal. ring_simplify.  
+  admit.
+  apply Pmult_assoc.
+Admitted.
+
 Lemma Qplus_leib_0_l x : (0 + x)%coq_Qscope = x.
 Proof.
   case: x => x1 x2.
   rewrite /Qplus /Qnum /Qden.
   f_equal. ring.
 Qed.
-
-Lemma ctraffic'_eq_ctraffic_filter m :
-  ctraffic' m = ctraffic'_filter m.
+Lemma ctraffic_sub0 (l : seq (M.key * resource)) n :
+  List.fold_left
+    (fun acc p => 
+        if ((nat_of_bin p.1) < N)%N
+          then match p.2 with
+               | RYes => (acc + 1)%coq_Qscope
+               | RNo => acc
+               end
+          else acc)
+    l n
+      =
+  (List.fold_left
+    (fun acc p => 
+        if ( (nat_of_bin p.1) < N)%N
+          then match p.2 with
+               | RYes => (acc + 1)%coq_Qscope
+               | RNo => acc
+               end
+          else acc)
+    l 0%coq_Qscope + n)%coq_Qscope.
 Proof.
-  rewrite /ctraffic' /ctraffic'_filter.
-  induction (M.elements (elt := resource) m) => //=.
-  rewrite IHl.
-  case: a => a1 a2.
-  case: (a1 < N)%N.
+  move: n.
+  induction l => //=.
+  move => n0. rewrite Qplus_leib_0_l => //.
+  move => n.
+  case: (a.1 < N)%N => //.
+  case: a.2;
+  rewrite IHl => //=.
+  rewrite Qplus_leib_0_l.
+  rewrite (IHl 1%coq_Qscope).
+  rewrite -Qplus_leib_assoc.
+  f_equal. apply Qplus_leib_comm.
+Qed.
+
+Lemma ctraffic_subP l n :
+  List.fold_left
+    (fun acc p => 
+        if (nat_of_bin p.1 < N)%N
+          then match p.2 with
+               | RYes => (acc + 1)%coq_Qscope
+               | RNo => acc
+               end
+          else acc)
+    l n
+      =
+  List.fold_left
+    (fun acc p => 
+        if (nat_of_bin p.1 < N)%N
+          then match p.2 with
+               | RYes => (acc + 1)%coq_Qscope
+               | RNo => acc
+               end
+          else acc)
+    (List.rev l) n.
+Proof.
+  rewrite -List.fold_left_rev_right.
+  induction (List.rev l) => //=.
+  rewrite IHl0.
+  case: (a.1 < N)%N => //.
+  case: (a.2) => //.
+  rewrite (ctraffic_sub0 _ (n+1)%coq_Qscope) ctraffic_sub0.
+  rewrite Qplus_leib_assoc => //.
+Qed.
+
+Lemma ctraffic_filter_sub0 (l : seq (M.key * resource)) n :
+  List.fold_left
+    (fun acc p => 
+      match p.2 with
+      | RYes => (acc + 1)%coq_Qscope
+      | RNo => acc
+      end)
+    l n
+      =
+  (List.fold_left
+    (fun acc p => 
+      match p.2 with
+      | RYes => (acc + 1)%coq_Qscope
+      | RNo => acc
+      end)
+    l 0%coq_Qscope + n)%coq_Qscope.
+Proof.
+  move: n.
+  induction l.
   {
-    case: a2 => /=; by [].
+    move => n => /=.
+    rewrite Qplus_leib_0_l => //.
   }
   {
-    rewrite Qplus_leib_0_l; by [].
+    move => n => /=.
+    rewrite IHl.
+    case: a.2 => //.
+    rewrite (IHl (0+1)%coq_Qscope) Qplus_leib_0_l -Qplus_leib_assoc.
+    f_equal.
+    apply Qplus_leib_comm.
   }
 Qed.
 
-Lemma ctraffic'_traffic_eq
-  (m : M.t resource)
-  (s : {ffun 'I_N -> resource})
-  (H : forall (j : BinNums.N) (pf' : (j < N)%N),
-    M.find (elt:=resource) j m = Some (s (Ordinal (n:=N) (m:=j) pf'))):
-    ctraffic' m = rat_to_Q (traffic (N:=nat_of_bin N) s)%:R.
+Lemma ctraffic_subF l n :
+  List.fold_left
+    (fun acc p => 
+        if (nat_of_bin p.1 < N)%N
+          then match p.2 with
+               | RYes => (acc + 1)%coq_Qscope
+               | RNo => acc
+               end
+          else acc)
+    l n
+      =
+  List.fold_left
+    (fun acc p => 
+      match p.2 with
+      | RYes => (acc + 1)%coq_Qscope
+      | RNo => acc
+      end)
+    (List.filter (fun p => (nat_of_bin p.1 < N)%N) l) n.
 Proof.
-  rewrite ctraffic'_eq_ctraffic_filter trafficP /traffic'
-          /ctraffic'_filter.
-  induction N => /=.
+  move: n.
+  set f := 
+   (fun (acc : Q) (p : BinNums.N * resource) =>
+    if (p.1 < N)%N
+    then match p.2 with
+        | RYes => (acc + 1)%Q
+        | RNo => acc
+        end
+    else acc).
+  set f' :=
+   (fun (acc : Q) (p : BinNums.N * resource) =>
+   match p.2 with
+   | RYes => (acc + 1)%Q
+   | RNo => acc
+   end). 
+  induction l => //=.
+  move => n.
+  rewrite ctraffic_sub0 IHl.
+  rewrite /f {2}/f'.
+  case: (a.1 < N)%N => //=.
+  case: a.2.
+  rewrite (ctraffic_filter_sub0 _ (n+1)%coq_Qscope) => //.
+  rewrite -/f'. symmetry. 
+  apply ctraffic_filter_sub0.
+  rewrite -ctraffic_filter_sub0 => //.
+Qed.
+
+Lemma rat_to_Q_s_add x :
+  (rat_to_Q 1 + rat_to_Q x)%coq_Qscope = rat_to_Q (1 + x).
+Proof.
+
 Admitted.
 
-Lemma ctraffic_rev' l n:
-  let f :=(fun (a0 : Q) (p : M.key * resource) =>
-            if (nat_of_bin p.1 < nat_of_bin N)%N
-            then match p.2 with
-                  | RYes => (a0 + 1)%Q
-                  | RNo => a0
-                 end
-            else a0) in 
-  List.fold_left f l n
-    = 
-  List.fold_left f (List.rev l) n.
+Lemma ctraffic_sub_subP (l : seq (M.key*resource)):
+  let f :=
+    (fun acc p => 
+      match p.2 with
+      | RYes => (acc + 1)%coq_Qscope
+      | RNo => acc
+      end) in
+  List.fold_left f l 0%coq_Qscope
+    =
+  rat_to_Q
+    ((count
+      (fun p => match p.2 with |RYes => true | RNo => false end)
+      l)%:R).
 Proof.
   induction l => //.
-  move => f. unfold f in IHl.
-  fold f in IHl => /=.
-  rewrite {2}/f.
-  case: a => a1 a2 => /=.
-  case: (a1 < N)%N; admit.
+  simpl.
+  case: a.2 => /=;
+  rewrite ctraffic_filter_sub0 IHl => /=;
+  first rewrite Qplus_leib_0_l.
+  rewrite Qplus_leib_comm => //.
+  have H : rat_to_Q 1 = 1%coq_Qscope
+    by rewrite /rat_to_Q => //.
+  rewrite -H rat_to_Q_s_add => //.
+  admit.
+  rewrite addnC addn0.
+  rewrite Qplus_leib_comm Qplus_leib_0_l => //.
 Admitted.
 
-Lemma ctraffic_ctraffic'_eq m : ctraffic m = ctraffic' m.
+Lemma ctraffic_sub_sub_eq (l l' : seq (M.key*resource)) :
+  perm_eq l l' ->
+    (count
+      (fun p => match p.2 with |RYes => true | RNo => false end)
+      l)
+    =
+    (count
+      (fun p => match p.2 with |RYes => true | RNo => false end)
+      l').
 Proof.
-  rewrite /ctraffic /ctraffic' M.fold_1.
-  induction (M.elements (elt := resource) m) => //.
-  rewrite ctraffic_rev'.
-  rewrite -List.fold_left_rev_right List.rev_involutive => /=.
-  case: a => a1 a2 => /=.
-  case: (nat_of_bin a1 < nat_of_bin N)%N.
-  {
-    case: a2.
-    {
-      rewrite ctraffic_rev' -List.fold_left_rev_right
-              List.rev_involutive in IHl. 
-      rewrite -IHl Qplus_leib_comm.
-      reflexivity.
-    }
-    {
-      rewrite ctraffic_rev' -List.fold_left_rev_right
-              List.rev_involutive in IHl. 
-      rewrite -IHl. rewrite Qplus_leib_0_l.
-      reflexivity.
-    }
-  }
-  { 
-    {
-      rewrite ctraffic_rev' -List.fold_left_rev_right
-              List.rev_involutive in IHl. 
-      rewrite -IHl. rewrite Qplus_leib_0_l.
-      reflexivity.
-    }
-  }
-Qed.
+  move/perm_eqP => H.
+Admitted.
 
 Definition resource_ccost (i : OrdNat.t) (m : M.t resource) : Qcoq :=
   match M.find i m with
@@ -505,9 +611,12 @@ Next Obligation.
   rewrite (H i pf).
   rewrite /(cost) /resourceCostInstance /= /resourceCostFun /=.
   case H2: (s _) => //.
-  rewrite ctraffic_ctraffic'_eq.
-  apply ctraffic'_traffic_eq; apply H.
-Qed.
+  rewrite /ctraffic M.fold_1 trafficP /traffic' ctraffic_subF.
+  move: (M.elements_3w m) => H1.
+  rewrite ctraffic_sub_subP.
+  f_equal.
+  rewrite sum1_count.
+Admitted.
 
 Instance resourceRefineCostInstance
   : @RefineCostClass N [finType of resource] _ _ _.
