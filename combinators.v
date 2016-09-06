@@ -1136,6 +1136,14 @@ Section prodCompilable.
   Instance prodRefineTypeInstance (aT bT : finType)
     : @RefineTypeClass [finType of aT*bT]  _ _.
 
+  Definition map_split {aT bT : Type} (m : M.t (aT*bT)) :=
+    M.fold (fun i r acc =>
+              match r with
+              | (a, b) =>
+                (M.add i a (fst acc), M.add i b (snd acc))
+              end)
+           m (M.empty aT, M.empty bT).
+
   Instance prodCCostInstance
            (aT bT : finType)
            `(ccostA : CCostClass aT)
@@ -1143,11 +1151,12 @@ Section prodCompilable.
     : CCostClass [finType of aT*bT]
     :=
       fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
-          match M.find i m with
-          | Some (a, b) => (ccost i (M.add i a (M.empty aT)) +
-                           ccost i (M.add i b (M.empty bT)))%coq_Qscope
-          | _ => 0%coq_Qscope
-          end.
+        let split_m := map_split m in
+        match M.find i m with
+        | Some (a, b) => (ccost i (fst split_m) +
+                         ccost i (snd split_m))%coq_Qscope
+        | _ => 0%coq_Qscope
+        end.
   
   Program Instance prodRefineCostAxiomInstance
           (aT bT : finType)
