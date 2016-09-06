@@ -550,7 +550,8 @@ Qed.
 Lemma rat_to_Q_s_add x :
   (rat_to_Q 1 + rat_to_Q x)%coq_Qscope = rat_to_Q (1 + x).
 Proof.
-
+  case: x =>  x.
+  case: x => x1 x2 => /= => pf. 
 Admitted.
 
 Lemma ctraffic_sub_subP (l : seq (M.key*resource)):
@@ -564,7 +565,7 @@ Lemma ctraffic_sub_subP (l : seq (M.key*resource)):
     =
   rat_to_Q
     ((count
-      (fun p => match p.2 with |RYes => true | RNo => false end)
+      (fun p => p.2  == RYes)
       l)%:R).
 Proof.
   induction l => //.
@@ -581,19 +582,6 @@ Proof.
   rewrite Qplus_leib_comm Qplus_leib_0_l => //.
 Admitted.
 
-Lemma ctraffic_sub_sub_eq (l l' : seq (M.key*resource)) :
-  perm_eq l l' ->
-    (count
-      (fun p => match p.2 with |RYes => true | RNo => false end)
-      l)
-    =
-    (count
-      (fun p => match p.2 with |RYes => true | RNo => false end)
-      l').
-Proof.
-  move/perm_eqP => H.
-Admitted.
-
 Definition resource_ccost (i : OrdNat.t) (m : M.t resource) : Qcoq :=
   match M.find i m with
   | Some RYes => ctraffic m
@@ -603,6 +591,22 @@ Definition resource_ccost (i : OrdNat.t) (m : M.t resource) : Qcoq :=
 
 Instance resourceCCostInstance : CCostClass [finType of resource]
   := resource_ccost.
+
+Definition lift_traffic (s : {ffun 'I_N -> resource})
+  : seq (M.key*resource):=
+map
+  (fun (x : 'I_N) => ((N.of_nat x), s x))
+  (index_enum (ordinal_finType N)).  
+
+Lemma list_trafficP (s : {ffun 'I_N -> resource}) :
+  count (fun j : (M.key*resource) => j.2 == RYes) (lift_traffic s)
+  =
+  count (fun j: ordinal_finType N => s j == RYes)
+    (index_enum (ordinal_finType N)).
+Proof.
+  rewrite /lift_traffic.
+Admitted.
+
 
 Program Instance resourceRefineCostAxiomInstance
   : @RefineCostAxiomClass N [finType of resource] _ _.
@@ -615,7 +619,32 @@ Next Obligation.
   move: (M.elements_3w m) => H1.
   rewrite ctraffic_sub_subP.
   f_equal.
-  rewrite sum1_count.
+  rewrite sum1_count. rewrite -list_trafficP.
+  f_equal.
+  apply /perm_eqP.
+  SearchAbout perm_eq.
+  apply uniq_perm_eq.
+  {
+    admit.
+  }
+  {
+    admit.
+  }
+  {
+    rewrite /lift_traffic.
+    rewrite /eq_mem => x.
+    case_eq
+      (x \in List.filter (fun p : BinNums.N * resource => (p.1 < N)%N)
+         (M.elements (elt:=resource) m)) => H4.
+    {
+      have H5 : (x.1 < N)%N by
+        rewrite mem_filter in H4; case/andP: H4 => H4 _ => //.
+      admit.
+    }
+    {
+      admit.
+    }
+  }
 Admitted.
 
 Instance resourceRefineCostInstance
