@@ -11,7 +11,7 @@ Require Import extrema numerics games.
 
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
-Require Import Coq.FSets.FMapAVL.
+Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
 (*The computable cost function computes Q rather than rty.*)
@@ -48,6 +48,8 @@ Module OrdNat
 End OrdNat.
       
 Module M := Make OrdNat. (* The type of shared states *)
+Module MFacts := Facts M.
+Module MProps := Properties M.
 
 Class CType (T : Type) :=
   ctype_fun : list T.
