@@ -343,7 +343,7 @@ Instance resourceSmoothInstance N
 
 (** Resource games are compilable *)
 Section resourceCompilable.
-Parameter (N : OrdNat.t).
+Variable (N : OrdNat.t).
 
 Instance resourceCTypeInstance : CType [finType of resource] :=
   [:: RYes; RNo].
@@ -1080,6 +1080,92 @@ Module ProdSmoothTest. Section prodSmoothTest.
   Lemma x2 (t : {ffun 'I_N -> A*B}) (i : 'I_N) :
     mu of [finType of A * B] == lambda of [finType of A * B]. Abort.
 End prodSmoothTest. End ProdSmoothTest.
+
+(** Product Games are compilable *)
+
+Section prodCompilable.
+  Variable (N : OrdNat.t).
+  
+  Instance prodCTypeInstance (aT bT : finType)
+    : CType [finType of (aT*bT)] :=
+    List.list_prod (enum aT) (enum bT).
+
+  Program Instance prodRefineTypeAxiomInstance
+          (aT bT : finType)
+    : @RefineTypeAxiomClass [finType of aT*bT] _.
+  Next Obligation. 
+    move => r. rewrite mem_enum. case: r. move => a b.
+    rewrite /prodCTypeInstance /ctype_fun.
+    have H: (List.In (a, b) (List.list_prod (enum aT) (enum bT))).
+    { apply List.in_prod_iff. split. admit. admit. }
+    
+    (* rewrite /in_mem.  *)
+    admit.
+    (* by move => r; rewrite mem_enum; case: r. Qed. *)
+  Admitted.
+
+  Instance prodRefineTypeInstance (aT bT : finType)
+    : @RefineTypeClass [finType of aT*bT]  _ _.
+
+  Instance prodCCostInstance
+           (aT bT : finType)
+           `(ccostA : CCostClass aT)
+           `(ccostB : CCostClass bT)
+    : CCostClass [finType of aT*bT]
+    :=
+      fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
+          match M.find i m with
+          | Some (a, b) => (ccost i (M.add i a (M.empty aT)) +
+                           ccost i (M.add i b (M.empty bT)))%coq_Qscope
+          | _ => 0%coq_Qscope
+          end.
+  
+  Program Instance prodRefineCostAxiomInstance
+          (aT bT : finType)
+          (costA : CostClass N rat_realFieldType aT)
+          (costB : CostClass N rat_realFieldType bT)
+          (ccostA : CCostClass aT)
+          (ccostB : CCostClass bT)
+    : @RefineCostAxiomClass
+        N [finType of aT*bT]
+        (@prodCostInstance N rat_realFieldType aT bT costA costB)
+        (@prodCCostInstance aT bT ccostA ccostB).
+  Next Obligation.
+    rewrite /cost_fun /prodCostInstance /cost_fun.
+    rewrite /ccost_fun /prodCCostInstance /ccost_fun.
+    rewrite (H i pf).
+    admit.
+  Admitted.
+  
+  Instance prodRefineCostInstance (aT bT : finType)
+           (costA : CostClass N rat_realFieldType aT)
+           (costB : CostClass N rat_realFieldType bT)
+           (ccostA : CCostClass aT)
+           (ccostB : CCostClass bT)
+    : @RefineCostClass N [finType of aT*bT] _ _ _.
+
+  Instance prod_cgame (aT bT : finType)
+           `(costA : CostClass N rat_realFieldType aT)
+           `(costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
+           `(ccostA : CCostClass aT)
+           `(refineTypeA : RefineTypeClass aT)
+           `(refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA)
+           `(refineCostA : @RefineCostClass N aT costA ccostA _)
+           `(gA : @game aT N rat_realFieldType _ _)
+           `(cgA : @cgame N aT _ _ _ _ _ _ _ _ _)
+           `(costB : CostClass N rat_realFieldType bT)
+           `(costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
+           `(ccostB : CCostClass bT)
+           `(refineTypeB : RefineTypeClass bT)
+           `(refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB)
+           `(refineCostB : @RefineCostClass N bT costB ccostB _)
+           `(gB : @game bT N rat_realFieldType _ _)
+           `(cgB : @cgame N bT _ _ _ _ _ _ _ _ _)
+    : @cgame N [finType of aT*bT] (prodCTypeInstance aT bT)
+             (prodRefineTypeAxiomInstance aT bT)
+             (prodRefineTypeInstance aT bT) _ _ _ _ _ _.
+
+End prodCompilable.
 
 (** Scalar Games c * A *)
 
