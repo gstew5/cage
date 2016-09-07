@@ -129,7 +129,7 @@ Section semantics.
       { SCosts : {ffun A -> rat} (* the current cost vector *)
       ; SCostsOk : forall a, 0 <= SCosts a <= 1
         (* the history of cost vectors seen so far *)                   
-      ; SPrevCosts : CMAX_costs_seq A
+      ; SPrevCosts : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}
       ; SWeights : {ffun A -> rat} (* current weights *)
       ; SWeightsOk : forall a, 0 < SWeights a
       ; SEpsilon : rat (* epsilon -- a parameter *)
@@ -200,7 +200,7 @@ Section semantics.
            @mkState
              c
              pf
-             (@CMAX_costs_seq_cons (SCosts s) (SCostsOk s) (SPrevCosts s))
+             (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
              (SWeights s)
              (SWeightsOk s)
              (SEpsilon s)
@@ -291,7 +291,7 @@ Section semantics.
            @mkState
              c
              pf
-             (@CMAX_costs_seq_cons (SCosts s) (SCostsOk s) (SPrevCosts s))
+             (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
              (SWeights s)
              (SWeightsOk s)
              (SEpsilon s)             
@@ -509,7 +509,7 @@ Section mult_weights_refinement.
              (pf : forall a, 0 <= c a <= 1)
              (s : state A)
     : state A :=
-    let: old_costs := @CMAX_costs_seq_cons _ (SCosts s) (SCostsOk s) (SPrevCosts s)
+    let: old_costs := existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s
     in 
     @mkState A
       c
@@ -806,9 +806,15 @@ Section semantics_lemmas.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
 
-  (** Current append previous cost vectors *)  
+  (** Current append previous cost vectors *)
+  Lemma prev_costs_aux (s : state A) : CMAXb [seq projT1 x | x <- SPrevCosts s].
+  Admitted.
+
+  Definition prev_costs (s : state A) : CMAX_costs_seq A :=
+    exist (fun c => CMAXb c) _ (prev_costs_aux s).
+  
   Definition all_costs (s : state A) :=
-    CMAX_costs_seq_cons (SCostsOk s) (SPrevCosts s).
+    CMAX_costs_seq_cons (SCostsOk s) (prev_costs s).
 
   (** The number of cost vectors received from the environment *)
   Definition T (s : state A) := INR (size (projT1 (all_costs s))).
