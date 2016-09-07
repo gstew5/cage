@@ -393,10 +393,11 @@ Proof.
   case y => y1 y2.
   case z => z1 z2.
   rewrite !/Qplus !/Qnum !/Qden => //.
-  f_equal. ring_simplify.  
-  admit.
+  f_equal. ring_simplify.
+  rewrite Pos.mul_comm [(x2 * y2)%positive] Pos.mul_comm.
+  rewrite !Pos2Z.inj_mul !Zmult_assoc //.
   apply Pmult_assoc.
-Admitted.
+Qed.
 
 Lemma Qplus_leib_0_l x : (0 + x)%coq_Qscope = x.
 Proof.
@@ -551,7 +552,8 @@ Lemma rat_to_Q_s_add x :
   (rat_to_Q 1 + rat_to_Q x)%coq_Qscope = rat_to_Q (1 + x).
 Proof.
   case: x =>  x.
-  case: x => x1 x2 => /= => pf. 
+  case: x => x1 x2 => /= => pf.
+  admit.
 Admitted.
 
 Lemma ctraffic_sub_subP (l : seq (M.key*resource)):
@@ -577,10 +579,10 @@ Proof.
   have H : rat_to_Q 1 = 1%coq_Qscope
     by rewrite /rat_to_Q => //.
   rewrite -H rat_to_Q_s_add => //.
-  admit.
+  f_equal. rewrite natrD //. 
   rewrite addnC addn0.
   rewrite Qplus_leib_comm Qplus_leib_0_l => //.
-Admitted.
+Qed.
 
 Definition resource_ccost (i : OrdNat.t) (m : M.t resource) : Qcoq :=
   match M.find i m with
@@ -1164,6 +1166,8 @@ Section prodCompilable.
           (costB : CostClass N rat_realFieldType bT)
           (ccostA : CCostClass aT)
           (ccostB : CCostClass bT)
+          (refineA : RefineCostAxiomClass costA ccostA)
+          (refineB : RefineCostAxiomClass costB ccostB)
     : @RefineCostAxiomClass
         N [finType of aT*bT]
         (@prodCostInstance N rat_realFieldType aT bT costA costB)
@@ -1171,7 +1175,12 @@ Section prodCompilable.
   Next Obligation.
     rewrite /cost_fun /prodCostInstance /cost_fun.
     rewrite /ccost_fun /prodCCostInstance /ccost_fun.
+    rewrite /RefineCostAxiomClass in refineA.
+    rewrite /RefineCostAxiomClass in refineB.
     rewrite (H i pf).
+    case: (s (Ordinal (n:=N) (m:=i) pf)) => _ _.
+    (* specialize (refineA i pf (map_split m).1). *)
+    (* specialize (refineB i pf (map_split m).2). *)
     admit.
   Admitted.
   
@@ -1180,6 +1189,8 @@ Section prodCompilable.
            (costB : CostClass N rat_realFieldType bT)
            (ccostA : CCostClass aT)
            (ccostB : CCostClass bT)
+           (refineA : RefineCostAxiomClass costA ccostA)
+           (refineB : RefineCostAxiomClass costB ccostB)
     : @RefineCostClass N [finType of aT*bT] _ _ _.
 
   Instance prod_cgame (aT bT : finType)
