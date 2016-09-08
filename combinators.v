@@ -1137,14 +1137,38 @@ Section prodCompilable.
 
   Instance prodRefineTypeInstance (aT bT : finType)
     : @RefineTypeClass [finType of aT*bT]  _ _.
-
+  
   Definition map_split {aT bT : Type} (m : M.t (aT*bT)) :=
     M.fold (fun i r acc =>
               match r with
               | (a, b) =>
-                (M.add i a (fst acc), M.add i b (snd acc))
+                (M.add i a acc.1, M.add i b acc.2)
               end)
            m (M.empty aT, M.empty bT).
+  
+  Lemma map_split_spec (aT bT : Type) i (a : aT) (b : bT) m :
+    M.find i m = Some (a, b) ->
+    M.find i (map_split m).1 = Some a /\
+    M.find i (map_split m).2 = Some b.
+  Proof.
+    { rewrite /map_split. apply MProps.fold_rec_weak.
+      { move => mo m' a' H0 H1 H2.
+        have H3: (forall (k : M.key) (e : (aT*bT)),
+                     M.MapsTo k e mo <-> M.MapsTo k e m').
+        { by apply MProps.F.Equal_mapsto_iff; apply H0. }
+        apply M.find_2 in H2. apply H3 in H2. apply M.find_1 in H2.
+        apply H1. apply H2. }
+      { move => H. inversion H. }
+      { move => k e a' m' H0 IH. case: e. move => a0 b0 H2 /=.
+        rewrite MProps.F.add_o. case: (MProps.F.eq_dec k i) => H3 //.
+        rewrite MProps.F.add_eq_o in H2; auto. inversion H2.
+        split. auto. rewrite MProps.F.add_eq_o //.
+        split. apply IH. rewrite MProps.F.add_neq_o in H2.
+        apply H2. apply H3.
+        rewrite MProps.F.add_neq_o. apply IH.
+        rewrite MProps.F.add_neq_o in H2.
+        apply H2. apply H3. apply H3. } }
+  Qed.
 
   Instance prodCCostInstance
            (aT bT : finType)
@@ -1153,10 +1177,9 @@ Section prodCompilable.
     : CCostClass [finType of aT*bT]
     :=
       fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
-        let split_m := map_split m in
         match M.find i m with
-        | Some (a, b) => (ccost i (fst split_m) +
-                         ccost i (snd split_m))%coq_Qscope
+        | Some (a, b) => (ccost i (map_split m).1 +
+                         ccost i (map_split m).2)%coq_Qscope
         | _ => 0%coq_Qscope
         end.
   
@@ -1178,9 +1201,10 @@ Section prodCompilable.
     rewrite /RefineCostAxiomClass in refineA.
     rewrite /RefineCostAxiomClass in refineB.
     rewrite (H i pf).
-    case: (s (Ordinal (n:=N) (m:=i) pf)) => _ _.
-    (* specialize (refineA i pf (map_split m).1). *)
-    (* specialize (refineB i pf (map_split m).2). *)
+    specialize (H i pf).
+    move: H.
+    case: (s (Ordinal (n:=N) (m:=i) pf)) => a b H.
+    apply map_split_spec in H. case: H => H0 H1.
     admit.
   Admitted.
   
@@ -1213,7 +1237,6 @@ Section prodCompilable.
     : @cgame N [finType of aT*bT] (prodCTypeInstance aT bT)
              (prodRefineTypeAxiomInstance aT bT)
              (prodRefineTypeInstance aT bT) _ _ _ _ _ _.
-
 End prodCompilable.
 
 (** Scalar Games c * A *)
