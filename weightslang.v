@@ -588,8 +588,7 @@ Section mult_weights_refinement.
   Lemma stepN_mult_weights_refines_mult_weights1_one :
     forall n (s s' : state A),
       stepN a0 n (mult_weights_body A) s s' ->
-      exists (c : {ffun A -> rat}) (pf : forall a, 0 <= c a <= 1),
-        mult_weights1_one pf s = s'.
+      mult_weights1_one (SCostsOk s') s = s'.
   Proof.
     move => n s s'.
     inversion 1; subst. clear H.
@@ -597,7 +596,6 @@ Section mult_weights_refinement.
     inversion H6; subst. clear H6.
     inversion H2; subst. simpl in *. clear H2.
     inversion H5; subst. simpl in *. clear H5.
-    exists c, pf.
     rewrite /mult_weights1_one.
     f_equal.
     apply: proof_irrelevance.
@@ -605,28 +603,142 @@ Section mult_weights_refinement.
     f_equal.
     apply: proof_irrelevance.
   Qed.      
-  
-  Lemma stepN_mult_weights_refines_mult_weights1_loop :
-    forall n (s s' : state A),
-      stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
-      exists (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}),
-        mult_weights1_loop_left cs s = s'.
+
+  Definition all_costs (s : state A) :=
+    [:: existT _ _ (SCostsOk s) & SPrevCosts s].
+
+  Lemma mult_weights1_one_all_costs s s' : 
+    mult_weights1_one (c:=SCosts s') (SCostsOk s') s = s' ->
+    all_costs s' = [:: existT _ _ (SCostsOk s') & all_costs s].
+  Proof. by rewrite /mult_weights1_one; case: s'; inversion 1; subst. Qed.
+
+  Lemma cat_cons' T (x : T) l1 l2 : l1 ++ x :: l2 = rcons l1 x ++ l2.
+  Proof. by elim: l1 l2 x => // a l IH l2 x /=; rewrite IH. Qed.
+
+  Lemma rcons_inj T (x y : T) l1 l2 :
+    rcons l1 x = rcons l2 y -> l1 = l2 /\ x = y.
   Proof.
-    set P := fun (n : nat) =>
-               forall (s s' : state A),
-                 stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
-                 exists cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1},
-                   mult_weights1_loop_left cs s = s'.
+    elim: l1 l2.
+    { case => /=; first by case => ->; split.
+      move => a l2 /=; case => ->; case: l2 => //. }
+    move => a l1 IH; case => /=.
+    { case => ->; case: l1 IH => //. }
+    by move => a1 l2; case => -> H2; case: (IH _ H2) => -> ->.
+  Qed.
+    
+  Lemma cat_inj T (l : list T) l0 s :
+    l ++ s = l0 ++ s -> l = l0.
+  Proof.
+    elim: s l0 l; first by move => l0 l; rewrite 2!cats0.
+    move => a l IH l0 l1; rewrite 2!cat_cons' => H.
+    by move: (IH _ _ H) => H2; case: (rcons_inj H2) => ->.
+  Qed.
+
+  Lemma size_rev_cat1 T (a : T) l s :
+    (0 < size (rev l ++ [:: a & s]))%N.
+  Proof.
+    rewrite size_cat; elim: l => // a1 l IH.
+    by rewrite size_rev.
+  Qed.      
+
+  Lemma rev_nil T : rev (T:=T) nil = nil.
+  Proof. by []. Qed.
+
+  Lemma rcons_nil_inv T (l : list T) x :
+    [::] = rcons l x -> False.
+  Proof. by elim: l. Qed.
+  
+  Lemma rev_inj T (l : list T) l0 :
+    rev l = rev l0 -> l = l0.
+  Proof.
+    elim: l l0.
+    { case => // a l0 /=; rewrite rev_cons rev_nil => H.
+      by move: (rcons_nil_inv H). }
+    move => a l IH l0; rewrite rev_cons; case: l0.
+    { rewrite rev_nil => H.
+      by symmetry in H; move: (rcons_nil_inv H). }
+    move => a1 l0; rewrite rev_cons => H.
+    case: (rcons_inj H) => H2 ->.
+    by rewrite (IH _ H2).
+  Qed.    
+                        
+  Lemma catrev_cons_inv T (l : list T) s l0 x :
+    catrev l s = catrev l0 [:: x & s] ->
+    l = [:: x & l0].
+  Proof. by rewrite 2!catrevE -cat_rcons -rev_cons; move/cat_inj/rev_inj. Qed.
+  
+  Lemma stepN_repeat_fold :
+    forall n (s s' : state A) l c
+           (f : forall c : {ffun A -> rat},
+               (forall a, 0 <= c a <= 1) ->
+               state A -> state A),
+      (forall n s s', stepN a0 n c s s' -> f (SCosts s') (SCostsOk s') s = s') ->
+      (forall n s s',
+          stepN a0 n c s s' ->
+          all_costs s' = [:: existT _ _ (SCostsOk s') & all_costs s]) -> 
+      stepN a0 n (CRepeat c) s s' ->
+      catrev l (all_costs s) = all_costs s' -> 
+      foldl (fun s c => f (projT1 c) (projT2 c) s) s l = s'.
+  Proof.
+    set P :=
+      fun (n : nat) =>               
+        forall (s s' : state A) l c
+               (f : forall c : {ffun A -> rat},
+                   (forall a, 0 <= c a <= 1) ->
+                   state A -> state A),
+          (forall n s s', stepN a0 n c s s' -> f (SCosts s') (SCostsOk s') s = s') ->
+          (forall n s s',
+              stepN a0 n c s s' ->
+              all_costs s' = [:: existT _ _ (SCostsOk s') & all_costs s]) -> 
+          stepN a0 n (CRepeat c) s s' ->
+          catrev l (all_costs s) = all_costs s' -> 
+          foldl (fun s c => f (projT1 c) (projT2 c) s) s l = s'.
     move => n; change (P n).
     apply: (well_founded_ind lt_wf); case.
-    { move => _; rewrite /P => s s'; inversion 1. }
-    rewrite /P => m IH s s'; inversion 1; subst. clear H.
-    inversion H2; subst. clear H2.
-    case: (stepN_mult_weights_refines_mult_weights1_one H3) => c []pf H2.
+    { move => _; rewrite /P => s s' l c f H H2; inversion 1. }
+    rewrite /P => m IH s s' l c f H H2; inversion 1; subst.
+    clear H0 => H0.
+    inversion H4; subst. clear H4 P.
     have Hn0: (n0 < n0.+2)%coq_nat by omega.
-    case: (IH n0 Hn0 s1' s' H6) => cs H7.
-    by exists [:: existT _ c pf & cs]; rewrite -H2 in H7.
-  Qed.      
+    move: (H2 _ _ _ H6) => H7.
+    have H10: l = [:: existT _ _ (SCostsOk s1') & behead l].
+    { have H11: exists l0, all_costs s' = catrev l0 (all_costs s1').
+      { admit. }
+      case: H11 => l0 H11.
+      rewrite H11 H7 /= in H0.
+      move: (catrev_cons_inv H0).
+      by clear H0; case: l => // a l' /=; case => -> ->. }
+    rewrite H10 /=.
+    have H11: f (SCosts s1') (SCostsOk s1') s = s1'.
+    { by apply: H; apply: H6. }
+    rewrite (IH _ Hn0 (f (SCosts s1') (SCostsOk s1') s) s' (behead l) c) => //.
+    by rewrite H11; apply: H9.
+    by rewrite H11 H7 -H0 H10.
+  Admitted.
+
+  Lemma mult_weights1_loop_left_foldl
+        (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}) (s : state A) :
+    mult_weights1_loop_left cs s =
+    foldl (fun s c => mult_weights1_one (projT2 c) s) s cs.
+  Proof. by elim: cs s => // c cs' IH s /=; rewrite IH. Qed.
+  
+  Lemma stepN_mult_weights_refines_mult_weights1_loop :
+    forall n (s s' : state A) l,
+      stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
+      catrev l (all_costs s) = all_costs s' ->
+      mult_weights1_loop_left l s = s'.
+  Proof.
+    move => n s s' l H H2.
+    rewrite mult_weights1_loop_left_foldl.
+    apply: (stepN_repeat_fold (n:=n) (c:=mult_weights_body A)) => //.
+    { move => m sx sx' H3.
+      apply: stepN_mult_weights_refines_mult_weights1_one.
+      apply: H3. }
+    move => m sx sx' H3.
+    apply: mult_weights1_one_all_costs.
+    apply: stepN_mult_weights_refines_mult_weights1_one.
+    apply: H3.
+  Qed.    
   
   Lemma stepN_mult_weights_refines_mult_weights1_init :
     forall n (s s' : state A),
@@ -654,6 +766,7 @@ Section mult_weights_refinement.
     move: (stepN_mult_weights_refines_mult_weights1_init H3) => H7.
     rewrite -H7 in H6.
     rewrite /mult_weights1.
+    (* stops building HERE *)
     apply: stepN_mult_weights_refines_mult_weights1_loop.
     apply: H6.
   Qed.
