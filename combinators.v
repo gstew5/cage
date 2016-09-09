@@ -1177,11 +1177,11 @@ Section prodCompilable.
     : CCostClass [finType of aT*bT]
     :=
       fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
-        match M.find i m with
-        | Some (a, b) => (ccost i (map_split m).1 +
-                         ccost i (map_split m).2)%coq_Qscope
-        | _ => 0%coq_Qscope
-        end.
+        Qred (match M.find i m with
+              | Some (a, b) => (ccost i (map_split m).1 +
+                               ccost i (map_split m).2)%coq_Qscope
+              | _ => 0%coq_Qscope
+              end).
   
   Program Instance prodRefineCostAxiomInstance
           (aT bT : finType)
@@ -1201,12 +1201,47 @@ Section prodCompilable.
     rewrite /RefineCostAxiomClass in refineA.
     rewrite /RefineCostAxiomClass in refineB.
     rewrite (H i pf).
-    specialize (H i pf).
     move: H.
-    case: (s (Ordinal (n:=N) (m:=i) pf)) => a b H.
-    apply map_split_spec in H. case: H => H0 H1.
-    admit.
-  Admitted.
+    have ->: (s (Ordinal (n:=N) (m:=i) pf) =
+              ((s (Ordinal (n:=N) (m:=i) pf)).1,
+               (s (Ordinal (n:=N) (m:=i) pf)).2)).
+    { by case: (s (Ordinal (n:=N) (m:=i) pf)). }
+    move => H.
+    have H2: ((ccost) i (map_split m).1 =
+              rat_to_Q
+                ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1])).
+    { apply refineA. move => j pf'.
+      have ->: ([ffun j0 => (s j0).1] (Ordinal (n:=N) (m:=j) pf') =
+               (s (Ordinal (n:=N) (m:=j) pf')).1).
+      { by rewrite ffunE. }
+      specialize (H j pf').
+      move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
+      apply map_split_spec in H.
+      case: H => H0 H1.
+      apply H0. }
+    have H3: ((ccost) i (map_split m).2 =
+              rat_to_Q
+                ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2])).
+    { apply refineB. move => j pf'.
+      have ->: ([ffun j0 => (s j0).2] (Ordinal (n:=N) (m:=j) pf') =
+               (s (Ordinal (n:=N) (m:=j) pf')).2).
+      { by rewrite ffunE. }
+      specialize (H j pf').
+      move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
+      apply map_split_spec in H.
+      case: H => H0 H1.
+      apply H1. }
+    have H4: ((ccostA i (map_split m).1 =
+               rat_to_Q
+                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1]))).
+    { apply H2. }
+    have H5: ((ccostB i (map_split m).2 =
+               rat_to_Q
+                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2]))).
+    { apply H3. }
+    rewrite H4 H5 [rat_to_Q (_ + _)] rat_to_Q_red.
+    apply Qred_complete. apply Qeq_sym. apply rat_to_Q_plus.
+Qed.
   
   Instance prodRefineCostInstance (aT bT : finType)
            (costA : CostClass N rat_realFieldType aT)

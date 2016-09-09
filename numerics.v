@@ -3,6 +3,9 @@ Unset Strict Implicit.
 
 Require Import QArith Qreals Reals Fourier.
 
+(*Avoid clash with Ssreflect*)
+Delimit Scope Q_scope with coq_Qscope.
+
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
@@ -593,6 +596,12 @@ Qed.
     apply: lt_and_P_ne_0 i.
     apply: lt_and_P_ne_0 i'.
   Qed.
+
+  Lemma rat_to_Q_red (r : rat) :
+    rat_to_Q r = Qred (rat_to_Q r).
+  Proof.
+    admit.
+  Admitted.
 End rat_to_Q_lemmas.    
 
 Section rat_to_R.
