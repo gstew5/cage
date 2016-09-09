@@ -666,6 +666,33 @@ Section mult_weights_refinement.
     catrev l s = catrev l0 [:: x & s] ->
     l = [:: x & l0].
   Proof. by rewrite 2!catrevE -cat_rcons -rev_cons; move/cat_inj/rev_inj. Qed.
+
+  Lemma catrev_repeat n c s s' :
+    (forall m s s', stepN a0 m c s s' ->
+                    exists x, all_costs s' = x :: all_costs s) ->
+    stepN a0 n (CRepeat c) s s' -> 
+   exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1},
+     all_costs s' = catrev l0 (all_costs s).
+  Proof.
+    set (P :=
+           fun (n : nat) =>
+             forall s,
+               (forall m s s', stepN a0 m c s s' ->
+                               exists x, all_costs s' = x :: all_costs s) ->
+               stepN a0 n (CRepeat c) s s' -> 
+               exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1},
+                 all_costs s' = catrev l0 (all_costs s)).
+    move: s; change (P n).
+    apply: (well_founded_ind lt_wf); case.
+    { rewrite /P => H s H2; inversion 1. }
+    rewrite /P => n0 IH s H; inversion 1; subst.
+    destruct n0; first by inversion H3.
+    inversion H3; subst.
+    case: (H _ _ _ H5) => x => H9.
+    have H10: (n0 < n0.+2)%coq_nat by omega.
+    case: (IH _ H10 s1' H H8) => l => H11.
+    by exists [:: x & l]; rewrite H11 H9.
+  Qed.    
   
   Lemma stepN_repeat_fold :
     forall n (s s' : state A) l c
@@ -703,7 +730,10 @@ Section mult_weights_refinement.
     move: (H2 _ _ _ H6) => H7.
     have H10: l = [:: existT _ _ (SCostsOk s1') & behead l].
     { have H11: exists l0, all_costs s' = catrev l0 (all_costs s1').
-      { admit. }
+      { apply: catrev_repeat; last by apply: H9.
+        move => m sx sx' H10.
+        exists (existT _ _ (SCostsOk sx')).
+        by rewrite (H2 _ _ _ H10). }
       case: H11 => l0 H11.
       rewrite H11 H7 /= in H0.
       move: (catrev_cons_inv H0).
@@ -714,7 +744,7 @@ Section mult_weights_refinement.
     rewrite (IH _ Hn0 (f (SCosts s1') (SCostsOk s1') s) s' (behead l) c) => //.
     by rewrite H11; apply: H9.
     by rewrite H11 H7 -H0 H10.
-  Admitted.
+  Qed.
 
   Lemma mult_weights1_loop_left_foldl
         (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}) (s : state A) :
@@ -757,28 +787,28 @@ Section mult_weights_refinement.
   Qed.
 
   Lemma stepN_mult_weights_refines_mult_weights1 :
-    forall n (s s' : state A),
+    forall n (s s' : state A) l,
       stepN a0 n (mult_weights A) s s' ->
-      exists (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}),
-        mult_weights1 cs s = s'.
+      catrev l (all_costs (mult_weights1_init s)) = all_costs s' -> 
+      mult_weights1 l s = s'.
   Proof.
     move => n s s'; inversion 1; subst.
     move: (stepN_mult_weights_refines_mult_weights1_init H3) => H7.
     rewrite -H7 in H6.
-    rewrite /mult_weights1.
-    (* stops building HERE *)
+    rewrite /mult_weights1 => H8.
     apply: stepN_mult_weights_refines_mult_weights1_loop.
     apply: H6.
+    apply: H8.
   Qed.
 
   Lemma step_plus_mult_weights_refines_mult_weights1 :
-    forall (s s' : state A) c',
+    forall (s s' : state A) c' l,
       step_plus a0 (mult_weights A) s c' s' ->
-      final_com c' -> 
-      exists (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}),
-        mult_weights1 cs s = s'.
+      final_com c' ->
+      catrev l (all_costs (mult_weights1_init s)) = all_costs s' ->       
+      mult_weights1 l s = s'.
   Proof.
-    move => s s' c'; move/step_plus_stepN => H H2; case: (H H2) => n H3.
+    move => s s' c' l; move/step_plus_stepN => H H2; case: (H H2) => n H3.
     apply: stepN_mult_weights_refines_mult_weights1.
     apply: H3.
   Qed.
@@ -898,20 +928,21 @@ Section mult_weights_refinement.
 
   (** Connect the refinements: *)
   Lemma step_plus_mult_weights_refines_pdist :
-    forall s c' s',
+    forall s c' s' l,
       step_plus a0 (mult_weights A) s c' s' ->
       final_com c' ->
-      exists cs,
-        List.hd_error (SOutputs s') =
-        Some (pdist a0 (SEpsilonOk s) (@CMAX_all (rev cs))).
+      catrev l (all_costs (mult_weights1_init s)) = all_costs s' ->       
+      List.hd_error (SOutputs s') =
+      Some (pdist a0 (SEpsilonOk s) (@CMAX_all (rev l))).
   Proof.
-    move => s c' s' H H2.
-    case: (step_plus_mult_weights_refines_mult_weights1 H H2) => cs H3.
-    exists cs; rewrite -H3.
+    move => s c' s' l H H2 H3.
+    rewrite -(step_plus_mult_weights_refines_mult_weights1 H H2 H3).
     by rewrite mult_weights1_refines_pdist.
   Qed.      
 End mult_weights_refinement.
-    
+
+(* HERE HERE HERE HERE HERE HERE *)
+
 Require Import Reals Rpower Ranalysis Fourier.
 
 Section semantics_lemmas.
@@ -919,32 +950,22 @@ Section semantics_lemmas.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
 
-  (** Current append previous cost vectors *)
-  Lemma prev_costs_aux (s : state A) : CMAXb [seq projT1 x | x <- SPrevCosts s].
-  Admitted.
-
-  Definition prev_costs (s : state A) : CMAX_costs_seq A :=
-    exist (fun c => CMAXb c) _ (prev_costs_aux s).
-  
-  Definition all_costs (s : state A) :=
-    CMAX_costs_seq_cons (SCostsOk s) (prev_costs s).
-
   (** The number of cost vectors received from the environment *)
-  Definition T (s : state A) := INR (size (projT1 (all_costs s))).
+  Definition T (s : state A) := INR (size (all_costs s)).
 
   (** The total expected cost of state [s] *)    
   Definition state_expCost (s : state A) :=
-    big_sum (zip (projT1 (all_costs s)) (SOutputs s))
+    big_sum (zip (all_costs s) (SOutputs s))
             (fun p =>
                let: (c, d) := p in
-               rat_to_R (expectedValue d (fun a => c a))).
+               rat_to_R (expectedValue d (fun a => projT1 c a))).
 
   (** The best fixed action (in hindsight) for state [s] *)      
   Definition astar (s : state A) :=
-    best_action a0 (projT1 (all_costs s)).
+    best_action a0 (map (fun c => projT1 c) (all_costs s)).
 
   Definition OPT (s : state A) :=
-    \sum_(c <- projT1 (all_costs s)) c (astar s).
+    \sum_(c <- map (fun c => projT1 c) (all_costs s)) c (astar s).
   Definition OPTR (s : state A) := rat_to_R (OPT s).
 
   Definition eps (s : state A) := rat_to_R (SEpsilon s).
