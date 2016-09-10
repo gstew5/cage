@@ -645,10 +645,9 @@ Lemma list_trafficP (s : {ffun 'I_N -> resource}) :
   count (fun j: ordinal_finType N => s j == RYes)
     (index_enum (ordinal_finType N)).
 Proof.
-  rewrite /lift_traffic.
-  rewrite -!sum1_count.
-Admitted.
-
+  rewrite count_map => /=.
+  rewrite -!sum1_count => //.
+Qed.
 
 Program Instance resourceRefineCostAxiomInstance
   : @RefineCostAxiomClass N [finType of resource] _ _.
