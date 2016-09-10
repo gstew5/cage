@@ -553,7 +553,46 @@ Lemma rat_to_Q_s_add x :
 Proof.
   case: x =>  x.
   case: x => x1 x2 => /= => pf.
-  admit.
+  rewrite /(GRing.add (V := rat_Ring)) /GRing.Zmodule.add => /=.
+  rewrite /addq /addq_subdef => /=.
+  rewrite gcdn1 div.divn1 mul1r mulr1.
+  rewrite rat_to_Q_fracq_pos_leib /rat_to_Q => /=.
+  rewrite /Qplus.
+  rewrite Z.mul_1_r Z.mul_1_l => /=.
+  f_equal.
+  rewrite -int_to_Z_plus.
+  {
+    case_eq (int_to_Z x1).
+    {
+      move => H. rewrite Z.add_0_r.
+      rewrite /int_to_Z.
+      destruct x2. rewrite /int_to_positive.
+      rewrite Z_of_nat_pos_of_nat => //.
+      case/andP: pf => //.
+      case/andP: pf => //.
+    }
+    {
+      move => p H.
+      rewrite /int_to_Z.
+      destruct x2. rewrite /int_to_positive.
+      rewrite Z_of_nat_pos_of_nat => //.
+      case/andP: pf => //.
+      case/andP: pf => //.
+    }
+    {
+      move => p H.
+      rewrite /int_to_Z.
+      destruct x2. rewrite /int_to_positive.
+      rewrite Z_of_nat_pos_of_nat => //.
+      case/andP: pf => //.
+      case/andP: pf => //.
+    }
+  }
+  case/andP: pf => //.
+  {
+    case/andP: pf => H0 H1.
+    admit.
+  }
 Admitted.
 
 Lemma ctraffic_sub_subP (l : seq (M.key*resource)):
@@ -607,6 +646,7 @@ Lemma list_trafficP (s : {ffun 'I_N -> resource}) :
     (index_enum (ordinal_finType N)).
 Proof.
   rewrite /lift_traffic.
+  rewrite -!sum1_count.
 Admitted.
 
 

@@ -485,6 +485,47 @@ Proof.
   inversion H.
 Qed.
 
+  Lemma rat_to_Q_fracq_pos_leib (x y : int) :
+    0 < y ->
+    coprime `|x| `|y| ->
+      (rat_to_Q (fracq (x,y))) = (int_to_Z x # int_to_positive y).
+  Proof.
+    move=> H0 H1.
+    rewrite /fracq /rat_to_Q /=.
+    rewrite gtr_eqF => //=.
+    rewrite ltr_gtF => //=.
+    rewrite /int_to_Z.
+    case_eq x => n H2 => /=.
+    {
+      have H: gcdn n `|y| == 1%N.
+      {
+        rewrite /coprime in H1.
+        apply /eqP.
+        move/eqP: H1 => H1.
+        rewrite -H1. subst => //.
+      }
+      move/eqP: H => H.
+      rewrite H !div.divn1 mul1n.
+      f_equal => //.
+      induction y => //.
+    }
+    {
+      rewrite NegzE in H2.
+      have H: gcdn n.+1 `|y| == 1%N.
+      {
+        rewrite /coprime in H1.
+        apply /eqP.
+        move/eqP: H1 => H1.
+        rewrite -H1. subst => //.
+      }
+      move/eqP: H => H.
+      rewrite H !div.divn1 expr1z => /=.
+      f_equal. do 2 f_equal.
+      rewrite /muln_rec Nat.mul_1_r => //.
+      induction y => //.
+    }
+  Qed.
+  
   Lemma rat_to_Q_fracq_pos (x y : int) :
     0 < y -> 
     Qeq (rat_to_Q (fracq (x, y))) (int_to_Z x # int_to_positive y).
