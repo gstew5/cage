@@ -1155,7 +1155,40 @@ End prodSmoothTest. End ProdSmoothTest.
 
 Section prodCompilable.
   Variable (N : OrdNat.t).
-  
+
+  Lemma list_in_iff (X : eqType) (x : X) (l : list X) :
+    x \in l <-> List.In x l.
+  Proof.
+    split.
+    { elim: l.
+      - move => H. inversion H.
+      - move => a l IHl H. rewrite in_cons in H.
+        move: H => /orP [H | H].
+        + left. move: H => /eqP H. by rewrite H.
+        + right. by apply IHl. }
+    { elim: l.
+      - move => H. inversion H.
+      - move => a l IHl H.
+        case: H => H; rewrite in_cons; apply /orP.
+        + left. rewrite H //.
+        + right. by apply IHl. }
+  Qed.
+
+  Lemma list_in_finType_enum {X : finType} (x : X) :
+    List.In x (enum X).
+  Proof.
+    have H: (Finite.axiom (enum X)).
+    { rewrite enumT. apply enumP. }
+    rewrite /Finite.axiom in H. specialize (H x).
+    induction (enum X) as [| x']. inversion H.
+    case Hx: (x == x'). (* eqn:Hx. *)
+    move: Hx => /eqP Hx.
+    left. by rewrite Hx.
+    right. apply IHl. simpl in H.
+    rewrite eq_sym  Hx in H.
+      by rewrite add0n in H.
+  Qed.
+
   Instance prodCTypeInstance (aT bT : finType)
     : CType [finType of (aT*bT)] :=
     List.list_prod (enum aT) (enum bT).
@@ -1163,16 +1196,13 @@ Section prodCompilable.
   Program Instance prodRefineTypeAxiomInstance
           (aT bT : finType)
     : @RefineTypeAxiomClass [finType of aT*bT] _.
-  Next Obligation. 
+  Next Obligation.
     move => r. rewrite mem_enum. case: r. move => a b.
     rewrite /prodCTypeInstance /ctype_fun.
     have H: (List.In (a, b) (List.list_prod (enum aT) (enum bT))).
-    { apply List.in_prod_iff. split. admit. admit. }
-    
-    (* rewrite /in_mem.  *)
-    admit.
-    (* by move => r; rewrite mem_enum; case: r. Qed. *)
-  Admitted.
+    { apply List.in_prod_iff. split; apply list_in_finType_enum. }
+    by apply list_in_iff in H.
+  Qed.
 
   Instance prodRefineTypeInstance (aT bT : finType)
     : @RefineTypeClass [finType of aT*bT]  _ _.
@@ -1250,9 +1280,7 @@ Section prodCompilable.
               rat_to_Q
                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1])).
     { apply refineA. move => j pf'.
-      have ->: ([ffun j0 => (s j0).1] (Ordinal (n:=N) (m:=j) pf') =
-               (s (Ordinal (n:=N) (m:=j) pf')).1).
-      { by rewrite ffunE. }
+      rewrite ffunE.
       specialize (H j pf').
       move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
       apply map_split_spec in H.
@@ -1262,9 +1290,7 @@ Section prodCompilable.
               rat_to_Q
                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2])).
     { apply refineB. move => j pf'.
-      have ->: ([ffun j0 => (s j0).2] (Ordinal (n:=N) (m:=j) pf') =
-               (s (Ordinal (n:=N) (m:=j) pf')).2).
-      { by rewrite ffunE. }
+      rewrite ffunE.
       specialize (H j pf').
       move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
       apply map_split_spec in H.

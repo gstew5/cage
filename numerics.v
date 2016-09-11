@@ -3,9 +3,6 @@ Unset Strict Implicit.
 
 Require Import QArith Qreals Reals Fourier.
 
-(*Avoid clash with Ssreflect*)
-Delimit Scope Q_scope with coq_Qscope.
-
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
