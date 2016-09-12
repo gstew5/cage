@@ -635,11 +635,39 @@ Qed.
     apply: lt_and_P_ne_0 i'.
   Qed.
 
+  Lemma rat_to_Q_gcd (a b : int) (pf : (0 < b) && coprime `|a| `|b|) :
+    Z.gcd (int_to_Z a) (Z.pos (int_to_positive b)) = (Zpos 1).
+  Proof.
+    move: pf. rewrite /coprime. move=> /andP [pf1 pf2].
+    move: pf2 => /eqP pf2.
+    admit.
+  Admitted.
+
   Lemma rat_to_Q_red (r : rat) :
     rat_to_Q r = Qred (rat_to_Q r).
   Proof.
-    admit.
-  Admitted.
+    rewrite /rat_to_Q. case: r => valq. case: valq => a b /= pf.
+    have H0: (match Z.ggcd (int_to_Z a)(Z.pos (int_to_positive b))
+                    return Prop with
+              | pair g p =>
+                match p return Prop with
+                | pair aa bb =>
+                  and (@eq Z (int_to_Z a) (Z.mul g aa))
+                      (@eq Z (Z.pos (int_to_positive b)) (Z.mul g bb))
+                end
+              end).
+    { by apply Z.ggcd_correct_divisors. }
+    have H1: ((Z.ggcd (int_to_Z a) (Z.pos (int_to_positive b))).1 =
+              Z.gcd (int_to_Z a) (Z.pos (int_to_positive b))).
+    { by apply Z.ggcd_gcd. }
+    have H2: (Z.gcd (int_to_Z a) (Z.pos (int_to_positive b)) = (Zpos 1)).
+    { by apply rat_to_Q_gcd. }
+    move: H0 H1.
+    case: (Z.ggcd (int_to_Z a) (Z.pos (int_to_positive b))) => z p.
+    case: p => z0 z1 /= H0 H1. case: H0.
+    rewrite H2 in H1. rewrite H1 2!Z.mul_1_l => H0 H0'.
+    by rewrite H0 -H0'.
+  Qed.
 End rat_to_Q_lemmas.    
 
 Section rat_to_R.

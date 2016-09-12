@@ -548,11 +548,19 @@ Proof.
   rewrite -ctraffic_filter_sub0 => //.
 Qed.
 
-Lemma rat_to_Q_s_add x :
+Lemma absz_plus a b :
+  0 <= a -> 0 <= b ->
+  @eq nat_eqType (absz (@GRing.add (GRing.Ring.zmodType int_Ring) a b))
+      ((absz a) + (absz b))%N.
+Proof. case: a; try auto; case: b => //. Qed.
+
+Lemma rat_to_Q_s_add x (pfx : 0 <= x) :
   (rat_to_Q 1 + rat_to_Q x)%coq_Qscope = rat_to_Q (1 + x).
 Proof.
+  have Hx1: (le_rat 0 x) by [].
+  move: pfx. rewrite ge_rat0 in Hx1. rewrite /numq in Hx1. move: Hx1.
   case: x =>  x.
-  case: x => x1 x2 => /= => pf.
+  case: x => x1 x2 => /= => pf Hx1 pfx. clear pfx.
   rewrite /(GRing.add (V := rat_Ring)) /GRing.Zmodule.add => /=.
   rewrite /addq /addq_subdef => /=.
   rewrite gcdn1 div.divn1 mul1r mulr1.
@@ -591,9 +599,11 @@ Proof.
   case/andP: pf => //.
   {
     case/andP: pf => H0 H1.
-    admit.
+    move: H1. rewrite /coprime. move => /eqP H1. apply /eqP.
+    rewrite absz_plus; auto.
+    by rewrite gcdnC gcdnDl gcdnC.
   }
-Admitted.
+Qed.
 
 Lemma ctraffic_sub_subP (l : seq (M.key*resource)):
   let f :=
@@ -618,7 +628,10 @@ Proof.
   have H : rat_to_Q 1 = 1%coq_Qscope
     by rewrite /rat_to_Q => //.
   rewrite -H rat_to_Q_s_add => //.
-  f_equal. rewrite natrD //. 
+  f_equal. rewrite natrD //.
+  have H1: (0%:R <= (count (fun p : M.key * resource => p.2 == RYes) l)%:R).
+  { move => t. by rewrite ler_nat. }
+  apply H1.
   rewrite addnC addn0.
   rewrite Qplus_leib_comm Qplus_leib_0_l => //.
 Qed.
@@ -648,6 +661,24 @@ Proof.
   rewrite count_map => /=.
   rewrite -!sum1_count => //.
 Qed.
+
+Lemma list_in_iff {X : eqType} (x : X) (l : list X) :
+    x \in l <-> List.In x l.
+  Proof.
+    split.
+    { elim: l.
+      - move => H. inversion H.
+      - move => a l IHl H. rewrite in_cons in H.
+        move: H => /orP [H | H].
+        + simpl. left. move: H => /eqP H. by rewrite H.
+        + right. by apply IHl. }
+    { elim: l.
+      - move => H. inversion H.
+      - move => a l IHl H.
+        case: H => H; rewrite in_cons; apply /orP.
+        + left. rewrite H //.
+        + right. by apply IHl. }
+  Qed.
 
 Program Instance resourceRefineCostAxiomInstance
   : @RefineCostAxiomClass N [finType of resource] _ _.
@@ -679,15 +710,16 @@ Next Obligation.
         apply SetoidList.InA_alt.
         exists a.
         split => //.
-        (* This should just fall out of H7, but I can't find
-            anything... *)
-        generalize l H7 => l0.
-        induction l0 => H'.
-        inversion H'.
-        rewrite in_cons in H'.
-        case/orP: H'.
-        move/eqP => H'; left => //.
-        right. apply IHl0 => //.
+        apply list_in_iff in H7. apply H7.
+        (* (* This should just fall out of H7, but I can't find *)
+        (*     anything... *) *)
+        (* generalize l H7 => l0. *)
+        (* induction l0 => H'. *)
+        (* inversion H'. *)
+        (* rewrite in_cons in H'. *)
+        (* case/orP: H'. *)
+        (* move/eqP => H'; left => //. *)
+        (* right. apply IHl0 => //. *)
       }
       {
         apply IHl.
@@ -1214,7 +1246,22 @@ End prodSmoothTest. End ProdSmoothTest.
 
 Section prodCompilable.
   Variable (N : OrdNat.t).
-  
+
+  Lemma list_in_finType_enum {X : finType} (x : X) :
+    List.In x (enum X).
+  Proof.
+    have H: (Finite.axiom (enum X)).
+    { rewrite enumT. apply enumP. }
+    rewrite /Finite.axiom in H. specialize (H x).
+    induction (enum X) as [| x']. inversion H.
+    case Hx: (x == x').
+    move: Hx => /eqP Hx.
+    left. by rewrite Hx.
+    right. apply IHl. simpl in H.
+    rewrite eq_sym Hx in H.
+    by rewrite add0n in H.
+  Qed.
+
   Instance prodCTypeInstance (aT bT : finType)
     : CType [finType of (aT*bT)] :=
     List.list_prod (enum aT) (enum bT).
@@ -1222,16 +1269,13 @@ Section prodCompilable.
   Program Instance prodRefineTypeAxiomInstance
           (aT bT : finType)
     : @RefineTypeAxiomClass [finType of aT*bT] _.
-  Next Obligation. 
+  Next Obligation.
     move => r. rewrite mem_enum. case: r. move => a b.
     rewrite /prodCTypeInstance /ctype_fun.
     have H: (List.In (a, b) (List.list_prod (enum aT) (enum bT))).
-    { apply List.in_prod_iff. split. admit. admit. }
-    
-    (* rewrite /in_mem.  *)
-    admit.
-    (* by move => r; rewrite mem_enum; case: r. Qed. *)
-  Admitted.
+    { apply List.in_prod_iff. split; apply list_in_finType_enum. }
+    by apply list_in_iff in H.
+  Qed.
 
   Instance prodRefineTypeInstance (aT bT : finType)
     : @RefineTypeClass [finType of aT*bT]  _ _.
@@ -1309,9 +1353,7 @@ Section prodCompilable.
               rat_to_Q
                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1])).
     { apply refineA. move => j pf'.
-      have ->: ([ffun j0 => (s j0).1] (Ordinal (n:=N) (m:=j) pf') =
-               (s (Ordinal (n:=N) (m:=j) pf')).1).
-      { by rewrite ffunE. }
+      rewrite ffunE.
       specialize (H j pf').
       move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
       apply map_split_spec in H.
@@ -1321,9 +1363,7 @@ Section prodCompilable.
               rat_to_Q
                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2])).
     { apply refineB. move => j pf'.
-      have ->: ([ffun j0 => (s j0).2] (Ordinal (n:=N) (m:=j) pf') =
-               (s (Ordinal (n:=N) (m:=j) pf')).2).
-      { by rewrite ffunE. }
+      rewrite ffunE.
       specialize (H j pf').
       move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
       apply map_split_spec in H.
