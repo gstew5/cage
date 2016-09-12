@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith String.
+Require Import QArith NArith.
 Require Import ProofIrrelevance.
 
 Require Import mathcomp.ssreflect.ssreflect.
@@ -35,17 +35,7 @@ Section com.
   | CRecv : com
   | CSend : com
   | CSeq : com -> com -> com
-  | CRepeat : com -> com.
-
-  Fixpoint size_com (c : com) : nat :=
-    match c with
-    | CSkip => 0
-    | CUpdate _ => 1
-    | CRecv => 1
-    | CSend => 1
-    | CSeq c1 c2 => 1 + size_com c1 + size_com c2
-    | CRepeat c' => 2 + size_com c'
-    end.
+  | CIter : N.t -> com -> com.
 End com.
 
 Arguments EVal [A] _.
@@ -54,7 +44,7 @@ Arguments EEps [A].
 Arguments CSkip [A].
 Arguments CRecv [A].
 Arguments CSend [A].
-Arguments CRepeat [A] _.
+Arguments CIter [A] _ _.
 
 Lemma val_eq_dec (v1 v2 : val) : {v1=v2}+{v1<>v2}.
 Proof.
@@ -88,12 +78,12 @@ Qed.
 (** Commands aren't decidable in general, because they allow 
     embedded Coq functions in CUpdate. *)
 
-Lemma com_Repeat_dec A (c : com A) :
-  (exists c1, c=CRepeat c1) \/ forall c1, c<>CRepeat c1.
+Lemma com_Iter_dec A (c : com A) :
+  (exists c1 n, c=CIter n c1) \/ forall c1 n, c<>CIter c1 n.
 Proof.
   case: c; try solve[right => c0 H; congruence].
   { move => c c0; right => c3; congruence. }
-  by move => c; left; exists c.
+  by move => n c; left; exists c, n.
 Qed.  
 
 Definition mult_weights_body (A : Type) : com A :=
@@ -112,12 +102,12 @@ Definition mult_weights_init (A : Type) : com A :=
     (CUpdate (fun a : A => EVal (QVal 1)))
     CSend.
 
-Definition mult_weights (A : Type) : com A :=
+Definition mult_weights (A : Type) (n : N.t) : com A :=
   CSeq
     (** 1. Initialize weights to uniform *)
     (mult_weights_init A)
     (** 2. The main MWU loop *)
-    (CRepeat (mult_weights_body A)).
+    (CIter n (mult_weights_body A)).
 
 Section semantics.
   Local Open Scope ring_scope.
@@ -245,9 +235,14 @@ Section semantics.
         step c1 s1 c1' s2 ->
         step (CSeq c1 c2) s1 (CSeq c1' c2) s2
 
-  | SRepeat :
+  | SIter0 :
       forall c s,
-        step (CRepeat c) s (CSeq c (CRepeat c)) s.
+        step (CIter N0 c) s CSkip s
+             
+  | SIterS :
+      forall c s (n : N.t),
+        (0 < n)%N -> 
+        step (CIter n c) s (CSeq c (CIter (N.pred n) c)) s.
 
   Inductive step_plus : com A -> state -> com A -> state -> Prop :=
   | step1 :
@@ -262,9 +257,7 @@ Section semantics.
 
   Inductive final_com : com A -> Prop :=
   | final_skip :
-      final_com CSkip
-  | final_repeat :
-      forall c, final_com (CRepeat c).
+      final_com CSkip.
 
   (** Here's the corresponding big-step semantics. Note that it's 
       index by a nat [n], to break the nonwellfounded recursion 
@@ -329,11 +322,16 @@ Section semantics.
         stepN n c1 s1 s1' ->
         stepN n c2 s1' s2 ->        
         stepN (S n) (CSeq c1 c2) s1 s2
+
+  | NIter0 :
+      forall n c s,
+        stepN n (CIter N0 c) s s
               
-  | NRepeat :
-      forall n c s s',
-        stepN n (CSeq c (CRepeat c)) s s' -> 
-        stepN (S n) (CRepeat c) s s'.
+  | NIterS :
+      forall n (n' : N.t) c s s',
+        (0 < nat_of_bin n')%N -> 
+        stepN n (CSeq c (CIter (N.pred n') c)) s s' -> 
+        stepN (S n) (CIter n' c) s s'.
 
   Lemma step_plus_CSkip c1 s1 c1' s1' :
     step_plus c1 s1 c1' s1' ->
@@ -379,7 +377,7 @@ Section semantics.
     set P := fun n => forall c s s' n', (n' >= n)%coq_nat -> stepN n c s s' -> stepN n' c s s'.
     move: c s s' n'; change (P n).
     apply (well_founded_ind lt_wf); move {n}; case.
-    { move => ?; rewrite /P => c s s' n' _; inversion 1; constructor. }
+    { move => ?; rewrite /P => c s s' n' _; inversion 1; try solve[constructor]. }
     move => n IH; rewrite /P => c s s' n' H.
     inversion 1; subst.
     { constructor. }
@@ -396,12 +394,14 @@ Section semantics.
       apply: NSeq.
       apply: (IH n); try omega. apply: H2.
       apply: (IH n); try omega. apply: H3. }
+    { rewrite /P in IH; move {P}.
+      case: n' H IH; try solve[move => X; elimtype False; omega].
+      move => n0 H4 IH; constructor => //. }
     rewrite /P in IH; move {P}.
     case: n' H IH; try solve[move => X; elimtype False; omega].
-    move => n0 H4 IH.
-    constructor.
-    apply: (IH n); try omega.
-    apply: H2.
+    move => n0 H4 IH; constructor => //.
+    apply: (IH n); try solve[omega].
+    by [].
   Qed.        
   
   Lemma step_stepN c s c'' s'' s' n :
@@ -423,8 +423,8 @@ Section semantics.
       apply: stepN_weaken.
       apply: H9.
       apply: H7. }
-    move => s' H; exists n.+1; split; try omega.
-    by constructor.
+    move => s' H1; exists n.+1; split; try omega.
+    inversion H1; subst. constructor => //.
   Qed.
 
   Lemma step_stepN_final c s c' s' :
@@ -433,39 +433,32 @@ Section semantics.
     exists n, stepN n c s s'.
   Proof.        
     move => H H2; inversion H2; subst; move {H2}.
-    { inversion H; subst; try solve[exists (S O); constructor].
-      exists (S (S O)). apply: NSeq. constructor. constructor. }
-    move: H; remember (CRepeat c0) as cx; induction 1 => //.
+    inversion H; subst; try solve[exists (S O); constructor].
     exists (S (S O)). apply: NSeq. constructor. constructor.
+  Qed.    
     
   Lemma step_plus_stepN c s c' s' :
     step_plus c s c' s' ->
     final_com c' -> 
     exists n, stepN n c s s'.
   Proof.
-    move => H H2; inversion H2; subst; move {H2}; induction H.
-    inversion H; subst; try solve[exists (S O); constructor].
-
-
-    
+    move => H H2; inversion H2; subst; induction H.
+    { apply: step_stepN_final => //. inversion H2; subst => //. }
+    inversion H2; subst. clear H2.
     inversion H; subst.
-    { case: IHstep_plus => n; inversion 1; subst.
-      exists (S n); constructor. }
-    { case: IHstep_plus => n; inversion 1; subst.
-      exists (S n); constructor. }
-    { case: IHstep_plus => n; inversion 1; subst.
-      exists (S n); constructor. }
-    { case: IHstep_plus => n; inversion 1; subst.
-      exists (S n); constructor. }
+    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
+    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
+    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
+    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
     { inversion H.
       subst c'' s''.
-      case: IHstep_plus => n H5.
+      case: IHstep_plus => // n H5.
       exists (S n).
       apply: NSeq.
       constructor.
       apply: H5.
       subst c'' s''.
-      case IHstep_plus => n H7.
+      case IHstep_plus => // n H7.
       exists (S n).
       apply: NSeq.
       constructor.
@@ -473,13 +466,13 @@ Section semantics.
       apply: H7. }
     { inversion H.
       { subst c1 c2 s0 s''.
-        case: IHstep_plus => n H6.
+        case: IHstep_plus => // n H6.
         exists n.+1.
         apply: NSeq.
         constructor.
         apply: H6. }
       subst c0 c3 s1 c1'0 s2.
-      case: IHstep_plus => n H8.
+      case: IHstep_plus => // n H8.
       clear - H1 H8.
       inversion H8; subst.
       case: (step_stepN H1 H3) => n []H9 H10.
@@ -488,15 +481,12 @@ Section semantics.
       apply: H10.
       apply: stepN_weaken; last by apply: H6.
       omega. }
-    { case: IHstep_plus => n H2.
+    { case: IHstep_plus => // n H2.
       case: (step_stepN H H2) => n' []H3 H4.
-      exists n'.+1.
-      constructor.
-      apply: stepN_weaken; last by apply: H2.
-      omega. }
-    case: IHstep_plus => n H1.
-    case: (step_stepN H H1) => n' []H2 H3.
-    exists n'.
+      exists n' => //. }
+    case: IHstep_plus => // n' H1'.
+    case: (step_stepN H H1') => n'' []H2 H3.
+    exists n''.
     apply: H3.
   Qed.      
 End semantics.
@@ -705,35 +695,40 @@ Section mult_weights_refinement.
     l = [:: x & l0].
   Proof. by rewrite 2!catrevE -cat_rcons -rev_cons; move/cat_inj/rev_inj. Qed.
 
-  Lemma catrev_repeat n c s s' :
+  Lemma catrev_iter n c s s' nx :
     (forall m s s', stepN a0 m c s s' ->
                     exists x, all_costs s' = x :: all_costs s) ->
-    stepN a0 n (CRepeat c) s s' -> 
-   exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1},
+    stepN a0 n (CIter nx c) s s' -> 
+    exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1},
      all_costs s' = catrev l0 (all_costs s).
   Proof.
     set (P :=
            fun (n : nat) =>
-             forall s,
+             forall s nx,
                (forall m s s', stepN a0 m c s s' ->
                                exists x, all_costs s' = x :: all_costs s) ->
-               stepN a0 n (CRepeat c) s s' -> 
+               stepN a0 n (CIter nx c) s s' -> 
                exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1},
                  all_costs s' = catrev l0 (all_costs s)).
-    move: s; change (P n).
+    move: s nx; change (P n).
     apply: (well_founded_ind lt_wf); case.
-    { rewrite /P => H s H2; inversion 1. }
-    rewrite /P => n0 IH s H; inversion 1; subst.
-    destruct n0; first by inversion H3.
-    inversion H3; subst.
-    case: (H _ _ _ H5) => x => H9.
-    have H10: (n0 < n0.+2)%coq_nat by omega.
-    case: (IH _ H10 s1' H H8) => l => H11.
-    by exists [:: x & l]; rewrite H11 H9.
+    { rewrite /P => H s nx H2. inversion 1. subst. by exists [::]. }
+    rewrite /P => n0 IH s nx H; inversion 1; subst; first by exists [::].
+    destruct n0; first by inversion H7. inversion H7; subst.
+    case: (H _ _ _ H5) => x => H10.
+    have H11: (n0 < n0.+2)%coq_nat by omega.
+    case: (IH _ H11 s1' _ H H9) => l => H12.
+    by exists [:: x & l]; rewrite H12 H10.
   Qed.    
+
+  Lemma catrev_inj_nil T (l : list T) x : catrev l x = x -> l = [::].
+  Proof.
+    rewrite catrevE -(cat0s x); move/cat_inj.
+    by rewrite -(revK [::]) => /rev_inj => ->.
+  Qed.
   
-  Lemma stepN_repeat_fold :
-    forall n (s s' : state A) l c
+  Lemma stepN_iter_fold :
+    forall n nx (s s' : state A) l c
            (f : forall c : {ffun A -> rat},
                (forall a, 0 <= c a <= 1) ->
                state A -> state A),
@@ -741,13 +736,13 @@ Section mult_weights_refinement.
       (forall n s s',
           stepN a0 n c s s' ->
           all_costs s' = [:: existT _ _ (SCostsOk s') & all_costs s]) -> 
-      stepN a0 n (CRepeat c) s s' ->
+      stepN a0 n (CIter nx c) s s' ->
       catrev l (all_costs s) = all_costs s' -> 
       foldl (fun s c => f (projT1 c) (projT2 c) s) s l = s'.
   Proof.
     set P :=
       fun (n : nat) =>               
-        forall (s s' : state A) l c
+        forall nx (s s' : state A) l c
                (f : forall c : {ffun A -> rat},
                    (forall a, 0 <= c a <= 1) ->
                    state A -> state A),
@@ -755,33 +750,35 @@ Section mult_weights_refinement.
           (forall n s s',
               stepN a0 n c s s' ->
               all_costs s' = [:: existT _ _ (SCostsOk s') & all_costs s]) -> 
-          stepN a0 n (CRepeat c) s s' ->
+          stepN a0 n (CIter nx c) s s' ->
           catrev l (all_costs s) = all_costs s' -> 
           foldl (fun s c => f (projT1 c) (projT2 c) s) s l = s'.
     move => n; change (P n).
-    apply: (well_founded_ind lt_wf); case.
-    { move => _; rewrite /P => s s' l c f H H2; inversion 1. }
-    rewrite /P => m IH s s' l c f H H2; inversion 1; subst.
+    apply (well_founded_ind lt_wf); case.
+    { move => _; rewrite /P => nx s s' l c f H H2; inversion 1. subst.
+      move => Hx; have ->: l = [::] by apply: (catrev_inj_nil Hx). by []. }
+    rewrite /P => m IH nx s s' l c f H H2. inversion 1; subst.
+    { move => Hx; have ->: l = [::] by apply: (catrev_inj_nil Hx). by []. }
     clear H0 => H0.
-    inversion H4; subst. clear H4 P.
+    inversion H8; subst. clear H8 P.
     have Hn0: (n0 < n0.+2)%coq_nat by omega.
     move: (H2 _ _ _ H6) => H7.
-    have H10: l = [:: existT _ _ (SCostsOk s1') & behead l].
+    have Hx: l = [:: existT _ _ (SCostsOk s1') & behead l].
     { have H11: exists l0, all_costs s' = catrev l0 (all_costs s1').
-      { apply: catrev_repeat; last by apply: H9.
-        move => m sx sx' H10.
+      { apply: catrev_iter; last by apply: H10.
+        move => m sx sx' Hx.
         exists (existT _ _ (SCostsOk sx')).
-        by rewrite (H2 _ _ _ H10). }
+        by rewrite (H2 _ _ _ Hx). }
       case: H11 => l0 H11.
       rewrite H11 H7 /= in H0.
       move: (catrev_cons_inv H0).
       by clear H0; case: l => // a l' /=; case => -> ->. }
-    rewrite H10 /=.
+    rewrite Hx /=.
     have H11: f (SCosts s1') (SCostsOk s1') s = s1'.
     { by apply: H; apply: H6. }
-    rewrite (IH _ Hn0 (f (SCosts s1') (SCostsOk s1') s) s' (behead l) c) => //.
-    by rewrite H11; apply: H9.
-    by rewrite H11 H7 -H0 H10.
+    rewrite (IH _ Hn0 (N.pred nx) (f (SCosts s1') (SCostsOk s1') s) s' (behead l) c) => //.
+    by rewrite H11; apply: H10.
+    by rewrite H11 H7 -H0 Hx.
   Qed.
 
   Lemma mult_weights1_loop_left_foldl
@@ -791,14 +788,14 @@ Section mult_weights_refinement.
   Proof. by elim: cs s => // c cs' IH s /=; rewrite IH. Qed.
   
   Lemma stepN_mult_weights_refines_mult_weights1_loop :
-    forall n (s s' : state A) l,
-      stepN a0 n (CRepeat (mult_weights_body A)) s s' ->
+    forall n nx (s s' : state A) l,
+      stepN a0 n (CIter nx (mult_weights_body A)) s s' ->
       catrev l (all_costs s) = all_costs s' ->
       mult_weights1_loop_left l s = s'.
   Proof.
-    move => n s s' l H H2.
+    move => n nx s s' l H H2.
     rewrite mult_weights1_loop_left_foldl.
-    apply: (stepN_repeat_fold (n:=n) (c:=mult_weights_body A)) => //.
+    apply: (stepN_iter_fold (n:=n) (nx:=nx) (c:=mult_weights_body A)) => //.
     { move => m sx sx' H3.
       apply: stepN_mult_weights_refines_mult_weights1_one.
       apply: H3. }
@@ -825,12 +822,12 @@ Section mult_weights_refinement.
   Qed.
   
   Lemma stepN_mult_weights_refines_mult_weights1 :
-    forall n (s s' : state A) l,
-      stepN a0 n (mult_weights A) s s' ->
+    forall n nx (s s' : state A) l,
+      stepN a0 n (mult_weights A nx) s s' ->
       catrev l (all_costs s) = all_costs s' -> 
       mult_weights1 l s = s'.
   Proof.
-    move => n s s'; inversion 1; subst.
+    move => n nx s s'; inversion 1; subst.
     move: (stepN_mult_weights_refines_mult_weights1_init H3) => H7.
     rewrite -H7 in H6.
     rewrite /mult_weights1 => H8.
@@ -840,13 +837,13 @@ Section mult_weights_refinement.
   Qed.
 
   Lemma step_plus_mult_weights_refines_mult_weights1 :
-    forall (s s' : state A) c' l,
-      step_plus a0 (mult_weights A) s c' s' ->
+    forall nx (s s' : state A) c' l,
+      step_plus a0 (mult_weights A nx) s c' s' ->
       final_com c' ->
       catrev l (all_costs s) = all_costs s' ->       
       mult_weights1 l s = s'.
   Proof.
-    move => s s' c' l; move/step_plus_stepN => H H2; case: (H H2) => n H3.
+    move => nx s s' c' l; move/step_plus_stepN => H H2; case: (H H2) => n H3.
     apply: stepN_mult_weights_refines_mult_weights1.
     apply: H3.
   Qed.
@@ -966,14 +963,14 @@ Section mult_weights_refinement.
 
   (** Connect the refinements: *)
   Lemma step_plus_mult_weights_refines_pdist :
-    forall s c' s' l,
-      step_plus a0 (mult_weights A) s c' s' ->
+    forall nx s c' s' l,
+      step_plus a0 (mult_weights A nx) s c' s' ->
       final_com c' ->
       catrev l (all_costs s) = all_costs s' ->       
       List.hd_error (SOutputs s') =
       Some (pdist a0 (SEpsilonOk s) (@CMAX_all (rev l))).
   Proof.
-    move => s c' s' l H H2 H3.
+    move => nx s c' s' l H H2 H3.
     rewrite -(step_plus_mult_weights_refines_mult_weights1 H H2 H3).
     by rewrite mult_weights1_refines_pdist.
   Qed.      
