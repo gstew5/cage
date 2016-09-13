@@ -663,22 +663,50 @@ Proof.
 Qed.
 
 Lemma list_in_iff {X : eqType} (x : X) (l : list X) :
-    x \in l <-> List.In x l.
-  Proof.
-    split.
-    { elim: l.
-      - move => H. inversion H.
-      - move => a l IHl H. rewrite in_cons in H.
-        move: H => /orP [H | H].
-        + simpl. left. move: H => /eqP H. by rewrite H.
-        + right. by apply IHl. }
-    { elim: l.
-      - move => H. inversion H.
-      - move => a l IHl H.
-        case: H => H; rewrite in_cons; apply /orP.
-        + left. rewrite H //.
-        + right. by apply IHl. }
-  Qed.
+  x \in l <-> List.In x l.
+Proof.
+  split.
+  { elim: l.
+    - move => H. inversion H.
+    - move => a l IHl H. rewrite in_cons in H.
+      move: H => /orP [H | H].
+      + simpl. left. move: H => /eqP H. by rewrite H.
+      + right. by apply IHl. }
+  { elim: l.
+    - move => H. inversion H.
+    - move => a l IHl H.
+      case: H => H; rewrite in_cons; apply /orP.
+      + left. rewrite H //.
+      + right. by apply IHl. }
+Qed.
+
+Lemma list_in_finType_enum {X : finType} (x : X) :
+  List.In x (enum X).
+Proof.
+  have H: (Finite.axiom (enum X)).
+  { rewrite enumT. apply enumP. }
+  rewrite /Finite.axiom in H. specialize (H x).
+  induction (enum X) as [| x']. inversion H.
+  case Hx: (x == x').
+  move: Hx => /eqP Hx.
+  left. by rewrite Hx.
+  right. apply IHl. simpl in H.
+  rewrite eq_sym Hx in H.
+    by rewrite add0n in H.
+Qed.
+
+Lemma N_of_nat_of_bin x :
+  N.of_nat (nat_of_bin x) = x.
+Proof.
+  rewrite /nat_of_bin.
+  case: x => // p.
+  have H: (nat_of_pos p = Pos.to_nat p). 
+  {  elim: p => // p IHp /=.
+     - by rewrite Pos2Nat.inj_xI IHp NatTrec.doubleE -mul2n.
+     - by rewrite Pos2Nat.inj_xO IHp NatTrec.doubleE -mul2n.
+  }
+  rewrite H. by apply positive_nat_N.
+Qed.
 
 Program Instance resourceRefineCostAxiomInstance
   : @RefineCostAxiomClass N [finType of resource] _ _.
@@ -761,9 +789,7 @@ Next Obligation.
         case: H7 => x' H7. rewrite -H7.
         rewrite /index_enum -enumT.
         rewrite mem_map.
-        {
-          admit.
-        }
+        { by apply list_in_iff; apply list_in_finType_enum. }
         {
           rewrite /injective => x1 x2 H0.
           inversion H0.
@@ -1246,21 +1272,6 @@ End prodSmoothTest. End ProdSmoothTest.
 
 Section prodCompilable.
   Variable (N : OrdNat.t).
-
-  Lemma list_in_finType_enum {X : finType} (x : X) :
-    List.In x (enum X).
-  Proof.
-    have H: (Finite.axiom (enum X)).
-    { rewrite enumT. apply enumP. }
-    rewrite /Finite.axiom in H. specialize (H x).
-    induction (enum X) as [| x']. inversion H.
-    case Hx: (x == x').
-    move: Hx => /eqP Hx.
-    left. by rewrite Hx.
-    right. apply IHl. simpl in H.
-    rewrite eq_sym Hx in H.
-    by rewrite add0n in H.
-  Qed.
 
   Instance prodCTypeInstance (aT bT : finType)
     : CType [finType of (aT*bT)] :=
