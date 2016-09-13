@@ -708,6 +708,32 @@ Proof.
   rewrite H. by apply positive_nat_N.
 Qed.
 
+Lemma InA_NoDupA_Unique A eqA x1 x2 :
+  Equivalence eqA -> 
+  forall l, @SetoidList.NoDupA A eqA l ->
+    List.In x1 l ->
+    List.In x2 l ->
+    eqA x1 x2 ->
+      x1 = x2.
+Proof.
+  induction l => H0 H1 H2 H3; first by inversion H1.
+  inversion H0; subst.
+  case: H1 => H1; case: H2 => H2; subst => //=.
+  {
+    inversion H0. apply False_rec. apply H6 => //.
+    apply SetoidList.InA_alt.
+    exists x2; split => //.
+  }
+  {
+    inversion H0. apply False_rec. apply H6 => //.
+    apply SetoidList.InA_alt.
+    exists x1; split => //. symmetry => //.
+  }
+  {
+    apply IHl; inversion H0 => //.
+  }
+Qed.
+
 Program Instance resourceRefineCostAxiomInstance
   : @RefineCostAxiomClass N [finType of resource] _ _.
 Next Obligation.  
@@ -722,7 +748,6 @@ Next Obligation.
   rewrite sum1_count. rewrite -list_trafficP.
   f_equal.
   apply /perm_eqP.
-  SearchAbout perm_eq.
   apply uniq_perm_eq.
   {
     induction M.elements => //=.
@@ -739,15 +764,6 @@ Next Obligation.
         exists a.
         split => //.
         apply list_in_iff in H7. apply H7.
-        (* (* This should just fall out of H7, but I can't find *)
-        (*     anything... *) *)
-        (* generalize l H7 => l0. *)
-        (* induction l0 => H'. *)
-        (* inversion H'. *)
-        (* rewrite in_cons in H'. *)
-        (* case/orP: H'. *)
-        (* move/eqP => H'; left => //. *)
-        (* right. apply IHl0 => //. *)
       }
       {
         apply IHl.
@@ -776,31 +792,55 @@ Next Obligation.
       (x \in List.filter (fun p : BinNums.N * resource => (p.1 < N)%N)
          (M.elements (elt:=resource) m)) => H4.
     {
-      rewrite mem_filter in H4.
-      case/andP: H4 => H4 H5.
-      have H6 :  (x \in [seq (N.of_nat (nat_of_ord x0), s x0)
-                  | x0 <- index_enum (ordinal_finType N)]).
+       rewrite mem_filter in H4.
+       case/andP: H4 => H4 H5.
+      have H7: exists x', (fun x0 : ordinal N => pair (N.of_nat x0) (s x0)) x' = x.
       {
-        have H7: exists x', (fun x0 : ordinal N => pair (N.of_nat x0) (s x0)) x' = x.
-        {
-          exists (Ordinal H4).
-          admit.
-        }
-        case: H7 => x' H7. rewrite -H7.
-        rewrite /index_enum -enumT.
-        rewrite mem_map.
-        { by apply list_in_iff; apply list_in_finType_enum. }
-        {
-          rewrite /injective => x1 x2 H0.
-          inversion H0.
-          apply Nnat.Nat2N.inj_iff in H6.
-          apply ord_inj in H6 => //.
-        }        
+        specialize (H x.1 H4).
+        rewrite MProps.F.elements_o in H.
+        apply SetoidList.findA_NoDupA in H => //;
+          last by constructor => //=; apply N.eq_trans.
+        apply list_in_iff in H5.
+        apply SetoidList.InA_alt in H.
+        case: H => x' H => /=.
+        case: H => H H6.
+        case: H => H' H''.
+        simpl in H', H''.
+        rewrite /N.eq in H'.
+        have H: x = x'.
+        apply InA_NoDupA_Unique
+          with (eqA := (M.eq_key (elt := resource)))
+               (l := (M.elements (elt := resource) m)) => //;
+          first by apply MProps.eqk_equiv.
+        exists (Ordinal H4) => //.
+        destruct x as [x1 x2].
+        destruct x' as [x1' x2'].
+        inversion H. simpl.
+        f_equal => //.
+        dependent rewrite H3.
+        f_equal.
+        apply N_of_nat_of_bin.
       }
-      by [].
+      case: H7 => x' H7. rewrite -H7.
+      rewrite /index_enum -enumT.
+      rewrite mem_map; first by rewrite mem_enum => //.
+      {
+        rewrite /injective => x1 x2 H0.
+        inversion H0.
+        apply Nnat.Nat2N.inj_iff in H6.
+        apply ord_inj in H6 => //.
+      }        
     }
     {
-      admit.
+      rewrite mem_filter in H4.
+      case/nandP: H4 => /negP H4.
+      {
+        rewrite /index_enum -enumT.
+        admit.
+      }
+      {
+        admit.
+      } 
     }
   }
 Admitted.

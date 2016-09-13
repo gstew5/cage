@@ -635,39 +635,6 @@ Qed.
     apply: lt_and_P_ne_0 i'.
   Qed.
 
-  Lemma rat_to_Q_gcd (a b : int) (pf : (0 < b) && coprime `|a| `|b|) :
-    Z.gcd (int_to_Z a) (Z.pos (int_to_positive b)) = (Zpos 1).
-  Proof.
-    move: pf. rewrite /coprime. move=> /andP [pf1 pf2].
-    move: pf2 => /eqP pf2.
-    admit.
-  Admitted.
-
-  Lemma rat_to_Q_red (r : rat) :
-    rat_to_Q r = Qred (rat_to_Q r).
-  Proof.
-    rewrite /rat_to_Q. case: r => valq. case: valq => a b /= pf.
-    have H0: (match Z.ggcd (int_to_Z a)(Z.pos (int_to_positive b))
-                    return Prop with
-              | pair g p =>
-                match p return Prop with
-                | pair aa bb =>
-                  and (@eq Z (int_to_Z a) (Z.mul g aa))
-                      (@eq Z (Z.pos (int_to_positive b)) (Z.mul g bb))
-                end
-              end).
-    { by apply Z.ggcd_correct_divisors. }
-    have H1: ((Z.ggcd (int_to_Z a) (Z.pos (int_to_positive b))).1 =
-              Z.gcd (int_to_Z a) (Z.pos (int_to_positive b))).
-    { by apply Z.ggcd_gcd. }
-    have H2: (Z.gcd (int_to_Z a) (Z.pos (int_to_positive b)) = (Zpos 1)).
-    { by apply rat_to_Q_gcd. }
-    move: H0 H1.
-    case: (Z.ggcd (int_to_Z a) (Z.pos (int_to_positive b))) => z p.
-    case: p => z0 z1 /= H0 H1. case: H0.
-    rewrite H2 in H1. rewrite H1 2!Z.mul_1_l => H0 H0'.
-    by rewrite H0 -H0'.
-  Qed.
 End rat_to_Q_lemmas.    
 
 Section rat_to_R.
@@ -954,3 +921,77 @@ Section Q_to_rat_lemmas.
     by rewrite Pos2Nat.inj_mul.
   Qed.
 End Q_to_rat_lemmas.
+
+(** The proofs in this section need to be incorporated into
+    the other sections, but the last two require notions after
+    the rat_to_Q_lemmas **)
+Section rat_to_Q_lemmas_cont.
+  Local Open Scope ring_scope.
+  Delimit Scope R with R_ssr.  
+  Delimit Scope R_scope with R.
+  
+  Lemma cancel_Z2I x : Z_to_int (int_to_Z x) = x.
+  Proof.
+    induction x => //=;
+      first by rewrite SuccNat2Pos.id_succ => //.
+    rewrite opp_posz_negz SuccNat2Pos.id_succ.
+    f_equal.
+  Qed.
+
+  Lemma cancel_I2Z x : int_to_Z (Z_to_int x) = x.
+  Proof.
+    induction x => //=. apply positive_nat_Z.
+    f_equal.
+    rewrite Pos.of_nat_succ Pos_to_natNS Pos2Nat.id => //.
+  Qed.
+
+  
+  Lemma int_nat_div_eq :
+    forall m n,
+      Z.divide (int_to_Z m) (int_to_Z n) <-> dvdn `|m| `|n|.
+  Proof.
+  Admitted.
+
+  Lemma rat_to_Q_gcd (a b : int) (pf : (0 < b) && coprime `|a| `|b|) :
+    Z.gcd (int_to_Z a) (Z.pos (int_to_positive b)) = (Zpos 1).
+  Proof.
+    move: pf. rewrite /coprime. move=> /andP [pf1 pf2].
+    move: pf2 => /eqP pf2.
+    apply Znumtheory.Zis_gcd_gcd => //.
+    constructor; try apply Z.divide_1_l.
+    move => x H0 H1.
+    rewrite -(cancel_I2Z x) -(cancel_I2Z 1).
+    apply int_nat_div_eq => /=.
+    rewrite Pos2Nat.inj_1.
+    rewrite -pf2 dvdn_gcd.
+    apply /andP; split;
+    apply int_nat_div_eq; rewrite cancel_I2Z => //.
+    admit.
+Admitted.
+
+  Lemma rat_to_Q_red (r : rat) :
+    rat_to_Q r = Qred (rat_to_Q r).
+  Proof.
+    rewrite /rat_to_Q. case: r => valq. case: valq => a b /= pf.
+    have H0: (match Z.ggcd (int_to_Z a)(Z.pos (int_to_positive b))
+                    return Prop with
+              | pair g p =>
+                match p return Prop with
+                | pair aa bb =>
+                  and (@eq Z (int_to_Z a) (Z.mul g aa))
+                      (@eq Z (Z.pos (int_to_positive b)) (Z.mul g bb))
+                end
+              end).
+    { by apply Z.ggcd_correct_divisors. }
+    have H1: ((Z.ggcd (int_to_Z a) (Z.pos (int_to_positive b))).1 =
+              Z.gcd (int_to_Z a) (Z.pos (int_to_positive b))).
+    { by apply Z.ggcd_gcd. }
+    have H2: (Z.gcd (int_to_Z a) (Z.pos (int_to_positive b)) = (Zpos 1)).
+    { by apply rat_to_Q_gcd. }
+    move: H0 H1.
+    case: (Z.ggcd (int_to_Z a) (Z.pos (int_to_positive b))) => z p.
+    case: p => z0 z1 /= H0 H1. case: H0.
+    rewrite H2 in H1. rewrite H1 2!Z.mul_1_l => H0 H0'.
+    by rewrite H0 -H0'.
+  Qed.
+End rat_to_Q_lemmas_cont.
