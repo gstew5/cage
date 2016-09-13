@@ -634,6 +634,27 @@ Section mult_weights_refinement.
     forall c, c \in map (fun c => projT1 c) (all_costs s) ->
                     forall a : A, 0 <= c a <= 1.
   Proof. apply: all_costs_CMAX'. Qed.
+
+  Lemma step_all_costs_cat :
+    forall c s c' s',
+      step a0 c s c' s' ->
+      exists l, all_costs s' = l ++ all_costs s.
+  Proof.
+    move => c s c' s'; induction 1; try solve[exists nil => //].
+    by exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1) c pf].
+    by case: IHstep => l ->; exists l.                    
+  Qed.
+
+  Lemma step_plus_all_costs_cat :
+    forall c s c' s',
+      step_plus a0 c s c' s' ->
+      exists l, all_costs s' = l ++ all_costs s.
+  Proof.
+    move => c s c' s'; elim; first by apply: step_all_costs_cat.
+    move => cx sx cx' sx' cx'' sx'' H H2 []l ->.
+    case: (step_all_costs_cat H) => l' ->.
+    by exists (l ++ l'); rewrite catA.
+  Qed.    
   
   Lemma mult_weights1_one_all_costs s s' : 
     mult_weights1_one (c:=SCosts s') (SCostsOk s') s = s' ->
@@ -897,7 +918,7 @@ Section mult_weights_refinement.
                (SEpsilonOk s')
                (d :: SOutputs s)))).
   Proof. by case H: (mult_weights1_loop_right cs s). Qed.
-  
+
   Lemma mult_weights1_loop_right_refines_p_aux_dist :
     forall s cs1 cs2 (w : weights A) (pf : forall a : A, 0 < w a),
       List.hd_error (SOutputs s) =
@@ -935,7 +956,7 @@ Section mult_weights_refinement.
     move => Hx Hy; f_equal.
     apply: proof_irrelevance.
   Qed.
-
+  
   (** The initial distribution *)
   Program Definition init_dist eps (pf : 0 < eps <= 1/2%:R) :=
     @p_aux_dist A a0 eps pf (init_weights A) _ [::] (CMAX_all (cs:=[::])).
@@ -975,6 +996,19 @@ Section mult_weights_refinement.
     by rewrite mult_weights1_refines_pdist.
   Qed.      
 End mult_weights_refinement.
+  
+Lemma zip_nil T U (l : list T) : zip ([::] : list U) l = [::].
+Proof. by elim l. Qed.
+
+Lemma removelast_cat T (l1 l2 : list T) :
+  (0 < size l2)%N -> 
+  List.removelast (l1 ++ l2) = l1 ++ List.removelast l2.
+Proof.
+  elim: l1 => // a l1' IH H /=; rewrite IH => //.
+  case H2: (l1' ++ l2) => //.
+  move {IH}; elim: l1' H2 => //.
+  by rewrite cat0s => H2; rewrite H2 in H.
+Qed.    
 
 Require Import Reals Rpower Ranalysis Fourier.
 
@@ -983,25 +1017,27 @@ Section semantics_lemmas.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
 
-  (** The total expected cost of state [s] *)    
-  Definition state_expCost
-             (l : seq {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1})
-             (s : state A) :=
-    big_sum (zip l (SOutputs s))
-            (fun p =>
-               let: (c, d) := p in
-               rat_to_R (expectedValue d (fun a => projT1 c a))).
+  (** The total expected cost of state [s].
+    Assuming costs are (in fold-right form):
+                 c_1 :: c_2 :: ... :: c_T :: c_(T+1)
+    and actions are:
+       d_init :: d_1 :: d_2 :: ... :: d_T :: d_(T+1)
+    the expected cost at time (T+1) is the expected cost of c_(T+1) given 
+    action distribution d_T. The expected cost at time 1 is the 
+    cost of c_1 given d_init. *)
 
-  Fixpoint state_expCost1
+  Fixpoint state_expCost1_aux
            (l : seq {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1})
            (ds : seq (dist.dist A rat_realFieldType)) :=
     match l, ds with
-    | [:: c & l'], [:: d & ds'] =>
-      (rat_to_R (expectedValue d (fun a => projT1 c a)) +
-      state_expCost1 l' ds')%R
+    | [:: c & l'], [:: d, d' & ds'] =>
+      (rat_to_R (expectedValue d' (fun a => projT1 c a)) +
+       state_expCost1_aux l' [:: d' & ds'])%R
     | _, _ => 0%R
     end.
 
+  Definition state_expCost1 l s := state_expCost1_aux l (SOutputs s).
+    
   Fixpoint state_expCost2
            eps
            (EpsOk : 0 < eps <= 1 / 2%:R)
@@ -1010,95 +1046,195 @@ Section semantics_lemmas.
     | [:: c & l'] =>
       (rat_to_R
          (expectedValue
-            (pdist a0 EpsOk (@CMAX_all _ l))
+            (pdist a0 EpsOk (@CMAX_all _ l'))
             (fun a => projT1 c a)) +
        state_expCost2 EpsOk l')%R
     | _ => 0%R
     end.
+
+  Lemma state_expCost1_aux2_mult_weights1_loopright :
+    forall ds1 ds2 cs1 cs2 (s s' : state A) w pf d0,
+      List.hd_error (SOutputs s) =
+      Some
+        (p_aux_dist (A:=A) a0 (eps:=SEpsilon s) (SEpsilonOk s) (w:=w) pf
+                    (cs:=[seq projT1 p | p <- cs2]) (CMAX_all (A:=A) (cs:=cs2))) ->
+      SWeights s = weights_of (A:=A) (SEpsilon s) [seq projT1 p | p <- cs2] w ->
+      w = init_weights A -> 
+      state_expCost1_aux cs2 (last d0 ds1 :: ds2) = state_expCost2 (SEpsilonOk s) cs2 ->
+      mult_weights1_loop_right a0 cs1 s = s' ->
+      SOutputs s' = ds1 ++ ds2 ->
+      (size cs1).+1 = size ds1 -> 
+      state_expCost1_aux (cs1++cs2) (ds1++ds2) =
+      state_expCost2 (SEpsilonOk s) (cs1++cs2).
+  Proof.
+    elim => //.
+    move => d ds1' IH ds2 cs1 cs2 s s' w pf d0 H H2 Hinit H3.
+    case: cs1 => //=; first by move => <-; case: ds1' IH H3.
+    move => cx cs1' H4 /= H5; case => H6.
+    have [d' [ds1'' H7]]: exists d' ds1'', ds1' = [:: d' & ds1''].
+    { clear IH H3 H5. case: ds1' H6 => // dx ds1'' _.
+      by exists dx, ds1''. }
+    rewrite H7 /=.
+    move: (mult_weights1_loop_right_refines_p_aux_dist cs1' H H2) => H8.
+    move: (mult_weights1_one_hd cx H8) => H9; subst ds1' s'; f_equal.
+    { simpl in H5; inversion H5; rewrite H4 /= in H8; case: H8 => ->.
+      f_equal.
+      f_equal.
+      rewrite /p_aux_dist /pdist /p.
+      subst w.
+      f_equal.
+      apply: proof_irrelevance. }
+    apply: (IH _ _ _ _ _ _ _ d0) => //.
+    by inversion H5; rewrite H4. 
+  Qed.    
+
+  Lemma mult_weights1_loop_right_outputs_size :
+    forall cs (s s' : state A),
+      mult_weights1_loop_right a0 cs s = s' ->
+      (size (SOutputs s') = size cs + size (SOutputs s))%N.
+  Proof.
+    elim; first by move => s s' /= => <-.
+    move => c cs IH s s' /=.
+    set s0 := (mult_weights1_loop_right _ _ _).
+    move: (IH s s0 erefl).
+    by rewrite /mult_weights1_one => H <- /=; rewrite H.
+  Qed.
+    
+  Lemma state_expCost12_mult_weights1 :
+    forall cs s s',
+      SOutputs s = [::] -> 
+      mult_weights1 a0 (rev cs) s = s' ->
+      state_expCost1 cs s' = state_expCost2 (SEpsilonOk s) cs.
+  Proof.
+    rewrite /mult_weights1 => cs s s'.
+    rewrite mult_weights1_loop_leftright revK.
+    set s0 := mult_weights1_init a0 s.
+    set w :=
+      p_aux_dist (A:=A) a0 (eps:=SEpsilon s) (SEpsilonOk s)
+                 (w:=init_weights A)
+                 (init_weights_gt0 (A:=A))
+                 (cs:=[seq projT1 p | p <- [::]]) (CMAX_all (A:=A) (cs:=[::])).
+    have H2:
+      List.hd_error (SOutputs s0) = Some w.
+    { rewrite /w /=.
+      f_equal.
+      f_equal.
+      apply: proof_irrelevance. }
+    move: (state_expCost1_aux2_mult_weights1_loopright
+             (ds1:=SOutputs s') (ds2:=[::])
+             (cs1:=cs) (cs2:=[::])
+             (s':=s') (d0:=w) H2).
+    rewrite !cats0 /state_expCost1 => H H3 H4; rewrite H //.
+    have H5: size (SOutputs s0) = 1%N by rewrite /= H3.
+    by rewrite (mult_weights1_loop_right_outputs_size H4) H5 addn1.
+  Qed.    
+
+  Lemma state_expCost12 :
+    forall nx (c' : com A) (s s' : state A) l,
+      SOutputs s = [::] -> 
+      step_plus a0 (mult_weights A nx) s c' s' ->
+      final_com c' -> 
+      catrev (rev l) (all_costs s) = all_costs s' ->             
+      state_expCost1 l s' = state_expCost2 (SEpsilonOk s) l.
+  Proof.
+    move => nx c' s s' l H0 H H2 H3.
+    move: (step_plus_mult_weights_refines_mult_weights1 H H2 H3).
+    by move/state_expCost12_mult_weights1; move/(_ H0).
+  Qed.
+
+  Lemma state_expCost2_expCostsR
+        eps
+        (EpsOk : 0 < eps <= 1 / 2%:R)
+        (l : seq {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1}) :
+    state_expCost2 EpsOk l =
+    expCostsR (A:=A) a0 (cs:=[seq projT1 c | c <- l])
+              (all_costs_CMAX' (A:=A) (l:=l))
+              EpsOk.
+  Proof.
+    elim: l => // x l' IH.
+    simpl.
+    rewrite /expCostsR /=.
+    f_equal.
+    rewrite IH /expCostsR.
+    apply: big_sum_ext => //.
+    rewrite /subSeqs.
+    f_equal.
+    apply: proof_irrelevance.
+  Qed.
+
+  Definition init_costs : {ffun A -> rat} :=
+    finfun (fun _ => 1).
+
+  Lemma init_costs_ok : forall a, 0 <= init_costs a <= 1.
+  Proof. by rewrite /init_costs => a; rewrite ffunE. Qed.
+
+  Definition init_weights := init_costs.
+
+  Lemma init_weights_ok : forall a, 0 < init_weights a.
+  Proof. by move => a; rewrite ffunE. Qed.
   
-  Definition all_costs' (s : state A) := map (fun c => projT1 c) (all_costs s).
+  Variable eps : rat.
+  Variable epsOk : 0 < eps <= 1/2%:R.
+  Notation epsR := (rat_to_R eps).
   
+  Definition init_state :=
+    @mkState
+      _
+      init_costs (** The initial cost function is never used -- 
+                     we only include it because the type [state] forces 
+                     an [SCost] projection. *)
+      init_costs_ok
+      [::]
+      init_weights
+      init_weights_ok
+      eps
+      epsOk
+      [::].
+
+  (** Because the last cost vector is bogus, we remove it using 
+      [List.removelast]. *)
+  Definition all_costs0 (s : state A) := List.removelast (all_costs s).
+  Definition all_costs' (s : state A) := map (fun c => projT1 c) (all_costs0 s).
+
   (** The best fixed action (in hindsight) for state [s] *)      
   Definition astar (s : state A) := best_action a0 (all_costs' s).
   Definition OPT (s : state A) := \sum_(c <- all_costs' s) c (astar s).
   Definition OPTR (s : state A) := rat_to_R (OPT s).
 
-  Definition eps (s : state A) := rat_to_R (SEpsilon s).
-
   Notation size_A := (rat_to_R #|A|%:R).
 
-  Lemma state_expCost12 :
-    forall (c' : com A) (s s' : state A) l,
-      step_plus a0 (mult_weights A) s c' s' ->
+  Lemma mult_weights_refines_MWU :
+    forall nx (c' : com A) (s s' : state A) l,
+      SOutputs s = [::] -> 
+      step_plus a0 (mult_weights A nx) s c' s' ->
       final_com c' ->
       catrev (rev l) (all_costs s) = all_costs s' ->             
-      state_expCost1 l (SOutputs s') = state_expCost2 (SEpsilonOk s) l.
+      state_expCost1 l s' = expCostsR a0 (@all_costs_CMAX' _ l) (SEpsilonOk s).
   Proof.
-    move => c' s s' l; elim: l c' s' => // cs cs' IH c' s' H H2 H3.
-    move: (step_plus_mult_weights_refines_pdist H H2 H3).
-    case Hx: (SOutputs s') => // [d ds]; rewrite /List.hd_error; case => -> /=.
-    rewrite revK; f_equal.
-    have [c'' [s'' [H4 H5]]]:
-      exists c'' s'',
-        [/\ step_plus a0 (mult_weights A) s c'' s''
-          , final_com c''
-          , catrev (rev cs') (all_costs s) = all_costs s''
-          & SOutputs s'' = ds].
-    { clear - H H2 H3 Hx.
-      rewrite catrevE revK /= in H3; rewrite catrevE revK.
-      move: H; move: (mult_weights A) => c; elim.
-      move => cx sx c'' s'' cx' sx' Hy Hz; case => xc; case => xs.
-      case => H4 H5 H6 <-; exists xc, xs.
-      split => //.
-
-      move: cs H3; induction H.
-      case: IHstep_plus => //.
-
-    by move => H6 H7; move: (IH _ _ H4 H5 H6); rewrite H7 => ->.
-  Admitted.      
-
-  Lemma mult_weights_refines_MWU :
-    forall (c' : com A) (s s' : state A) l,
-      step_plus a0 (mult_weights A) s c' s' ->
-      final_com c' ->
-      catrev l (all_costs s) = all_costs s' ->             
-      state_expCost (rev l) s' = expCostsR a0 (@all_costs_CMAX' _ (rev l)) (SEpsilonOk s).
-  Proof.
-    move => c' s s' l; move: s; elim: l.
-    { move => s H H2 /= H3.
-      rewrite /expCostsR /state_expCost /expCostR /expCost /=.
-      have zip_nil T U (l : list T): zip ([::] : list U) l = [::] by elim l.
-      by rewrite zip_nil. }
-    move => a l IH s H H2 H3.
-    rewrite /expCostsR /state_expCost /expCostR /expCost.
-    move: (step_plus_mult_weights_refines_pdist H H2 H3).
-    case: (SOutputs s') => // x l0 /=; case => ->.
-    rewrite IH.
-
-      
-      apply: big_sum_ext' => //.
-      Focus 2.
-      simpl.
-      rewrite /zip.
-      
-      
-      
+    move => nx c' s s' l H0 H H2 H3; move: (state_expCost12 H0 H H2 H3) => ->.
+    by rewrite state_expCost2_expCostsR.
+  Qed.
 
   (** The number of cost vectors received from the environment *)
-  Definition T (s : state A) := INR (size (all_costs s)).
-
-
-    move => c' s s' H; apply: big_sum_ext'.
-  Admitted. (*GS TODO*)
+  Definition T (s : state A) := INR (size (all_costs' s)).
   
   Lemma mult_weights_epsilon_no_regret :
-    forall (c' : com A) (s s' : state A),
-      step a0 (mult_weights A) s c' s' ->
-      ((state_expCost s' - OPTR s') / T s' <= eps s + ln size_A / (eps s * T s'))%R.
+    forall nx (c' : com A) (s' : state A),
+      step_plus a0 (mult_weights A nx) init_state c' s' ->
+      final_com c' ->
+      (0 < size (all_costs' s'))%N -> 
+      let: eCost := state_expCost1 (all_costs0 s') s'
+      in ((eCost - OPTR s') / T s' <= epsR + ln size_A / (epsR * T s'))%R.
   Proof.
-    move => c' s s' H.
-    rewrite (mult_weights_refines_MWU H) /OPTR /OPT /astar /T /eps.
-    have H2: (0 < size (projT1 (all_costs s')))%N by [].
+    move => nx c' s' H H2 Hsize.
+    have H3: SOutputs init_state = [::] by [].
+    have H4: catrev (rev (all_costs0 s')) (all_costs init_state) = all_costs s'.
+    { case: (step_plus_all_costs_cat H) => l; rewrite /all_costs0 => ->.
+      rewrite removelast_cat => //.
+      by rewrite catrevE revK -catA. }
+    rewrite (mult_weights_refines_MWU H3 H H2 H4) /OPTR /OPT /astar /T.
     by apply: perstep_weights_noregret.
   Qed.
 End semantics_lemmas.
+
+Print Assumptions mult_weights_epsilon_no_regret.
