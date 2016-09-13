@@ -708,6 +708,21 @@ Proof.
   rewrite H. by apply positive_nat_N.
 Qed.
 
+
+Lemma of_bin_N_of_nat x :
+  nat_of_bin (N.of_nat x) = x.
+Proof.
+  case: x => // p => //=.
+  rewrite of_succ_nat_of_nat_plus_1.
+  have H: forall m, nat_of_pos m = Pos.to_nat m.
+  { move => m; elim: m => // m IHp /=.
+     - by rewrite Pos2Nat.inj_xI IHp NatTrec.doubleE -mul2n.
+     - by rewrite Pos2Nat.inj_xO IHp NatTrec.doubleE -mul2n.
+  }
+  rewrite H. rewrite Nat2Pos.id; first by apply addn1.
+  case p => //.
+Qed.
+
 Lemma InA_NoDupA_Unique A eqA x1 x2 :
   Equivalence eqA -> 
   forall l, @SetoidList.NoDupA A eqA l ->
@@ -833,15 +848,16 @@ Next Obligation.
     }
     {
       rewrite mem_filter in H4.
-      case/nandP: H4 => /negP H4.
-      {
-        rewrite /index_enum -enumT.
-        admit.
-      }
-      {
-        admit.
-      } 
-    }
+      case_eq (x \in [seq (N.of_nat (nat_of_ord x0), fun_of_fin s x0)
+                | x0 <- index_enum (ordinal_finType (nat_of_bin N))])=> H5 => //.
+      case/mapP: H5 => y H6 H7.
+      case/andP: H4; split; destruct x as [x1 x2]; inversion H7 => /=.
+      rewrite /index_enum -enumT //= in H6.
+      rewrite of_bin_N_of_nat => //.
+      apply list_in_iff.
+      clear pf H2 H7 H3 H4 H6 x1 x2.
+      admit.
+    } 
   }
 Admitted.
 
