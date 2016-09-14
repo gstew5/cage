@@ -644,17 +644,6 @@ Section mult_weights_refinement.
     by exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1) c pf].
     by case: IHstep => l ->; exists l.                    
   Qed.
-
-  Lemma step_plus_all_costs_cat :
-    forall c s c' s',
-      step_plus a0 c s c' s' ->
-      exists l, all_costs s' = l ++ all_costs s.
-  Proof.
-    move => c s c' s'; elim; first by apply: step_all_costs_cat.
-    move => cx sx cx' sx' cx'' sx'' H H2 []l ->.
-    case: (step_all_costs_cat H) => l' ->.
-    by exists (l ++ l'); rewrite catA.
-  Qed.    
   
   Lemma mult_weights1_one_all_costs s s' : 
     mult_weights1_one (c:=SCosts s') (SCostsOk s') s = s' ->
@@ -869,6 +858,123 @@ Section mult_weights_refinement.
     apply: H3.
   Qed.
 
+  Lemma step_plus_all_costs_cat :
+    forall c s c' s',
+      step_plus a0 c s c' s' ->
+      exists l, all_costs s' = l ++ all_costs s.
+  Proof.
+    move => c s c' s'; elim; first by apply: step_all_costs_cat.
+    move => cx sx cx' sx' cx'' sx'' H H2 []l ->.
+    case: (step_all_costs_cat H) => l' ->.
+    by exists (l ++ l'); rewrite catA.
+  Qed.    
+
+  Lemma nat_of_bin_to_nat b : nat_of_bin b = N.to_nat b.
+  Proof.
+    rewrite /nat_of_bin.
+    case: b => //.
+    elim => //.
+    { move => p /= H; rewrite /Pos.to_nat /=; f_equal.
+      rewrite ZL6 NatTrec.doubleE H -muln2 mulnC -multE /=.
+      by rewrite -plus_n_O. }
+    move => p /= H; rewrite /Pos.to_nat /=; f_equal.
+    rewrite ZL6 NatTrec.doubleE H -muln2 mulnC -multE /=.
+    by rewrite -plus_n_O.
+  Qed.
+    
+  Lemma step_plus_mult_weights_body_size_all_costs :
+    forall nx s c' s',
+      step_plus a0 (CIter nx (mult_weights_body A)) s c' s' ->
+      final_com c' -> 
+      size (all_costs s') = (N.to_nat nx + size (all_costs s))%N.
+  Proof.
+    move => nx s c' s' H H2.
+    case: (step_plus_stepN H H2) => n H3; clear H H2.
+    move: s s' nx H3.
+    set P := fun n =>
+               forall (s s' : state A) nx,
+                 stepN a0 n (CIter nx (mult_weights_body A)) s s' ->
+                 size (all_costs s') = (N.to_nat nx + size (all_costs s))%N.
+    change (P n).                                                                         
+    apply (well_founded_ind lt_wf); move {n}; case.
+    { by rewrite /P => IH s s'; inversion 1; subst; rewrite add0n. }
+    rewrite /P => n IH s s'; inversion 1; subst; first by rewrite add0n.
+    inversion H6; subst.
+    inversion H6; subst.
+    have H7: (n0 < n0.+2)%coq_nat by omega.
+    rewrite (IH _ H7 s1'0 _ (N.pred nx)) => //.
+    rewrite N2Nat.inj_pred.
+    have H11: size (all_costs s1'0) = (size (all_costs s)).+1.
+    { clear - H5.
+      inversion H5; subst. clear H5.
+      inversion H6; subst. clear H6.
+      inversion H3; subst. clear H3.
+      inversion H2; subst. simpl in *. clear H2.
+      inversion H7; subst. simpl in *. clear H7.
+      by []. }
+    rewrite H11.
+    have H12: (0 < N.to_nat nx)%N.
+    { by rewrite nat_of_bin_to_nat in H3. }
+    clear - H12.
+    move: H12; move: (N.to_nat nx) => n; clear nx.
+    move: (size (all_costs s)) => m.
+    rewrite -plusE => H.
+    rewrite Nat.add_pred_l.
+    by rewrite -plus_n_Sm.
+    by move => H2; rewrite H2 in H.
+  Qed.  
+  
+  Lemma step_plus_seq_split :
+    forall c1 c2 s c' s',
+      step_plus a0 (CSeq c1 c2) s c' s' ->
+      final_com c' -> 
+      exists s0,
+        [/\ step_plus a0 c1 s c2 s0
+          & step_plus a0 c2 s0 c' s'].
+  Proof.
+    move => c1 c2 s c' s' H H2.
+  Admitted.          
+  
+  Lemma step_plus_mult_weights_init_breakdown :
+    forall nx s c' s',
+      step_plus a0 (mult_weights A nx) s c' s' ->
+      final_com c' -> 
+      exists s0 : state A,
+        [/\ step_plus a0 (mult_weights_init A) s (CIter nx (mult_weights_body A)) s0
+          & step_plus a0 (CIter nx (mult_weights_body A)) s0 c' s'].
+  Proof.
+    move => nx s c' s' H H2.
+    case: (step_plus_seq_split H H2) => s0 []H3 H4.
+    by exists s0; split.
+  Qed.    
+ 
+  Lemma step_plus_mult_weights_size_all_costs :
+    forall nx s c' s',
+      step_plus a0 (mult_weights A nx) s c' s' ->
+      final_com c' -> 
+      size (all_costs s') = (N.to_nat nx + size (all_costs s)).+1%N.
+  Proof.
+    move => nx s c' s' H H2.
+    case: (step_plus_mult_weights_init_breakdown H H2) => s0 []H3 H4.
+    move: (step_plus_mult_weights_body_size_all_costs H4 H2).    
+    have H5: (size (all_costs s0) = (size (all_costs s)).+1)%N.
+    { inversion H3; subst.
+      { inversion H0. }
+      inversion H0; subst. clear H0.
+      inversion H10; subst. clear H10.
+      inversion H1; subst; clear H1.
+      { inversion H0. }
+      inversion H0; subst; clear H0.
+      { inversion H5; subst.
+        { inversion H0. }
+        inversion H0; subst. simpl in *. clear H0.
+        inversion H1; subst; clear H1.
+        { inversion H0. }
+        inversion H0; subst.
+    }
+    by rewrite H5 => -> /=; rewrite addnS.
+  Admitted.    
+
   (** REFINEMENT 2:
       Show that [mult_weights1] refines the Ssreflect spec in weights.v. *)
 
@@ -1009,6 +1115,13 @@ Proof.
   move {IH}; elim: l1' H2 => //.
   by rewrite cat0s => H2; rewrite H2 in H.
 Qed.    
+
+Lemma size_removelast T (l : list T) :
+  size (List.removelast l) = (size l).-1.
+Proof.
+  elim: l => // a l IH.
+  by case: l IH => // b l /= ->.
+Qed.  
 
 Require Import Reals Rpower Ranalysis Fourier.
 
@@ -1191,6 +1304,9 @@ Section semantics_lemmas.
       epsOk
       [::].
 
+  Lemma size_all_costs_init_state : size (all_costs init_state) = 1%N.
+  Proof. by []. Qed.
+  
   (** Because the last cost vector is bogus, we remove it using 
       [List.removelast]. *)
   Definition all_costs0 (s : state A) := List.removelast (all_costs s).
@@ -1216,7 +1332,23 @@ Section semantics_lemmas.
   Qed.
 
   (** The number of cost vectors received from the environment *)
-  Definition T (s : state A) := INR (size (all_costs' s)).
+  Definition num_costs (s : state A) := INR (size (all_costs' s)).
+
+  Lemma mult_weights_T :
+    forall nx (c' : com A) (s' : state A),
+      (0 < size (all_costs s'))%N ->       
+      step_plus a0 (mult_weights A nx) init_state c' s' ->
+      final_com c' -> 
+      num_costs s' = INR (N.to_nat nx).+1.
+  Proof.    
+    move => nx c' s' Hsz H H2.
+    move: (step_plus_mult_weights_size_all_costs H H2).
+    rewrite /num_costs /all_costs' /all_costs0 size_map size_all_costs_init_state.
+    rewrite size_removelast => H3; rewrite H3 in Hsz|-*; move: Hsz.
+    by case: (N.to_nat nx) => // n _; f_equal => /= ; rewrite addn1.
+  Qed.    
+
+  Definition T nx := INR (N.to_nat nx).+1.
   
   Lemma mult_weights_epsilon_no_regret :
     forall nx (c' : com A) (s' : state A),
@@ -1224,7 +1356,7 @@ Section semantics_lemmas.
       final_com c' ->
       (0 < size (all_costs' s'))%N -> 
       let: eCost := state_expCost1 (all_costs0 s') s'
-      in ((eCost - OPTR s') / T s' <= epsR + ln size_A / (epsR * T s'))%R.
+      in ((eCost - OPTR s') / T nx <= epsR + ln size_A / (epsR * T nx))%R.
   Proof.
     move => nx c' s' H H2 Hsize.
     have H3: SOutputs init_state = [::] by [].
@@ -1233,6 +1365,7 @@ Section semantics_lemmas.
       rewrite removelast_cat => //.
       by rewrite catrevE revK -catA. }
     rewrite (mult_weights_refines_MWU H3 H H2 H4) /OPTR /OPT /astar /T.
+    rewrite -(mult_weights_T Hsize H H2).
     by apply: perstep_weights_noregret.
   Qed.
 End semantics_lemmas.
