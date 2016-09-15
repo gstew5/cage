@@ -263,6 +263,9 @@ Section semantics.
       in the [CRepeat] case. *)
   
   Inductive stepN : nat -> com A -> state -> state -> Prop :=
+  | N0 :
+      forall n s, stepN n CSkip s s
+
   | NUpdate :
       forall n f s pf,
         let: s' :=
@@ -329,19 +332,6 @@ Section semantics.
         stepN n (CSeq c (CIter (N.pred n') c)) s s' -> 
         stepN (S n) (CIter n' c) s s'.
 
-  Lemma step_plus_CSkip c1 s1 c1' s1' :
-    step_plus c1 s1 c1' s1' ->
-    c1 = CSkip ->     
-    s1 = s1' /\ c1' = CSkip.
-  Proof.
-    induction 1; subst.
-    move => H2; subst c; inversion H; subst.
-    by split.
-    move => H1; subst c.
-    inversion H; subst.
-    by apply: IHstep_plus.
-  Qed.
-
   Lemma step_plus_trans c1 c2 c3 s1 s2 s3 :
     step_plus c1 s1 c2 s2 ->
     step_plus c2 s2 c3 s3 ->
@@ -358,12 +348,7 @@ Section semantics.
   Proof.
     induction 1.
     constructor.
-    case: (com_Skip_dec c).
-    { move => H2; subst c.
-      inversion H; subst.
-      apply: SSeq1.
-    case: c H; try solve[constructor; inversion 1].
-    constructor.
+    by constructor.
     apply: step_trans.
     constructor.
     apply: H.
@@ -381,12 +366,16 @@ Section semantics.
     { move => ?; rewrite /P => c s s' n' _; inversion 1; try solve[constructor]. }
     move => n IH; rewrite /P => c s s' n' H.
     inversion 1; subst.
-    { constructor. }
     { move {IH}; case: n' H P; try solve[move => X; elimtype False; omega].
       constructor. }
     { move {IH}; case: n' H P; try solve[move => X; elimtype False; omega].
       constructor. }
     { move {IH}; case: n' H P; try solve[move => X; elimtype False; omega].
+      constructor. }
+    { rewrite /P in IH; move {P}.
+      case: n' H IH; try solve[move => X; elimtype False; omega].
+      move => n0 H4 IH.
+      have H5: (n0 >= n)%coq_nat by omega.
       constructor. }
     { rewrite /P in IH; move {P}.
       case: n' H IH; try solve[move => X; elimtype False; omega].
@@ -412,8 +401,9 @@ Section semantics.
   Proof.
     move => H; move: H s'; induction 1; subst;
       try solve[inversion 1; subst; eexists; split => //; constructor].
-    { move => H; exists n.+1; split => //.
-      by apply: NSeq; first by constructor. }
+    { move => s' H; exists n.+1; split => //.
+      apply: NSeq; first by constructor.
+      by []. }
     { inversion 1; subst c0 c3 s0 s3 n.
       have H8: (n0.+1 >= n0)%coq_nat by omega.
       case: (IHstep _ (stepN_weaken H8 H4)) => n []H1 H2.
@@ -450,21 +440,10 @@ Section semantics.
     { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
     { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
     { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
-    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
-    { inversion H.
-      subst c'' s''.
-      case: IHstep_plus => // n H5.
+    { case: IHstep_plus => // n H2.
       exists (S n).
-      apply: NSeq.
-      constructor.
-      apply: H5.
-      subst c'' s''.
-      case IHstep_plus => // n H7.
-      exists (S n).
-      apply: NSeq.
-      constructor.
-      rewrite -H4 in H7.
-      apply: H7. }
+      apply: NSeq; first by constructor.
+      by []. }
     { inversion H.
       { subst c1 c2 s0 s''.
         case: IHstep_plus => // n H6.
@@ -925,20 +904,76 @@ Section mult_weights_refinement.
     by move => H2; rewrite H2 in H.
   Qed.  
 
+  Lemma step_seq_inv :
+    forall c1 c2 s c' s',
+      step a0 (CSeq c1 c2) s c' s' ->
+      [/\ c1=CSkip, c'=c2 & s'=s] \/
+      exists c1' s'',
+        [/\ step a0 c1 s c1' s'', c'=CSeq c1' c2, s'=s'' & c1<>CSkip].
+  Proof.
+    move => c1 c2 s c' s'; inversion 1; subst; clear H.
+    { by left; split. }
+    right; exists c1', s'; split => //.
+    inversion H5; subst; try solve[inversion 1].
+  Qed.
+
+  Lemma step_plus_seq_inv1 :
+    forall c1 c2 s c' s',
+      step_plus a0 (CSeq c1 c2) s c' s' ->
+      final_com c' ->
+      c1<>CSkip -> 
+      exists s'',
+        step_plus a0 c1 s CSkip s'' /\
+        step_plus a0 (CSeq CSkip c2) s'' c' s'.
+  Proof.
+    move => c1 c2 s c' s'.
+    remember (CSeq c1 c2) as c => H.
+    revert c1 c2 Heqc.
+    induction H.
+    { move => c1 c2 H2; subst c; inversion 1; subst. clear H0.
+      move => H2.
+      case: (step_seq_inv H).
+      { case => H3 H4 H5.
+        subst c1.
+        congruence. }
+      case => c1' [] s0 []H3 H4 H5 H6.
+      exists s0.
+      split => //. }
+    move => c1 c2 H2; subst c. inversion 1; subst. clear H1.
+    move => H2.
+    case: (step_seq_inv H).
+    { case => H3 H4 H5.
+      subst c1.
+      congruence. }
+    case => c1' [] s0 []H3 H4 H5 H6.
+    subst.
+    case: (com_Skip_dec c1').
+    { move => H7. subst c1'.
+      exists s0.
+      split => //.
+      constructor => //. }
+    move => H7.
+    case: (IHstep_plus c1' c2 erefl) => // sx [] H8 H9.
+    exists sx.
+    split => //.
+    apply: step_trans.
+    apply: H3.
+    apply: H8.
+  Qed.    
+  
   Lemma step_plus_seq_skip :
     forall c s c' s',
       step_plus a0 (CSeq CSkip c) s c' s' ->
       s=s' \/ step_plus a0 c s c' s'.
   Proof.
     move => c s c' s'; remember (CSeq _ _) as c0; induction 1.
-    { subst c0; inversion H; subst; clear H; first by left.
+    { subst c0; inversion H; subst; first by left.
       by inversion H5; subst; clear H5; left. }
     subst c0; inversion H; subst; clear H; first by right.
     inversion H6; subst; clear H6.
-    by apply: IHstep_plus. 
   Qed.
 
-  Lemma step_plus_send :
+  Lemma step_plus_send_all_costs :
     forall s c' s',
       step_plus a0 CSend s c' s' ->
       all_costs s' = all_costs s /\ c'=CSkip.
@@ -948,53 +983,21 @@ Section mult_weights_refinement.
     { inversion H0; subst => //. }
     clear H.
     inversion H0; subst; clear H0.
-    case: (step_plus_CSkip H1 erefl) => <- <- //.
-  Qed.    
-  
-  Lemma step_plus_seq_split :
-    forall c1 c2 s c' s',
-      step_plus a0 (CSeq c1 c2) s c' s' ->
-      final_com c' -> 
-      exists s0,
-        [/\ step_plus a0 c1 s c2 s0
-          & step_plus a0 c2 s0 c' s'].
-  Proof.
-    move => c1 c2 s c' s'.
-    remember (CSeq c1 c2) as c => H.
-    revert c1 c2 Heqc; induction H.
-    { move => c1 c2 H2; subst c.
-      inversion 1; subst. clear H0.
-      inversion H; subst.
-      inversion H. subst c2 s'. clear H3.
-      exists s. split; constructor; constructor. }
-    move => c1 c2 H2; subst c.
-    inversion 1; subst. clear H1.
+    inversion H1; subst.
+    { inversion H; subst. }
     inversion H; subst.
-    { inversion H; subst s'' c''.
-      { inversion H. subst s0 c0.
-        { 
-        
-      { apply: IHstep_plus.
-      
-      have H': step_plus a0 (CSeq CSkip c2) s c2 s.
-      { constructor; constructor. }
-      clear H.
-      case: (step_plus_seq_skip H').
-    
-    
-    
-  Admitted.          
+  Qed.    
   
   Lemma step_plus_mult_weights_init_breakdown :
     forall nx s c' s',
       step_plus a0 (mult_weights A nx) s c' s' ->
       final_com c' -> 
       exists s0 : state A,
-        [/\ step_plus a0 (mult_weights_init A) s (CIter nx (mult_weights_body A)) s0
-          & step_plus a0 (CIter nx (mult_weights_body A)) s0 c' s'].
+        [/\ step_plus a0 (mult_weights_init A) s CSkip s0
+          & step_plus a0 (CSeq CSkip (CIter nx (mult_weights_body A))) s0 c' s'].
   Proof.
     move => nx s c' s' H H2.
-    case: (step_plus_seq_split H H2) => s0 []H3 H4.
+    case: (step_plus_seq_inv1 H H2) => // s0 []H3 H4.
     by exists s0; split.
   Qed.
   
@@ -1015,11 +1018,10 @@ Section mult_weights_refinement.
     { inversion H0; subst; clear H0.
       inversion H; subst; clear H; simpl => //.
       inversion H; subst; clear H; simpl in * => //.
-      case: (step_plus_CSkip H1 erefl) => <- H //. }
+      inversion H1; subst.
+      { inversion H. }
+      inversion H. }
     inversion H6; subst; clear H6.
-    case: (step_plus_seq_skip H0); clear H0.
-    { move => <- //. }
-    move => H; case: (step_plus_send H) => -> H2 //.
   Qed.    
 
   Lemma step_plus_mult_weights_size_all_costs :
@@ -1030,8 +1032,13 @@ Section mult_weights_refinement.
   Proof.
     move => nx s c' s' H H2.
     case: (step_plus_mult_weights_init_breakdown H H2) => s0 []H3 H4.
-    move: (step_plus_mult_weights_body_size_all_costs H4 H2).    
-    have H5: (size (all_costs s0) = size (all_costs s))%N.
+    inversion H4; subst; clear H4.
+    { inversion H0; subst; clear H0.
+      inversion H2.
+      inversion H2. }
+    inversion H0; subst; clear H0; try solve[inversion H9].
+    move: (step_plus_mult_weights_body_size_all_costs H1 H2).
+    have H5: (size (all_costs s'') = size (all_costs s))%N.
     { apply: (step_plus_mult_weights_init_size H3). }
     by rewrite H5 => -> /=; rewrite addnS.
   Qed.
