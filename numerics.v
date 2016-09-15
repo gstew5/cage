@@ -20,6 +20,12 @@ Import GRing.Theory Num.Def Num.Theory.
 Section int_to_Z.
   Variable i : int.
 
+  Definition int_to_nat i :=
+    match i with
+    | Posz n => n
+    | Negz n => S n
+    end.
+
   Definition int_to_positive : positive :=
     match i with
     | Posz n => Pos.of_nat n
@@ -379,7 +385,7 @@ Section rat_to_Q_lemmas.
       by [].
   Qed.
 
-Lemma int_to_Z_pos_of_nat (a : nat):
+  Lemma int_to_Z_pos_of_nat (a : nat):
     (0 < a)%N ->
     int_to_Z (Posz a) =
     Z.pos (Pos.of_nat a).
@@ -418,6 +424,15 @@ Lemma int_to_Z_pos_of_nat (a : nat):
     int_to_Z a = int_to_Z b <-> a = b.
   Proof.
     split. apply: int_to_Z_inj. move => H. by rewrite H. Qed.
+
+  Lemma int_to_Z_opp (i : int) :
+    int_to_Z (- i) = Zopp (int_to_Z i).
+  Proof.
+    have ->: - i = -1 * i by rewrite mulNr mul1r.
+    have ->: (Zopp (int_to_Z i) = Zmult (Zneg xH) (int_to_Z i)).
+    { by rewrite Z.opp_eq_mul_m1 Z.mul_comm. }
+    rewrite -int_to_Z_mul. f_equal.
+  Qed.
 
   Lemma pos_muln (a b : nat) :
     Posz a * Posz b = Posz (muln a b).
@@ -945,12 +960,186 @@ Section rat_to_Q_lemmas_cont.
     rewrite Pos.of_nat_succ Pos_to_natNS Pos2Nat.id => //.
   Qed.
 
+ Lemma int_to_Z_div_nat_pos a b p :
+    int_to_Z b = (Zmult (Z.pos p) (int_to_Z a)) ->
+    `|b|%N = (Pos.to_nat p * `|a|)%N.
+  Proof.
+    move => H.
+    have H0: (Z.pos p = int_to_Z (Posz (Pos.to_nat p))).
+    { by simpl; rewrite positive_nat_Z. }
+    rewrite H0  int_to_Z_mul in H.
+    apply int_to_Z_inj_iff in H.
+    by rewrite H abszM.
+  Qed.
+
+  Lemma int_to_Z_div_nat_neg a b p :
+    int_to_Z b = (Zmult (Z.neg p) (int_to_Z a)) ->
+    `|b|%N = (Pos.to_nat p * `|a|)%N.
+  Proof.
+    move => H.
+    have H0: (Pos.to_nat 1 = 1%N) by [].
+    case: (Pos.eq_dec p 1) => Hp.
+    - rewrite Hp Z.mul_comm -Z.opp_eq_mul_m1 -int_to_Z_opp in H.
+      apply int_to_Z_inj_iff in H.
+      by rewrite Hp H H0 mul1n abszN.
+    - have H1: (Z.neg p = int_to_Z (Negz (Pos.to_nat (Pos.pred p)))).
+      { by simpl; rewrite Pos2SuccNat.id_succ Pos.succ_pred. }
+      rewrite H1 int_to_Z_mul in H. apply int_to_Z_inj_iff in H.
+      rewrite H -opp_posz_negz Pos2Nat.inj_pred. rewrite prednK.
+      destruct (Pos.to_nat p); destruct a => // /=.
+      by rewrite GRing.mulNr abszN.
+      by apply /ltP; apply Pos2Nat.is_pos.
+      have H2: ((1 <= p)%positive). apply Pos.le_1_l.
+      apply Pos.lt_eq_cases in H2. case: H2 => H2 => //.
+      congruence.
+  Qed.
+
+  Lemma int_to_nat_mul (s r : int) :
+    ((int_to_nat s) * (int_to_nat r))%N = int_to_nat (s * r).
+  Proof.
+    case: s; case: r => // m n.
+    - elim: n.
+      + by rewrite mul0n.
+      + move => n' IHn /=.
+        have ->: ((n' * m.+1)%Nrec = (n' * m.+1)%N) by [].
+        by rewrite mulSn IHn => //.
+    - rewrite mulnC mulrC.
+      elim: m.
+      + by rewrite mul0n.
+      + move => m IHm /=.
+        have ->: ((m * n.+1)%Nrec = (m * n.+1)%N) by [].
+        by rewrite mulSn IHm => //.
+  Qed.
+
+  Lemma int_to_nat_inj_pos (s r : int) :
+    0 <= s -> 0 <= r ->
+    (int_to_nat s) = (int_to_nat r) <-> s = r.
+  Proof.
+    split; move: H H0; case: s; case: r => //; auto.  
+    move=> n m H0 H1 H2. by inversion H2.
+  Qed.
   
+  Lemma int_to_nat_inj_neg_l (s r : int) :
+    0 <= s ->
+    r <= 0 ->
+    (int_to_nat s) = (int_to_nat r) <-> s = - r.
+  Proof.
+    split; move: H H0; case: s; case: r => //.
+    - move => n m. case: n; case: m => //.
+    - move => n m H0 H1 H2. rewrite NegzE. rewrite GRing.opprK.
+      simpl in H2. by rewrite H2.
+    - move => n m H0 H1 H2. rewrite H2. move: H1 H2. case: n => //.
+    - move => n m H0 H1 H2. rewrite NegzE /=. rewrite NegzE in H2.
+      rewrite GRing.opprK in H2. by inversion H2.
+  Qed.
+  
+  Lemma int_to_nat_inj_neg_r (s r : int) :
+    s < 0 ->
+    0 <= r ->
+    (int_to_nat s) = (int_to_nat r) <-> s = - r.
+  Proof.
+    split; move: H H0; case: s; case: r => //.
+    - move => n m H0 H1 /= H2. by rewrite NegzE H2.
+    - move => n m H0 H1 H2 /=. rewrite NegzE in H2.
+      destruct n; destruct m => //;
+        by apply GRing.oppr_inj in H2; inversion H2.
+  Qed.
+
+  Lemma int_to_nat_inj_neg (s r : int) :
+    s < 0 ->
+    r <= 0 ->
+    (int_to_nat s) = (int_to_nat r) <-> s = r.
+  Proof.
+    split; move: H H0; case: s; case: r => //; auto.
+    - move => n m. case: n; case: m => //.
+    - move => n m H0 H1 H2. by inversion H2.
+  Qed.
+
   Lemma int_nat_div_eq :
     forall m n,
       Z.divide (int_to_Z m) (int_to_Z n) <-> dvdn `|m| `|n|.
   Proof.
-  Admitted.
+    split => H.
+    - rewrite /Z.divide in H.
+      destruct H as [z H].
+      apply /dvdnP.
+      case: (Z.le_gt_cases Z0 z).
+      { exists (Z.to_nat z).
+        move: H a. move: m n.
+        elim: z; move => /= a b.
+        + rewrite mul0n. case: b; move => n. case: n => //; move => H Ha.
+          move => H Ha. inversion H.
+        + move => c d Ha. by apply int_to_Z_div_nat_pos.
+        + move => c d H0. destruct H0. reflexivity. }
+      { exists (Z.to_nat (- z)).
+        move: H b. case: z => H Hb /=.
+        + inversion Hb.
+        + move => H0. inversion H0.
+        + move => H0. by apply int_to_Z_div_nat_neg. }
+    - move: H => /dvdnP [k H].
+      rewrite /Z.divide.
+      case Hn: (0 <= n); case Hm: (0 <= m).
+      { exists (int_to_Z (Posz k)).
+        rewrite int_to_Z_mul. f_equal. 
+        have H0: (`|n| = n) by apply gez0_abs.
+        have H1: (`|m| = m) by apply gez0_abs.
+        rewrite -H0 -H1.
+        have H2: (absz n = int_to_nat n).
+        { by rewrite /int_to_nat; destruct n. }
+        have H3: (absz m = int_to_nat m).
+        { by rewrite /int_to_nat; destruct m. }
+        have H4: (k = int_to_nat (Posz k)) by [].
+        rewrite H2 H3 H4 int_to_nat_mul in H.
+        apply int_to_nat_inj_pos in H => //.
+        rewrite H. destruct k; destruct m => //.
+        apply mulr_ge0 => //. }
+      { exists (int_to_Z (- Posz k)).
+        rewrite int_to_Z_mul. f_equal.
+        have H0: (`|n| = n) by apply gez0_abs.
+        have H': (m < 0) by destruct m.
+        have H1: (`|m| = - m) by apply ltz0_abs.
+        rewrite -H0.
+        have H2: (absz n = int_to_nat n).
+        { rewrite /int_to_nat. destruct n => //. }
+        have H3: (absz m = int_to_nat m).
+        { rewrite /int_to_nat. destruct m => //. }
+        have H4: (k = int_to_nat (Posz k)) by [].
+        rewrite H2 H3 H4 int_to_nat_mul in H.
+        apply int_to_nat_inj_neg_l in H => //.
+        rewrite H. destruct k; destruct m => //.
+        apply mulr_ge0_le0 => //. auto. }
+      { exists (int_to_Z (- Posz k)).
+        rewrite int_to_Z_mul. f_equal.
+        have H': (n < 0) by destruct n.
+        have H0: (`|n| = - n) by apply ltz0_abs.
+        have H1: (`|m| = m) by apply gez0_abs.
+        rewrite -H1.
+        have H2: (absz n = int_to_nat n).
+        { rewrite /int_to_nat. destruct n => //. }
+        have H3: (absz m = int_to_nat m).
+        { rewrite /int_to_nat. destruct m => //. }
+        have H4: (k = int_to_nat (Posz k)) by [].
+        rewrite H2 H3 H4 int_to_nat_mul in H.
+        apply int_to_nat_inj_neg_r in H => //.
+        rewrite H. destruct k; destruct m => //.
+        by rewrite GRing.mulNr; apply GRing.oppr_inj;
+          rewrite GRing.opprK.
+        by apply mulr_ge0. }
+      { exists (int_to_Z (Posz k)).
+        rewrite int_to_Z_mul. f_equal. 
+        have H': (n < 0) by destruct n.
+        have H0: (`|n| = - n) by apply ltz0_abs.
+        have Hmlt0: (m < 0) by destruct m => // .
+        have H1: (`|m| = - m) by apply ltz0_abs.
+        have H2: (absz n = int_to_nat n).
+        { rewrite /int_to_nat. destruct n. auto. rewrite NegzE //. }
+        have H3: (absz m = int_to_nat m).
+        { rewrite /int_to_nat. destruct m. auto. rewrite NegzE //. }
+        have H4: (k = int_to_nat (Posz k)) by [].
+        rewrite H2 H3 H4 int_to_nat_mul in H.
+        apply int_to_nat_inj_neg in H => //.
+        by destruct k; destruct m => //. }
+  Qed.
 
   Lemma rat_to_Q_gcd (a b : int) (pf : (0 < b) && coprime `|a| `|b|) :
     Z.gcd (int_to_Z a) (Z.pos (int_to_positive b)) = (Zpos 1).
@@ -964,10 +1153,13 @@ Section rat_to_Q_lemmas_cont.
     apply int_nat_div_eq => /=.
     rewrite Pos2Nat.inj_1.
     rewrite -pf2 dvdn_gcd.
-    apply /andP; split;
+    apply /andP; split.
+    apply int_nat_div_eq. rewrite cancel_I2Z. apply H0.
     apply int_nat_div_eq; rewrite cancel_I2Z => //.
-    admit.
-Admitted.
+    rewrite /Z.divide. rewrite /Z.divide in H1.
+    case: H1 => z H1. exists z.
+    by rewrite -int_to_positive_to_Z.
+  Qed.
 
   Lemma rat_to_Q_red (r : rat) :
     rat_to_Q r = Qred (rat_to_Q r).
