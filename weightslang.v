@@ -86,6 +86,9 @@ Proof.
   by move => n c; left; exists c, n.
 Qed.  
 
+Lemma com_Skip_dec A (c : com A) : {c=CSkip}+{c<>CSkip}.
+Proof. case: c; try solve[left => // | right => H; congruence]. Qed.
+
 Definition mult_weights_body (A : Type) : com A :=
   CSeq
     CRecv
@@ -221,10 +224,6 @@ Section semantics.
                     :: SOutputs s)
         in 
         step CSend s CSkip s'
-
-  | SSkip :
-      forall s,
-        step CSkip s CSkip s
              
   | SSeq1 :
       forall c2 s,
@@ -264,9 +263,6 @@ Section semantics.
       in the [CRepeat] case. *)
   
   Inductive stepN : nat -> com A -> state -> state -> Prop :=
-  | N0 :
-      forall n s, stepN n CSkip s s
-    
   | NUpdate :
       forall n f s pf,
         let: s' :=
@@ -362,7 +358,12 @@ Section semantics.
   Proof.
     induction 1.
     constructor.
-    by constructor.
+    case: (com_Skip_dec c).
+    { move => H2; subst c.
+      inversion H; subst.
+      apply: SSeq1.
+    case: c H; try solve[constructor; inversion 1].
+    constructor.
     apply: step_trans.
     constructor.
     apply: H.
@@ -923,30 +924,6 @@ Section mult_weights_refinement.
     by rewrite -plus_n_Sm.
     by move => H2; rewrite H2 in H.
   Qed.  
-  
-  Lemma step_plus_seq_split :
-    forall c1 c2 s c' s',
-      step_plus a0 (CSeq c1 c2) s c' s' ->
-      final_com c' -> 
-      exists s0,
-        [/\ step_plus a0 c1 s c2 s0
-          & step_plus a0 c2 s0 c' s'].
-  Proof.
-    move => c1 c2 s c' s' H H2.
-  Admitted.          
-  
-  Lemma step_plus_mult_weights_init_breakdown :
-    forall nx s c' s',
-      step_plus a0 (mult_weights A nx) s c' s' ->
-      final_com c' -> 
-      exists s0 : state A,
-        [/\ step_plus a0 (mult_weights_init A) s (CIter nx (mult_weights_body A)) s0
-          & step_plus a0 (CIter nx (mult_weights_body A)) s0 c' s'].
-  Proof.
-    move => nx s c' s' H H2.
-    case: (step_plus_seq_split H H2) => s0 []H3 H4.
-    by exists s0; split.
-  Qed.
 
   Lemma step_plus_seq_skip :
     forall c s c' s',
@@ -973,6 +950,53 @@ Section mult_weights_refinement.
     inversion H0; subst; clear H0.
     case: (step_plus_CSkip H1 erefl) => <- <- //.
   Qed.    
+  
+  Lemma step_plus_seq_split :
+    forall c1 c2 s c' s',
+      step_plus a0 (CSeq c1 c2) s c' s' ->
+      final_com c' -> 
+      exists s0,
+        [/\ step_plus a0 c1 s c2 s0
+          & step_plus a0 c2 s0 c' s'].
+  Proof.
+    move => c1 c2 s c' s'.
+    remember (CSeq c1 c2) as c => H.
+    revert c1 c2 Heqc; induction H.
+    { move => c1 c2 H2; subst c.
+      inversion 1; subst. clear H0.
+      inversion H; subst.
+      inversion H. subst c2 s'. clear H3.
+      exists s. split; constructor; constructor. }
+    move => c1 c2 H2; subst c.
+    inversion 1; subst. clear H1.
+    inversion H; subst.
+    { inversion H; subst s'' c''.
+      { inversion H. subst s0 c0.
+        { 
+        
+      { apply: IHstep_plus.
+      
+      have H': step_plus a0 (CSeq CSkip c2) s c2 s.
+      { constructor; constructor. }
+      clear H.
+      case: (step_plus_seq_skip H').
+    
+    
+    
+  Admitted.          
+  
+  Lemma step_plus_mult_weights_init_breakdown :
+    forall nx s c' s',
+      step_plus a0 (mult_weights A nx) s c' s' ->
+      final_com c' -> 
+      exists s0 : state A,
+        [/\ step_plus a0 (mult_weights_init A) s (CIter nx (mult_weights_body A)) s0
+          & step_plus a0 (CIter nx (mult_weights_body A)) s0 c' s'].
+  Proof.
+    move => nx s c' s' H H2.
+    case: (step_plus_seq_split H H2) => s0 []H3 H4.
+    by exists s0; split.
+  Qed.
   
   Lemma step_plus_mult_weights_init_size :
     forall s c' s',
