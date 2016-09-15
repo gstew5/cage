@@ -946,34 +946,71 @@ Section mult_weights_refinement.
     move => nx s c' s' H H2.
     case: (step_plus_seq_split H H2) => s0 []H3 H4.
     by exists s0; split.
+  Qed.
+
+  Lemma step_plus_seq_skip :
+    forall c s c' s',
+      step_plus a0 (CSeq CSkip c) s c' s' ->
+      s=s' \/ step_plus a0 c s c' s'.
+  Proof.
+    move => c s c' s'; remember (CSeq _ _) as c0; induction 1.
+    { subst c0; inversion H; subst; clear H; first by left.
+      by inversion H5; subst; clear H5; left. }
+    subst c0; inversion H; subst; clear H; first by right.
+    inversion H6; subst; clear H6.
+    by apply: IHstep_plus. 
+  Qed.
+
+  Lemma step_plus_send :
+    forall s c' s',
+      step_plus a0 CSend s c' s' ->
+      all_costs s' = all_costs s /\ c'=CSkip.
+  Proof.
+    move => s c' s'.
+    inversion 1; subst.
+    { inversion H0; subst => //. }
+    clear H.
+    inversion H0; subst; clear H0.
+    case: (step_plus_CSkip H1 erefl) => <- <- //.
   Qed.    
- 
+  
+  Lemma step_plus_mult_weights_init_size :
+    forall s c' s',
+      step_plus a0 (mult_weights_init A) s c' s' ->
+      size (all_costs s') = size (all_costs s).
+  Proof.
+    move => s c' s'; inversion 1; subst; clear H.
+    { inversion H0; subst; clear H0.
+      inversion H5; subst; clear H5 => //. }
+    inversion H0; subst; clear H0.
+    inversion H6; subst; clear H6.
+    inversion H1; subst; clear H1.
+    { inversion H; subst; clear H => //.
+      inversion H5; subst; clear H5 => //. }
+    inversion H; subst; clear H.
+    { inversion H0; subst; clear H0.
+      inversion H; subst; clear H; simpl => //.
+      inversion H; subst; clear H; simpl in * => //.
+      case: (step_plus_CSkip H1 erefl) => <- H //. }
+    inversion H6; subst; clear H6.
+    case: (step_plus_seq_skip H0); clear H0.
+    { move => <- //. }
+    move => H; case: (step_plus_send H) => -> H2 //.
+  Qed.    
+
   Lemma step_plus_mult_weights_size_all_costs :
     forall nx s c' s',
       step_plus a0 (mult_weights A nx) s c' s' ->
       final_com c' -> 
-      size (all_costs s') = (N.to_nat nx + size (all_costs s)).+1%N.
+      size (all_costs s') = (N.to_nat nx + size (all_costs s))%N.
   Proof.
     move => nx s c' s' H H2.
     case: (step_plus_mult_weights_init_breakdown H H2) => s0 []H3 H4.
     move: (step_plus_mult_weights_body_size_all_costs H4 H2).    
-    have H5: (size (all_costs s0) = (size (all_costs s)).+1)%N.
-    { inversion H3; subst.
-      { inversion H0. }
-      inversion H0; subst. clear H0.
-      inversion H10; subst. clear H10.
-      inversion H1; subst; clear H1.
-      { inversion H0. }
-      inversion H0; subst; clear H0.
-      { inversion H5; subst.
-        { inversion H0. }
-        inversion H0; subst. simpl in *. clear H0.
-        inversion H1; subst; clear H1.
-        { inversion H0. }
-        inversion H0; subst.
-    }
+    have H5: (size (all_costs s0) = size (all_costs s))%N.
+    { apply: (step_plus_mult_weights_init_size H3). }
     by rewrite H5 => -> /=; rewrite addnS.
-  Admitted.    
+  Qed.
 
   (** REFINEMENT 2:
       Show that [mult_weights1] refines the Ssreflect spec in weights.v. *)
@@ -1339,16 +1376,16 @@ Section semantics_lemmas.
       (0 < size (all_costs s'))%N ->       
       step_plus a0 (mult_weights A nx) init_state c' s' ->
       final_com c' -> 
-      num_costs s' = INR (N.to_nat nx).+1.
+      num_costs s' = INR (N.to_nat nx).
   Proof.    
     move => nx c' s' Hsz H H2.
     move: (step_plus_mult_weights_size_all_costs H H2).
     rewrite /num_costs /all_costs' /all_costs0 size_map size_all_costs_init_state.
     rewrite size_removelast => H3; rewrite H3 in Hsz|-*; move: Hsz.
-    by case: (N.to_nat nx) => // n _; f_equal => /= ; rewrite addn1.
+    by case: (N.to_nat nx) => // n _; f_equal => /=; rewrite -addnE addn1.
   Qed.    
 
-  Definition T nx := INR (N.to_nat nx).+1.
+  Definition T nx := INR (N.to_nat nx).
   
   Lemma mult_weights_epsilon_no_regret :
     forall nx (c' : com A) (s' : state A),
@@ -1365,7 +1402,10 @@ Section semantics_lemmas.
       rewrite removelast_cat => //.
       by rewrite catrevE revK -catA. }
     rewrite (mult_weights_refines_MWU H3 H H2 H4) /OPTR /OPT /astar /T.
-    rewrite -(mult_weights_T Hsize H H2).
+    have Hsize': (0 < size (all_costs s'))%N.
+    { clear - Hsize; move: Hsize; rewrite /all_costs' size_map /all_costs0.
+      rewrite size_removelast => //. }
+    rewrite -(mult_weights_T Hsize' H H2).
     by apply: perstep_weights_noregret.
   Qed.
 End semantics_lemmas.
