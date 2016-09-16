@@ -110,6 +110,7 @@ VFILES:=axioms.v\
   potential.v\
   smooth.v\
   weightslang.v\
+  weightsextract.v\
   weights.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
