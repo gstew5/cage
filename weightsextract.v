@@ -451,7 +451,7 @@ Module CompilableWeights (A : OrderedFinType).
         split => //.
         right.
         apply: step_trans.
-        { apply SIterS. 
+        { apply SIterS.
           rewrite nat_of_bin_to_nat.
             by rewrite N2Nat.inj_succ. }
         apply: step_trans.

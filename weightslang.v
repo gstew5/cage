@@ -355,14 +355,212 @@ Section semantics.
     apply: IHstep_plus.
   Qed.
 
+  Lemma step_plus_CSkip s c' s' :
+    step_plus CSkip s c' s' -> False.
+  Proof.
+    remember CSkip as c.
+    move => H; revert Heqc.
+    induction H.
+    { move => H2; subst c; inversion H. }
+    move => H2; subst c. inversion H.
+  Qed.    
+
+  Lemma nat_of_bin_to_nat b : nat_of_bin b = N.to_nat b.
+  Proof.
+    rewrite /nat_of_bin.
+    case: b => //.
+    elim => //.
+    { move => p /= H; rewrite /Pos.to_nat /=; f_equal.
+      rewrite ZL6 NatTrec.doubleE H -muln2 mulnC -multE /=.
+      by rewrite -plus_n_O. }
+    move => p /= H; rewrite /Pos.to_nat /=; f_equal.
+    rewrite ZL6 NatTrec.doubleE H -muln2 mulnC -multE /=.
+    by rewrite -plus_n_O.
+  Qed.
+  
+  Lemma step_plus_CIter0 c s c' s' :
+    step_plus (CIter 0 c) s c' s' -> s = s'.
+  Proof.
+    remember (CIter 0 c) as c0.
+    move => H; revert c Heqc0.
+    induction H.
+    { move => c0 H2; subst c.
+      inversion H; subst; auto. }
+    move => c0 H2; subst c.
+    inversion H; subst.
+    { destruct (step_plus_CSkip H0). }
+    inversion H; subst.
+    rewrite nat_of_bin_to_nat in H4.
+      by [].
+  Qed.      
+
+  Lemma step_seq_inv :
+    forall c1 c2 s c' s',
+      step (CSeq c1 c2) s c' s' ->
+      [/\ c1=CSkip, c'=c2 & s'=s] \/
+      exists c1' s'',
+        [/\ step c1 s c1' s'', c'=CSeq c1' c2, s'=s'' & c1<>CSkip].
+  Proof.
+    move => c1 c2 s c' s'; inversion 1; subst; clear H.
+    { by left; split. }
+    right; exists c1', s'; split => //.
+    inversion H5; subst; try solve[inversion 1].
+  Qed.
+
+  Lemma step_plus_seq_inv1 :
+    forall c1 c2 s c' s',
+      step_plus (CSeq c1 c2) s c' s' ->
+      final_com c' ->
+      c1<>CSkip -> 
+      exists s'',
+        step_plus c1 s CSkip s'' /\
+        step_plus (CSeq CSkip c2) s'' c' s'.
+  Proof.
+    move => c1 c2 s c' s'.
+    remember (CSeq c1 c2) as c => H.
+    revert c1 c2 Heqc.
+    induction H.
+    { move => c1 c2 H2; subst c; inversion 1; subst. clear H0.
+      move => H2.
+      case: (step_seq_inv H).
+      { case => H3 H4 H5.
+        subst c1.
+        congruence. }
+      case => c1' [] s0 []H3 H4 H5 H6.
+      exists s0.
+      split => //. }
+    move => c1 c2 H2; subst c. inversion 1; subst. clear H1.
+    move => H2.
+    case: (step_seq_inv H).
+    { case => H3 H4 H5.
+      subst c1.
+      congruence. }
+    case => c1' [] s0 []H3 H4 H5 H6.
+    subst.
+    case: (com_Skip_dec c1').
+    { move => H7. subst c1'.
+      exists s0.
+      split => //.
+      constructor => //. }
+    move => H7.
+    case: (IHstep_plus c1' c2 erefl) => // sx [] H8 H9.
+    exists sx.
+    split => //.
+    apply: step_trans.
+    apply: H3.
+    apply: H8.
+  Qed.    
+  
+  Lemma step_plus_seq_skip :
+    forall c s c' s',
+      step_plus (CSeq CSkip c) s c' s' ->
+      s=s' \/ step_plus c s c' s'.
+  Proof.
+    move => c s c' s'; remember (CSeq _ _) as c0; induction 1.
+    { subst c0; inversion H; subst; first by left.
+      by inversion H5; subst; clear H5; left. }
+    subst c0; inversion H; subst; clear H; first by right.
+    inversion H6; subst; clear H6.
+  Qed.
+
+  Lemma step_plus_seq_skip_final :
+    forall c s c' s',
+      final_com c' -> 
+      step_plus (CSeq CSkip c) s c' s' ->
+      (s=s' /\ final_com c) \/ step_plus c s c' s'.
+  Proof.
+    move => c s c' s' Hx; remember (CSeq _ _) as c0; induction 1.
+    { subst c0; inversion H; subst; first by left; split.
+      by inversion H5; subst; clear H5; left. }
+    subst c0; inversion H; subst; clear H; first by right.
+    inversion H6; subst; clear H6.
+  Qed.
+  
+  Lemma step_plus_CIter_inv n c s c' s' :
+    final_com c' ->
+    (0 < n)%num -> 
+    step_plus (CIter n c) s c' s' ->
+    exists s0,
+      [/\ step_plus (CSeq c (CIter (N.pred n) c)) s (CIter (N.pred n) c) s0
+        & step_plus (CIter (N.pred n) c) s0 c' s'].
+  Proof.
+    move => H H2.
+    remember (CIter n c) as c0.
+    move => H0.
+    revert c Heqc0 H H2.
+    destruct H0.
+    { move => c0 H2; subst c. inversion 1; subst. move => H2.
+      inversion H; subst => //. }
+    move => c0 H2; subst c. inversion 1; subst. clear H1 => H2.
+    inversion H; subst => //.
+    destruct (com_Skip_dec c0).
+    { subst c0.
+      inversion H0; subst. clear H0.
+      { inversion H1. }
+      move: (step_seq_inv H1).
+      case; last first.
+      { case => x; case => y []; inversion 1. }
+      case => _ H4 H5; subst.
+      clear H H1.
+      exists s''; split => //.
+      constructor.
+      constructor. }
+    case: (step_plus_seq_inv1 H0) => // sx [] H3 H4.
+    have H5:
+      step_plus (CSeq c0 (CIter (N.pred n) c0)) s''
+                (CSeq CSkip (CIter (N.pred n) c0)) sx.
+    { apply: step_plus_seq => //. }
+    exists sx; split.
+    { apply: step_plus_trans; first by apply: H5.
+      constructor. constructor. }
+    case: (step_plus_seq_skip_final _ H4) => // [][]H6 H8.
+    subst sx.
+    inversion H8.
+  Qed.    
+  
   Lemma step_plus_iter_flip n c s c0 s0 cx sx :
-    final_com c0 -> 
+    final_com c0 ->
+    final_com cx -> 
     step_plus (CIter n c) s c0 s0 ->
     step_plus c s0 cx sx -> 
     step_plus (CSeq c (CIter n c)) s cx sx.
   Proof.
-  Admitted.
-  
+    inversion 1; subst; inversion 1; subst.
+    move => H1 H2. clear H H0.
+    destruct n.
+    { move: (step_plus_CIter0 H1) => H4; subst.
+      have H4: step_plus (CSeq c (CIter 0 c)) s0 (CSeq CSkip (CIter 0 c)) sx.
+      { apply: step_plus_seq => //. }
+      apply: step_plus_trans; first by apply: H4.
+      apply: step_trans.
+      constructor.
+      constructor.
+      constructor. }
+    case: (step_plus_CIter_inv _ _ H1) => // sy []H4 H5. 
+    have H3: step_plus (CSeq c (CIter (N.pred (N.pos p)) c)) s CSkip s0.
+    { apply: step_plus_trans; first by apply: H4.
+      apply: H5. }
+    case: (com_Skip_dec c).
+    { move => H6; subst c.
+      apply: step_trans; first by constructor.
+      apply: step_plus_trans; last by apply: H2.
+        by []. }
+    move => H6.
+    case: (step_plus_seq_inv1 H3) => // sz []H7 H8.
+    have H9: step_plus (CSeq c (CIter (N.pos p) c)) s
+                       (CSeq CSkip (CIter (N.pos p) c)) sz.
+    { apply: step_plus_seq => //. }
+    apply: step_plus_trans.
+    { apply: H9. }
+    apply: step_trans.
+    { constructor. }
+    case: (step_plus_seq_skip_final _ H8) => //.
+    { case => H10 H11; subst. inversion H11. }
+    move => H10.
+    clear - H10 H2.
+    (*HERE*)
+  Admitted.  
+
   Lemma stepN_weaken c s s' n n' :
     (n' >= n)%coq_nat ->
     stepN n c s s' ->
@@ -845,6 +1043,21 @@ Section mult_weights_refinement.
     apply: stepN_mult_weights_refines_mult_weights1.
     apply: H3.
   Qed.
+  
+  Lemma step_plus_send_all_costs :
+    forall s c' s',
+      step_plus a0 CSend s c' s' ->
+      all_costs s' = all_costs s /\ c'=CSkip.
+  Proof.
+    move => s c' s'.
+    inversion 1; subst.
+    { inversion H0; subst => //. }
+    clear H.
+    inversion H0; subst; clear H0.
+    inversion H1; subst.
+    { inversion H; subst. }
+    inversion H; subst.
+  Qed.    
 
   Lemma step_plus_all_costs_cat :
     forall c s c' s',
@@ -856,19 +1069,6 @@ Section mult_weights_refinement.
     case: (step_all_costs_cat H) => l' ->.
     by exists (l ++ l'); rewrite catA.
   Qed.    
-
-  Lemma nat_of_bin_to_nat b : nat_of_bin b = N.to_nat b.
-  Proof.
-    rewrite /nat_of_bin.
-    case: b => //.
-    elim => //.
-    { move => p /= H; rewrite /Pos.to_nat /=; f_equal.
-      rewrite ZL6 NatTrec.doubleE H -muln2 mulnC -multE /=.
-      by rewrite -plus_n_O. }
-    move => p /= H; rewrite /Pos.to_nat /=; f_equal.
-    rewrite ZL6 NatTrec.doubleE H -muln2 mulnC -multE /=.
-    by rewrite -plus_n_O.
-  Qed.
     
   Lemma step_plus_mult_weights_body_size_all_costs :
     forall nx s c' s',
@@ -911,90 +1111,6 @@ Section mult_weights_refinement.
     by rewrite -plus_n_Sm.
     by move => H2; rewrite H2 in H.
   Qed.  
-
-  Lemma step_seq_inv :
-    forall c1 c2 s c' s',
-      step a0 (CSeq c1 c2) s c' s' ->
-      [/\ c1=CSkip, c'=c2 & s'=s] \/
-      exists c1' s'',
-        [/\ step a0 c1 s c1' s'', c'=CSeq c1' c2, s'=s'' & c1<>CSkip].
-  Proof.
-    move => c1 c2 s c' s'; inversion 1; subst; clear H.
-    { by left; split. }
-    right; exists c1', s'; split => //.
-    inversion H5; subst; try solve[inversion 1].
-  Qed.
-
-  Lemma step_plus_seq_inv1 :
-    forall c1 c2 s c' s',
-      step_plus a0 (CSeq c1 c2) s c' s' ->
-      final_com c' ->
-      c1<>CSkip -> 
-      exists s'',
-        step_plus a0 c1 s CSkip s'' /\
-        step_plus a0 (CSeq CSkip c2) s'' c' s'.
-  Proof.
-    move => c1 c2 s c' s'.
-    remember (CSeq c1 c2) as c => H.
-    revert c1 c2 Heqc.
-    induction H.
-    { move => c1 c2 H2; subst c; inversion 1; subst. clear H0.
-      move => H2.
-      case: (step_seq_inv H).
-      { case => H3 H4 H5.
-        subst c1.
-        congruence. }
-      case => c1' [] s0 []H3 H4 H5 H6.
-      exists s0.
-      split => //. }
-    move => c1 c2 H2; subst c. inversion 1; subst. clear H1.
-    move => H2.
-    case: (step_seq_inv H).
-    { case => H3 H4 H5.
-      subst c1.
-      congruence. }
-    case => c1' [] s0 []H3 H4 H5 H6.
-    subst.
-    case: (com_Skip_dec c1').
-    { move => H7. subst c1'.
-      exists s0.
-      split => //.
-      constructor => //. }
-    move => H7.
-    case: (IHstep_plus c1' c2 erefl) => // sx [] H8 H9.
-    exists sx.
-    split => //.
-    apply: step_trans.
-    apply: H3.
-    apply: H8.
-  Qed.    
-  
-  Lemma step_plus_seq_skip :
-    forall c s c' s',
-      step_plus a0 (CSeq CSkip c) s c' s' ->
-      s=s' \/ step_plus a0 c s c' s'.
-  Proof.
-    move => c s c' s'; remember (CSeq _ _) as c0; induction 1.
-    { subst c0; inversion H; subst; first by left.
-      by inversion H5; subst; clear H5; left. }
-    subst c0; inversion H; subst; clear H; first by right.
-    inversion H6; subst; clear H6.
-  Qed.
-
-  Lemma step_plus_send_all_costs :
-    forall s c' s',
-      step_plus a0 CSend s c' s' ->
-      all_costs s' = all_costs s /\ c'=CSkip.
-  Proof.
-    move => s c' s'.
-    inversion 1; subst.
-    { inversion H0; subst => //. }
-    clear H.
-    inversion H0; subst; clear H0.
-    inversion H1; subst.
-    { inversion H; subst. }
-    inversion H; subst.
-  Qed.    
   
   Lemma step_plus_mult_weights_init_breakdown :
     forall nx s c' s',
