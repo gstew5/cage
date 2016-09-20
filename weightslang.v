@@ -355,6 +355,14 @@ Section semantics.
     apply: IHstep_plus.
   Qed.
 
+  Lemma step_plus_iter_flip n c s c0 s0 cx sx :
+    final_com c0 -> 
+    step_plus (CIter n c) s c0 s0 ->
+    step_plus c s0 cx sx -> 
+    step_plus (CSeq c (CIter n c)) s cx sx.
+  Proof.
+  Admitted.
+  
   Lemma stepN_weaken c s s' n n' :
     (n' >= n)%coq_nat ->
     stepN n c s s' ->

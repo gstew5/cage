@@ -2,6 +2,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 
 Require Import QArith.
+Require Import ProofIrrelevance.
 
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
@@ -12,7 +13,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import weightslang compile dist numerics.
+Require Import weights weightslang compile dist numerics.
 
 (** Here's a description of the compilation algorithm: 
 
@@ -106,7 +107,12 @@ Module CompilableWeights (A : OrderedFinType).
                 | Some q => (Q_to_rat q / Q_to_rat (cGamma weights))%R
                 end).
   (* Receive a cost vector (a map) from the network. *)
-  Axiom recv : unit -> M.t Q. 
+  Axiom recv : unit -> M.t Q.
+  Axiom recv_ok :
+    forall a,
+    exists q,
+      [/\ M.find a (recv tt) = Some q
+        & 0 <= q <= 1].
   
   Record cstate : Type :=
     mkCState
@@ -120,7 +126,8 @@ Module CompilableWeights (A : OrderedFinType).
   Definition match_maps
              (s : {ffun A.t -> rat})
              (m : M.t Q) : Prop :=
-    forall a, M.find a m = Some (rat_to_Q (s a)).
+    forall a,
+    exists q, M.find a m = Some q /\ Qred q = rat_to_Q (s a).
   
   Definition match_costs
              (s : {c : {ffun A.t -> rat} & forall a : A.t, (0 <= c a <= 1)%R})
@@ -145,7 +152,7 @@ Module CompilableWeights (A : OrderedFinType).
         match_maps s m ->
         match_costs_seq ss mm ->
         match_maps w wc ->
-        Q_to_rat epsc = eps ->
+        rat_to_Q eps = epsc -> 
         match_states
           (@mkState _ s s_ok ss w w_ok eps eps_ok outs)
           (@mkCState m mm wc epsc outs).
@@ -243,6 +250,229 @@ Module CompilableWeights (A : OrderedFinType).
            end)
         (Some s)
     end.
+
+  Variable a0 : A.t.
+  
+  Lemma interp_step_plus :
+    forall (s : state A.t) (t t' : cstate) (c : com A.t),
+      interp c t = Some t' ->
+      match_states s t ->       
+      exists c' s',
+        final_com c' /\
+        ((c=CSkip /\ s=s') \/ step_plus a0 c s c' s') /\
+        match_states s' t'.
+  Proof.
+    intros s t t' c H; revert s t t' H; induction c; simpl.
+    { intros s t t'; inversion 1; subst.
+      intros H2.
+      exists CSkip, s.
+      split; [solve[constructor; auto]|].
+      split; auto. }
+    { intros s t t' H H2.
+      admit. }
+    { intros s t t'; inversion 1; subst. clear H.
+      intros H2.
+      set c := recv tt.
+      set f :=
+        finfun
+          (fun a =>
+             match M.find a c with
+             | None => 0%R (*bogus*)
+             | Some q => Q_to_rat (Qred q)
+             end).
+      have pf: forall a, (0 <= f a <= 1)%R.
+      { move => a. rewrite /f ffunE. clear f.
+        case: (recv_ok a) => q [] -> [] H H3.
+        admit. (* NEED: Q_to_rat_le *) }
+      exists CSkip.
+      exists 
+        (@mkState
+           _ 
+           f
+           pf
+           (existT
+              _
+              (weightslang.SCosts s)
+              (weightslang.SCostsOk s) :: weightslang.SPrevCosts s)
+           (weightslang.SWeights s)
+           (weightslang.SWeightsOk s)
+           (weightslang.SEpsilon s)             
+           (weightslang.SEpsilonOk s)
+           (weightslang.SOutputs s)).
+      split; first by constructor.
+      split.
+      { right.
+        constructor.
+        constructor. }
+      inversion H2; subst.
+      constructor; try solve[auto | constructor; auto].
+      rewrite /match_maps => a.
+      case: (recv_ok a) => q []; rewrite /f ffunE => -> _.
+      exists q.
+      split; auto.
+      admit. (* NEED: rat_to_Q (Q_to_rat (Qred q)) = Qred q *) }
+    { intros s t; inversion 1; subst; clear H.
+      intros H2.
+      exists CSkip.
+      exists 
+        (@mkState
+           _ 
+           (weightslang.SCosts s)
+           (weightslang.SCostsOk s)
+           (weightslang.SPrevCosts s)
+           (weightslang.SWeights s)
+           (weightslang.SWeightsOk s)
+           (weightslang.SEpsilon s)
+           (weightslang.SEpsilonOk s)             
+           (p_aux_dist
+              a0
+              (weightslang.SEpsilonOk s)
+              (weightslang.SWeightsOk s)
+              (@CMAX_nil A.t)
+              :: weightslang.SOutputs s)).
+      split; first by constructor.
+      split.
+      { right.
+        constructor.
+        constructor. }
+      inversion H2; subst.
+      simpl.
+      have H3:
+        p_aux_dist (A:=A.t) a0 (eps:=eps) eps_ok
+                   (w:=w) w_ok (cs:=[::]) 
+                   (CMAX_nil (A:=A.t)) =
+        drawFrom wc.
+      { rewrite /p_aux_dist.
+        case H3: (drawFrom wc) => [pmf2 pf2].
+        move: (drawFrom_ok wc). rewrite H3 /= => H4. subst pmf2. clear H3.
+        generalize
+          (p_aux_dist_axiom (A:=A.t) a0 (eps:=eps) eps_ok (cs:=[::])
+                            (w:=w) w_ok (CMAX_nil (A:=A.t))) => pf1.
+        revert pf1 pf2.
+        have ->:
+             [ffun a => match M.find (elt:=Q) a wc with
+                        | Some q => (Q_to_rat q / Q_to_rat (cGamma wc))%R
+                        | None => 0%R
+                        end] = p_aux (A:=A.t) eps [::] w.
+        { admit. }
+        move => pf1 pf2.
+        f_equal.
+        apply: proof_irrelevance. }
+      rewrite H3.
+      constructor; auto. }
+    { move => s t t'.
+      case H: (interp c1 t) => [t''|].
+      { move => H2 H3.
+        case: (IHc1 _ _ _ H H3) => cx []tx []H4 []H5 H6.
+        case: (IHc2 _ _ _ H2 H6) => cy []ty []H7 []H8 H9.
+        case: H5.
+        { case => -> ->. 
+          case: H8.
+          { case => -> ->.
+            exists cy, ty.
+            split; auto.
+            split; auto.
+            right; auto.
+            constructor.
+            inversion H7; subst.
+            apply: SSeq1. }
+          move => H10.
+          exists cy, ty.
+          split; auto.
+          split; auto.
+          right; auto.
+          apply: step_trans.
+          constructor.
+          apply: H10. }
+        move => H10.
+        case: H8.
+        { case => -> H11. subst ty.
+          exists CSkip, tx.
+          split; first by constructor.
+          split; auto.
+          right.
+          apply: step_plus_trans.
+          apply: step_plus_seq.
+          apply: H10.
+          inversion H4; subst.
+          constructor.
+          constructor. }
+        move => H11.
+        exists cy, ty.
+        split => //.
+        split => //.
+        right.
+        apply: step_plus_trans.
+        apply: step_plus_seq.
+        apply: H10.
+        inversion H4; subst.
+        apply: step_trans.
+        constructor.
+        inversion H7; subst.
+        apply: H11. }
+      inversion 1. }
+    move => s t0 t'.
+    rewrite N2Nat.inj_iter.
+    move H: (N.to_nat t) => n.
+    move: s t0 t t' H; elim: n.
+    { move => s t0 t t' H; inversion 1; subst. clear H0 => H2.
+      exists CSkip, s; split => //.
+      split => //.
+      right.
+      constructor.
+      have H3: t = Coq.Numbers.BinNums.N0.
+      { case: t H => //= p H.
+        move: (PosN0 p).
+          by rewrite H. }
+      rewrite H3.
+      constructor. }
+    move => n IH s t0 t t' H H2 H3.
+    have [x [H4 H5]]: exists x, [/\ t = N.succ x & N.to_nat x = n].
+    { admit. }
+    subst t n. clear H.
+    move: H2 => /=.
+    case H4: (Nat.iter (N.to_nat x)
+                       (fun s0 : option cstate =>
+                          match s0 with
+                          | Some s' => interp c s'
+                          | None => None
+                          end) (Some t0)) => [tx|].
+    { move => H5.
+      case: (IH _ _ _ _ erefl H4 H3) => c0 []s0 []H6 []H7 H8.
+      case: (IHc _ _ _ H5 H8) => cx []sx []H9 []H10 H11.
+      case: H7.
+      { case.
+        inversion 1. }
+      move => H12.
+      case: H10.
+      { case => H13 H14. subst c s0.
+        exists c0, sx.
+        split => //.
+        split => //.
+        right.
+        apply: step_trans.
+        { apply SIterS. 
+          rewrite nat_of_bin_to_nat.
+            by rewrite N2Nat.inj_succ. }
+        apply: step_trans.
+        constructor.
+        rewrite N.pred_succ.
+        apply: H12. }
+      move => H13.
+      exists cx, sx.
+      split => //.
+      split => //.
+      right.
+      apply: step_trans.
+      constructor.
+      { by rewrite nat_of_bin_to_nat N2Nat.inj_succ. }
+      rewrite N.pred_succ.
+      apply: step_plus_iter_flip => //.
+      inversion H6; subst.
+      apply: H12.
+      apply: H13. }
+    inversion 1.
+  Admitted.      
 End CompilableWeights.
 
 (** Test extraction: *)
