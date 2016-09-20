@@ -89,10 +89,12 @@ Module CompilableWeights (A : OrderedFinType).
   Module M := Make A'.
   Module MFacts := Facts M.
   Module MProps := Properties M.
-
+  
   Definition cGamma (weights : M.t Q) :=
     M.fold (fun a q acc => q + acc) weights 0.
-  
+
+  (** Draw from a distribution, communicating the resulting action 
+      to the network. *)
   Axiom drawFrom :
     forall weights : M.t Q, dist A.t rat_realFieldType.
   Axiom drawFrom_ok :
@@ -103,17 +105,147 @@ Module CompilableWeights (A : OrderedFinType).
                 | None => 0%R (* bogus *)
                 | Some q => (Q_to_rat q / Q_to_rat (cGamma weights))%R
                 end).
+  (* Receive a cost vector (a map) from the network. *)
+  Axiom recv : unit -> M.t Q. 
   
   Record cstate : Type :=
     mkCState
-      { SCCosts : M.t Q (* the current cost vector *)
+      { SCosts : M.t Q (* the current cost vector *)
       ; SPrevCosts : list (M.t Q)
       ; SWeights : M.t Q
       ; SEpsilon : Q (* epsilon -- a parameter *)
-        (* the history of the generated distributions over actions *)                     
+      (* the history of the generated distributions over actions *)                     
       ; SOutputs : list (dist A.t rat_realFieldType) }.
 
-  (* TODO *)
+  Definition match_maps
+             (s : {ffun A.t -> rat})
+             (m : M.t Q) : Prop :=
+    forall a, M.find a m = Some (rat_to_Q (s a)).
   
-End CompilableWeights.  
+  Definition match_costs
+             (s : {c : {ffun A.t -> rat} & forall a : A.t, (0 <= c a <= 1)%R})
+             (m : M.t Q) : Prop :=
+    match_maps (projT1 s) m.
+  
+  Inductive match_costs_seq :
+    seq {c : {ffun A.t -> rat} & forall a : A.t, (0 <= c a <= 1)%R} ->
+    list (M.t Q) ->
+    Prop :=
+  | match_costs_nil :
+      match_costs_seq nil nil
+  | match_costs_cons :
+      forall s ss m mm,
+        match_costs s m ->
+        match_costs_seq ss mm ->
+        match_costs_seq [:: s & ss] [:: m & mm].
+  
+  Inductive match_states : state A.t -> cstate -> Prop :=
+  | mkMatchStates :
+      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs,
+        match_maps s m ->
+        match_costs_seq ss mm ->
+        match_maps w wc ->
+        Q_to_rat epsc = eps ->
+        match_states
+          (@mkState _ s s_ok ss w w_ok eps eps_ok outs)
+          (@mkCState m mm wc epsc outs).
+
+  Definition eval_binopc (b : binop) (v1 v2 : Q) :=
+    match b with
+    | BPlus => v1 + v2
+    | BMinus => v1 - v2                      
+    | BMult => v1 * v2
+    end.
+  
+  Fixpoint evalc (e : expr A.t) (s : cstate) : option Q :=
+    match e with
+    | EVal v =>
+      match v with
+      | QVal q => Some q
+      end
+    | EOpp e' =>
+      match evalc e' s with
+      | Some v' => Some (- v')
+      | None => None
+      end
+    | EWeight a => M.find a (SWeights s)
+    | ECost a => M.find a (SCosts s)
+    | EEps => Some (SEpsilon s)
+    | EBinop b e1 e2 =>
+      let: v1 := evalc e1 s in
+      let: v2 := evalc e2 s in
+      match v1, v2 with
+      | Some v1', Some v2' => Some (eval_binopc b v1' v2')
+      | _, _ => None
+      end
+    end.
+
+  Fixpoint interp (c : com A.t) (s : cstate) : option cstate :=
+    match c with
+    | CSkip => Some s
+    | CUpdate f =>
+      let w :=
+          (*NOTE: This code is made much more complicated by the fact 
+            that [evalc] can fail -- otherwise, we could just use [M.mapi].*)
+          M.fold
+            (fun a _ acc =>
+               match acc with
+               | None => None
+               | Some acc' =>
+                 match evalc (f a) s with
+                 | None => None
+                 | Some q => Some (M.add a q acc')
+                 end
+               end)
+            (SWeights s)
+            (Some (M.empty Q))
+      in match w with
+         | None => None
+         | Some w' => 
+           Some (mkCState
+                   (SCosts s)
+                   (SPrevCosts s)
+                   w'
+                   (SEpsilon s)
+                   (SOutputs s))
+         end
+    | CRecv =>
+      let c := recv tt
+      in Some (mkCState
+                 c
+                 (SCosts s :: SPrevCosts s)
+                 (SWeights s)
+                 (SEpsilon s)
+                 (SOutputs s))
+    | CSend =>
+      let d := drawFrom (SWeights s)
+      in Some (mkCState
+                 (SCosts s)
+                 (SPrevCosts s)
+                 (SWeights s)
+                 (SEpsilon s)
+                 (d :: SOutputs s))
+    | CSeq c1 c2 =>
+      match interp c1 s with
+      | None => None
+      | Some s' => interp c2 s'
+      end
+    | CIter n c =>
+      (*NOTE: We could further short-circuit this iteration -- in practice, 
+        it shouldn't matter for performance since [interp] should never
+        fail on MWU, starting in appropriate initial state.*)
+      N.iter
+        n
+        (fun s =>
+           match s with
+           | None => None
+           | Some s' => interp c s'
+           end)
+        (Some s)
+    end.
+End CompilableWeights.
+
+(** Test extraction: *)
+
+Extraction "interp" CompilableWeights.
   
