@@ -856,10 +856,30 @@ Next Obligation.
       rewrite of_bin_N_of_nat => //.
       apply list_in_iff.
       clear pf H2 H7 H3 H4 H6 x1 x2.
-      admit.
-    } 
+      simpl in y.
+      destruct y as [yn Hy].
+      SearchAbout nat_of_bin bin_of_nat.
+      move: yn Hy => yn.
+      rewrite -(bin_of_natK yn) => Hy.
+      specialize (H _ Hy).
+      rewrite MProps.F.elements_o in H.
+      apply SetoidList.findA_NoDupA in H => //;
+        last by constructor => //=; apply N.eq_trans.
+      apply SetoidList.InA_alt in H.
+      destruct H as [z H].
+      destruct H as [H H'].
+      destruct H as [H H''].
+      simpl in H. simpl in H''.
+      have Hz: (z = (N.of_nat (Ordinal (n:=N) (m:=bin_of_nat yn) Hy),
+                   s (Ordinal (n:=N) (m:=bin_of_nat yn) Hy))).
+      destruct z as [z1 z2].
+      f_equal. simpl in H. rewrite -H.
+      simpl. rewrite N_of_nat_of_bin => //.
+      simpl in H''. rewrite H'' => //.
+      rewrite -Hz => //.
+    }
   }
-Admitted.
+Qed.
 
 Instance resourceRefineCostInstance
   : @RefineCostClass N [finType of resource] _ _ _.
@@ -1598,6 +1618,82 @@ Module ScalarSmoothTest. Section scalarSmoothTest.
   Lemma x0 (t : {ffun 'I_N -> (scalarType scalar_val A)}) (i : 'I_N) :
     cost i t == lambda of (scalarType scalar_val A). Abort.
 End scalarSmoothTest. End ScalarSmoothTest.
+
+Section scalarCompilable.
+  Variable (N : OrdNat.t).
+  Variable (q : Q).
+  Variable T : finType.
+  Definition scalar_q := scalar (Q_to_rat q) T.
+  Definition scalar_T := scalarType (Q_to_rat q) T.
+  Instance scalarCTypeInstance
+    : CType (scalarType (Q_to_rat q) T) := enum scalar_T.
+
+  Program Instance scalarRefineTypeAxiomInstance
+    : @RefineTypeAxiomClass _ scalarCTypeInstance.
+  Next Obligation. move => r. auto. Qed.
+
+  Instance scalarRefineTypeInstance
+    : @RefineTypeClass _ scalarCTypeInstance scalarRefineTypeAxiomInstance.
+
+  Definition stripScalar : scalar_T -> T :=
+   fun x : scalar_T =>
+    match x with
+    | @Wrap _ _ x' => x'
+    end.
+
+  Definition stripScalar_t : M.t scalar_T -> M.t T :=
+  fun m : (M.t scalar_T) =>
+    M.fold (fun i r acc =>
+              M.add i (stripScalar r) acc)
+      m (M.empty T).
+
+  Instance scalarCCostInstance
+    `(ccostT : CCostClass T)
+    : CCostClass scalar_T
+    :=
+      fun (i : OrdNat.t) (m : M.t scalar_T) =>
+        Qmult q (ccostT i (stripScalar_t m)).
+
+  Program Instance scalarRefineCostAxiomInstance
+          (costT : CostClass N rat_realFieldType T)
+          (ccostT : CCostClass T)
+          (refine : RefineCostAxiomClass costT ccostT)
+    : @RefineCostAxiomClass
+        N scalar_T
+        (@scalarCostInstance N rat_realFieldType T costT (Q_to_rat q))
+        (@scalarCCostInstance ccostT).
+  Next Obligation.
+    rewrite /(ccost) /scalarCCostInstance /(cost) /scalarCostInstance => /=.
+    rewrite /scalar_val.
+    admit.
+  Admitted.
+(*
+  Instance scalarRefineCostInstance
+    : @RefineCostClass N _ _ _ scalarRefineCostAxiomInstance.
+
+  Instance prod_cgame (aT bT : finType)
+           `(costA : CostClass N rat_realFieldType aT)
+           `(costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
+           `(ccostA : CCostClass aT)
+           `(refineTypeA : RefineTypeClass aT)
+           `(refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA)
+           `(refineCostA : @RefineCostClass N aT costA ccostA _)
+           `(gA : @game aT N rat_realFieldType _ _)
+           `(cgA : @cgame N aT _ _ _ _ _ _ _ _ _)
+           `(costB : CostClass N rat_realFieldType bT)
+           `(costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
+           `(ccostB : CCostClass bT)
+           `(refineTypeB : RefineTypeClass bT)
+           `(refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB)
+           `(refineCostB : @RefineCostClass N bT costB ccostB _)
+           `(gB : @game bT N rat_realFieldType _ _)
+           `(cgB : @cgame N bT _ _ _ _ _ _ _ _ _)
+    : @cgame N [finType of aT*bT] (prodCTypeInstance aT bT)
+             (prodRefineTypeAxiomInstance aT bT)
+             (prodRefineTypeInstance aT bT) _ _ _ _ _ _.
+*)
+
+End scalarCompilable.
 
 (** Bias Games c + A *)
 
