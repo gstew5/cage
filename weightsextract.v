@@ -90,7 +90,7 @@ Module CompilableWeights (A : OrderedFinType).
   Module M := Make A'.
   Module MFacts := Facts M.
   Module MProps := Properties M.
-  
+
   Definition cGamma (weights : M.t Q) :=
     M.fold (fun a q acc => q + acc) weights 0.
 
@@ -187,25 +187,63 @@ Module CompilableWeights (A : OrderedFinType).
       end
     end.
 
+  Lemma match_maps_gamma_cGamma s m :
+    match_maps s m ->
+    gamma s = Q_to_rat (cGamma m).
+  Proof.
+    rewrite /gamma /cGamma.
+    set P :=
+      fun m r =>
+        forall s,
+        match_maps s m -> 
+        (\sum_a (s a) = Q_to_rat r)%R.
+    move: s; change (P m  (M.fold (fun (_ : M.key) (q : Q) => [eta Qplus q]) m 0)).
+    apply: MProps.fold_rec_weak.
+    { move => mx m' a H; rewrite /P => H2 s H3.
+      have H4: match_maps s mx.
+      { move => x; case: (H3 x) => y []; rewrite -H => H4 H5.
+        exists y; rewrite H4; split => //. }
+      apply: (H2 _ H4). }
+    { rewrite /P /match_maps => s H2.
+      admit. (*no a exists*) }
+    move => k e a mx H; rewrite /P => H2 s H3.
+    (*I need an inductive version of [match_maps] -- it's currently 
+      too global.*)
+  Admitted.
+
+  (*NOTE: This code is much complicated by the fact that [evalc] can
+    fail -- otherwise, we could just use [M.mapi].*)
+  Definition update_weights
+             (f : A.t -> expr A.t) (s : cstate)
+    : option (M.t Q) :=
+    M.fold
+      (fun a _ acc =>
+         match acc with
+         | None => None
+         | Some acc' =>
+           match evalc (f a) s with
+           | None => None
+           | Some q =>
+             if Qle_bool q 0 then None
+             else Some (M.add a q acc')
+           end
+         end)
+      (SWeights s)
+      (Some (M.empty Q)).
+  
+  Lemma match_maps_update_weights f r s m :
+    match_maps (weightslang.SWeights r) (SWeights s) ->
+    update_weights f s = Some m ->
+    match_maps [ffun a => eval (f a) r] m /\
+    (forall a, 0 < eval (f a) r)%R.
+  Proof.
+  Admitted. (*TODO*)
+    
   Fixpoint interp (c : com A.t) (s : cstate) : option cstate :=
     match c with
     | CSkip => Some s
     | CUpdate f =>
-      let w :=
-          (*NOTE: This code is made much more complicated by the fact 
-            that [evalc] can fail -- otherwise, we could just use [M.mapi].*)
-          M.fold
-            (fun a _ acc =>
-               match acc with
-               | None => None
-               | Some acc' =>
-                 match evalc (f a) s with
-                 | None => None
-                 | Some q => Some (M.add a q acc')
-                 end
-               end)
-            (SWeights s)
-            (Some (M.empty Q))
+      let w := update_weights f s
       in match w with
          | None => None
          | Some w' => 
@@ -269,7 +307,22 @@ Module CompilableWeights (A : OrderedFinType).
       split; [solve[constructor; auto]|].
       split; auto. }
     { intros s t t' H H2.
-      admit. (*CUpdate*) }
+      move: (@match_maps_update_weights e s t) H.
+      case: (update_weights e t) => // m; move/(_ m) => H3.
+      inversion 1; subst; clear H.
+      inversion H2; subst; simpl in *; clear H2.
+      move: (H3 H1 erefl) => H4; clear H3.
+      exists CSkip.
+      eexists.
+      split => //.
+      split.
+      { right.
+        constructor.
+        constructor. }
+      simpl.
+      case: H4 => H4 H5.
+      constructor => //.
+      Unshelve. by case: H4 => H4 H5 a; move: (H5 a); rewrite ffunE. }
     { intros s t t'; inversion 1; subst. clear H.
       intros H2.
       set c := recv tt.
@@ -359,7 +412,14 @@ Module CompilableWeights (A : OrderedFinType).
                         | Some q => (Q_to_rat q / Q_to_rat (cGamma wc))%R
                         | None => 0%R
                         end] = p_aux (A:=A.t) eps [::] w.
-        { admit. }
+        { rewrite /p_aux; apply/ffunP => a; rewrite 2!ffunE.
+          move: (match_maps_gamma_cGamma H1) => H1'.
+          rewrite /match_maps in H1; case: (H1 a) => y []H3 H4. clear H1.
+          rewrite H3 /= H1'; f_equal. clear - H4.
+          rewrite rat_to_Q_red in H4.
+          have H5: Qeq y (rat_to_Q (w a)).
+          { by rewrite -(Qred_correct y) -(Qred_correct (rat_to_Q (w a))) H4. }
+            by apply: rat_to_QK2. }
         move => pf1 pf2.
         f_equal.
         apply: proof_irrelevance. }
@@ -482,7 +542,7 @@ Module CompilableWeights (A : OrderedFinType).
       apply: H12.
       apply: H13. }
     inversion 1.
-  Admitted.      
+  Qed.
 End CompilableWeights.
 
 (** Test extraction: *)

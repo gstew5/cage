@@ -1263,5 +1263,9 @@ Section rat_to_Q_lemmas_cont.
 
   Lemma rat_to_QK q : rat_to_Q (Q_to_rat (Qred q)) = Qred q.
   Proof.
-  Admitted. (*TODO*)    
+  Admitted. (*TODO*)
+
+  Lemma rat_to_QK2 r s : Qeq r (rat_to_Q s) -> Q_to_rat r = s.
+  Proof.
+  Admitted. (*TODO*)
 End rat_to_Q_lemmas_cont.
