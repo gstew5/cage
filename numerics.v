@@ -861,6 +861,7 @@ Section Z_to_int_lemmas.
       by [].
     }
   Qed.  
+
   Lemma Z_to_int_plus (r s : Z) :
     Z_to_int (r + s) = (Z_to_int r + Z_to_int s)%R.
   Proof.
@@ -903,6 +904,54 @@ Section Z_to_int_lemmas.
     rewrite /= Pos2Nat.inj_mul -2!opp_posz_negz 2!Pos_to_natNS.
     by rewrite mulNr mulrN opprK.
   Qed.
+
+  Lemma Z_to_int_div (r s : Z) :
+    s <> Z0 -> 
+    Z_to_int (r / s) = (Z_to_int r / Z_to_int s)%R.
+  Proof.
+  Admitted. (*GS TODO*)
+
+  (** This lemma should be in the standard library... *)
+  Lemma Zneg_Zle' (r s : positive) :
+    (Zle (Z.neg r) (Z.neg s))%Z -> (r >= s)%positive.
+  Proof.
+    rewrite /Zle /Zcompare /CompOpp.
+    case H: (r ?= s)%positive => //.
+    { move => _; move: H.
+      rewrite Pos.compare_eq_iff => ->.
+      rewrite Pos.ge_le_iff.
+      apply: Pos.le_refl. }
+    move => _; move: H.
+    by rewrite Pcompare_eq_Gt; rewrite /Pos.gt /Pos.ge => ->.
+  Qed.    
+
+  Lemma Z_to_int_le (r s : Z) :
+    Zle r s -> (Z_to_int r <= Z_to_int s)%R.
+  Proof.
+    rewrite /Z_to_int.
+    case: r.
+    { case: s => //.
+      move => p H; move: (Pos2Z.neg_is_nonpos p).
+      move/Zle_not_lt => H2.
+      move: (Zlt_neg_0 p) => H3.
+      omega. }
+    { case: s.
+      { move => p H.
+        move: (Pos2Z.is_pos p) => H2.
+        omega. }
+      { move => p q.
+        rewrite /Zle -(Pos2Z.inj_compare q p) Pos.compare_le_iff Pos2Nat.inj_le.
+        move/leP => //. }
+      move => p q; move: (Zle_neg_pos p q); move/Zle_not_lt => H H2.
+      have H3: Z.pos q <> Z.neg p by discriminate.
+      omega. }
+    case: s => //.
+    move => p q; move/Zneg_Zle'; rewrite Pos.ge_le_iff Pos2Nat.inj_le.
+    move/leP => H.
+    have H2: ((Pos.to_nat p).-1 <= (Pos.to_nat q).-1)%N.
+    { by apply/leP; apply: Nat.pred_le_mono; apply/leP. }
+    by [].
+  Qed.
 End Z_to_int_lemmas.
       
 Section Q_to_rat.
@@ -913,6 +962,9 @@ Section Q_to_rat.
 End Q_to_rat.
 
 Section Q_to_rat_lemmas.
+  Lemma Q_to_rat0 : Q_to_rat 0 = 0%R.
+  Proof. by rewrite /Q_to_rat /= Pos2Nat.inj_1 fracqE /= divr1. Qed.
+  
   Lemma Q_to_rat1 : Q_to_rat 1 = 1%R.
   Proof. by rewrite /Q_to_rat /= Pos2Nat.inj_1 fracqE /= divr1. Qed.
     
@@ -935,6 +987,28 @@ Section Q_to_rat_lemmas.
     rewrite Z_to_int_mul mulq_frac /mulq_subdef /=; f_equal.
     by rewrite Pos2Nat.inj_mul.
   Qed.
+
+  Lemma Q_to_rat_le (r s : Q) :
+    Qle r s -> (Q_to_rat r <= Q_to_rat s)%R.
+  Proof.
+    move => H; rewrite /Q_to_rat 2!fracqE /=.
+    case: r H => rn rd; case: s => sn sd /=.
+    rewrite /Qle /= ler_pdivr_mulr; last first.
+    { move: (Pos2Nat.is_pos rd) => H.
+      have H2: (0 < Pos.to_nat rd)%N.
+      { case: (@ltP 0 (Pos.to_nat rd))%N => //. }
+        by rewrite -(@ltr_nat rat_realFieldType) in H2. }
+    move => H2.
+    have H: (Zle rn (sn / (Z.pos sd) * Z.pos rd))%Z.
+    { admit. }
+    clear H2.
+    have H2: (Z_to_int rn <= Z_to_int (sn / Z.pos sd * Z.pos rd))%R.
+    { apply: Z_to_int_le => //. }
+    rewrite Z_to_int_mul /= Z_to_int_div /= in H2 => //.
+    rewrite -(ler_int rat_realFieldType) in H2.
+    rewrite 2!intrM in H2.
+    admit. (*GS TODO*)
+  Admitted.    
 End Q_to_rat_lemmas.
 
 (** The proofs in this section need to be incorporated into
@@ -1186,4 +1260,8 @@ Section rat_to_Q_lemmas_cont.
     rewrite H2 in H1. rewrite H1 2!Z.mul_1_l => H0 H0'.
     by rewrite H0 -H0'.
   Qed.
+
+  Lemma rat_to_QK q : rat_to_Q (Q_to_rat (Qred q)) = Qred q.
+  Proof.
+  Admitted. (*TODO*)    
 End rat_to_Q_lemmas_cont.

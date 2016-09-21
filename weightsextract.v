@@ -269,7 +269,7 @@ Module CompilableWeights (A : OrderedFinType).
       split; [solve[constructor; auto]|].
       split; auto. }
     { intros s t t' H H2.
-      admit. }
+      admit. (*CUpdate*) }
     { intros s t t'; inversion 1; subst. clear H.
       intros H2.
       set c := recv tt.
@@ -283,7 +283,12 @@ Module CompilableWeights (A : OrderedFinType).
       have pf: forall a, (0 <= f a <= 1)%R.
       { move => a. rewrite /f ffunE. clear f.
         case: (recv_ok a) => q [] -> [] H H3.
-        admit. (* NEED: Q_to_rat_le *) }
+        apply/andP; split.
+        { rewrite -Q_to_rat0; apply: Q_to_rat_le.
+          have H4: Qeq (Qred q) q by apply: Qred_correct.
+          by rewrite H4. }
+        rewrite -Q_to_rat1; apply: Q_to_rat_le.
+        by move: (Qred_correct q) ->. }
       exists CSkip.
       exists 
         (@mkState
@@ -310,7 +315,7 @@ Module CompilableWeights (A : OrderedFinType).
       case: (recv_ok a) => q []; rewrite /f ffunE => -> _.
       exists q.
       split; auto.
-      admit. (* NEED: rat_to_Q (Q_to_rat (Qred q)) = Qred q *) }
+      by rewrite rat_to_QK. }
     { intros s t; inversion 1; subst; clear H.
       intros H2.
       exists CSkip.
@@ -428,7 +433,12 @@ Module CompilableWeights (A : OrderedFinType).
       constructor. }
     move => n IH s t0 t t' H H2 H3.
     have [x [H4 H5]]: exists x, [/\ t = N.succ x & N.to_nat x = n].
-    { admit. }
+    { clear - H.
+      exists (N.pred t).
+      rewrite N.succ_pred.
+      { split => //.
+          by rewrite N2Nat.inj_pred H. }
+      move => H2; rewrite H2 /= in H; discriminate. }
     subst t n. clear H.
     move: H2 => /=.
     case H4: (Nat.iter (N.to_nat x)
