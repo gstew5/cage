@@ -23,13 +23,13 @@ Local Open Scope ring_scope.
 (** A generic wrapper for directing the construction of cost games
     over finite types [T]. [I] is a phantom type, used to direct
     instance resolution. *)
-Inductive Wrapper (I : eqType) (T : finType) : Type :=
+Inductive Wrapper (I : Type) (T : finType) : Type :=
   Wrap : T -> Wrapper I T.
-Definition unwrap (I : eqType) (T : finType) (w : Wrapper I T) : T :=
+Definition unwrap (I : Type) (T : finType) (w : Wrapper I T) : T :=
   match w with Wrap t => t end.
 
 Section Wrapper.
-  Variable I : eqType.
+  Variable I : Type.
   Variable T : finType.
 Definition Wrapper_eq (t1 t2 : Wrapper I T) :=
   match t1, t2 with
@@ -63,13 +63,13 @@ Definition unwrap_ffun (N : nat) (t : (Wrapper I T)^N) : T^N :=
   finfun (fun i => unwrap (t i)).
 End Wrapper.
 
-Definition Wrapper_finMixin (I : eqType) (T : finType) :=
+Definition Wrapper_finMixin (I : Type) (T : finType) :=
   Eval hnf in FinMixin (@Wrapper_enumP I T).
-Canonical Wrapper_finType (I : eqType) (T : finType) :=
+Canonical Wrapper_finType (I : Type) (T : finType) :=
   Eval hnf in FinType (Wrapper I T) (Wrapper_finMixin I T).
 
 Section WrapperLemmas.
-  Variables (I : eqType) (T : finType) (N : nat).
+  Variables (I : Type) (T : finType) (N : nat).
   Context `(game T N).
   
   Lemma unwrap_ffun_simpl (t t' : (Wrapper I T)^N) :
@@ -1519,10 +1519,10 @@ Canonical Scalar_eqType c :=
   Eval hnf in EqType (@Scalar c) (Scalar_eqMixin c).
 
 Definition scalar (c : rty) (A : finType) :=
-  Wrapper [eqType of Scalar c] A.
+  Wrapper (Scalar c) A.
 
 Definition scalarType (c : rty) (A : finType) :=
-  [finType of Wrapper [eqType of Scalar c] A].
+  [finType of Wrapper (Scalar c) A].
 End ScalarType.
 
 Class ScalarClass (rty : realFieldType)
@@ -1715,10 +1715,10 @@ Canonical Bias_eqType c :=
   Eval hnf in EqType (@Bias c) (Bias_eqMixin c).
 
 Definition bias (c : rty) (A : finType) :=
-  Wrapper [eqType of Bias c] A.
+  Wrapper (Bias c) A.
 
 Definition biasType (c : rty) (A : finType) :=
-  [finType of Wrapper [eqType of Bias c] A].
+  [finType of Wrapper (Bias c) A].
 End BiasType.
 
 Instance biasCostInstance
