@@ -254,6 +254,21 @@ Proof.
           rewrite -mulnE in H0. by rewrite addn1 H0.
 Qed.
 
+Lemma int_to_positive_inj s r :
+  @ltr int_numDomainType
+       (GRing.zero (Num.NumDomain.zmodType int_numDomainType)) s ->
+  @ltr int_numDomainType
+       (GRing.zero (Num.NumDomain.zmodType int_numDomainType)) r ->
+  int_to_positive s = int_to_positive r ->
+  s = r.
+Proof.
+  rewrite /int_to_positive.
+  case: s; case: r => n1 n2 pf1 pf2 H.
+  have ->: (n2 = n1).
+  { apply Nat2Pos.inj. admit. admit. apply H. }
+  by [].
+Admitted.
+
 Lemma int_to_Z_mul (s r : int) :
   Zmult (int_to_Z s) (int_to_Z r) = int_to_Z (s * r).
 Proof.
@@ -1261,11 +1276,46 @@ Section rat_to_Q_lemmas_cont.
     by rewrite H0 -H0'.
   Qed.
 
+  Lemma cancel_rat_to_Q q :
+    Qeq (rat_to_Q (Q_to_rat q)) q.
+  Proof.
+    rewrite /Q_to_rat rat_to_Q_fracq_pos /=.
+    rewrite cancel_I2Z Pos2Nat.id.
+    case: q => //.
+    by apply /ltP; apply Pos2Nat.is_pos.
+  Qed.
+
+  Require Import ProofIrrelevance.
+
+  Lemma rat_to_Q_inj r s :
+    rat_to_Q r = rat_to_Q s -> r = s.
+  Proof.
+    case: r; case: s. rewrite /rat_to_Q => r rpf s spf.
+    case Hs: (valq (Rat (valq:=s) spf)).
+    case Hr: (valq (Rat (valq:=r) rpf)) => H.
+    simpl in *. inversion H.
+    apply int_to_Z_inj_iff in H1.
+    apply int_to_positive_inj in H2;
+      try (move: rpf => /andP [rpf1 rpf2];
+           move: spf => /andP [spf1 spf2];
+           subst; simpl in *; assumption).
+    subst. have ->: (rpf = spf) by apply proof_irrelevance.
+    by [].
+  Qed.
+
   Lemma rat_to_QK q : rat_to_Q (Q_to_rat (Qred q)) = Qred q.
   Proof.
-  Admitted. (*TODO*)
+    rewrite rat_to_Q_red. apply Qred_complete.
+    rewrite cancel_rat_to_Q. apply Qred_correct.
+  Qed.
 
-  Lemma rat_to_QK2 r s : Qeq r (rat_to_Q s) -> Q_to_rat r = s.
+  Lemma rat_to_QK2 q r : Qeq q (rat_to_Q r) -> Q_to_rat q = r.
   Proof.
-  Admitted. (*TODO*)
+    move => H0.
+    have H1: (Qred q = rat_to_Q r).
+    { rewrite rat_to_Q_red. apply Qred_complete, H0. }
+    apply rat_to_Q_inj. rewrite -H1 rat_to_Q_red.
+    apply Qred_complete, cancel_rat_to_Q.
+Qed.
+
 End rat_to_Q_lemmas_cont.
