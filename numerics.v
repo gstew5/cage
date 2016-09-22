@@ -254,7 +254,7 @@ Proof.
           rewrite -mulnE in H0. by rewrite addn1 H0.
 Qed.
 
-Lemma int_to_positive_inj s r :
+Lemma int_to_positive_inj_pos s r :
   @ltr int_numDomainType
        (GRing.zero (Num.NumDomain.zmodType int_numDomainType)) s ->
   @ltr int_numDomainType
@@ -265,9 +265,12 @@ Proof.
   rewrite /int_to_positive.
   case: s; case: r => n1 n2 pf1 pf2 H.
   have ->: (n2 = n1).
-  { apply Nat2Pos.inj. admit. admit. apply H. }
+  { apply Nat2Pos.inj => //. by destruct n2. by destruct n1. }
   by [].
-Admitted.
+  inversion pf2. inversion pf1.
+  apply SuccNat2Pos.inj in H.
+  by rewrite H.
+Qed.
 
 Lemma int_to_Z_mul (s r : int) :
   Zmult (int_to_Z s) (int_to_Z r) = int_to_Z (s * r).
@@ -501,16 +504,16 @@ Section rat_to_Q_lemmas.
     }
   Qed.
 
-Lemma int_to_positive_to_Z (a : int) :
-  0 < a ->
-  Z.pos (int_to_positive a) = int_to_Z a.
-Proof.
-  rewrite /int_to_positive.
-  rewrite /int_to_Z.
-  case: a=> an H.
-  by rewrite Z_of_nat_pos_of_nat.
-  inversion H.
-Qed.
+  Lemma int_to_positive_to_Z (a : int) :
+    0 < a ->
+    Z.pos (int_to_positive a) = int_to_Z a.
+  Proof.
+    rewrite /int_to_positive.
+    rewrite /int_to_Z.
+    case: a=> an H.
+      by rewrite Z_of_nat_pos_of_nat.
+      inversion H.
+  Qed.
 
   Lemma rat_to_Q_fracq_pos_leib (x y : int) :
     0 < y ->
@@ -619,7 +622,7 @@ Qed.
     case H2: (x == 0).
     move: H2 => /eqP H2. by rewrite H2 in H0.
     by move: H2 => /eqP H2.
-Qed.
+  Qed.
     
   Lemma rat_to_Q_plus (r s : rat) :
     Qeq (rat_to_Q (r + s)) (Qplus (rat_to_Q r) (rat_to_Q s)).
@@ -1295,11 +1298,11 @@ Section rat_to_Q_lemmas_cont.
     case Hr: (valq (Rat (valq:=r) rpf)) => H.
     simpl in *. inversion H.
     apply int_to_Z_inj_iff in H1.
-    apply int_to_positive_inj in H2;
+    apply int_to_positive_inj_pos in H2; subst; simpl in *;
       try (move: rpf => /andP [rpf1 rpf2];
            move: spf => /andP [spf1 spf2];
            subst; simpl in *; assumption).
-    subst. have ->: (rpf = spf) by apply proof_irrelevance.
+    have ->: (rpf = spf) by apply proof_irrelevance.
     by [].
   Qed.
 
