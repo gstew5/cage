@@ -393,6 +393,9 @@ Section rat_to_Q_lemmas.
   Delimit Scope R with R_ssr.  
   Delimit Scope R_scope with R.
 
+  Lemma rat_to_Q0 : rat_to_Q 0 = inject_Z 0.
+  Proof. by []. Qed.
+  
   Lemma Z_of_nat_pos_of_nat (a : nat):
     (0 < a)%N ->
     Z.of_nat a =
@@ -668,6 +671,12 @@ Section rat_to_Q_lemmas.
     apply: lt_and_P_ne_0 i'.
   Qed.
 
+  Lemma rat_to_Q_lt' r s :
+    Qlt (rat_to_Q r) (rat_to_Q s) -> r < s.
+  Proof.
+    rewrite /Qlt /rat_to_Q; case: r => x y /=; case: s => z w /=.
+    case: x y => x1 x2 /= y; case: z w => z1 z2 /= w.
+  Admitted.    
 End rat_to_Q_lemmas.    
 
 Section rat_to_R.
@@ -1017,7 +1026,7 @@ Section Q_to_rat_lemmas.
     rewrite invr_gt0.
       by rewrite -ltz_nat -(ltr_int rat_realFieldType) in H2.
   Qed.       
-
+    
   Lemma Q_to_rat_opp r :
     Q_to_rat (Qopp r) = (- (Q_to_rat r))%R.
   Proof.
@@ -1323,6 +1332,12 @@ Section rat_to_Q_lemmas_cont.
     rewrite cancel_rat_to_Q. apply Qred_correct.
   Qed.
 
+  Lemma rat_to_QK1 q : rat_to_Q (Q_to_rat q) = Qred q.
+  Proof.
+    rewrite rat_to_Q_red. apply Qred_complete.
+    by rewrite cancel_rat_to_Q. 
+  Qed.
+  
   Lemma rat_to_QK2 q r : Qeq q (rat_to_Q r) -> Q_to_rat q = r.
   Proof.
     move => H0.
@@ -1330,5 +1345,11 @@ Section rat_to_Q_lemmas_cont.
     { rewrite rat_to_Q_red. apply Qred_complete, H0. }
     apply rat_to_Q_inj. rewrite -H1 rat_to_Q_red.
     apply Qred_complete, cancel_rat_to_Q.
+  Qed.
+
+  Lemma rat_to_Qopp r : rat_to_Q (-r) = Qopp (rat_to_Q r).
+  Proof.
+    rewrite -mulN1r rat_to_Q_red [rat_to_Q r]rat_to_Q_red -Qred_opp.
+    apply: Qred_complete; rewrite rat_to_Q_mul //.
   Qed.
 End rat_to_Q_lemmas_cont.
