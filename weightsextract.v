@@ -241,14 +241,130 @@ Module CompilableWeights (A : OrderedFinType).
     by apply: (H _ _ (or_intror H2)).
   Qed.
 
+  Lemma InA_notin a l : ~InA A.eq a l -> a \notin l.
+  Proof.
+    elim: l a => // a l IH ax H; rewrite /in_mem /=; apply/negP; case/orP.
+    { by move/eqP => H2; subst ax; apply: H; left; rewrite -A.eqP. }
+    move => H2; apply: H; right.
+    case: (InA_dec A.eq_dec ax l) => // H3; move: (IH _ H3).
+    by rewrite /in_mem /= H2.
+  Qed.
+    
+  Lemma InA_not_InA_eq x y l : InA A.eq x l -> ~InA A.eq y l -> x<>y.
+  Proof.
+    elim: l; first by inversion 1.
+    move => a l IH.
+    inversion 1; subst; clear H.
+    { move => H2 H3; subst y.
+        by apply: H2; left. }
+    move => H2 H3; subst x.
+    by apply: H2; right.
+  Qed.    
+
+  Lemma InA_map A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) x l (f : A -> B) :
+    (forall x y, Aeq x y -> Beq (f x) (f y)) ->
+    InA Aeq x l ->
+    InA Beq (f x) (List.map f l).
+  Proof.
+    move => H; elim: l; first by inversion 1.
+    move => a l IH.
+    inversion 1; subst; clear H0.
+    { by left; apply: H. }
+      by simpl; right; apply: (IH H2).
+  Qed.    
+
+  Lemma InA_map' A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) x l (f : A -> B) :
+    (forall x y, Beq (f x) (f y) -> Aeq x y) ->
+    InA Beq (f x) (List.map f l) ->     
+    InA Aeq x l.
+  Proof.
+    move => H; elim: l; first by inversion 1.
+    move => a l IH.
+    inversion 1; subst; clear H0.
+    { by left; apply: H. }
+      by simpl; right; apply: (IH H2).
+  Qed.    
+  
+  Lemma NoDupA_map A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) l (f : A -> B) :
+    (forall x y, Beq (f x) (f y) -> Aeq x y) ->
+    NoDupA Aeq l ->
+    NoDupA Beq (List.map f l).
+  Proof.
+    move => H; induction 1; first by constructor.
+    simpl; constructor => // H2; apply: H0.
+    by apply: (InA_map' H).
+  Qed.    
+      
+  Lemma match_maps_find1 x m q : 
+    M.find (elt:=Q) x m = Some q -> 
+    (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) = 1%N.
+  Proof.
+    move: (M.elements_3w m); move/NoDupA_rev => H H2.
+    have H3: InA A.eq x (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+    { have H3: M.find (elt:=Q) x m <> None.
+      { move => H3; rewrite H3 in H2; congruence. }
+      clear H2; move: H3; rewrite -MProps.F.in_find_iff MProps.F.elements_in_iff.
+      case => e; move: (M.elements _) => l; clear H => H.
+      have ->: x = fst (x, e) by [].
+      have H2: InA (M.eq_key_elt (elt:=Q)) (x, e) (List.rev l).
+      { by rewrite InA_rev. }
+      have H3: forall x y : M.key * Q, M.eq_key_elt x y -> A.eq x.1 y.1.
+      { by case => x1 x2; case => y1 y2; case. }
+      by apply (InA_map H3 H2). }
+    have H4: NoDupA A.eq (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+    { move: (H2); rewrite -MProps.F.find_mapsto_iff MProps.F.elements_mapsto_iff => H4.
+      clear - H; apply: (NoDupA_map _ H); case => x1 x2; case => y1 y2 //. }
+    clear H.
+    move: H3 H4; move: (List.map _ _) => l.
+    clear H2 m q.
+    elim: l => //.
+    { inversion 1. }
+    move => a l' IH; inversion 1; subst.
+    { clear H3.
+      inversion 1; subst.
+      simpl.
+      move: H0; rewrite -A.eqP => ->.
+      have ->: (count_mem a) l' = 0%N.
+      { have H5: a \notin l' by apply: InA_notin.
+        apply: (count_memPn H5). }
+      by rewrite addn0 eq_refl. }
+    inversion 1; subst => /=.
+    have ->: a == x = false.
+    { move: (InA_not_InA_eq H0 H2) => H6.
+      case H7: (a == x) => //.
+      move: (eqP H7) => H8; subst x; contradiction. }
+    rewrite IH => //.
+  Qed.
+  
+  Lemma match_maps_enum_count_mem s m :
+    match_maps s m ->
+    forall x : A.t,
+    (count_mem x) (index_enum A.t) =
+    (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+  Proof.
+    move => H x; case: (H x) => q []H1 H2; move {H}; rewrite (@enumP A.t x).
+    by rewrite (match_maps_find1 H1).
+  Qed.
+  
+  Lemma match_maps_enum_perm_eq s m :
+    match_maps s m -> 
+    perm_eq (index_enum A.t)
+            (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+  Proof.
+    move => H; rewrite /perm_eq; apply/allP => x.
+    by rewrite mem_cat; case/orP => /= H2;
+       apply/eqP; apply: match_maps_enum_count_mem.
+  Qed.
+  
   Lemma match_maps_gamma'_elements s m : 
     match_maps s m -> 
     gamma' (index_enum A.t) s =
     gamma' (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) s.
   Proof.
-    rewrite /gamma' /match_maps.
-  Admitted.
-  
+    rewrite /gamma' /match_maps => H; apply: eq_big_perm.
+    by apply: (match_maps_enum_perm_eq H).
+  Qed.
+    
   Lemma match_maps_gamma_cGamma s m :
     match_maps s m ->
     gamma s = Q_to_rat (cGamma m).
