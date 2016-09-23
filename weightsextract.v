@@ -212,23 +212,15 @@ Module CompilableWeights (A : OrderedFinType).
     by rewrite cGamma_cGamma'_aux.
   Qed.
   
-  Definition gamma' (l : seq A.t) (s : {ffun A.t -> rat}) :=
-    (\sum_a ([ffun a => if a \in l then s a else 0%R] a))%R.
+  Definition gamma' (l : seq A.t) (s : {ffun A.t -> rat}) : rat :=
+    \sum_(a <- l) (s a)%R.
 
   Lemma gamma'_cons x l s :
     (gamma' (x :: l) s = s x + gamma' l s)%R.
-  Proof.
-  Admitted.
+  Proof. by rewrite /gamma' big_cons. Qed.
 
-  Lemma gamma_gamma' l w :
-    (forall a, a \in l) ->
-    gamma' l w = gamma w.
-  Proof.
-    move => H.
-    rewrite /gamma' /gamma.
-    apply: congr_big => // i _; rewrite ffunE.
-    by rewrite H.
-  Qed.
+  Lemma gamma_gamma' w : gamma' (index_enum A.t) w = gamma w.
+  Proof. by []. Qed.
     
   Lemma match_maps_gamma_cGamma'_aux
         (s : {ffun A.t -> rat})
@@ -237,36 +229,46 @@ Module CompilableWeights (A : OrderedFinType).
     gamma' (List.map (fun x => x.1) l) s = Q_to_rat (cGamma'_aux l).
   Proof.
     elim: l s => //.
-    { move => s /= IH.
-      rewrite /gamma'.
-      admit. }
+    { by move => s /= IH; rewrite /gamma' /= big_nil Q_to_rat0. }
     case => a q l IH s /= H.
     rewrite gamma'_cons Q_to_rat_plus IH.
-    admit.
-    admit.
+    { have ->: s a = Q_to_rat q.
+      { move: (H _ _ (or_introl erefl)) => H2.
+        rewrite (rat_to_QK2 (r:=s a)) => //.
+        by rewrite -(Qred_correct q) H2. }
+      by []. }
+    move => ax qx H2.
+    by apply: (H _ _ (or_intror H2)).
+  Qed.
+
+  Lemma match_maps_gamma'_elements s m : 
+    match_maps s m -> 
+    gamma' (index_enum A.t) s =
+    gamma' (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) s.
+  Proof.
+    rewrite /gamma' /match_maps.
   Admitted.
   
   Lemma match_maps_gamma_cGamma s m :
     match_maps s m ->
     gamma s = Q_to_rat (cGamma m).
   Proof.
-    rewrite cGamma_cGamma' -(gamma_gamma' (l:=enum A.t) s).
-    { move => H; rewrite -(match_maps_gamma_cGamma'_aux (s:=s)).
-      { admit. }
-      move => a q H2.
-      case: (H a) => q' []H3 H4.
-      have H5: In (a,q) (M.elements (elt:=Q) m).
-      { by rewrite in_rev. }
-      clear H2; have ->: q = q'.
-      { move: H3; rewrite -MProps.F.find_mapsto_iff => H3.
-        have H6: InA (M.eq_key_elt (elt:=Q)) (a, q) (M.elements (elt:=Q) m).
-        { apply: In_InA => //. }
-        move: H6; rewrite -MProps.F.elements_mapsto_iff => H6.
-        apply: MProps.F.MapsTo_fun; first by apply: H6.
-        apply: H3. }
-      by rewrite H4. }
-    by move => a; rewrite mem_enum.
-  Admitted.
+    rewrite cGamma_cGamma' -(gamma_gamma' s).
+    move => H; rewrite -(match_maps_gamma_cGamma'_aux (s:=s)).
+    { apply: match_maps_gamma'_elements => //. }
+    move => a q H2.
+    case: (H a) => q' []H3 H4.
+    have H5: In (a,q) (M.elements (elt:=Q) m).
+    { by rewrite in_rev. }
+    clear H2; have ->: q = q'.
+    { move: H3; rewrite -MProps.F.find_mapsto_iff => H3.
+      have H6: InA (M.eq_key_elt (elt:=Q)) (a, q) (M.elements (elt:=Q) m).
+      { apply: In_InA => //. }
+      move: H6; rewrite -MProps.F.elements_mapsto_iff => H6.
+      apply: MProps.F.MapsTo_fun; first by apply: H6.
+      apply: H3. }
+    by rewrite H4. 
+  Qed.
 
   (*NOTE: This code is much complicated by the fact that [evalc] can
     fail -- otherwise, we could just use [M.mapi].*)
