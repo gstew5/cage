@@ -340,8 +340,18 @@ Section semantics.
     move => H H1; induction H.
     apply: step_trans; first by apply: H. apply: H1.
     apply: step_trans. apply: H. by apply IHstep_plus.
-  Qed.    
+  Qed.
 
+  Lemma step_plus_trans2 c1 c2 c3 s1 s2 s3 :
+    step_plus c1 s1 c2 s2 ->
+    step c2 s2 c3 s3 ->
+    step_plus c1 s1 c3 s3.
+  Proof.
+    move => H H2; induction H.
+    { apply: step_trans; first by apply: H. constructor. apply: H2. }
+    apply: step_trans. apply: H. by apply: IHstep_plus.
+  Qed.
+  
   Lemma step_plus_seq c1 c1' c2 s s' :
     step_plus c1 s c1' s' -> 
     step_plus (CSeq c1 c2) s (CSeq c1' c2) s'.
@@ -462,7 +472,7 @@ Section semantics.
     subst c0; inversion H; subst; clear H; first by right.
     inversion H6; subst; clear H6.
   Qed.
-
+  
   Lemma step_plus_seq_skip_final :
     forall c s c' s',
       final_com c' -> 
@@ -517,6 +527,205 @@ Section semantics.
     subst sx.
     inversion H8.
   Qed.    
+
+  Lemma step_plus_CIter_skip_split n1 n2 s c' s'' s' :
+    step_plus (CIter n1 CSkip) s CSkip s'' ->
+    step_plus (CIter n2 CSkip) s'' c' s' ->
+    step_plus (CIter (n1+n2) CSkip) s c' s'.
+  Proof.
+    move: n2 s c' s'' s'.
+    set (P (n : N.t) :=
+           forall (n2 : N.t) (s : state) (c' : com A) (s'' s' : state),
+             step_plus (CIter n CSkip) s CSkip s'' ->
+             step_plus (CIter n2 CSkip) s'' c' s' ->
+             step_plus (CIter (n + n2) CSkip) s c' s').
+    apply: (N.peano_ind P _ _ n1) => //.
+    { rewrite /P => n2 s c' s'' s' H H2.
+      move: (step_plus_CIter0 H) => ->.
+      rewrite N.add_0_l; apply: H2. }
+    rewrite /P => n IH n2 s c' s'' s' H H2.
+    have Hx: (0 < N.succ n)%num.
+    { apply: N.lt_0_succ. }
+    have Hy: (0 < N.succ (n + n2))%N.
+    { apply/ltP; rewrite nat_of_bin_to_nat N2Nat.inj_succ; omega. }
+    case: (step_plus_CIter_inv _ _ H) => //.
+    move => x []H3 H4.
+    rewrite N.add_succ_l.
+    case: (step_plus_seq_skip H3).
+    { move => ->.
+      apply: step_plus_trans.
+      { constructor. constructor => //. }
+      rewrite N.pred_succ in H4.
+      apply: step_plus_trans; last first.
+      { apply: (IH _ _ _ _ _ H4 H2). }
+      rewrite N.pred_succ.
+      constructor.
+      constructor. }
+    rewrite N.pred_succ in H3, H4|-* => H5.
+    apply: step_plus_trans.
+    { constructor. constructor => //. }
+    apply: step_plus_trans; last first.
+    { have H6: step_plus (CIter n CSkip) s CSkip s''.
+      { apply: step_plus_trans; first by apply: H5.
+        apply: H4. }
+      apply: (IH _ _ _ _ _ H6 H2). }
+    rewrite N.pred_succ.
+    constructor.
+    constructor.
+  Qed.    
+
+  Lemma bwahaha (c c1 : com A) : c = CSeq c1 c -> False.
+  Proof.
+    elim: c c1 => // c IH c' H c1; inversion 1.
+    by move: (H _ H3).
+  Qed.
+
+  Lemma step_same_false c s c' s' :
+    step c s c' s' ->
+    c = c' ->
+    False.
+  Proof.
+    induction 1; try solve[inversion 1].
+    { move => H2; symmetry in H2; apply: (bwahaha H2). }
+    by inversion 1; subst; apply: IHstep.
+  Qed.
+    
+  (*THIS VERSION NOT TRUE! c2 could step from some s0 back to (c2, x).
+    Lemma step_plus_seq_inv2 c1 c2 s x :
+    c1 <> CSkip -> 
+    step_plus (CSeq c1 c2) s c2 x -> 
+    step_plus c1 s CSkip x.
+  Proof.
+    remember (CSeq c1 c2) as c.
+    move => H H2; revert c1 H Heqc.
+    induction H2.
+    { move => c1 H3 H4; subst c.
+      case: (step_seq_inv H).
+      { case => H4; subst c1; congruence. }
+      case => c1' []s1' []H4 H5 H6 H7.
+      subst s1'.
+      case: (com_Skip_dec c1').
+      { move => H8. subst c1'.
+        constructor; apply: H4. }
+      elimtype False; apply: (bwahaha H5). }
+    move => c1 H3 H4; subst c.
+    case: (step_seq_inv H).
+    { case => H4; subst c1; congruence. }
+    case => c1' []s1' []H4 H5 H6 H7; subst.
+    case: (com_Skip_dec c1').
+    { move => H8; subst.
+      have ->: s' = s1'.
+      { inversion 
+      constructor => //. }
+    move => Hnskip.
+    apply: step_trans; first by apply: H4.
+    apply: IHstep_plus => //.
+  Qed.*)
+
+  Lemma step_plus_seq_iter_inv p c s x :
+    c <> CSkip -> 
+    step_plus (CSeq c (CIter p c)) s (CIter p c) x -> 
+    step_plus c s CSkip x.
+  Proof.
+    move: c s x.
+    set (P (n : N.t) :=
+           forall (c : com A) (s x : state),
+             c <> CSkip ->              
+             step_plus (CSeq c (CIter n c)) s (CIter n c) x -> step_plus c s CSkip x).
+    apply: (N.peano_ind P).
+    { rewrite /P => c s x Hx H.
+      have H2: step_plus (CSeq c (CIter 0 c)) s CSkip x.
+      { apply: step_plus_trans2; first by apply: H.
+        constructor. }
+      clear H; case: (step_plus_seq_inv1 H2) => // y []H1 H3.
+      have ->: x = y.
+      { clear - H3; case: (step_plus_seq_skip H3) => // H; clear H3.
+        symmetry; apply: step_plus_CIter0; apply: H. }
+      apply: H1. }
+    rewrite /P => n H c s x H2 H3.
+  Admitted.
+  
+  Lemma step_plus_iter_split n1 n2 c s s'' c' s' :
+    step_plus (CIter n1 c) s CSkip s'' ->
+    step_plus (CIter n2 c) s'' c' s' ->
+    step_plus (CIter (n1+n2) c) s c' s'.
+  Proof.
+    case (com_Skip_dec c).
+    { move => H; subst c => H2 H3.
+      apply: (step_plus_CIter_skip_split H2 H3). }
+    move: n2 c s s'' c' s'.
+    set (P (n : N.t) :=
+      forall (n2 : N.t) (c : com A) (s s'' : state) (c' : com A) (s' : state),
+        c <> CSkip ->
+        step_plus (CIter n c) s CSkip s'' ->
+        step_plus (CIter n2 c) s'' c' s' ->
+        step_plus (CIter (n + n2) c) s c' s').
+    apply: (N.peano_ind P _ _ n1).
+    { move => n2 c s s'' c' s' Hnskip; move/step_plus_CIter0 => -> H.
+        by rewrite N.add_0_l. }
+    rewrite /P; move => p IH n2 c s s'' c' s' Hnskip H H2.
+    rewrite N.add_succ_l.
+    case: (step_plus_CIter_inv _ _ H) => //.
+    { apply: N.lt_0_succ. }
+    move => x []H3 H4.
+    rewrite N.pred_succ in H3, H4.    
+    apply: step_plus_trans.
+    { apply: step_plus_trans.
+      { constructor.
+        constructor.
+        rewrite nat_of_bin_to_nat.
+        apply/ltP; rewrite N2Nat.inj_succ; omega. }
+      rewrite N.pred_succ.
+      move: (IH _ _ _ _ _ _ Hnskip H4 H2) => H5.
+      apply: step_plus_seq.
+      have H6: step_plus c s CSkip x.
+      { apply: step_plus_seq_iter_inv => //.
+        apply: H3. }
+      apply: H6. }
+    apply: step_plus_trans.
+    { constructor.
+      constructor. }
+    apply: (IH _ _ _ _ _ _ Hnskip H4 H2).
+  Qed.
+
+  Lemma step_plus_iter1 c s s' :
+    step_plus c s CSkip s' -> 
+    step_plus (CIter 1 c) s CSkip s'.
+  Proof.
+    move => H.
+    apply: step_trans.
+    constructor => //.
+    apply: step_plus_trans.
+    apply: step_plus_seq.
+    apply: H.
+    apply: step_trans.
+    constructor.
+    have ->: N.pred 1 = 0%num by [].
+    constructor.
+    constructor.
+  Qed.    
+  
+  Lemma step_plus_iter_flip_aux n c s c0 s0 cx sx :
+    (0 < n)%num -> 
+    final_com c0 ->
+    final_com cx -> 
+    step_plus (CIter (N.pred n) c) s c0 s0 ->
+    step_plus c s0 cx sx -> 
+    step_plus (CIter n c) s cx sx.
+  Proof.
+    move => H H1 H2 H3 H4.
+    have ->: n = (N.pred n + 1)%num.
+    { rewrite N.add_pred_l.
+      { by rewrite N.add_1_r N.pred_succ. }
+      move => H5; subst n.
+        by apply: (N.nlt_0_r 0). }
+    apply: (@step_plus_iter_split (N.pred n) 1); last first.
+    { inversion H2; subst.
+      apply: step_plus_iter1.
+      apply: H4. }
+    inversion H1; subst.
+    apply: H3.
+  Qed.    
   
   Lemma step_plus_iter_flip n c s c0 s0 cx sx :
     final_com c0 ->
@@ -558,9 +767,11 @@ Section semantics.
     { case => H10 H11; subst. inversion H11. }
     move => H10.
     clear - H10 H2.
-    (*HERE*)
-  Admitted.  
-
+    apply: step_plus_iter_flip_aux => //.
+    apply: H10.
+    apply: H2.
+  Qed.
+  
   Lemma stepN_weaken c s s' n n' :
     (n' >= n)%coq_nat ->
     stepN n c s s' ->
