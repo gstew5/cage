@@ -1119,6 +1119,40 @@ Module SingletonSmoothTest. Section singletonSmoothTest.
     cost i t == lambda of (singletonType A). Abort.
 End singletonSmoothTest. End SingletonSmoothTest.
 
+(** Sigma Games {x : A | P x}, with P : A -> bool *)
+
+Class PredClass (A : Type) := the_pred : A -> bool.
+
+Instance sigmaCostInstance
+         (N : nat) (rty : realFieldType) (A : finType)
+         (predInstance : PredClass A)
+         `(costA : CostClass N rty A)
+  : CostClass N rty [finType of {x : A | the_pred x}] := 
+  fun (i : 'I_N) f => 
+    cost i (finfun (fun j => projT1 (f j))).
+
+Program Instance  sigmaCostAxiomInstance
+        (N : nat) (rty : realFieldType) (A : finType)
+        (predInstance : PredClass A)        
+        `(costA : CostAxiomClass N rty A)
+  : @CostAxiomClass N rty [finType of {x : A | the_pred x}] _.
+  Next Obligation.
+    rewrite /(cost) /sigmaCostInstance.
+    apply: cost_axiom.
+  Qed.
+
+Instance sigmaGameInstance
+         (N : nat) (rty : realFieldType) (A : finType)
+         (predInstance : PredClass A)                 
+         `(gameA : game A N rty)
+  : @game [finType of {x : A | the_pred x}] _ _ _ _.
+
+Module SigmaGameTest. Section sigmaGameTest.
+  Context {A : finType} {N rty} (predA : PredClass A) `{gameA : game A N rty}.
+  Variables (t : {ffun 'I_N -> {x : A | the_pred x}}) (i : 'I_N).
+  Check cost i t.
+End sigmaGameTest. End SigmaGameTest.
+
 (** Product Games A * B *)
 
 Instance prodCostInstance
