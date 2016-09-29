@@ -1186,7 +1186,33 @@ Proof.
     rewrite !ffunE. case: (i == x) => //. }
   apply (smooth_ax _).
 Qed.
-  
+
+(** Sigma games are compilable *)
+
+Section sigmaCompilable.
+  Variable (N : OrdNat.t).
+
+  Instance sigmaCTypeInstance (A : finType)
+           (predInstance : PredClass A)
+  : CType [finType of {x : A | the_pred x}] :=
+    enum [finType of {x : A | the_pred x}].
+
+  Program Instance sigmaRefineTypeAxiomInstance
+          (A : finType)
+          (predInstance : PredClass A)
+  : @RefineTypeAxiomClass [finType of {x : A | the_pred x}] _.
+  Next Obligation. by move=> r; rewrite mem_enum. Qed.
+
+  Instance sigmaCCostInstance
+           (A : finType)
+           (predInstance : PredClass A)
+           (ccostA : @CCostClass A)
+  : CCostClass [finType of {x : A | the_pred x}]
+    :=
+      fun (i : OrdNat.t) (m : M.t {x : A | the_pred x}) =>
+        0%coq_Qscope.
+End sigmaCompilable.
+
 (** Product Games A * B *)
 
 Instance prodCostInstance
