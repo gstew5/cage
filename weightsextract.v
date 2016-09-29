@@ -60,6 +60,10 @@ Require Import weights weightslang compile dist numerics.
 
 Module Type OrderedFinType.
    Parameter t : finType.
+   (*there's got to be a better way to deal with these CTypes...*)
+   Parameter CTypeInstance : CType t.  
+   Parameter RefineTypeAxiomInstance : RefineTypeAxiomClass CTypeInstance.
+   Parameter RefineTypeInstance : RefineTypeClass RefineTypeAxiomInstance.
    Parameter eq : t -> t -> Prop.
    Parameter lt : t -> t -> Prop.
    Parameter eq_refl : forall x : t, eq x x.
@@ -961,6 +965,86 @@ Module CompilableWeights (A : OrderedFinType).
       apply: H12.
       apply: H13. }
     inversion 1.
+  Qed.
+
+  Definition init_map : M.t Q :=
+    fold_left (fun m a => M.add a 1 m) (enumerate A.t) (@M.empty Q).
+
+  Lemma match_maps_init : match_maps (init_weights A.t) init_map.
+  Proof.
+    move => a; rewrite /init_weights /init_costs /init_map.
+  Admitted.  
+
+  Definition init_cstate (epsQ : Q) :=
+    @mkCState
+      init_map (** The initial cost function is never used -- 
+                   we only include it because the type [state] forces 
+                   an [SCost] projection. *)
+      [::]
+      init_map
+      epsQ
+      [::].
+
+  Lemma match_states_init eps eps_ok :
+    match_states (@init_state A.t eps eps_ok) (init_cstate (rat_to_Q eps)).
+  Proof.
+    constructor.
+    { apply: match_maps_init. }
+    { constructor. }
+    { apply: match_maps_init. }
+    apply: rat_to_Q_red.
+  Qed.
+
+  (*This is a technical lemma about the interpretation of the specific 
+    program [mult_weights A.t nx].*)
+  Lemma size_costs_interp_mult_weights (nx : N.t) eps t :
+    (0 < nx)%N -> 
+    interp (mult_weights A.t nx) (init_cstate (rat_to_Q eps)) = Some t ->
+    (0 < size (SPrevCosts t))%N.
+  Proof.
+    rewrite /init_cstate /=; case: (update_weights _ _) => //= a.
+    case Hnx: nx => /= [//|p]; rewrite Pos2Nat.inj_iter => H.
+    have [n ->]: exists n, Pos.to_nat p = n.+1.
+    { apply: Pos2Nat.is_succ. }
+    simpl.
+    case: (nat_rect _ _) => // [s1].
+    case: (update_weights _ _) => //= a1.
+    inversion 1; subst => /=.
+    case: (SPrevCosts _) => //.
+  Qed.
+  
+  (*[Reals] introduces its own scope [R], so this definition goes first.*)
+  Definition epsOk (eps : rat) : Prop := (0 < eps <= 1 / 2%:R)%R.
+  
+  Require Import Reals.
+  
+  Lemma interp_mult_weights_epsilon_no_regret :
+    forall (nx : N) (t' : cstate) (eps : rat) (eps_ok : epsOk eps),
+      (0 < nx)%N -> 
+      interp (mult_weights A.t nx) (init_cstate (rat_to_Q eps)) = Some t' ->
+      exists s',
+        match_states s' t' /\ 
+        ((state_expCost1 (all_costs0 s') s' - OPTR a0 s') / T nx <=
+         rat_to_R eps +
+         Rpower.ln (rat_to_R #|A.t|%:R) / (rat_to_R eps * T nx))%R.
+  Proof.          
+    move => nx t' eps epsOk Hnx H.
+    case: (interp_step_plus H (match_states_init epsOk)) => c' []s'.
+    case => H2 [] []; first by case; inversion 1.
+    move => H3 H4; exists s'; split => //.
+    move: (size_costs_interp_mult_weights Hnx H) => H5.
+    have H6: size (SPrevCosts t') = size (all_costs' s').
+    { inversion H4; subst; simpl in *. clear - H1.
+      rewrite /all_costs' /all_costs0 /all_costs.
+      rewrite /weightslang.SCosts /SCostsOk /weightslang.SPrevCosts.
+      rewrite size_map size_removelast /=.
+      clear - H1. induction H1 => //.
+      by rewrite /= IHmatch_costs_seq. }
+    have H7: (0 < size (all_costs' s'))%N.
+    { by rewrite -H6. }
+    inversion H2; subst.    
+    apply: mult_weights_epsilon_no_regret => //.
+    apply: H3.
   Qed.
 End CompilableWeights.
 
