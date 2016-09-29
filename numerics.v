@@ -1025,19 +1025,17 @@ Section Q_to_rat_lemmas.
     move: (Pos2Nat.is_pos (Qden r)); move/ltP => H2.
     rewrite invr_gt0.
       by rewrite -ltz_nat -(ltr_int rat_realFieldType) in H2.
-  Qed.       
-    
+  Qed.
+
   Lemma Q_to_rat_opp r :
     Q_to_rat (Qopp r) = (- (Q_to_rat r))%R.
   Proof.
     rewrite /Q_to_rat /Qopp; case: r => /= n d.
     rewrite 2!fracqE /= -mulNr Z_to_int_opp; f_equal.
-    move: (Z_to_int n) => r; move {n d}.        
-    rewrite -mulrN1z.
-    rewrite -mulNrz.
-    rewrite mulrzz mulrC.
-    rewrite -mulrzz.
-  Admitted.  
+    move: (Z_to_int n) => r; move {n d}.
+    case: r => n; case: n => // n.
+    by rewrite NegzE -addn2 opprK -mulNrz -mulNrNz.
+  Qed.
   
   Lemma Q_to_rat_le (r s : Q) :
     Qle r s -> (Q_to_rat r <= Q_to_rat s)%R.
