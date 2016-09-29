@@ -1128,8 +1128,8 @@ Instance sigmaCostInstance
          (predInstance : PredClass A)
          `(costA : CostClass N rty A)
   : CostClass N rty [finType of {x : A | the_pred x}] := 
-  fun (i : 'I_N) f => 
-    cost i (finfun (fun j => projT1 (f j))).
+  fun (i : 'I_N) (f : {ffun 'I_N -> {x : A | the_pred x}}) => 
+    cost i [ffun j => projT1 (f j)]. 
 
 Program Instance  sigmaCostAxiomInstance
         (N : nat) (rty : realFieldType) (A : finType)
@@ -1153,6 +1153,40 @@ Module SigmaGameTest. Section sigmaGameTest.
   Check cost i t.
 End sigmaGameTest. End SigmaGameTest.
 
+Instance sigmaLambdaInstance
+         (rty : realFieldType) (A : finType)
+         `(lambdaA : LambdaClass A rty)
+         (predInstance : PredClass A)
+  : @LambdaClass [finType of {x : A | the_pred x}] rty | 0 :=
+  lambda of A.
+
+Instance sigmaMuInstance
+         (rty : realFieldType) (A : finType)
+         `(muA : MuClass A rty)
+         (predInstance : PredClass A)
+  : @MuClass [finType of {x : A | the_pred x}] rty | 0 :=
+  mu of A.
+
+Lemma sigmaSmoothnessAxiom
+      (N : nat) (rty : realFieldType) (A : finType)
+      (predInstance : PredClass A)
+      `{smoothA : smooth A N rty}
+      (t t' : {ffun 'I_N -> {x : A | the_pred x}}) :
+  \sum_(i : 'I_N) cost i (upd i t t') <=
+  lambda of [finType of {x : A | the_pred x}] * Cost t' +
+  mu of [finType of {x : A | the_pred x}] * Cost t.
+Proof.
+  rewrite /Cost /cost_fun /sigmaCostInstance /cost_fun.
+  have ->: (lambda of [finType of {x : A | the_pred x}] = lambda of A) by [].
+  have ->: (mu of [finType of {x : A | the_pred x}] = mu of A) by [].
+  have ->: (\sum_(i < N) H i [ffun j => projT1 (((upd i t) t') j)] =
+            \sum_(i < N) H i
+             ((upd i [ffun j => projT1 (t j)]) [ffun j => projT1 (t' j)])).
+  { apply congr_big => // i _. f_equal. apply ffunP => x /=.
+    rewrite !ffunE. case: (i == x) => //. }
+  apply (smooth_ax _).
+Qed.
+  
 (** Product Games A * B *)
 
 Instance prodCostInstance
