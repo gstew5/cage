@@ -253,7 +253,18 @@ Module CompilableWeights (A : OrderedFinType).
     case: (InA_dec A.eq_dec ax l) => // H3; move: (IH _ H3).
     by rewrite /in_mem /= H2.
   Qed.
-    
+
+  Lemma notin_InA a l : a \notin l -> ~InA A.eq a l.
+  Proof.
+    elim: l a => //.
+    { move => a _; inversion 1. }
+    move => a l IH ax H; rewrite /in_mem /=; inversion 1; subst.
+    { move: H2; rewrite -A.eqP => H3; subst ax; clear H0.
+      by rewrite in_cons in H; move: (negP H); apply; apply/orP; left. }
+    apply: IH; last by apply: H2.
+    by move: (negP H) => H3; apply/negP => H4; apply: H3; apply/orP; right.
+  Qed.
+  
   Lemma InA_not_InA_eq x y l : InA A.eq x l -> ~InA A.eq y l -> x<>y.
   Proof.
     elim: l; first by inversion 1.
@@ -968,12 +979,44 @@ Module CompilableWeights (A : OrderedFinType).
   Qed.
 
   Definition init_map : M.t Q :=
-    fold_left (fun m a => M.add a 1 m) (enumerate A.t) (@M.empty Q).
+    MProps.of_list (List.map (fun a => (a, 1)) (enumerate A.t)).
 
+  Lemma findA_map1_Some1 a (l : list A.t) :
+    a \in l -> 
+    findA (MProps.F.eqb a) (List.map (pair^~ 1) l) = Some 1.
+  Proof.
+    elim: l a => // a l IH a1; case/orP.
+    { move/eqP => ->.
+      rewrite /MProps.F.eqb /= /M.E.eq_dec /A'.eq_dec.      
+      case: (A.eq_dec _ _) => // [H]; elimtype False; apply: H.
+      apply: A.eq_refl. }
+    move => H; simpl; case H3: (MProps.F.eqb a1 a) => //.
+    by apply: IH.
+  Qed.
+
+  Lemma uniq_NoDupA l :
+    uniq l ->  
+    NoDupA A.eq l.
+  Proof.
+    elim: l => // a l IH; case/andP => H H1; constructor.
+    { by move => H2; apply: (notin_InA H). }
+    by apply: IH.
+  Qed.            
+  
   Lemma match_maps_init : match_maps (init_weights A.t) init_map.
   Proof.
     move => a; rewrite /init_weights /init_costs /init_map.
-  Admitted.  
+    generalize (enumerateP A.t) => [][]H Huniq; move: (H a) => H2.
+    move: (enumP (T:=A.t) a) => H3.
+    exists 1; rewrite MProps.of_list_1b.
+    { split.
+      { apply: findA_map1_Some1; rewrite H2 mem_enum => //. }
+      by rewrite ffunE. }
+    have H4: forall x y, M.eq_key (elt:=Q) ((pair^~ 1) x) ((pair^~ 1) y) -> A.eq x y.
+    { by []. }
+    apply: (@NoDupA_map _ _ _ (M.eq_key (elt:=Q)) _ _ H4).
+    by apply: uniq_NoDupA.
+  Qed.
 
   Definition init_cstate (epsQ : Q) :=
     @mkCState

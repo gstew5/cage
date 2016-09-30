@@ -58,7 +58,8 @@ Notation "'enumerate' T" := (@ctype_fun T _) (at level 30).
 Class RefineTypeAxiomClass (T : finType)
       (ctypeClass : CType T) :=
   refineTypeAxiom_fun :
-    enumerate T =i enum T.
+    enumerate T =i enum T /\ uniq (enumerate T).
+Notation "'enumerateP' T" := (@refineTypeAxiom_fun T _ _) (at level 30).
 
 Class RefineTypeClass (T : finType)
       (ctypeClass : CType T)
