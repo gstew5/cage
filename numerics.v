@@ -313,6 +313,23 @@ Proof.
   by rewrite /Z.lt /= => ->.
 Qed.  
 
+Lemma Zlt_Zneg r s :
+  Zlt (Zneg r) (Zneg s) ->
+  Pos.gt r s.
+Proof.
+  rewrite /Pos.gt.
+  rewrite /Z.lt /=.
+  case: (r ?= s)%positive => //.
+Qed.  
+
+Lemma Psucc_gt r s :
+  Pos.gt (Pos.of_succ_nat r) (Pos.of_succ_nat s) ->
+  (r > s)%coq_nat.
+Proof.
+  rewrite /Pos.gt -SuccNat2Pos.inj_compare /gt -nat_compare_gt.
+  omega.
+Qed.
+
 Lemma Zneg_Zle r s :
   Pos.ge r s -> 
   Zle (Zneg r) (Zneg s).
@@ -350,6 +367,28 @@ Proof.
   simpl.
   by rewrite Nat.compare_gt_iff.
 Qed.  
+
+Lemma lt_int_to_Z (s r : int) :
+  Zlt (int_to_Z s) (int_to_Z r) ->
+  ltr s r.  
+Proof.
+  case: s=> sn; case: r=> rn //.
+  { by rewrite /= -Nat2Z.inj_lt /ltr /=; case: (@ltP sn rn). }
+  { simpl=> H.
+    have H2: (Z.lt (Z.neg (Pos.of_succ_nat sn)) 0).
+    { by apply: Zlt_neg_0. }
+    have H3: (Z.lt (Z.of_nat sn) 0)%Z.
+    { apply: Z.lt_trans; first by apply: H.
+        by []. }
+    clear - H3; case: sn H3 => //. } 
+  simpl.
+  rewrite /ltr /= => H.
+  have H2: (sn > rn)%coq_nat. 
+  { move: (Zlt_Zneg H).
+    apply: Psucc_gt. }
+  clear - H2.
+  apply/ltP; omega.
+Qed.
 
 Lemma int_to_Z_le (s r : int) :
   ler s r ->
@@ -675,8 +714,15 @@ Section rat_to_Q_lemmas.
     Qlt (rat_to_Q r) (rat_to_Q s) -> r < s.
   Proof.
     rewrite /Qlt /rat_to_Q; case: r => x y /=; case: s => z w /=.
-    case: x y => x1 x2 /= y; case: z w => z1 z2 /= w.
-  Admitted.    
+    case: x y => x1 z2 /= y; case: z w => z1 x2 /= w.
+    case: (andP y) => H1 H2.
+    case: (andP w) => H3 H4.    
+    rewrite int_to_positive_to_Z => //.
+    rewrite int_to_positive_to_Z => //.
+    rewrite /ltr /= /lt_rat /numq /denq /=.
+    rewrite 2!int_to_Z_mul.
+    apply: lt_int_to_Z.
+  Qed.
 End rat_to_Q_lemmas.    
 
 Section rat_to_R.
