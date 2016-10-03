@@ -970,7 +970,7 @@ Section locationDefs.
   Lemma location_lem1 s s' :
     \sum_(i : 'I_N) cost i (upd i s s') <= W s' - W s.
   Proof.
-    have H1:
+  (* have H1:
       \sum_(i < N) (cost) i ((upd i s) s') <=
       \sum_(i < N) (W (upd i s s') - W (nullify_player i s)).
     { admit. }
@@ -989,8 +989,8 @@ Section locationDefs.
     { admit. }
     have H4: C (U s) <= \sum_(i < N) C (Z (i - 1) s s').
     { admit. }
-    apply: ler_add => //; by rewrite ler_oppl opprK.
-  Admitted.             
+    apply: ler_add => //; by rewrite ler_oppl opprK.*)
+  Abort. (* Currently unused *)
 End locationDefs.
 
 (** "Boolable" Types *)
