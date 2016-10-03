@@ -110,7 +110,8 @@ VFILES:=axioms.v\
   smooth.v\
   weightsextract.v\
   weightslang.v\
-  weights.v
+  weights.v\
+  orderedtypes.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
