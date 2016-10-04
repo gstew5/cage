@@ -1082,7 +1082,25 @@ Section Q_to_rat_lemmas.
     case: r => n; case: n => // n.
     by rewrite NegzE -addn2 opprK -mulNrz -mulNrNz.
   Qed.
-  
+
+  Lemma Q_to_rat_inv r :
+    Q_to_rat (Qinv r) = ((Q_to_rat r)^-1)%R.
+  Proof.
+    rewrite /Qinv.
+    case H: (Qnum r) => [|p|p].
+    { have ->: Q_to_rat r = 0%R.
+      { admit. }
+        by rewrite Q_to_rat0 invr0. }
+    admit.
+    admit.
+  Admitted.
+
+  Lemma Q_to_rat_div r s :
+    Q_to_rat (r / s) = (Q_to_rat r / Q_to_rat s)%R.
+  Proof.
+    rewrite Q_to_rat_mul Q_to_rat_inv => //.
+  Qed.    
+    
   Lemma Q_to_rat_le (r s : Q) :
     Qle r s -> (Q_to_rat r <= Q_to_rat s)%R.
   Proof.

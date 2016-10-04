@@ -58,9 +58,10 @@ Require Import weights weightslang compile dist numerics orderedtypes.
     implemented in OCaml by discrete inverse transform.
  *)
 
-Module CompilableWeights (A : OrderedFinType).
-  Module A':= OrderedType_of_OrderedFinType A.  
-  Module M := Make A'.
+(** * Program *)
+
+Module MWU (A : OrderedType.OrderedType).
+  Module M := Make A.
   Module MFacts := Facts M.
   Module MProps := Properties M.
 
@@ -69,23 +70,10 @@ Module CompilableWeights (A : OrderedFinType).
 
   (** Draw from a distribution, communicating the resulting action 
       to the network. *)
-  Axiom drawFrom :
-    forall weights : M.t Q, dist A.t rat_realFieldType.
-  Axiom drawFrom_ok :
-    forall weights : M.t Q,
-      pmf (drawFrom weights) =
-      finfun (fun a =>
-                match M.find a weights with
-                | None => 0%R (* bogus *)
-                | Some q => (Q_to_rat q / Q_to_rat (cGamma weights))%R
-                end).
+  Axiom send : M.t Q -> unit.
+
   (* Receive a cost vector (a map) from the network. *)
   Axiom recv : unit -> M.t Q.
-  Axiom recv_ok :
-    forall a,
-    exists q,
-      [/\ M.find a (recv tt) = Some q
-        & 0 <= q <= 1].
   
   Record cstate : Type :=
     mkCState
@@ -94,7 +82,155 @@ Module CompilableWeights (A : OrderedFinType).
       ; SWeights : M.t Q
       ; SEpsilon : Q (* epsilon -- a parameter *)
       (* the history of the generated distributions over actions *)                     
-      ; SOutputs : list (dist A.t rat_realFieldType) }.
+      ; SOutputs : list (A.t -> Q) }.
+
+  Definition eval_binopc (b : binop) (v1 v2 : Q) :=
+    match b with
+    | BPlus => v1 + v2
+    | BMinus => v1 - v2                      
+    | BMult => v1 * v2
+    end.
+  
+  Fixpoint evalc (e : expr A.t) (s : cstate) : option Q :=
+    match e with
+    | EVal v =>
+      match v with
+      | QVal q => Some q
+      end
+    | EOpp e' =>
+      match evalc e' s with
+      | Some v' => Some (- v')
+      | None => None
+      end
+    | EWeight a => M.find a (SWeights s)
+    | ECost a => M.find a (SCosts s)
+    | EEps => Some (SEpsilon s)
+    | EBinop b e1 e2 =>
+      let: v1 := evalc e1 s in
+      let: v2 := evalc e2 s in
+      match v1, v2 with
+      | Some v1', Some v2' => Some (eval_binopc b v1' v2')
+      | _, _ => None
+      end
+    end.
+
+  (*NOTE: This code is much complicated by the fact that [evalc] can
+    fail -- otherwise, we could just use [M.mapi].*)
+  Definition update_weights
+             (f : A.t -> expr A.t) (s : cstate)
+    : option (M.t Q) :=
+    M.fold
+      (fun a _ acc =>
+         match acc with
+         | None => None
+         | Some acc' =>
+           match evalc (f a) s with
+           | None => None
+           | Some q =>
+             match 0 ?= q with
+             | Lt => Some (M.add a q acc')
+             | _ => None
+             end
+           end
+         end)
+      (SWeights s)
+      (Some (M.empty Q)).
+
+  Definition weights_distr (weights : M.t Q) : A.t -> Q := 
+    fun a : A.t =>
+      match M.find a weights with
+      | None => 0
+      | Some q => q / cGamma weights
+      end.
+  
+  Fixpoint interp (c : com A.t) (s : cstate) : option cstate :=
+    match c with
+    | CSkip => Some s
+    | CUpdate f =>
+      let w := update_weights f s
+      in match w with
+         | None => None
+         | Some w' => 
+           Some (mkCState
+                   (SCosts s)
+                   (SPrevCosts s)
+                   w'
+                   (SEpsilon s)
+                   (SOutputs s))
+         end
+    | CRecv =>
+      let c := recv tt
+      in Some (mkCState
+                 c
+                 (SCosts s :: SPrevCosts s)
+                 (SWeights s)
+                 (SEpsilon s)
+                 (SOutputs s))
+    | CSend =>
+      let d := weights_distr (SWeights s)
+      in Some (mkCState
+                 (SCosts s)
+                 (SPrevCosts s)
+                 (SWeights s)
+                 (SEpsilon s)
+                 (d :: SOutputs s))
+    | CSeq c1 c2 =>
+      match interp c1 s with
+      | None => None
+      | Some s' => interp c2 s'
+      end
+    | CIter n c =>
+      (*NOTE: We could further short-circuit this iteration -- in practice, 
+        it shouldn't matter for performance since [interp] should never
+        fail on MWU, starting in appropriate initial state.*)
+      N.iter
+        n
+        (fun s =>
+           match s with
+           | None => None
+           | Some s' => interp c s'
+           end)
+        (Some s)
+    end.
+
+  Section init.
+    Context `{CType A.t}.
+
+    Definition init_map : M.t Q :=
+      MProps.of_list (List.map (fun a => (a, 1)) (enumerate A.t)).
+
+    Definition init_cstate (epsQ : Q) :=
+      @mkCState
+        init_map (** The initial cost function is never used -- 
+                     we only include it because the type [state] forces 
+                     an [SCost] projection. *)
+        [::]
+        init_map
+        epsQ
+        [::].
+  End init.  
+
+  Section mwu.
+    Context `{CType A.t}.
+    Definition mwu (eps : Q) (nx : N.t) : option cstate :=
+      interp (mult_weights A.t nx) (init_cstate eps).
+  End mwu.
+End MWU.
+  
+Module MWUProof (A : OrderedFinType).
+  Module A':= OrderedType_of_OrderedFinType A.
+  Module MWU := MWU A'.
+  Module M := MWU.M.
+  Module MFacts := Facts M.
+  Module MProps := Properties M.
+
+  Import MWU.
+  
+  Axiom recv_ok :
+    forall a,
+    exists q,
+      [/\ M.find a (recv tt) = Some q
+        & 0 <= q <= 1].
 
   Definition match_maps
              (s : {ffun A.t -> rat})
@@ -118,17 +254,30 @@ Module CompilableWeights (A : OrderedFinType).
         match_costs s m ->
         match_costs_seq ss mm ->
         match_costs_seq [:: s & ss] [:: m & mm].
+
+  Inductive match_distrs :
+    seq (dist A.t rat_realFieldType) ->
+    seq (A.t -> Q) ->
+    Prop :=
+  | match_distrs_nil :
+      match_distrs nil nil
+  | match_distrs_cons :
+      forall d f l l',
+        pmf d = finfun (fun a => Q_to_rat (f a)) ->
+        match_distrs l l' ->
+        match_distrs [:: d & l] [:: f & l'].
   
   Inductive match_states : state A.t -> cstate -> Prop :=
   | mkMatchStates :
-      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs,
+      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs',
         match_maps s m ->
         match_costs_seq ss mm ->
         match_maps w wc ->
-        rat_to_Q eps = Qred epsc -> 
+        rat_to_Q eps = Qred epsc ->
+        match_distrs outs outs' ->
         match_states
           (@mkState _ s s_ok ss w w_ok eps eps_ok outs)
-          (@mkCState m mm wc epsc outs).
+          (@mkCState m mm wc epsc outs').
 
   Definition eval_binopc (b : binop) (v1 v2 : Q) :=
     match b with
@@ -368,28 +517,6 @@ Module CompilableWeights (A : OrderedFinType).
       apply: H3. }
     by rewrite H4. 
   Qed.
-
-  (*NOTE: This code is much complicated by the fact that [evalc] can
-    fail -- otherwise, we could just use [M.mapi].*)
-  Definition update_weights
-             (f : A.t -> expr A.t) (s : cstate)
-    : option (M.t Q) :=
-    M.fold
-      (fun a _ acc =>
-         match acc with
-         | None => None
-         | Some acc' =>
-           match evalc (f a) s with
-           | None => None
-           | Some q =>
-             match 0 ?= q with
-             | Lt => Some (M.add a q acc')
-             | _ => None
-             end
-           end
-         end)
-      (SWeights s)
-      (Some (M.empty Q)).
 
   Fixpoint update_weights'_aux
              (f : A.t -> expr A.t) (s : cstate) w l
@@ -639,56 +766,6 @@ Module CompilableWeights (A : OrderedFinType).
     rewrite H6 -rat_to_Q0 in H7.
     by apply: rat_to_Q_lt'.
   Qed.    
-    
-  Fixpoint interp (c : com A.t) (s : cstate) : option cstate :=
-    match c with
-    | CSkip => Some s
-    | CUpdate f =>
-      let w := update_weights f s
-      in match w with
-         | None => None
-         | Some w' => 
-           Some (mkCState
-                   (SCosts s)
-                   (SPrevCosts s)
-                   w'
-                   (SEpsilon s)
-                   (SOutputs s))
-         end
-    | CRecv =>
-      let c := recv tt
-      in Some (mkCState
-                 c
-                 (SCosts s :: SPrevCosts s)
-                 (SWeights s)
-                 (SEpsilon s)
-                 (SOutputs s))
-    | CSend =>
-      let d := drawFrom (SWeights s)
-      in Some (mkCState
-                 (SCosts s)
-                 (SPrevCosts s)
-                 (SWeights s)
-                 (SEpsilon s)
-                 (d :: SOutputs s))
-    | CSeq c1 c2 =>
-      match interp c1 s with
-      | None => None
-      | Some s' => interp c2 s'
-      end
-    | CIter n c =>
-      (*NOTE: We could further short-circuit this iteration -- in practice, 
-        it shouldn't matter for performance since [interp] should never
-        fail on MWU, starting in appropriate initial state.*)
-      N.iter
-        n
-        (fun s =>
-           match s with
-           | None => None
-           | Some s' => interp c s'
-           end)
-        (Some s)
-    end.
 
   Variable a0 : A.t.
   
@@ -713,7 +790,7 @@ Module CompilableWeights (A : OrderedFinType).
       inversion 1; subst; clear H.
       generalize H2 => H2'.
       inversion H2; subst; simpl in *; clear H2.
-      move: (H3 H2' erefl) => H5; clear H3.
+      move: (H3 H2' erefl) => H5x; clear H3.
       exists CSkip.
       eexists.
       split => //.
@@ -722,9 +799,9 @@ Module CompilableWeights (A : OrderedFinType).
         constructor.
         constructor. }
       simpl.
-      case: H5 => H5 H6.
+      case: H5x => H5x H6.
       constructor => //.
-      Unshelve. by case: H5 => H5 H6 a; move: (H6 a); rewrite ffunE. }
+      Unshelve. by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. }
     { intros s t t'; inversion 1; subst. clear H.
       intros H2.
       set c := recv tt.
@@ -798,18 +875,14 @@ Module CompilableWeights (A : OrderedFinType).
       inversion H2; subst. simpl in *.
       move: H3 => Heps.
       have H3:
-        p_aux_dist (A:=A.t) a0 (eps:=eps) eps_ok
-                   (w:=w) w_ok (cs:=[::]) 
-                   (CMAX_nil (A:=A.t)) =
-        drawFrom wc.
+        pmf (p_aux_dist (A:=A.t) a0 (eps:=eps) eps_ok
+                        (w:=w) w_ok (cs:=[::]) 
+                        (CMAX_nil (A:=A.t))) =
+        finfun (fun a => Q_to_rat (weights_distr wc a)).
       { rewrite /p_aux_dist.
-        case H3: (drawFrom wc) => [pmf2 pf2].
-        move: (drawFrom_ok wc). rewrite H3 /= => H4. subst pmf2. clear H3.
-        generalize
-          (p_aux_dist_axiom (A:=A.t) a0 (eps:=eps) eps_ok (cs:=[::])
-                            (w:=w) w_ok (CMAX_nil (A:=A.t))) => pf1.
-        revert pf1 pf2.
-        have ->:
+        simpl.
+        move: H4 => H4x.
+        have Hx:
              [ffun a => match M.find (elt:=Q) a wc with
                         | Some q => (Q_to_rat q / Q_to_rat (cGamma wc))%R
                         | None => 0%R
@@ -822,10 +895,11 @@ Module CompilableWeights (A : OrderedFinType).
           have H5: Qeq y (rat_to_Q (w a)).
           { by rewrite -(Qred_correct y) -(Qred_correct (rat_to_Q (w a))) H4. }
             by apply: rat_to_QK2. }
-        move => pf1 pf2.
-        f_equal.
-        apply: proof_irrelevance. }
-      rewrite H3.
+        rewrite -Hx.
+        apply/ffunP => x; rewrite 2!ffunE /weights_distr.
+        case Hy: (M.find _ _) => // [q].
+        by rewrite Q_to_rat_div. }
+      constructor; auto.
       constructor; auto. }
     { move => s t t'.
       case H: (interp c1 t) => [t''|].
@@ -946,9 +1020,6 @@ Module CompilableWeights (A : OrderedFinType).
     inversion 1.
   Qed.
 
-  Definition init_map : M.t Q :=
-    MProps.of_list (List.map (fun a => (a, 1)) (enumerate A.t)).
-
   Lemma findA_map1_Some1 a (l : list A.t) :
     a \in l -> 
     findA (MProps.F.eqb a) (List.map (pair^~ 1) l) = Some 1.
@@ -986,16 +1057,6 @@ Module CompilableWeights (A : OrderedFinType).
     by apply: uniq_NoDupA.
   Qed.
 
-  Definition init_cstate (epsQ : Q) :=
-    @mkCState
-      init_map (** The initial cost function is never used -- 
-                   we only include it because the type [state] forces 
-                   an [SCost] projection. *)
-      [::]
-      init_map
-      epsQ
-      [::].
-
   Lemma match_states_init eps eps_ok :
     match_states (@init_state A.t eps eps_ok) (init_cstate (rat_to_Q eps)).
   Proof.
@@ -1004,6 +1065,7 @@ Module CompilableWeights (A : OrderedFinType).
     { constructor. }
     { apply: match_maps_init. }
     apply: rat_to_Q_red.
+    constructor.
   Qed.
 
   (*This is a technical lemma about the interpretation of the specific 
@@ -1059,9 +1121,9 @@ Module CompilableWeights (A : OrderedFinType).
   Qed.
 
   Print Assumptions interp_mult_weights_epsilon_no_regret.  
-End CompilableWeights.
+End MWUProof.
 
 (** Test extraction: *)
 
-Extraction "interp" CompilableWeights.
+Extraction "interp" MWU.
   
