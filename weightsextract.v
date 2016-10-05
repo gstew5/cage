@@ -60,8 +60,9 @@ Require Import weights weightslang compile dist numerics orderedtypes.
 
 (** * Program *)
 
-Module MWU (A : OrderedType.OrderedType).
-  Module M := Make A.
+Module MWU (A : CanonicalOrderedType).
+  Module A' := OrderedType_of_CanonicalOrderedType A.
+  Module M := Make A'.
   Module MFacts := Facts M.
   Module MProps := Properties M.
 
@@ -218,7 +219,7 @@ Module MWU (A : OrderedType.OrderedType).
 End MWU.
   
 Module MWUProof (A : OrderedFinType).
-  Module A':= OrderedType_of_OrderedFinType A.
+  Module A':= CanonicalOrderedType_of_OrderedFinType A.
   Module MWU := MWU A'.
   Module M := MWU.M.
   Module MFacts := Facts M.
@@ -579,16 +580,19 @@ Module MWUProof (A : OrderedFinType).
     case H3: (update_weights'_aux _ _ _ _) => // [m''] H4 a' H5.
     case: H5.
     { move => H6; subst a'; inversion H4; subst.
-      rewrite MProps.F.add_eq_o; last by rewrite -A.eqP.
+      rewrite MProps.F.add_eq_o. 
       { exists q.
-        split => //. } }
+        split => //. }
+      rewrite /MWUProof.A'.eq.
+      by rewrite -MWUProof.A'.eqP.      
+    }
     move => H5.
     case: (IH _ _ H3 _ H5) => q' []H6 H7 H8.
     case: (A.eq_dec a a').
     { rewrite -A.eqP => H9. subst a'.
       exists q; split => //.
       inversion H4; subst.
-      rewrite MProps.F.add_eq_o; last by rewrite -A.eqP.      
+      rewrite MProps.F.add_eq_o; last by rewrite /MWUProof.A'.eq -A.eqP.      
         by []. }
     move => H9.
     exists q'.
@@ -619,7 +623,7 @@ Module MWUProof (A : OrderedFinType).
       case => []a' b l IH /=.
       inversion 1; subst.
       { destruct H1; simpl in *; subst.
-        move: H0; rewrite -A.eqP => H3; subst a'.
+        move: H0; rewrite /MWUProof.A'.eq -A.eqP => H3; subst a'.
         have ->: a = (a, b).1 by [].
         apply: in_map.
         apply: in_or_app.
@@ -1026,9 +1030,10 @@ Module MWUProof (A : OrderedFinType).
   Proof.
     elim: l a => // a l IH a1; case/orP.
     { move/eqP => ->.
-      rewrite /MProps.F.eqb /= /M.E.eq_dec /A'.eq_dec.      
+      rewrite /MProps.F.eqb /= /M.E.eq_dec /A'.eq_dec.
+      rewrite /MWUProof.A'.eq_dec.
       case: (A.eq_dec _ _) => // [H]; elimtype False; apply: H.
-      apply: A.eq_refl. }
+      by rewrite -A.eqP. }
     move => H; simpl; case H3: (MProps.F.eqb a1 a) => //.
     by apply: IH.
   Qed.
@@ -1041,7 +1046,13 @@ Module MWUProof (A : OrderedFinType).
     { by move => H2; apply: (notin_InA H). }
     by apply: IH.
   Qed.            
-  
+
+  Section mwuproof.
+  (*I introduce explicit names here to make the proofs that follow 
+    below more maintainable.*)
+  Context {GameTypeIsEnumerable : CType A.t}.
+  Context {EnumerationOK : RefineTypeAxiomClass GameTypeIsEnumerable}.
+    
   Lemma match_maps_init : match_maps (init_weights A.t) init_map.
   Proof.
     move => a; rewrite /init_weights /init_costs /init_map.
@@ -1119,8 +1130,8 @@ Module MWUProof (A : OrderedFinType).
     apply: mult_weights_epsilon_no_regret => //.
     apply: H3.
   Qed.
-
-  Print Assumptions interp_mult_weights_epsilon_no_regret.  
+  End mwuproof.
+  Print Assumptions interp_mult_weights_epsilon_no_regret.
 End MWUProof.
 
 (** Test extraction: *)
