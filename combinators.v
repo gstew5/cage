@@ -684,19 +684,8 @@ Proof.
 Qed.
 
 Lemma list_in_finType_enum {X : finType} (x : X) :
-  List.In x (enum X).
-Proof.
-  have H: (Finite.axiom (enum X)).
-  { rewrite enumT. apply enumP. }
-  rewrite /Finite.axiom in H. specialize (H x).
-  induction (enum X) as [| x']. inversion H.
-  case Hx: (x == x').
-  move: Hx => /eqP Hx.
-  left. by rewrite Hx.
-  right. apply IHl. simpl in H.
-  rewrite eq_sym Hx in H.
-    by rewrite add0n in H.
-Qed.
+    List.In x (enum X).
+  Proof. by apply list_in_iff, mem_enum. Qed.
 
 Lemma N_of_nat_of_bin x :
   N.of_nat (nat_of_bin x) = x.
@@ -1182,9 +1171,9 @@ Proof.
   rewrite /Cost /cost_fun /sigmaCostInstance /cost_fun.
   have ->: (lambda of [finType of {x : A | the_pred x}] = lambda of A) by [].
   have ->: (mu of [finType of {x : A | the_pred x}] = mu of A) by [].
-  have ->: (\sum_(i < N) H i [ffun j => projT1 (((upd i t) t') j)] =
+  have ->: (\sum_(i < N) H i [ffun j => projT1 (upd i t t' j)] =
             \sum_(i < N) H i
-             ((upd i [ffun j => projT1 (t j)]) [ffun j => projT1 (t' j)])).
+             (upd i [ffun j => projT1 (t j)] [ffun j => projT1 (t' j)])).
   { apply congr_big => // i _. f_equal. apply ffunP => x /=.
     rewrite !ffunE. case: (i == x) => //. }
   apply (smooth_ax _).
@@ -1216,30 +1205,31 @@ Extraction resources'.
 
 (** Sigma games are compilable *)
 (* GS: I'm commenting out this instance for now, to be fixed by me and 
-       Alex after the 5900 midterm :-)
-Section sigmaCompilable.
-  Variable (N : OrdNat.t).
-  
-  Instance sigmaCTypeInstance (A : finType)
-           (predInstance : PredClass A)
-  : CType [finType of {x : A | the_pred x}] :=
-    enum [finType of {x : A | the_pred x}].
+       Alex after the 5900 midterm :-) *)
+(* Section sigmaCompilable. *)
 
-  Program Instance sigmaRefineTypeAxiomInstance
-          (A : finType)
-          (predInstance : PredClass A)
-  : @RefineTypeAxiomClass [finType of {x : A | the_pred x}] _.
-  Next Obligation. by move=> r; rewrite mem_enum. Qed.
+(* This probably isn't right *)
+(* Instance sigmaCTypeInstance (A : Type) *)
+(*          (cTypeInstance : CType A) *)
+(*          (predInstance : PredClass A) *)
+(* : CType A := *)
+(*   filter the_pred ctype_fun. *)
 
-  Instance sigmaCCostInstance
-           (A : finType)
-           (predInstance : PredClass A)
-           (ccostA : @CCostClass A)
-  : CCostClass [finType of {x : A | the_pred x}]
-    :=
-      fun (i : OrdNat.t) (m : M.t {x : A | the_pred x}) =>
-        0%coq_Qscope.
-End sigmaCompilable.*)
+(*   Program Instance sigmaRefineTypeAxiomInstance *)
+(*           (A : finType) *)
+(*           (predInstance : PredClass A) *)
+(*   : @RefineTypeAxiomClass [finType of {x : A | the_pred x}] . *)
+(*   Next Obligation. by move=> r; rewrite mem_enum. Qed. *)
+
+(*   Instance sigmaCCostInstance *)
+(*            (A : finType) *)
+(*            (predInstance : PredClass A) *)
+(*            (ccostA : @CCostClass A) *)
+(*   : CCostClass [finType of {x : A | the_pred x}] *)
+(*     := *)
+(*       fun (i : OrdNat.t) (m : M.t {x : A | the_pred x}) => *)
+(*         0%coq_Qscope. *)
+(* End sigmaCompilable. *)
 
 (** Product Games A * B *)
 
@@ -1487,26 +1477,38 @@ Proof.
 Qed.
 
 Section prodCompilable.
-  Variable (N : OrdNat.t).
 
   Instance prodCTypeInstance (aT bT : finType)
+           (cTypeA : CType aT)
+           (cTypeB : CType bT)
     : CType [finType of (aT*bT)] :=
-    List.list_prod (enum aT) (enum bT).
+    List.list_prod (enumerate aT) (enumerate bT).
 
   Program Instance prodRefineTypeAxiomInstance
           (aT bT : finType)
+          `(refineTypeAxiomInstanceA : RefineTypeAxiomClass aT)
+          `(refineTypeAxiomInstanceB : RefineTypeAxiomClass bT)
     : @RefineTypeAxiomClass [finType of aT*bT] _.
   Next Obligation.
-    split. 
+    rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceA.
+    rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceB.
+    case: refineTypeAxiomInstanceA=> [HA0 HA1].
+    case: refineTypeAxiomInstanceB=> [HB0 HB1].
+    split.
     { move => r. rewrite mem_enum. case: r. move => a b.
       rewrite /prodCTypeInstance /ctype_fun.
-      have H: (List.In (a, b) (List.list_prod (enum aT) (enum bT))).
-      { apply List.in_prod_iff. split; apply list_in_finType_enum. }
-        by apply list_in_iff in H. }
-    by apply: list_prod_uniq; apply: enum_uniq.
+      rewrite /eq_mem in HA0. rewrite /eq_mem in HB0.
+      have H: (List.In (a, b) (List.list_prod (enumerate aT) (enumerate bT))).
+      { apply List.in_prod_iff. split.
+        - by apply list_in_iff; rewrite HA0; apply mem_enum.
+        - by apply list_in_iff; rewrite HB0; apply mem_enum. }
+      apply list_in_iff in H. by rewrite H. }
+    by apply: list_prod_uniq; assumption.
   Qed.
 
   Instance prodRefineTypeInstance (aT bT : finType)
+           `(refineTypeAxiomInstanceA : RefineTypeAxiomClass aT)
+           `(refineTypeAxiomInstanceB : RefineTypeAxiomClass bT)
     : @RefineTypeClass [finType of aT*bT]  _ _.
   
   Definition map_split {aT bT : Type} (m : M.t (aT*bT)) :=
@@ -1555,7 +1557,7 @@ Section prodCompilable.
               end).
   
   Program Instance prodRefineCostAxiomInstance
-          (aT bT : finType)
+          (N : nat) (aT bT : finType)
           (costA : CostClass N rat_realFieldType aT)
           (costB : CostClass N rat_realFieldType bT)
           (ccostA : CCostClass aT)
@@ -1610,7 +1612,7 @@ Section prodCompilable.
     apply Qred_complete. apply Qeq_sym. apply rat_to_Q_plus.
 Qed.
   
-  Instance prodRefineCostInstance (aT bT : finType)
+  Instance prodRefineCostInstance (N : nat) (aT bT : finType)
            (costA : CostClass N rat_realFieldType aT)
            (costB : CostClass N rat_realFieldType bT)
            (ccostA : CCostClass aT)
@@ -1619,7 +1621,7 @@ Qed.
            (refineB : RefineCostAxiomClass costB ccostB)
     : @RefineCostClass N [finType of aT*bT] _ _ _.
 
-  Instance prod_cgame (aT bT : finType)
+  Instance prod_cgame (N : nat) (aT bT : finType)
            `(costA : CostClass N rat_realFieldType aT)
            `(costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
            `(ccostA : CCostClass aT)
@@ -1636,9 +1638,9 @@ Qed.
            `(refineCostB : @RefineCostClass N bT costB ccostB _)
            `(gB : @game bT N rat_realFieldType _ _)
            `(cgB : @cgame N bT _ _ _ _ _ _ _ _ _)
-    : @cgame N [finType of aT*bT] (prodCTypeInstance aT bT)
-             (prodRefineTypeAxiomInstance aT bT)
-             (prodRefineTypeInstance aT bT) _ _ _ _ _ _.
+    : @cgame N [finType of aT*bT] (prodCTypeInstance _ _)
+             (prodRefineTypeAxiomInstance _ _ _ _)
+             (prodRefineTypeInstance aT bT _ _) _ _ _ _ _ _.
 End prodCompilable.
 
 (** Scalar Games c * A *)
