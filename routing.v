@@ -82,5 +82,5 @@ Definition mwu0 (eps : Q) (nx : N.t) :=
 
 Definition mwu := mwu0 (Qmake 1 3) 1000.
 
-Extraction "mwu.ml" mwu.
+Extraction "runtime/mwu.ml" mwu.
 
