@@ -1,0 +1,2 @@
+true: package(core,async,batteries)
+true: thread,debug

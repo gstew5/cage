@@ -3,6 +3,7 @@ Unset Strict Implicit.
 
 Require Import QArith.
 Require Import ProofIrrelevance.
+Require Import Coq.Logic.FunctionalExtensionality.
 
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
@@ -58,6 +59,115 @@ Require Import weights weightslang compile dist numerics orderedtypes.
     implemented in OCaml by discrete inverse transform.
  *)
 
+Definition zero : Q := 0.
+Definition one : Q := 1.
+Definition two : Q := Qmake 2 1.
+Set Printing All.
+
+(** * Networking and Random-Number Generation *)
+
+Fixpoint sample_aux
+         (A : Type) (a0 : A)
+         (acc p : Q) (l : list (A*Q)) : A :=
+  let sum :=
+      List.fold_left
+        (fun acc1 (x:(A*Q)) => let (a,q) := x in Qplus acc1 q)
+        l 0
+  in
+  match l with
+  | nil => a0
+  | (a, q) :: l' =>
+    if Qle_bool acc q
+       && Qle_bool q (Qplus acc p) 
+       && negb (Qeq_bool q (Qplus acc p))
+    then a
+    else sample_aux a0 acc p l'
+  end.
+
+Axiom rand : unit -> Q. (*in range [0,1]*)
+Extract Constant rand =>
+ "fun _ -> 
+  let rec q_of_ocamlint i =
+    let qzero = { qnum = Z0; qden = XH } in
+    let qone = { qnum = Zpos XH; qden = XH } in
+    let qtwo = { qnum = Zpos (XO XH); qden = XH } in
+    if i = 0 then qzero
+    else if i mod 2 = 0 then qmult qtwo (q_of_ocamlint (i/2))
+    else qplus (qmult qtwo (q_of_ocamlint (i/2))) qone
+  in      
+  let r = Random.float 1.0 in
+  let _ = if r < 0. || r > 1. then failwith ""error in rand"" else () in
+  let s = string_of_float r in
+  let sd = String.sub s 2 10 in
+  let d = int_of_string sd
+  in
+  q_of_ocamlint d".
+
+Definition sample (A : Type) (a0 : A) (l : list (A*Q)) : A := 
+  let p := rand tt
+  in sample_aux a0 0 p l.
+
+Axiom send : forall A : Type, A -> unit.
+Extract Constant send =>
+ "fun a ->
+  let make_address ip port =
+    let ha = Batteries.Unix.inet_addr_of_string ip in
+    Batteries.Unix.ADDR_INET (ha,port)
+  in
+  (* create socket. returns file descriptor *)
+  let s = Batteries.Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+  (* connect to server *)
+  let host = ""127.0.0.1"" in
+  let port = 13337 in
+  Batteries.Unix.connect s (make_address host port);
+  (* create async fd wrapper thing around our socket *)
+  let async_fd =
+    Fd.create (Async.Std.Fd.Kind.Socket `Passive) s (Info.of_string """") in
+  (* create writer *)
+  let w = Writer.create async_fd in
+  prerr_endline ""SEND: connected to server"";
+  Writer.write_marshal w [] a;
+  prerr_endline ""SEND: sent action to server"";
+  Scheduler.go ();
+  Tt".
+
+Axiom recv : forall A : Type, unit -> list (A*Q).
+Extract Constant recv => 
+ "fun a ->
+  let make_address ip port =
+    let ha = Batteries.Unix.inet_addr_of_string ip in
+    Batteries.Unix.ADDR_INET (ha,port)
+  in
+  (* create socket. returns file descriptor *)
+  let s = Batteries.Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+  (* connect to server *)
+  let host = ""127.0.0.1"" in
+  let port = 13337 in
+  Batteries.Unix.connect s (make_address host port);
+  (* create async fd wrapper thing around our socket *)
+  let async_fd =
+    Fd.create (Async.Std.Fd.Kind.Socket `Passive) s (Info.of_string """") in
+  (* create reader *)
+  let r = Reader.create async_fd in  
+  prerr_endline ""RECV: connected to server"";
+  let response =
+    Thread_safe.block_on_async_exn
+      (fun () -> Reader.read_marshal r)
+  in
+  prerr_endline ""RECV: received cost table from server"";
+  Scheduler.go ();
+  match response with
+  | `Ok r -> r
+  | `Eof -> failwith ""server is gone or sent a bad message""".
+
+Axiom recv_ok :
+  forall A (a : A),
+  exists q,
+    [/\ In (a, q) (recv _ tt)
+     & 0 <= q <= 1].
+Axiom recv_nodup :
+  forall A : Type, NoDupA (fun p q => p.1 = q.1) (recv A tt).
+
 (** * Program *)
 
 Module MWU (A : OrderedType).
@@ -71,11 +181,13 @@ Module MWU (A : OrderedType).
 
   (** Draw from a distribution, communicating the resulting action 
       to the network. *)
-  Axiom send : M.t Q -> unit.
+  Definition mwu_send (m : M.t Q) : unit :=
+    let a := sample A.t0 (M.elements m) in send a.
 
   (* Receive a cost vector (a map) from the network. *)
-  Axiom recv : unit -> M.t Q.
-  
+  Definition mwu_recv : unit -> M.t Q :=
+    fun _ => let l := recv _ tt in MProps.of_list l.
+      
   Record cstate : Type :=
     mkCState
       { SCosts : M.t Q (* the current cost vector *)
@@ -160,7 +272,7 @@ Module MWU (A : OrderedType).
                    (SOutputs s))
          end
     | CRecv =>
-      let c := recv tt
+      let c := mwu_recv tt
       in Some (mkCState
                  c
                  (SCosts s :: SPrevCosts s)
@@ -168,6 +280,7 @@ Module MWU (A : OrderedType).
                  (SEpsilon s)
                  (SOutputs s))
     | CSend =>
+      let tt:= mwu_send (SWeights s) in
       let d := weights_distr (SWeights s)
       in Some (mkCState
                  (SCosts s)
@@ -229,12 +342,78 @@ Module MWUProof (T : OrderedFinType).
     FinType (ChoiceType (EqType A.t T.eq_mixin) T.choice_mixin) T.fin_mixin.
   
   Import MWU.
+
+  Lemma InA_ext A (P Q : A -> A -> Prop) l x :
+    (forall a b, P a b <-> Q a b) -> 
+    InA P x l <-> InA Q x l.
+  Proof.
+    move => H; elim: l.
+    { split; inversion 1. }
+    move => a l IH; split; inversion 1; subst.
+    { by constructor; rewrite -H. }
+    { by apply: InA_cons_tl; rewrite -IH. }
+    { by constructor; rewrite H. }
+    by apply: InA_cons_tl; rewrite IH. 
+  Qed.    
   
-  Axiom recv_ok :
+  Lemma NoDupA_ext A (P Q : A -> A -> Prop) l :
+    (forall a b, P a b <-> Q a b) -> 
+    NoDupA P l <-> NoDupA Q l.
+  Proof.
+    elim: l => // a l IH H; split; inversion 1; subst.
+    { constructor.
+      move => H5; apply: H3; rewrite InA_ext => //.
+      apply: H5.
+      by rewrite -IH. }
+    constructor => //.
+    move => H5; apply: H3; rewrite InA_ext => //.
+    apply: H5.
+    by move => ax b; rewrite -H.
+    rewrite IH => //.
+  Qed.
+    
+  Lemma recv_ok :
     forall a,
     exists q,
-      [/\ M.find a (recv tt) = Some q
-        & 0 <= q <= 1].
+      [/\ M.find a (mwu_recv tt) = Some q
+       & 0 <= q <= 1].
+  Proof.
+    rewrite /mwu_recv.
+    have H: NoDupA (M.eq_key (elt:=Q)) (recv _ tt).
+    { move: (recv_nodup M.key) => H.
+      rewrite NoDupA_ext; first by apply: H.
+      rewrite /M.eq_key /M.Raw.Proofs.PX.eqk => a b.
+      by rewrite -A.eqP. }
+    move => a.
+    case: (recv_ok a) => q []H2 H3.
+    exists q; split => //.
+    rewrite MProps.of_list_1b => //.
+    move: H H2 {H3}; move: (recv _ _) a q.
+    elim => // [][]a' q' l IH a q; inversion 1; subst; case.
+    { case => -> -> /=.
+      have ->: MProps.F.eqb a a = true.
+      { rewrite /MProps.F.eqb.
+        case: (MProps.F.eq_dec a a) => //.
+        by rewrite -A.eqP. }
+        by []. }
+    simpl.
+    case H4: (MProps.F.eqb a a').
+    { move => H5.
+      rewrite /MProps.F.eqb in H4.
+      move: H4.
+      case: (MProps.F.eq_dec a a') => //.
+      rewrite -A.eqP => Hx; subst a'.
+      clear - H2 H5.
+      elim: l H2 H5 => // a0 l IH H6 H7.
+      destruct H7.
+      { inversion H; subst. clear H0.
+        elimtype False.
+        apply: H6.
+          by left; rewrite /M.eq_key /M.Raw.Proofs.PX.eqk /= -A.eqP. }
+      move => _; apply: IH => //.
+      by move => H7; apply: H6; right. }
+    by move => H5; apply: (IH _ _ H3 H5).
+  Qed.
 
   Definition match_maps
              (s : {ffun t -> rat})
@@ -818,7 +997,7 @@ Module MWUProof (T : OrderedFinType).
       Unshelve. by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. }
     { intros s tx t'; inversion 1; subst. clear H.
       intros H2.
-      set c := recv tt.
+      set c := mwu_recv tt.
       set f :=
         finfun
           (fun a : t =>

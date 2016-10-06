@@ -1236,10 +1236,10 @@ Section sigmaCompilable.
     f x = true ->
     exists x', to_sigma f x = Some x'.
   Proof.
-    rewrite /to_sigma; move: (erefl (f x)).
+    rewrite /to_sigma.
     move: (exist (fun x0 => f x0) x).
     case: (f x) => //.
-    by move => s e pf; exists (s e).
+    by move => s pf; exists (s erefl).
   Qed.
 
   Lemma to_sigma_inj A (f : A -> bool) a b :

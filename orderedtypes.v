@@ -9,6 +9,7 @@ Require Import compile combinators.
 
 Module Type OrderedType.
   Parameter t : Type.
+  Parameter t0 : t. (*The type is inhabited.*)
   Parameter enumerable : Enumerable t.
   Parameter eq : t -> t -> Prop.
   Parameter lt : t -> t -> Prop.
@@ -45,6 +46,7 @@ End OrderedFinType.
 
 Module OrderedResource <: OrderedType.
   Definition t := resource.
+  Definition t0 := RNo.
   Definition enumerable := resourceEnumerableInstance.
   Definition eq r1 r2 := resource_eq r1 r2 = true.
   Definition lt r1 r2 :=
@@ -102,6 +104,7 @@ End OrderedFinResource.
 
 Module OrderedProd (A B : OrderedType) <: OrderedType.
   Definition t := (A.t*B.t)%type.
+  Definition t0 := (A.t0, B.t0).
   Definition enumerable := prodEnumerableInstance A.enumerable B.enumerable.
   Definition eq p1 p2 := A.eq p1.1 p2.1 /\ B.eq p1.2 p2.2.
   Definition lt p1 p2 :=
