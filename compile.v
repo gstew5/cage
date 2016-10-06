@@ -51,19 +51,19 @@ Module M := Make OrdNat. (* The type of shared states *)
 Module MFacts := Facts M.
 Module MProps := Properties M.
 
-Class CType (T : Type) :=
-  ctype_fun : list T.
-Notation "'enumerate' T" := (@ctype_fun T _) (at level 30).
+Class Enumerable (T : Type) :=
+  enumerable_fun : list T.
+Notation "'enumerate' T" := (@enumerable_fun T _) (at level 30).
 
 Class RefineTypeAxiomClass (T : finType)
-      (ctypeClass : CType T) :=
+      (enumerateClass : Enumerable T) :=
   refineTypeAxiom_fun :
     enumerate T =i enum T /\ uniq (enumerate T).
 Notation "'enumerateP' T" := (@refineTypeAxiom_fun T _ _) (at level 30).
 
 Class RefineTypeClass (T : finType)
-      (ctypeClass : CType T)
-      `(@RefineTypeAxiomClass T ctypeClass).
+      (enumerateClass : Enumerable T)
+      `(@RefineTypeAxiomClass T enumerateClass).
 
 (** An operational type class for "compiled" cost functions, 
     from positive player indices and maps (positive -> strategy) 

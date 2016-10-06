@@ -343,7 +343,7 @@ Instance resourceSmoothInstance N
 
 (** Resource games are compilable *)
 
-Instance resourceCTypeInstance : CType resource := 
+Instance resourceEnumerableInstance : Enumerable resource := 
   [:: RYes; RNo].
 
 Program Instance resourceRefineTypeAxiomInstance
@@ -1179,9 +1179,9 @@ Proof.
   apply (smooth_ax _).
 Qed.
 
-(** [NOTE CType instances]
+(** [NOTE Enumerable instances]
     ~~~~~~~~~~~~~~~~~~~~~~
-    [CType] instances should in general avoid using Ssreflect [enum]. 
+    [Enumerable] instances should in general avoid using Ssreflect [enum]. 
     The reason is, extraction (and computation) of [enum ...] doesn't 
     usually (or ever...?) result in usable OCaml terms. Instead, 
     use the [enumerate] function of the underlying type to build the 
@@ -1290,10 +1290,10 @@ Proof.
   - destruct (to_sigma f a) eqn:Hs; try right; apply IHl; assumption.
 Qed.
 
-Instance sigmaCTypeInstance (A : finType)
-         (cTypeInstance : CType A)
+Instance sigmaEnumerableInstance (A : finType)
+         (enumerableInstance : Enumerable A)
          (predInstance : PredClass A)
-: CType [finType of {x : A | the_pred x}] :=
+: Enumerable [finType of {x : A | the_pred x}] :=
   filter_sigma the_pred (enumerate A).
 
   Program Instance sigmaRefineTypeAxiomInstance
@@ -1305,7 +1305,7 @@ Instance sigmaCTypeInstance (A : finType)
     rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceA.
     case: refineTypeAxiomInstanceA=> [H0 H1]. rewrite /eq_mem in H0.
     split.
-    { move=> r. rewrite /ctype_fun. rewrite /sigmaCTypeInstance.
+    { move=> r. rewrite /enumerable_fun. rewrite /sigmaEnumerableInstance.
       have ->: (r \in enum [finType of {x : A | the_pred x}]).
       { apply mem_enum. }
       have ->: (r \in filter_sigma the_pred (enumerate A)).
@@ -1313,7 +1313,7 @@ Instance sigmaCTypeInstance (A : finType)
         specialize (H0 (proj1_sig r)). apply list_in_iff.
         rewrite H0. by apply mem_enum. }
       by []. }
-    { rewrite /ctype_fun /sigmaCTypeInstance.
+    { rewrite /enumerable_fun /sigmaEnumerableInstance.
       clear H0. induction (enumerate A). 
       auto. simpl. simpl in H1. move: H1=> /andP [H1 H2].
       destruct (to_sigma the_pred a) eqn:Ha. simpl. apply /andP.
@@ -1581,10 +1581,10 @@ Proof.
   by rewrite -allpairs_list_prod; apply; case => x y; case => z w.
 Qed.
 
-Instance prodCTypeInstance (aT bT : Type)
-         (cTypeA : CType aT)
-         (cTypeB : CType bT)
-  : CType (aT*bT) :=
+Instance prodEnumerableInstance (aT bT : Type)
+         (enumerableA : Enumerable aT)
+         (enumerableB : Enumerable bT)
+  : Enumerable (aT*bT) :=
   List.list_prod (enumerate aT) (enumerate bT).
 
   Program Instance prodRefineTypeAxiomInstance
@@ -1599,7 +1599,7 @@ Instance prodCTypeInstance (aT bT : Type)
     case: refineTypeAxiomInstanceB=> [HB0 HB1].
     split.
     { move => r. rewrite mem_enum. case: r. move => a b.
-      rewrite /prodCTypeInstance /ctype_fun.
+      rewrite /prodEnumerableInstance /enumerable_fun.
       rewrite /eq_mem in HA0. rewrite /eq_mem in HB0.
       have H: (List.In (a, b) (List.list_prod (enumerate aT) (enumerate bT))).
       { apply List.in_prod_iff. split; apply list_in_iff.
@@ -1741,7 +1741,7 @@ Qed.
            `(refineCostB : @RefineCostClass N bT costB ccostB _)
            `(gB : @game bT N rat_realFieldType _ _)
            `(cgB : @cgame N bT _ _ _ _ _ _ _ _ _)
-    : @cgame N [finType of aT*bT] (prodCTypeInstance _ _)
+    : @cgame N [finType of aT*bT] (prodEnumerableInstance _ _)
              (prodRefineTypeAxiomInstance _ _ _ _)
              (prodRefineTypeInstance aT bT _ _) _ _ _ _ _ _.
 
@@ -1871,21 +1871,21 @@ Section scalarCompilable.
   Variable T : finType.
   Definition scalar_q := scalar (Q_to_rat q) T.
   Definition scalar_T := scalarType (Q_to_rat q) T.
-  Instance scalarCTypeInstance
+  Instance scalarEnumerableInstance
     (** NOTE: This instance should be updated to use [enumerate]. 
-        For rationale, see [NOTE: CType instances] above. *)           
-    : CType (scalarType (Q_to_rat q) T) := enum scalar_T.
+        For rationale, see [NOTE: Enumerable instances] above. *)           
+    : Enumerable (scalarType (Q_to_rat q) T) := enum scalar_T.
 
   Program Instance scalarRefineTypeAxiomInstance
-    : @RefineTypeAxiomClass _ scalarCTypeInstance.
+    : @RefineTypeAxiomClass _ scalarEnumerableInstance.
   Next Obligation.
     split => //.
-    rewrite /ctype_fun /scalarCTypeInstance.
+    rewrite /enumerable_fun /scalarEnumerableInstance.
     apply: enum_uniq.
   Qed.
     
   Instance scalarRefineTypeInstance
-    : @RefineTypeClass _ scalarCTypeInstance scalarRefineTypeAxiomInstance.
+    : @RefineTypeClass _ scalarEnumerableInstance scalarRefineTypeAxiomInstance.
 
   Definition stripScalar : scalar_T -> T :=
    fun x : scalar_T =>
@@ -1940,7 +1940,7 @@ Section scalarCompilable.
            `(refineCostB : @RefineCostClass N bT costB ccostB _)
            `(gB : @game bT N rat_realFieldType _ _)
            `(cgB : @cgame N bT _ _ _ _ _ _ _ _ _)
-    : @cgame N [finType of aT*bT] (prodCTypeInstance aT bT)
+    : @cgame N [finType of aT*bT] (prodEnumerableInstance aT bT)
              (prodRefineTypeAxiomInstance aT bT)
              (prodRefineTypeInstance aT bT) _ _ _ _ _ _.
 *)
@@ -2171,7 +2171,7 @@ End unitSmoothTest. End UnitSmoothTest.
 Section unitCompilable.
   Variable (N : OrdNat.t).
 
-  Instance unitCTypeInstance : CType unitType :=
+  Instance unitEnumerableInstance : Enumerable unitType :=
     [:: Wrap [eqType of Unit] mkUnit].
 
   Program Instance unitRefineTypeAxiomInstance

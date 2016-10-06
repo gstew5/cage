@@ -195,7 +195,7 @@ Module MWU (A : OrderedType).
     end.
 
   Section init.
-    Context `{CType A.t}.
+    Context `{Enumerable A.t}.
 
     Definition init_map : M.t Q :=
       MProps.of_list (List.map (fun a => (a, 1)) (enumerate A.t)).
@@ -212,7 +212,7 @@ Module MWU (A : OrderedType).
   End init.  
 
   Section mwu.
-    Context `{CType A.t}.
+    Context `{Enumerable A.t}.
     Definition mwu (eps : Q) (nx : N.t) : option cstate :=
       interp (mult_weights A.t nx) (init_cstate eps).
   End mwu.
@@ -1060,7 +1060,7 @@ Module MWUProof (T : OrderedFinType).
   Section mwuproof.
   (*I introduce explicit names here to make the proofs that follow 
     below more maintainable.*)
-  Context {GameTypeIsEnumerable : CType t}.
+  Context {GameTypeIsEnumerable : Enumerable t}.
   Context {EnumerationOK : RefineTypeAxiomClass GameTypeIsEnumerable}.
     
   Lemma match_maps_init : match_maps (init_weights t) init_map.
