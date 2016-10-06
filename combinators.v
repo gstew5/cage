@@ -1208,12 +1208,11 @@ Extraction resources'.
        Alex after the 5900 midterm :-) *)
 Section sigmaCompilable.
 
-  Definition to_sigma A (f : A -> bool) (x : A) : option {x : A | f x}.
-  Proof.
-    destruct (f x) eqn:H.
-    - apply (Some (exist f x H)).
-    - apply None.
-  Defined.
+  Definition to_sigma A (f : A -> bool) (x : A) : option {x : A | f x} :=
+    (match f x return f x = _ -> option {x : A | f x} with
+     | false => fun _ => None
+     | true => fun pf => Some (exist f x pf)
+     end) erefl.
 
   Fixpoint filter_sigma A (f : A -> bool) (l : seq A) : seq {x : A | f x} :=
     match l with
@@ -1234,11 +1233,14 @@ Section sigmaCompilable.
   (*                   nil l. *)
 
   Lemma to_sigma_true_Some A (f : A -> bool) x :
-    f x ->
+    f x = true ->
     exists x', to_sigma f x = Some x'.
   Proof.
-    move=> H. exists (exist f x H). (* stuck *)
-  Admitted.
+    rewrite /to_sigma; move: (erefl (f x)).
+    move: (exist (fun x0 => f x0) x).
+    case: (f x) => //.
+    by move => s e pf; exists (s e).
+  Qed.
 
   Lemma to_sigma_inj A (f : A -> bool) a b :
     to_sigma f a = Some b ->
