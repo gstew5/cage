@@ -343,7 +343,7 @@ Instance resourceSmoothInstance N
 
 (** Resource games are compilable *)
 
-Instance resourceCTypeInstance : CType [finType of resource] :=
+Instance resourceCTypeInstance : CType resource := 
   [:: RYes; RNo].
 
 Program Instance resourceRefineTypeAxiomInstance
@@ -1581,13 +1581,11 @@ Proof.
   by rewrite -allpairs_list_prod; apply; case => x y; case => z w.
 Qed.
 
-Section prodCompilable.
-
-  Instance prodCTypeInstance (aT bT : finType)
-           (cTypeA : CType aT)
-           (cTypeB : CType bT)
-    : CType [finType of (aT*bT)] :=
-    List.list_prod (enumerate aT) (enumerate bT).
+Instance prodCTypeInstance (aT bT : Type)
+         (cTypeA : CType aT)
+         (cTypeB : CType bT)
+  : CType (aT*bT) :=
+  List.list_prod (enumerate aT) (enumerate bT).
 
   Program Instance prodRefineTypeAxiomInstance
           (aT bT : finType)
@@ -1746,7 +1744,6 @@ Qed.
     : @cgame N [finType of aT*bT] (prodCTypeInstance _ _)
              (prodRefineTypeAxiomInstance _ _ _ _)
              (prodRefineTypeInstance aT bT _ _) _ _ _ _ _ _.
-End prodCompilable.
 
 (** Scalar Games c * A *)
 

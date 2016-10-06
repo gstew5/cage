@@ -7,8 +7,9 @@ Require Import Structures.Orders NArith.
 
 Require Import compile combinators.
 
-Module Type CanonicalOrderedType.
+Module Type OrderedType.
   Parameter t : Type.
+  Parameter enumerable : CType t.
   Parameter eq : t -> t -> Prop.
   Parameter lt : t -> t -> Prop.
   Parameter lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
@@ -16,9 +17,9 @@ Module Type CanonicalOrderedType.
   Parameter compare : forall x y : t, Compare lt eq x y.
   Parameter eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
   Parameter eqP : forall x y, x = y <-> eq x y.
-End CanonicalOrderedType.
+End OrderedType.
 
-Module OrderedType_of_CanonicalOrderedType (A : CanonicalOrderedType)
+Module OrderedType_of_OrderedType (A : OrderedType)
   <: OrderedType.OrderedType.
       Definition t : Type := A.t.
       Definition eq := A.eq.
@@ -33,33 +34,18 @@ Module OrderedType_of_CanonicalOrderedType (A : CanonicalOrderedType)
       Definition lt_not_eq := A.lt_not_eq.
       Definition compare := A.compare.
       Definition eq_dec := A.eq_dec.
-End OrderedType_of_CanonicalOrderedType.
+End OrderedType_of_OrderedType.
 
 Module Type OrderedFinType.
-  Parameter t : finType.
-  Parameter eq : t -> t -> Prop.
-  Parameter lt : t -> t -> Prop.
-  Parameter lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-  Parameter lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-  Parameter compare : forall x y : t, Compare lt eq x y.
-  Parameter eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
-  Parameter eqP : forall x y, x = y <-> eq x y.
+  Declare Module A : OrderedType.
+  Parameter eq_mixin : Equality.mixin_of A.t.
+  Parameter choice_mixin : Choice.mixin_of (EqType A.t eq_mixin).
+  Parameter fin_mixin : Finite.mixin_of (ChoiceType (EqType A.t eq_mixin) choice_mixin).
 End OrderedFinType.
 
-Module CanonicalOrderedType_of_OrderedFinType (A : OrderedFinType)
-  <: CanonicalOrderedType.
-      Definition t : Type := A.t.
-      Definition eq := A.eq.
-      Definition lt := A.lt.
-      Definition lt_trans := A.lt_trans.
-      Definition lt_not_eq := A.lt_not_eq.
-      Definition compare := A.compare.
-      Definition eq_dec := A.eq_dec.
-      Definition eqP := A.eqP.
-End CanonicalOrderedType_of_OrderedFinType.
-
-Module OrderedResource <: CanonicalOrderedType.
+Module OrderedResource <: OrderedType.
   Definition t := resource.
+  Definition enumerable := resourceCTypeInstance.
   Definition eq r1 r2 := resource_eq r1 r2 = true.
   Definition lt r1 r2 :=
     match r1, r2 with
@@ -107,23 +93,16 @@ Module OrderedResource <: CanonicalOrderedType.
   Proof. by move => x y; rewrite /eq; case: (@resource_eqP x y). Qed.
 End OrderedResource.
 
-(*This duplication is bad...*)
 Module OrderedFinResource <: OrderedFinType.
-  Definition t := [finType of resource].                              
-  Definition eq := OrderedResource.eq.
-  Definition lt := OrderedResource.lt.
-  Definition eq_refl := OrderedResource.eq_refl.
-  Definition eq_sym := OrderedResource.eq_sym.
-  Definition eq_trans := OrderedResource.eq_trans.  
-  Definition lt_trans := OrderedResource.lt_trans.
-  Definition lt_not_eq := OrderedResource.lt_not_eq.
-  Definition compare := OrderedResource.compare.    
-  Definition eq_dec := OrderedResource.eq_dec.
-  Definition eqP := OrderedResource.eqP.  
+  Module A := OrderedResource.                              
+  Definition eq_mixin := resource_eqMixin.                              
+  Definition choice_mixin := resource_choiceMixin.
+  Definition fin_mixin := resource_finMixin.
 End OrderedFinResource.
 
-Module OrderedProd (A B : CanonicalOrderedType) <: CanonicalOrderedType.
+Module OrderedProd (A B : OrderedType) <: OrderedType.
   Definition t := (A.t*B.t)%type.
+  Definition enumerable := prodCTypeInstance A.enumerable B.enumerable.
   Definition eq p1 p2 := A.eq p1.1 p2.1 /\ B.eq p1.2 p2.2.
   Definition lt p1 p2 :=
     match p1, p2 with
@@ -211,19 +190,22 @@ Module OrderedProd (A B : CanonicalOrderedType) <: CanonicalOrderedType.
   Qed.
 End OrderedProd.
 
-(*This duplication of this duplication is bad...*)
-Module OrderedFinProd (A B : OrderedFinType) <: OrderedFinType.
-  Definition t := [finType of (A.t * B.t)].
-  Module A':= CanonicalOrderedType_of_OrderedFinType A.
-  Module B':= CanonicalOrderedType_of_OrderedFinType B.  
-  Module M := OrderedProd A' B'.
-  Definition eq := M.eq.
-  Definition lt := M.lt.
-  Definition lt_trans := M.lt_trans.
-  Definition lt_not_eq := M.lt_not_eq.
-  Definition compare := M.compare.    
-  Definition eq_dec := M.eq_dec.
-  Definition eqP := M.eqP.  
+Module OrderedFinProd (X Y : OrderedFinType) <: OrderedFinType.
+  Module A := OrderedProd X.A Y.A. 
+
+  Definition xE := EqType X.A.t X.eq_mixin.
+  Definition xC := ChoiceType xE X.choice_mixin.
+  Definition xF := FinType xC X.fin_mixin.
+
+  Definition yE := EqType Y.A.t Y.eq_mixin.
+  Definition yC := ChoiceType yE Y.choice_mixin.
+  Definition yF := FinType yC Y.fin_mixin.
+  
+  Definition eq_mixin := prod_eqMixin xE yE.
+  Definition choice_mixin := prod_choiceMixin xC yC.
+  Definition fin_mixin := prod_finMixin xF yF.
 End OrderedFinProd.
+
+
 
 

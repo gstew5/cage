@@ -13,12 +13,12 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import combinators games.
+Require Import combinators games compile orderedtypes weightsextract.
 
 Local Open Scope ring_scope.
 
-Definition path : finType :=
-  [finType of (resource * resource * resource * resource * resource)%type].
+Definition path : Type :=
+  (resource * resource * resource * resource * resource)%type.
 
 (** [validPath] encodes the following topology (multi-paths are disallowed):
             o
@@ -62,4 +62,25 @@ Section pathTypeTest.
   Variable rty : realFieldType.
   Check (cost i f : rat_realFieldType).
 End pathTypeTest.
+
+(* Because standard Coq FMaps are parameterized over modules, which 
+   aren't first-class in Coq, the following construction has to be 
+   done by hand for each game type. *)
+Module R : OrderedType := OrderedResource.
+Module P2 : OrderedType := OrderedProd R R.
+Module P3 : OrderedType := OrderedProd R P2.
+Module P4 : OrderedType := OrderedProd R P3.
+Module P5 : OrderedType := OrderedProd R P4.
+
+(* The program *)
+Module MWU := MWU P5.
+
+Definition mwu0 (eps : Q) (nx : N.t) :=
+  MWU.interp
+    (weightslang.mult_weights P5.t nx)
+    (MWU.init_cstate eps).
+
+Definition mwu := mwu0 (Qmake 1 3) 1000.
+
+Extraction "mwu.ml" mwu.
 
