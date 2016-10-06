@@ -1208,99 +1208,109 @@ Extraction resources'.
        Alex after the 5900 midterm :-) *)
 Section sigmaCompilable.
 
-(* I don't know if this is the right way to go about this. *)
+  Definition to_sigma A (f : A -> bool) (x : A) : option {x : A | f x}.
+  Proof.
+    destruct (f x) eqn:H.
+    - apply (Some (exist f x H)).
+    - apply None.
+  Defined.
 
-Definition to_sigma A (f : A -> bool) (x : A) : option {x : A | f x}.
-Proof.
-  destruct (f x) eqn:H.
-  - apply (Some (exist f x H)).
-  - apply None.
-Defined.
+  Fixpoint filter_sigma A (f : A -> bool) (l : seq A) : seq {x : A | f x} :=
+    match l with
+    | nil => nil
+    | h :: t =>
+      match to_sigma f h with
+      | Some x => x :: filter_sigma f t
+      | None => filter_sigma f t
+      end
+    end.
 
-Fixpoint filter_sigma A (f : A -> bool) (l : seq A) : seq {x : A | f x} :=
-  match l with
-  | nil => nil
-  | h :: t =>
-    match to_sigma f h with
-    | Some x => x :: filter_sigma f t
-    | None => filter_sigma f t
-    end
-  end.
+  (* Definition filter_sigma' *)
+  (*            A (f : A -> bool) (l : seq A) : seq {x : A | f x} := *)
+  (*   List.fold_right (fun x acc => *)
+  (*                      match to_sigma f x with *)
+  (*                      | Some x' => x' :: acc *)
+  (*                      | None => acc end) *)
+  (*                   nil l. *)
 
-(* Definition filter_sigma' *)
-(*            A (f : A -> bool) (l : seq A) : seq {x : A | f x} := *)
-(*   List.fold_right (fun x acc => *)
-(*                      match to_sigma f x with *)
-(*                      | Some x' => x' :: acc *)
-(*                      | None => acc end) *)
-(*                   nil l. *)
+  Lemma to_sigma_true_Some A (f : A -> bool) x :
+    f x ->
+    exists x', to_sigma f x = Some x'.
+  Proof.
+    move=> H. exists (exist f x H). (* stuck *)
+  Admitted.
 
-Lemma to_sigma_inj A (f : A -> bool) a b :
-  to_sigma f a = Some b ->
-  a = proj1_sig b.
-Admitted.
+  Lemma to_sigma_inj A (f : A -> bool) a b :
+    to_sigma f a = Some b ->
+    a = proj1_sig b.
+  Admitted.
 
-Lemma to_sigma_none_false A (f : A -> bool) (a : A) :
-  to_sigma f a = None ->
-  f a = false.
-Admitted.
+  Lemma to_sigma_None_false A (f : A -> bool) (a : A) :
+    to_sigma f a = None ->
+    f a = false.
+  Proof.
+    move=> H. destruct (f a) eqn:Hf => //.
+    have H0: (exists a', to_sigma f a = some a').
+    { by apply to_sigma_true_Some, Hf. }
+    destruct H0 as [a']. rewrite H in H0. inversion H0.
+  Qed.
 
-Lemma mem_seq_filter
-      (A : finType) (f : A -> bool) (x : A) (x' : {x : A | f x}) l :
-  to_sigma f x = Some x' ->
-  mem_seq (filter_sigma f l) x' ->
-  mem_seq l x.
-Proof.
-  move=> H0 H1. induction l. inversion H1.
-  simpl in H1. destruct (to_sigma f a) eqn:Hs.
-  move: H1=> /orP [H1 | H1]. apply /orP. left. 
-  move: H1=> /eqP H1. subst.
-  apply to_sigma_inj in Hs. apply to_sigma_inj in H0. subst => //.
-  apply /orP. right. apply IHl; assumption.
-  apply /orP. right. apply IHl; assumption.
-Qed.
+  Lemma mem_seq_filter
+        (A : finType) (f : A -> bool) (x : A) (x' : {x : A | f x}) l :
+    to_sigma f x = Some x' ->
+    mem_seq (filter_sigma f l) x' ->
+    mem_seq l x.
+  Proof.
+    move=> H0 H1. induction l. inversion H1.
+    simpl in H1. destruct (to_sigma f a) eqn:Hs.
+    move: H1=> /orP [H1 | H1]. apply /orP. left. 
+    move: H1=> /eqP H1. subst.
+    apply to_sigma_inj in Hs. apply to_sigma_inj in H0. subst => //.
+    apply /orP. right. apply IHl; assumption.
+    apply /orP. right. apply IHl; assumption.
+  Qed.
 
-Require Import ProofIrrelevance.
+  Require Import ProofIrrelevance.
 
-Lemma projT1_inj A (f : A -> bool) (a b : {x : A | f x}) :
-  proj1_sig a = proj1_sig b ->
-  a = b.
-Proof.
-  case: a; case: b=> /= x p x0 p0 H.
-  by subst; f_equal; apply proof_irrelevance.
-Qed.
+  Lemma projT1_inj A (f : A -> bool) (a b : {x : A | f x}) :
+    proj1_sig a = proj1_sig b ->
+    a = b.
+  Proof.
+    case: a; case: b=> /= x p x0 p0 H.
+    by subst; f_equal; apply proof_irrelevance.
+  Qed.
 
-Lemma projT1_pred_true A (f : A -> bool) (a : A) (b : {x : A | f x}) :
-  a = proj1_sig b ->
-  f a = true.
-Proof. by case: b=> /= x H0 H1; rewrite H1 H0. Qed.
+  Lemma projT1_pred_true A (f : A -> bool) (a : A) (b : {x : A | f x}) :
+    a = proj1_sig b ->
+    f a = true.
+  Proof. by case: b=> /= x H0 H1; rewrite H1 H0. Qed.
 
-Lemma list_in_filter_sigma
-      A (f : A -> bool) (x : {x : A | f x}) (l : seq A) :
-  List.In (proj1_sig x) l ->
-  List.In x (filter_sigma f l).
-Proof.
-  move=> H. induction l. inversion H.
-  simpl. simpl in H. destruct H as [H | H].
-  - destruct (to_sigma f a) eqn:Hs.
-    + simpl. apply to_sigma_inj in Hs. left. rewrite H in Hs.
-      apply projT1_inj in Hs. by rewrite Hs.
-    + apply projT1_pred_true in H. apply to_sigma_none_false in Hs.
-      congruence.
-  - destruct (to_sigma f a) eqn:Hs; try right; apply IHl; assumption.
-Qed.
+  Lemma list_in_filter_sigma
+        A (f : A -> bool) (x : {x : A | f x}) (l : seq A) :
+    List.In (proj1_sig x) l ->
+    List.In x (filter_sigma f l).
+  Proof.
+    move=> H. induction l. inversion H.
+    simpl. simpl in H. destruct H as [H | H].
+    - destruct (to_sigma f a) eqn:Hs.
+      + simpl. apply to_sigma_inj in Hs. left. rewrite H in Hs.
+        apply projT1_inj in Hs. by rewrite Hs.
+      + apply projT1_pred_true in H. apply to_sigma_None_false in Hs.
+        congruence.
+    - destruct (to_sigma f a) eqn:Hs; try right; apply IHl; assumption.
+  Qed.
 
-Instance sigmaEnumerableInstance (A : finType)
-         (enumerableInstance : Enumerable A)
-         (predInstance : PredClass A)
-: Enumerable [finType of {x : A | the_pred x}] :=
-  filter_sigma the_pred (enumerate A).
+  Instance sigmaEnumerableInstance (A : finType)
+           (enumerableInstance : Enumerable A)
+           (predInstance : PredClass A)
+    : Enumerable [finType of {x : A | the_pred x}] :=
+    filter_sigma the_pred (enumerate A).
 
   Program Instance sigmaRefineTypeAxiomInstance
           (A : finType)
           `(refineTypeAxiomInstanceA : RefineTypeAxiomClass A)
           (predInstance : PredClass A)
-  : @RefineTypeAxiomClass [finType of {x : A | the_pred x}] _.
+    : @RefineTypeAxiomClass [finType of {x : A | the_pred x}] _.
   Next Obligation.
     rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceA.
     case: refineTypeAxiomInstanceA=> [H0 H1]. rewrite /eq_mem in H0.
@@ -1312,25 +1322,26 @@ Instance sigmaEnumerableInstance (A : finType)
       { apply list_in_iff, list_in_filter_sigma.
         specialize (H0 (proj1_sig r)). apply list_in_iff.
         rewrite H0. by apply mem_enum. }
-      by []. }
-    { rewrite /enumerable_fun /sigmaEnumerableInstance.
-      clear H0. induction (enumerate A). 
-      auto. simpl. simpl in H1. move: H1=> /andP [H1 H2].
-      destruct (to_sigma the_pred a) eqn:Ha. simpl. apply /andP.
-      split. rewrite /in_mem. simpl. apply /negP. move=> Contra.
-      rewrite /in_mem in H1. simpl in H1. move: H1=> /negP H1.
-      rewrite /pred_of_eq_seq in H1. rewrite /pred_of_eq_seq in Contra.
-      have H3: (mem_seq (T:=A) l a).
-      { apply: mem_seq_filter. apply Ha. assumption. }
-      contradiction.
-      apply IHl; assumption. apply IHl; assumption. }
+        by []. }
+    { rewrite /enumerable_fun /sigmaEnumerableInstance. clear H0. move: H1.
+      elim: (enumerate A).
+      - by [].
+      - move => a l IHl H1. simpl. simpl in H1. move: H1=> /andP [H1 H2].
+        destruct (to_sigma the_pred a) eqn:Ha. simpl. apply /andP.
+        split. rewrite /in_mem. simpl. apply /negP. move=> Contra.
+        rewrite /in_mem in H1. simpl in H1. move: H1=> /negP H1.
+        rewrite /pred_of_eq_seq in H1. rewrite /pred_of_eq_seq in Contra.
+        have H3: (mem_seq (T:=A) l a).
+        { apply: mem_seq_filter. apply Ha. assumption. }
+        contradiction.
+        apply IHl; assumption. apply IHl; assumption. }
   Qed.
 
   Instance sigmaCCostInstance
            (A : finType)
            (predInstance : PredClass A)
            (ccostA : @CCostClass A)
-  : CCostClass [finType of {x : A | the_pred x}]
+    : CCostClass [finType of {x : A | the_pred x}]
     :=
       fun (i : OrdNat.t) (m : M.t {x : A | the_pred x}) =>
         ccost i (M.map (fun x => proj1_sig x) m).
