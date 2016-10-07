@@ -10,6 +10,20 @@ Require Import Structures.Orders NArith.
 
 Require Import compile orderedtypes.
 
+(** Initialize server *)
+Axiom server_init : unit -> unit.
+Extract Constant server_init =>
+ "fun _ -> 
+  let host_and_port =
+    Tcp.Server.create
+      ~on_handler_error:`Raise
+      (Tcp.on_port port)
+      (handle_request)
+  in
+  ignore host_and_port;
+  prerr_endline ""Server started."";
+  Deferred.never ()".
+
 (** Blocking server receive *)
 Axiom server_recv : forall A : Type, unit -> A.
 
@@ -48,8 +62,9 @@ Module Server (N : NumPlayers) (A : OrderedType).
         players'
     end.
 
-  Definition server (s : state) : state := server_aux s n.
+  Definition server (s : state) : state :=
+    let _ := server_init tt in
+    server_aux s n.
   End server.
 End Server.
-  
-  
+
