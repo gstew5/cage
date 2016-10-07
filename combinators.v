@@ -1242,7 +1242,7 @@ Section sigmaCompilable.
     by move => s e pf; exists (s e).
   Qed.
 
-  Lemma to_sigma_inj A (f : A -> bool) a b :
+  Lemma to_sigma_inj (A : finType) (f : A -> bool) a b :
     to_sigma f a = Some b ->
     a = proj1_sig b.
   Admitted.
@@ -1288,7 +1288,7 @@ Section sigmaCompilable.
   Proof. by case: b=> /= x H0 H1; rewrite H1 H0. Qed.
 
   Lemma list_in_filter_sigma
-        A (f : A -> bool) (x : {x : A | f x}) (l : seq A) :
+        (A : finType) (f : A -> bool) (x : {x : A | f x}) (l : seq A) :
     List.In (proj1_sig x) l ->
     List.In x (filter_sigma f l).
   Proof.
@@ -1333,20 +1333,65 @@ Section sigmaCompilable.
         split. rewrite /in_mem. simpl. apply /negP. move=> Contra.
         rewrite /in_mem in H1. simpl in H1. move: H1=> /negP H1.
         rewrite /pred_of_eq_seq in H1. rewrite /pred_of_eq_seq in Contra.
+        
         have H3: (mem_seq (T:=A) l a).
         { apply: mem_seq_filter. apply Ha. assumption. }
         contradiction.
         apply IHl; assumption. apply IHl; assumption. }
   Qed.
 
+
+  Instance sigmaRefineTypeInstance (A : finType)
+           (predInstance : PredClass A)
+           `(refineTypeAxiomInstanceA : RefineTypeAxiomClass A)
+    : @RefineTypeClass [finType of {x : A | the_pred x}]  _ _.
+
   Instance sigmaCCostInstance
-           (A : finType)
+           (A : Type)
            (predInstance : PredClass A)
            (ccostA : @CCostClass A)
-    : CCostClass [finType of {x : A | the_pred x}]
+    : CCostClass {x : A | the_pred x}
     :=
       fun (i : OrdNat.t) (m : M.t {x : A | the_pred x}) =>
         ccost i (M.map (fun x => proj1_sig x) m).
+  
+  Program Instance sigmaRefineCostAxiomInstance
+          (N : nat) (A : finType)
+          (predInstance : PredClass A)
+          (costA : CostClass N rat_realFieldType A)
+          (ccostA : CCostClass A)
+          (refineA : RefineCostAxiomClass costA ccostA)
+    : @RefineCostAxiomClass
+        N [finType of {x : A | the_pred x}]
+        (@sigmaCostInstance N rat_realFieldType A _ costA)
+        (@sigmaCCostInstance A _ ccostA).
+  Next Obligation.
+    apply refineA=> j pf'; rewrite ffunE.
+    apply MProps.F.find_mapsto_iff, MProps.F.map_mapsto_iff.
+    specialize (H j pf'); apply MProps.F.find_mapsto_iff in H.
+    by exists (s (Ordinal (n:=N) (m:=j) pf')); split => //.
+  Qed.
+
+  Instance sigmaRefineCostInstance (N : nat) (A : finType)
+           (predInstance : PredClass A)
+           (costA : CostClass N rat_realFieldType A)
+           (ccostA : CCostClass A)
+           (refineA : RefineCostAxiomClass costA ccostA)
+    : @RefineCostClass N [finType of {x : A | the_pred x}] _ _ _.
+
+  Instance sigma_cgame (N : nat) (A : finType)
+           (predInstance : PredClass A)
+           (costA : CostClass N rat_realFieldType A)
+           (costAxiomA : @CostAxiomClass N rat_realFieldType A costA)
+           (ccostA : CCostClass A)
+           `(refineTypeA : RefineTypeClass A)
+           (refineCostAxiomA : @RefineCostAxiomClass N A costA ccostA)
+           (refineCostA : @RefineCostClass N A costA ccostA _)
+           (gA : @game A N rat_realFieldType _ _)
+           (cgA : @cgame N A _ _ _ _ _ _ _ _ _)
+    : @cgame N [finType of {x : A | the_pred x}] (sigmaEnumerableInstance _ _)
+             (sigmaRefineTypeAxiomInstance _ _ _)
+             (sigmaRefineTypeInstance A _ _) _ _ _ _ _ _.
 End sigmaCompilable.
 
 (** Product Games A * B *)
