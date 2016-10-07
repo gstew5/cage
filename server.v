@@ -30,10 +30,14 @@ Axiom server_recv : forall A : Type, unit -> A.
 (** Server send *)
 Axiom server_send : forall A : Type, list (A * Q) -> unit.
 
-Module Type NumPlayers. Parameter n : nat. End NumPlayers.
+Module Type ServerConfig.
+  Parameter num_players : nat.
+  Parameter rounds : nat.
+End ServerConfig.
 
-Module Server (N : NumPlayers) (A : OrderedType).
-  Definition n := N.n.
+Module Server (C : ServerConfig) (A : OrderedType).
+  Definition n := C.num_players.
+  Definition r := C.rounds.  
   
   Record state : Type :=
     mkState { actions_received : M.t A.t
@@ -52,19 +56,27 @@ Module Server (N : NumPlayers) (A : OrderedType).
       (enumerate A.t)
       nil.
   
-  Fixpoint server_aux (s : state) (players : nat) : state :=
+  Fixpoint round (s : state) (players : nat) : state :=
     match players with
     | O => let _ := server_send (cost_vector s) in s
     | S players' =>
       let a := server_recv _ tt in
-      server_aux
+      round
         (mkState (M.add (N.of_nat players') a (actions_received s)))
         players'
     end.
 
+  Fixpoint rounds (s : state) (r : nat) : state :=
+    match r with
+    | O => s
+    | S r' =>
+      let s' := round s n in
+      rounds s' r'
+    end.
+  
   Definition server (s : state) : state :=
     let _ := server_init tt in
-    server_aux s n.
+    rounds s r.
   End server.
 End Server.
 
