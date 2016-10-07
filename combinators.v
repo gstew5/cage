@@ -1204,8 +1204,7 @@ Extraction resources'.
   Cons (RYes, (Cons (RNo, Nil))) *)
 
 (** Sigma games are compilable *)
-(* GS: I'm commenting out this instance for now, to be fixed by me and 
-       Alex after the 5900 midterm :-) *)
+
 Section sigmaCompilable.
 
   Definition to_sigma A (f : A -> bool) (x : A) : option {x : A | f x} :=
@@ -1245,7 +1244,14 @@ Section sigmaCompilable.
   Lemma to_sigma_inj (A : finType) (f : A -> bool) a b :
     to_sigma f a = Some b ->
     a = proj1_sig b.
-  Admitted.
+  Proof.
+    rewrite /to_sigma.
+    have H: forall pf', (proj1_sig (exist (fun x => f x) a pf') = a) by [].
+    move: H.
+    move: (exist (fun x => f x) a).
+    case: (f a) => // s H; case.
+    by rewrite -(H (erefl true)) => ->.
+  Qed.
 
   Lemma to_sigma_None_false A (f : A -> bool) (a : A) :
     to_sigma f a = None ->
@@ -1339,7 +1345,6 @@ Section sigmaCompilable.
         contradiction.
         apply IHl; assumption. apply IHl; assumption. }
   Qed.
-
 
   Instance sigmaRefineTypeInstance (A : finType)
            (predInstance : PredClass A)
