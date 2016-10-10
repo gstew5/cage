@@ -1116,7 +1116,7 @@ Section singletonCompilable.
   Context {A N} `{cgame N A}.
 
   Instance singCTypeInstance
-    : Enumerable (singleton A) := map (@Wrap Singleton A) enumerateClass.
+    : Enumerable (singleton A) := map (@Wrap Singleton A) (enumerate A).
 
   Program Instance singRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (singletonType A) singCTypeInstance.
@@ -1946,6 +1946,7 @@ Instance scalarGameInstance
 Module ScalarGameTest. Section scalarGameTest.
   Context {A N rty} `{gameA : game A N rty} `{scalarA : ScalarAxiomClass rty}.
   Variables (t : {ffun 'I_N -> scalarType scalar_val A}) (i : 'I_N).
+  Check cost i t.
 End scalarGameTest. End ScalarGameTest.
 
 Instance scalarLambdaInstance
@@ -2004,7 +2005,7 @@ Section scalarCompilable.
   Context {A N} {q : rat} `{cgame N A}.
 
   Instance scalarCTypeInstance
-    : Enumerable (scalar q A) := map (@Wrap (Scalar q) A) enumerateClass.
+    : Enumerable (scalar q A) := map (@Wrap (Scalar q) A) (enumerate A).
 
   Program Instance scalarRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (scalarType q A) _.
@@ -2254,7 +2255,7 @@ Section biasCompilable.
   Context {A N} {q : rat} `{cgame N A}.
 
   Instance biasCTypeInstance
-    : Enumerable (bias q A) := map (@Wrap (Bias q) A) enumerateClass.
+    : Enumerable (bias q A) := map (@Wrap (Bias q) A) (enumerate A).
 
   Program Instance biasRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (biasType q A) _.
