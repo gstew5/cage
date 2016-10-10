@@ -991,7 +991,7 @@ Instance boolable_Resource : Boolable resource :=
   fun r => match r with RYes => true | RNo => false end.
 
 (** Singleton Games A : Boolable, 
-    c_i s = if (boolify s_i) then 1 else 0 *)
+    c_i s =  if (boolify s_i) then 1 else 0 *)
 
 Section SingletonType.
 Variable rty : realFieldType.
@@ -1110,6 +1110,79 @@ Module SingletonSmoothTest. Section singletonSmoothTest.
   Lemma x0 (t : {ffun 'I_N -> (singletonType A)}) (i : 'I_N) :
     cost i t == lambda of (singletonType A). Abort.
 End singletonSmoothTest. End SingletonSmoothTest.
+
+
+Section singletonCompilable.
+  Context {A N} `{cgame N A}.
+
+  Instance singCTypeInstance
+    : Enumerable (singleton A) := map (@Wrap Singleton A) enumerateClass.
+
+  Program Instance singRefineTypeAxiomInstance
+    : @RefineTypeAxiomClass (singletonType A) singCTypeInstance.
+  Next Obligation.
+    clear H0 costClass costAxiomClass ccostClass refineCostAxiomClass
+      refineCostClass H1 H2.
+    generalize H; clear H. rewrite /RefineTypeAxiomClass => H.
+    case: H => H0 H1; clear H; split; last first.
+    {
+      rewrite map_inj_uniq. apply H1.
+      rewrite /injective => x1 x2 H3.
+      inversion H3 => //.
+    }
+    rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance.
+    move => r.
+    apply /mapP.
+    case_eq (in_mem r (mem (enum_mem (T:=singletonType A)
+              (mem (sort_of_simpl_pred (pred_of_argType
+                (Wrapper Singleton A))))))) => H3; rewrite H3.
+    {
+      move: H3.
+      case: r => x H3.
+      exists x; last by [].
+      rewrite H0 mem_enum.
+      rewrite mem_enum in H3 => //.
+    }
+    {
+      move => H4.
+      case: H4 => x H4 H5.
+      rewrite H5 in H3.
+      move/negP: H3 => H3.
+      apply H3 => //.
+      rewrite mem_enum => //.
+    }
+Qed.
+
+  Instance singRefineTypeInstance
+    : @RefineTypeClass (singletonType A)  _ _.
+
+  Instance singCCostInstance `(Boolable A)
+    : CCostClass (singletonType A)
+    :=      
+      fun (i : OrdNat.t) (m : M.t (singletonType A)) =>
+        (match M.find i m with
+              | Some t => if (boolify t) then 1%coq_Qscope else 0%coq_Qscope
+              | _ => 0%coq_Qscope
+              end).
+
+  Program Instance singRefineCostAxiomInstance `(Boolable A)
+    : RefineCostAxiomClass _ (singCCostInstance _).
+  Next Obligation.
+    clear H0 costAxiomClass ccostClass refineCostAxiomClass
+      refineCostClass H1 H2.
+    rewrite /cost_fun /singletonCostInstance /cost_fun.
+    rewrite /ccost_fun /singCCostInstance /ccost_fun.
+    rewrite (H4 i pf).
+    case: (boolify (s (Ordinal (n := N) (m := i) pf))) => //.
+  Qed.
+  
+  Instance singRefineCostInstance `(Boolable A)
+    : @RefineCostClass N (singletonType A) _ _ _.
+
+  Instance sing_cgame `(Boolable A)
+    : @cgame N (singletonType A)  _ _ _ _ _ _ _ _ _.
+
+End singletonCompilable.
 
 (** Sigma Games {x : A | P x}, with P : A -> bool *)
 
@@ -1873,7 +1946,6 @@ Instance scalarGameInstance
 Module ScalarGameTest. Section scalarGameTest.
   Context {A N rty} `{gameA : game A N rty} `{scalarA : ScalarAxiomClass rty}.
   Variables (t : {ffun 'I_N -> scalarType scalar_val A}) (i : 'I_N).
-  Check cost i t.
 End scalarGameTest. End ScalarGameTest.
 
 Instance scalarLambdaInstance
@@ -1929,85 +2001,126 @@ Module ScalarSmoothTest. Section scalarSmoothTest.
 End scalarSmoothTest. End ScalarSmoothTest.
 
 Section scalarCompilable.
-  Variable (N : OrdNat.t).
-  Variable (q : Q).
-  Variable T : finType.
-  Definition scalar_q := scalar (Q_to_rat q) T.
-  Definition scalar_T := scalarType (Q_to_rat q) T.
-  Instance scalarEnumerableInstance
-    (** NOTE: This instance should be updated to use [enumerate]. 
-        For rationale, see [NOTE: Enumerable instances] above. *)           
-    : Enumerable (scalarType (Q_to_rat q) T) := enum scalar_T.
+  Context {A N} {q : rat} `{cgame N A}.
+
+  Instance scalarCTypeInstance
+    : Enumerable (scalar q A) := map (@Wrap (Scalar q) A) enumerateClass.
 
   Program Instance scalarRefineTypeAxiomInstance
-    : @RefineTypeAxiomClass _ scalarEnumerableInstance.
+    : @RefineTypeAxiomClass (scalarType q A) _.
   Next Obligation.
-    split => //.
-    rewrite /enumerable_fun /scalarEnumerableInstance.
-    apply: enum_uniq.
+    clear H1 H2 refineCostAxiomClass  H0
+          refineCostClass ccostClass costAxiomClass costClass.
+    generalize H; clear H.
+    rewrite /RefineTypeAxiomClass => H.
+    destruct H; split; last first.
+    {
+      rewrite map_inj_uniq. apply H.
+      rewrite /injective => x1 x2 H3.
+      inversion H3 => //.
+    }
+    rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance.
+    move => r.
+    apply /mapP.
+    case_eq (in_mem r (mem (enum_mem (T:=scalarType (rty:=rat_realFieldType) q A)
+              (mem (sort_of_simpl_pred (pred_of_argType
+                (Wrapper (Scalar (rty:=rat_realFieldType) q) A))))))) => H3; rewrite H3.
+    {
+      move: H3.
+      case: r => x H3.
+      exists x; last by [].
+      rewrite H0 mem_enum.
+      rewrite mem_enum in H3 => //.
+    }
+    {
+      move => H4.
+      case: H4 => x H4 H5.
+      rewrite H5 in H3.
+      move/negP: H3 => H3.
+      apply H3 => //.
+      rewrite mem_enum => //.
+    }
   Qed.
-    
+
   Instance scalarRefineTypeInstance
-    : @RefineTypeClass _ scalarEnumerableInstance scalarRefineTypeAxiomInstance.
+    : @RefineTypeClass (scalarType q A)  _ _.
 
-  Definition stripScalar : scalar_T -> T :=
-   fun x : scalar_T =>
-    match x with
-    | @Wrap _ _ x' => x'
-    end.
-
-  Definition stripScalar_t : M.t scalar_T -> M.t T :=
-  fun m : (M.t scalar_T) =>
+  Definition unwrapScalarTree : M.t (scalarType q A) -> M.t A :=
+  fun m : (M.t (scalarType q A)) =>
     M.fold (fun i r acc =>
-              M.add i (stripScalar r) acc)
-      m (M.empty T).
+              M.add i (unwrap r) acc)
+      m (M.empty A).    
+
+  Lemma unwrapScalarTree_spec i (t : scalarType q A) m:
+    M.find i m = Some t ->
+      M.find i (unwrapScalarTree m) = Some (unwrap t).
+  Proof.
+    clear H H0 H1 H2 refineCostAxiomClass
+          refineCostClass ccostClass costAxiomClass costClass.
+    rewrite /unwrapScalarTree.
+    apply MProps.fold_rec_weak.
+    {
+      move => mo m' a' H0 H1 H2.
+      have H3: (forall (k : M.key) e,
+        M.MapsTo k e mo <-> M.MapsTo k e m');
+          first by apply MProps.F.Equal_mapsto_iff; apply H0.
+      apply M.find_2 in H2. apply H3 in H2. apply M.find_1 in H2.
+      apply H1. apply H2.
+    }
+    {
+      move => H. inversion H.
+    }
+    {
+      move => k e a' m' H0 IH. case: e. move => a0 H2 /=.
+      rewrite MProps.F.add_o. case: (MProps.F.eq_dec k i) => H3 //.
+      generalize H2; clear H2.
+      rewrite MProps.F.add_eq_o. move => H2. inversion H2.
+      split => []. by []. apply IH.
+      generalize H2; clear H2.
+      rewrite MProps.F.add_neq_o. move => H2. inversion H2 => //.
+      by [].
+    }
+  Qed.
 
   Instance scalarCCostInstance
-    `(ccostT : CCostClass T)
-    : CCostClass scalar_T
+    : CCostClass (scalarType q A)
     :=
-      fun (i : OrdNat.t) (m : M.t scalar_T) =>
-        Qmult q (ccostT i (stripScalar_t m)).
+      fun (i : OrdNat.t) (m : M.t (scalarType q A)) =>
+        Qred(Qmult (rat_to_Q q) (ccost i (unwrapScalarTree m))).
 
   Program Instance scalarRefineCostAxiomInstance
-          (costT : CostClass N rat_realFieldType T)
-          (ccostT : CCostClass T)
-          (refine : RefineCostAxiomClass costT ccostT)
-    : @RefineCostAxiomClass
-        N scalar_T
-        (@scalarCostInstance N rat_realFieldType T costT (Q_to_rat q))
-        (@scalarCCostInstance ccostT).
+    : @RefineCostAxiomClass N (scalarType q A)
+        (@scalarCostInstance _ _ _ costClass q) _. 
   Next Obligation.
-    rewrite /(ccost) /scalarCCostInstance /(cost) /scalarCostInstance => /=.
-    rewrite /scalar_val.
-    admit.
-  Admitted.
-(*
+    clear H H0 H1 H2
+          refineCostClass costAxiomClass.
+    rewrite /cost_fun /scalarCostInstance /cost_fun.
+    rewrite /(ccost) /scalarCCostInstance /(ccost).
+    rewrite [rat_to_Q (_ * _)] rat_to_Q_red.
+    apply Qred_complete.
+    rewrite rat_to_Q_mul /scalar_val.
+    move: (Qeq_dec (rat_to_Q q) 0%Q).
+    case => H0;
+      first by rewrite H0 !Qmult_0_l => //.
+    apply Qmult_inj_l => //.
+    move: refineCostAxiomClass; clear refineCostAxiomClass.
+    rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass.
+    specialize (refineCostAxiomClass pf).
+    rewrite -(@refineCostAxiomClass(unwrapScalarTree m)) => //.
+    move => j pf'. 
+    specialize (H3 j pf').
+    apply unwrapScalarTree_spec in H3.
+    rewrite H3. f_equal.
+    rewrite /unwrap_ffun. rewrite ffunE => //.
+  Qed.
+
   Instance scalarRefineCostInstance
-    : @RefineCostClass N _ _ _ scalarRefineCostAxiomInstance.
+    : @RefineCostClass N (scalarType q A)
+        (@scalarCostInstance N _ A costClass _) _ _.
 
-  Instance prod_cgame (aT bT : finType)
-           `(costA : CostClass N rat_realFieldType aT)
-           `(costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
-           `(ccostA : CCostClass aT)
-           `(refineTypeA : RefineTypeClass aT)
-           `(refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA)
-           `(refineCostA : @RefineCostClass N aT costA ccostA _)
-           `(gA : @game aT N rat_realFieldType _ _)
-           `(cgA : @cgame N aT _ _ _ _ _ _ _ _ _)
-           `(costB : CostClass N rat_realFieldType bT)
-           `(costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
-           `(ccostB : CCostClass bT)
-           `(refineTypeB : RefineTypeClass bT)
-           `(refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB)
-           `(refineCostB : @RefineCostClass N bT costB ccostB _)
-           `(gB : @game bT N rat_realFieldType _ _)
-           `(cgB : @cgame N bT _ _ _ _ _ _ _ _ _)
-    : @cgame N [finType of aT*bT] (prodEnumerableInstance aT bT)
-             (prodRefineTypeAxiomInstance aT bT)
-             (prodRefineTypeInstance aT bT) _ _ _ _ _ _.
-*)
-
+  Instance scalar_cgame `{scalarA : @ScalarAxiomClass rat_realFieldType q}
+    : @cgame N (scalarType q A) _ _ _ _ _ _ _ _
+        (scalarGameInstance _ _ _ scalarA _).
 End scalarCompilable.
 
 (** Bias Games c + A *)
@@ -2036,61 +2149,68 @@ Definition biasType (c : rty) (A : finType) :=
   [finType of Wrapper (Bias c) A].
 End BiasType.
 
+Class BiasClass (rty : realFieldType)
+  : Type := bias_val : rty.
+
+Class BiasAxiomClass (rty : realFieldType)
+      `(BiasClass rty)
+  : Type := bias_axiom : 0 < bias_val.
+
 Instance biasCostInstance
          (N : nat) (rty : realFieldType) (A : finType)
-         `(scalarA : ScalarClass rty)
+         `(biasA : BiasClass rty)
          `(costA : CostClass N rty A)
-  : CostClass N rty (biasType scalar_val A) :=
-  fun (i : 'I_N) (f : {ffun 'I_N -> biasType scalar_val A}) =>
-    scalar_val + cost i (finfun (fun j => unwrap (f j))).
+  : CostClass N rty (biasType bias_val A) :=
+  fun (i : 'I_N) (f : {ffun 'I_N -> biasType bias_val A}) =>
+    bias_val + cost i (finfun (fun j => unwrap (f j))).
 
 Program Instance  biasCostAxiomInstance
         (N : nat) (rty : realFieldType) (A : finType)
-        `(scalarA : ScalarAxiomClass rty)
+        `(biasA : BiasAxiomClass rty)
         `(costA : CostAxiomClass N rty A)
-  : @CostAxiomClass N rty (biasType scalar_val A) (@biasCostInstance N rty _ scalar_val _).
+  : @CostAxiomClass N rty (biasType scalar_val A) (@biasCostInstance N rty _ bias_val _).
 Next Obligation.
   rewrite /(cost) /biasCostInstance addr_ge0 => //.
-  by apply: ltrW; apply scalar_axiom.
+  by apply: ltrW; apply bias_axiom.
 Qed.
 
 Instance biasGameInstance
         (N : nat) (rty : realFieldType) (A : finType)
         `(gameA : game A N rty)
-        `(scalarA : ScalarAxiomClass rty)
-  : @game (biasType scalar_val A) N rty 
-          (@biasCostInstance N rty A scalar_val _)
+        `(biasA : BiasAxiomClass rty)
+  : @game (biasType bias_val A) N rty 
+          (@biasCostInstance N rty A bias_val _)
           (@biasCostAxiomInstance N rty A _ _ _ _).
 
 Module BiasGameTest. Section biasGameTest.
-  Context {A N rty} `{gameA : game A N rty} `{scalarA : ScalarAxiomClass rty}.
-  Variables (t : {ffun 'I_N -> biasType scalar_val A}) (i : 'I_N).
+  Context {A N rty} `{gameA : game A N rty} `{biasA : BiasAxiomClass rty}.
+  Variables (t : {ffun 'I_N -> biasType bias_val A}) (i : 'I_N).
   Check cost i t.
 End biasGameTest. End BiasGameTest.
 
 Instance biasLambdaInstance
          (rty : realFieldType) (A : finType)
-         `(scalarA : ScalarClass rty)
+         `(biasA : BiasClass rty)
          `(lambdaA : LambdaClass A rty)
-  : @LambdaClass (biasType scalar_val A) rty | 0 := lambda of A.
+  : @LambdaClass (biasType bias_val A) rty | 0 := lambda of A.
 
 Program Instance biasLambdaAxiomInstance
         (rty : realFieldType) (A : finType)
-        `(scalarA : ScalarAxiomClass rty)
+        `(biasA : BiasAxiomClass rty)
         `(lambdaA : LambdaAxiomClass A rty)
-  : @LambdaAxiomClass (biasType scalar_val A) rty _ | 0.
+  : @LambdaAxiomClass (biasType bias_val A) rty _ | 0.
 
 Instance biasMuInstance
          (rty : realFieldType) (A : finType)
-         `(scalarA : ScalarClass rty)
+         `(biasA : BiasClass rty)
          `(lambdaA : MuClass A rty)
-  : @MuClass (biasType scalar_val A) rty | 0 := mu of A.
+  : @MuClass (biasType bias_val A) rty | 0 := mu of A.
 
 Program Instance biasMuAxiomInstance
         (rty : realFieldType) (A : finType)
-        `(scalarA : ScalarAxiomClass rty)
+        `(biasA : BiasAxiomClass rty)
         `(lambdaA : MuAxiomClass A rty)
-  : @MuAxiomClass (biasType scalar_val A) rty _ | 0.
+  : @MuAxiomClass (biasType bias_val A) rty _ | 0.
                                           
 Class LambdaMuGe1Class (A : finType) N (rty : realFieldType) `(smooth A N rty)
   : Type := lambdaMu_ge1 : 1 <= lambda of A + mu of A.
@@ -2098,8 +2218,8 @@ Class LambdaMuGe1Class (A : finType) N (rty : realFieldType) `(smooth A N rty)
 Program Instance biasSmoothAxiomInstance {A N rty}
         `{smoothA : smooth A N rty}
          (LambdaMu_ge1 : LambdaMuGe1Class smoothA)  
-        `{scalarA : ScalarAxiomClass rty}
-  : @SmoothnessAxiomClass (biasType scalar_val A) N rty _ _ _ _ _ _ _.
+        `{biasA : BiasAxiomClass rty}
+  : @SmoothnessAxiomClass (biasType bias_val A) N rty _ _ _ _ _ _ _.
 Next Obligation.
   rewrite /Cost /(cost) /biasCostInstance.
   rewrite /lambda_val /biasLambdaInstance.
@@ -2110,7 +2230,7 @@ Next Obligation.
   rewrite [lambda of A * _ + _]addrC.
   rewrite -[(lambda of A * _ + _) + _ + _]addrA; apply: ler_add.
   { rewrite -mulrDl; apply: ler_pemull.
-    by apply: sumr_ge0=> _ _; apply: ltrW; apply: scalar_axiom.
+    by apply: sumr_ge0=> _ _; apply: ltrW; apply: bias_axiom.
     by apply: lambdaMu_ge1. }
   by rewrite unwrap_ffun_simpl unwrap_eta; apply: smooth_ax.
 Qed.
@@ -2118,18 +2238,134 @@ Qed.
 Instance biasSmoothInstance {A N rty}
          `{smoothA : smooth A N rty}
          (LambdaMu_ge1 : LambdaMuGe1Class smoothA)
-         `{scalarA : ScalarAxiomClass rty}
-  : @smooth (biasType scalar_val A) N rty _ _ _ _ _ _ _ _.
+         `{biasA : BiasAxiomClass rty}
+  : @smooth (biasType bias_val A) N rty _ _ _ _ _ _ _ _.
 
 Module BiasSmoothTest. Section biasSmoothTest.
-  Context {A N rty} `{gameA : smooth A N rty} `{scalarA : ScalarAxiomClass rty}.
+  Context {A N rty} `{gameA : smooth A N rty} `{biasA : BiasAxiomClass rty}.
   Context (LambdaMu_ge1 : LambdaMuGe1Class gameA).
-  Lemma x0 (t : {ffun 'I_N -> (biasType scalar_val A)}) (i : 'I_N) :
+  Lemma x0 (t : {ffun 'I_N -> (biasType bias_val A)}) (i : 'I_N) :
     cost i t == 0. Abort.
-  Lemma x0 (t : {ffun 'I_N -> (biasType scalar_val A)}) (i : 'I_N) :
-    cost i t == lambda of (biasType scalar_val A). Abort.
+  Lemma x0 (t : {ffun 'I_N -> (biasType bias_val A)}) (i : 'I_N) :
+    cost i t == lambda of (biasType bias_val A). Abort.
 End biasSmoothTest. End BiasSmoothTest.
 
+Section biasCompilable.
+  Context {A N} {q : rat} `{cgame N A}.
+
+  Instance biasCTypeInstance
+    : Enumerable (bias q A) := map (@Wrap (Bias q) A) enumerateClass.
+
+  Program Instance biasRefineTypeAxiomInstance
+    : @RefineTypeAxiomClass (biasType q A) _.
+  Next Obligation.
+    clear H1 H2 refineCostAxiomClass  H0
+          refineCostClass ccostClass costAxiomClass costClass.
+    generalize H; clear H.
+    rewrite /RefineTypeAxiomClass => H.
+    destruct H; split; last first.
+    {
+      rewrite map_inj_uniq. apply H.
+      rewrite /injective => x1 x2 H3.
+      inversion H3 => //.
+    }
+    rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance.
+    move => r.
+    apply /mapP.
+    case_eq (in_mem r (mem (enum_mem (T:=biasType (rty:=rat_realFieldType) q A)
+              (mem (sort_of_simpl_pred (pred_of_argType
+                (Wrapper (Bias (rty:=rat_realFieldType) q) A))))))) => H3; rewrite H3.
+    {
+      move: H3.
+      case: r => x H3.
+      exists x; last by [].
+      rewrite H0 mem_enum.
+      rewrite mem_enum in H3 => //.
+    }
+    {
+      move => H4.
+      case: H4 => x H4 H5.
+      rewrite H5 in H3.
+      move/negP: H3 => H3.
+      apply H3 => //.
+      rewrite mem_enum => //.
+    }
+  Qed.
+
+  Instance biasRefineTypeInstance
+    : @RefineTypeClass (biasType q A)  _ _.
+
+  Definition unwrapBiasTree : M.t (biasType q A) -> M.t A :=
+  fun m : (M.t (biasType q A)) =>
+    M.fold (fun i r acc =>
+              M.add i (unwrap r) acc)
+      m (M.empty A).    
+
+  Lemma unwrapBiasTree_spec i (t : biasType q A) m:
+    M.find i m = Some t ->
+      M.find i (unwrapBiasTree m) = Some (unwrap t).
+  Proof.
+    clear H H0 H1 H2 refineCostAxiomClass
+          refineCostClass ccostClass costAxiomClass costClass.
+    rewrite /unwrapBiasTree.
+    apply MProps.fold_rec_weak.
+    {
+      move => mo m' a' H0 H1 H2.
+      have H3: (forall (k : M.key) e,
+        M.MapsTo k e mo <-> M.MapsTo k e m');
+          first by apply MProps.F.Equal_mapsto_iff; apply H0.
+      apply M.find_2 in H2. apply H3 in H2. apply M.find_1 in H2.
+      apply H1. apply H2.
+    }
+    {
+      move => H. inversion H.
+    }
+    {
+      move => k e a' m' H0 IH. case: e. move => a0 H2 /=.
+      rewrite MProps.F.add_o. case: (MProps.F.eq_dec k i) => H3 //.
+      generalize H2; clear H2.
+      rewrite MProps.F.add_eq_o. move => H2. inversion H2.
+      split => []. by []. apply IH.
+      generalize H2; clear H2.
+      rewrite MProps.F.add_neq_o. move => H2. inversion H2 => //.
+      by [].
+    }
+  Qed.
+
+  Instance biasCCostInstance
+    : CCostClass (biasType q A)
+    :=
+      fun (i : OrdNat.t) (m : M.t (biasType q A)) =>
+        Qred(Qplus (rat_to_Q q) (ccostClass i (unwrapBiasTree m))).
+
+  Program Instance biasRefineCostAxiomInstance
+    : @RefineCostAxiomClass _ (biasType q A) (biasCostInstance costClass) _.
+  Next Obligation.
+    clear H H0 H1 H2
+          refineCostClass costAxiomClass.
+    rewrite /cost_fun /biasCostInstance /cost_fun.
+    rewrite /(ccost) /biasCCostInstance /ccost_fun /(ccost).
+    rewrite [rat_to_Q (_ + _)] rat_to_Q_red.
+    apply Qred_complete.
+    rewrite rat_to_Q_plus /scalar_val.
+    move: (Qeq_dec (rat_to_Q q) 0%Q).
+    move: refineCostAxiomClass; clear refineCostAxiomClass.
+    rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass.
+    specialize (refineCostAxiomClass pf).
+    rewrite -(@refineCostAxiomClass(unwrapBiasTree m)) => //.
+    move => j pf'. 
+    specialize (H3 j pf').
+    apply unwrapBiasTree_spec in H3.
+    rewrite H3. f_equal.
+    rewrite /unwrap_ffun. rewrite ffunE => //.
+  Qed.
+
+  Instance biasRefineCostInstance
+    : @RefineCostClass N (biasType q A) (biasCostInstance costClass) _ _.
+
+  Instance bias_cgame `{@BiasAxiomClass _ q}
+    : @cgame N (biasType q A) _ _ _ _ _ _ _ _ (biasGameInstance _ _ _ _ _).
+End biasCompilable.
 (** Unit Games c(s) = 0 *)
 
 Section UnitType.
@@ -2232,8 +2468,8 @@ End unitSmoothTest. End UnitSmoothTest.
 (** Unit Games are compilable *)
 
 Section unitCompilable.
+  
   Variable (N : OrdNat.t).
-
   Instance unitEnumerableInstance : Enumerable unitType :=
     [:: Wrap [eqType of Unit] mkUnit].
 
@@ -2262,11 +2498,10 @@ Section unitCompilable.
 End unitCompilable.
 
 (** Affine Games: C(x) = ax + b, 0 <= a, 0 <= b *)
-
 Section AffineGame.
 Variable rty : realFieldType.
 Context `(scalarA : ScalarClass rty) `(@ScalarAxiomClass _ scalarA).
-Context `(scalarB : ScalarClass rty) `(@ScalarAxiomClass _ scalarB).
+Context `(biasA : BiasClass rty) `(@BiasAxiomClass _ biasA).
 
 Variables (A : finType) (N : nat).
 Context `(Boolable A).
@@ -2274,11 +2509,16 @@ Context `(game A N rty).
 
 Definition affineType : Type :=
   scalarType (@scalar_val _ scalarA) A *
-  scalarType (@scalar_val _ scalarB) (singletonType A).
+  biasType (@bias_val _ biasA) (singletonType A).
 
 Section affineGameTest.
 Variable t : {ffun 'I_N -> affineType}.
 Variable i : 'I_N.
 Check cost i t.
+
+Variable i' : OrdNat.t.
+Variable t' : M.t affineType.
+Check ccost i' t'.
 End affineGameTest.
 End AffineGame.
+  
