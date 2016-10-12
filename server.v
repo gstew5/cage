@@ -27,7 +27,7 @@ Extract Constant server_init =>
    sd".
 
 (** Blocking server receive *)
-Axiom server_recv : forall A : Type, chan -> A.
+Axiom server_recv : forall A : Type, chan -> (A * chan).
 Extract Constant server_recv =>
 (* We might need to return service_socket as well so that it can be used
    in server_send. There is a different service socket for each client. *)
@@ -35,20 +35,21 @@ Extract Constant server_recv =>
    let (service_socket, _) = Unix.accept sd in
    let in_chan = Unix.in_channel_of_descr service_socket in
    let o = Marshal.from_channel in_chan in
-   o".
+   (o, service_socket)".
 
 (** Server send *)
 Axiom server_send :
-  forall A : Type, chan -> nat (*player index*) -> list (A * Q) -> unit.
+  forall A : Type, option chan -> nat (*player index*) -> list (A * Q) -> unit.
 Extract Constant server_send =>
 (* Here it is taking service_socket as an argument which is assumed to
    be the socket created in recv that corresponds to player i *)
 "fun service_socket i cost_vector ->
-   let out_chan = Unix.out_channel_of_descr service_socket in
-   Marshal.to_channel out_chan cost_vector [];
-   close_out out_chan".
-
-Extraction server_init.
+   match service_socket with
+   | Some sock ->
+     let out_chan = Unix.out_channel_of_descr sock in
+     Marshal.to_channel out_chan cost_vector [];
+     close_out out_chan
+   | None -> ()".
 
 Module Type ServerConfig.
   Parameter num_players : nat.
@@ -61,7 +62,8 @@ Module Server (C : ServerConfig) (A : OrderedType).
             ; num_players : nat
             ; cur_player : nat
             ; num_rounds : nat
-            ; the_channel : chan
+            ; listen_channel : chan
+            ; service_channels : list chan
             }.
 
   Definition init_chan (n : nat) : chan := server_init n.
@@ -69,7 +71,8 @@ Module Server (C : ServerConfig) (A : OrderedType).
   Definition init_state : state :=
     mkState (M.empty A.t)
             C.num_players C.num_players C.num_rounds
-            (init_chan C.num_players).
+            (init_chan C.num_players)
+            nil.
 
   Section server.
   Context `{GameTypeIsEnumerable : Enumerable A.t}.
@@ -85,12 +88,13 @@ Module Server (C : ServerConfig) (A : OrderedType).
     match player with
     | O => s
     | S player' =>
-      let _ := server_send (the_channel s) player' (cost_vector s (N.of_nat player'))
+      let _ := server_send (hd_error (service_channels s)) player' (cost_vector s (N.of_nat player'))
       in send (mkState (actions_received s)
                        (num_players s)
                        player'
                        (num_rounds s)
-                       (the_channel s))
+                       (listen_channel s)
+                       (tl (service_channels s)))
               player'
     end.
   
@@ -100,17 +104,19 @@ Module Server (C : ServerConfig) (A : OrderedType).
                          (num_players s)
                          (num_players s)
                          (num_rounds s) (*reset cur_player=num_players*)
-                         (the_channel s))
+                         (listen_channel s)
+                         (service_channels s))
                 (num_players s)
     | S player' =>
-      let a := server_recv _ (the_channel s) in
+      let (a, c) := server_recv _ (listen_channel s) in
       round
         (mkState
            (M.add (N.of_nat player') a (actions_received s))
            (num_players s)
            player'
            (num_rounds s)
-           (the_channel s))
+           (listen_channel s)
+           ((service_channels s) ++ (c :: nil)))
         player'
     end.
 
@@ -127,4 +133,3 @@ Module Server (C : ServerConfig) (A : OrderedType).
     rounds s (num_rounds s).
   End server.
 End Server.
-      
