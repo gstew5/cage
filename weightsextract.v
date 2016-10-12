@@ -135,12 +135,12 @@ Extract Constant recv =>
    cost_vector".
 
 Axiom recv_ok :
-  forall A (a : A),
+  forall A (a : A) (c : chan),
   exists q,
-    [/\ In (a, q) (recv _ tt)
+    [/\ In (a, q) (recv _ c)
      & 0 <= q <= 1].
 Axiom recv_nodup :
-  forall A : Type, NoDupA (fun p q => p.1 = q.1) (recv A tt).
+  forall (A : Type) (c : chan), NoDupA (fun p q => p.1 = q.1) (recv A c).
 
 (** * Program *)
 
