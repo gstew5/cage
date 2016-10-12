@@ -107,58 +107,32 @@ Definition sample (A : Type) (a0 : A) (l : list (A*Q)) : A :=
   let p := rand tt
   in sample_aux a0 0 p l.
 
-Axiom send : forall A : Type, A -> unit.
-Extract Constant send =>
- "fun a ->
-  let make_address ip port =
-    let ha = Batteries.Unix.inet_addr_of_string ip in
-    Batteries.Unix.ADDR_INET (ha,port)
-  in
-  (* create socket. returns file descriptor *)
-  let s = Batteries.Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-  (* connect to server *)
-  let host = ""127.0.0.1"" in
-  let port = 13337 in
-  Batteries.Unix.connect s (make_address host port);
-  (* create async fd wrapper thing around our socket *)
-  let async_fd =
-    Fd.create (Async.Std.Fd.Kind.Socket `Passive) s (Info.of_string """") in
-  (* create writer *)
-  let w = Writer.create async_fd in
-  prerr_endline ""SEND: connected to server"";
-  Writer.write_marshal w [] a;
-  prerr_endline ""SEND: sent action to server"";
-  Scheduler.go ();
-  Tt".
+(** A channel *)
+Axiom chan : Type.
+Extract Constant chan => "Unix.file_descr".
 
-Axiom recv : forall A : Type, unit -> list (A*Q).
-Extract Constant recv => 
- "fun a ->
-  let make_address ip port =
-    let ha = Batteries.Unix.inet_addr_of_string ip in
-    Batteries.Unix.ADDR_INET (ha,port)
-  in
-  (* create socket. returns file descriptor *)
-  let s = Batteries.Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-  (* connect to server *)
-  let host = ""127.0.0.1"" in
-  let port = 13337 in
-  Batteries.Unix.connect s (make_address host port);
-  (* create async fd wrapper thing around our socket *)
-  let async_fd =
-    Fd.create (Async.Std.Fd.Kind.Socket `Passive) s (Info.of_string """") in
-  (* create reader *)
-  let r = Reader.create async_fd in  
-  prerr_endline ""RECV: connected to server"";
-  let response =
-    Thread_safe.block_on_async_exn
-      (fun () -> Reader.read_marshal r)
-  in
-  prerr_endline ""RECV: received cost table from server"";
-  Scheduler.go ();
-  match response with
-  | `Ok r -> r
-  | `Eof -> failwith ""server is gone or sent a bad message""".
+Axiom send : forall A : Type, A -> chan.
+Extract Constant send =>
+(* Create socket, connect to server, send action, return socket *)
+"fun a ->
+   let my_name = Unix.gethostname() in
+   let my_entry = Unix.gethostbyname my_name in
+   let my_addr = my_entry.Unix.h_addr_list.(0) in
+   let sd = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+   Unix.connect sd (Unix.ADDR_INET(my_addr, 13337));
+   let out_chan = Unix.out_channel_of_descr sd in
+   Marshal.to_channel out_chan a [];
+   flush out_chan;
+   sd".
+
+Axiom recv : forall A : Type, chan -> list (A*Q).
+Extract Constant recv =>
+(* Read cost vector from socket, close the socket *)
+"fun sd ->
+   let in_chan = Unix.in_channel_of_descr sd in
+   let cost_vector = Marshal.from_channel in_chan in
+   close_in in_chan;
+   cost_vector".
 
 Axiom recv_ok :
   forall A (a : A),
