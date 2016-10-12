@@ -110,6 +110,8 @@ Definition sample (A : Type) (a0 : A) (l : list (A*Q)) : A :=
 (** A channel *)
 Axiom chan : Type.
 Extract Constant chan => "Unix.file_descr".
+Axiom bogus_chan : chan.
+Extract Constant bogus_chan => "Unix.stderr".
 
 Axiom send : forall A : Type, A -> chan.
 Extract Constant send =>
@@ -135,12 +137,12 @@ Extract Constant recv =>
    cost_vector".
 
 Axiom recv_ok :
-  forall A (a : A),
+  forall A (a : A) ch,
   exists q,
-    [/\ In (a, q) (recv _ tt)
+    [/\ In (a, q) (recv _ ch)
      & 0 <= q <= 1].
 Axiom recv_nodup :
-  forall A : Type, NoDupA (fun p q => p.1 = q.1) (recv A tt).
+  forall (A : Type) ch, NoDupA (fun p q => p.1 = q.1) (recv A ch).
 
 (** * Program *)
 
@@ -155,12 +157,12 @@ Module MWU (A : OrderedType).
 
   (** Draw from a distribution, communicating the resulting action 
       to the network. *)
-  Definition mwu_send (m : M.t Q) : unit :=
+  Definition mwu_send (m : M.t Q) : chan :=
     let a := sample A.t0 (M.elements m) in send a.
 
   (* Receive a cost vector (a map) from the network. *)
-  Definition mwu_recv : unit -> M.t Q :=
-    fun _ => let l := recv _ tt in MProps.of_list l.
+  Definition mwu_recv : chan -> M.t Q :=
+    fun ch => let l := recv _ ch in MProps.of_list l.
       
   Record cstate : Type :=
     mkCState
@@ -169,7 +171,8 @@ Module MWU (A : OrderedType).
       ; SWeights : M.t Q
       ; SEpsilon : Q (* epsilon -- a parameter *)
       (* the history of the generated distributions over actions *)                     
-      ; SOutputs : list (A.t -> Q) }.
+      ; SOutputs : list (A.t -> Q)
+      ; SChan : chan }.
 
   Definition eval_binopc (b : binop) (v1 v2 : Q) :=
     match b with
@@ -243,25 +246,28 @@ Module MWU (A : OrderedType).
                    (SPrevCosts s)
                    w'
                    (SEpsilon s)
-                   (SOutputs s))
+                   (SOutputs s)
+                   (SChan s))
          end
     | CRecv =>
-      let c := mwu_recv tt
+      let c := mwu_recv (SChan s)
       in Some (mkCState
                  c
                  (SCosts s :: SPrevCosts s)
                  (SWeights s)
                  (SEpsilon s)
-                 (SOutputs s))
+                 (SOutputs s)
+                 (SChan s))
     | CSend =>
-      let tt:= mwu_send (SWeights s) in
+      let ch:= mwu_send (SWeights s) in
       let d := weights_distr (SWeights s)
       in Some (mkCState
                  (SCosts s)
                  (SPrevCosts s)
                  (SWeights s)
                  (SEpsilon s)
-                 (d :: SOutputs s))
+                 (d :: SOutputs s)
+                 ch)
     | CSeq c1 c2 =>
       match interp c1 s with
       | None => None
@@ -295,7 +301,8 @@ Module MWU (A : OrderedType).
         [::]
         init_map
         epsQ
-        [::].
+        [::]
+        bogus_chan.
   End init.  
 
   Section mwu.
@@ -347,19 +354,20 @@ Module MWUProof (T : OrderedFinType).
   Qed.
     
   Lemma recv_ok :
-    forall a,
+    forall a ch,
     exists q,
-      [/\ M.find a (mwu_recv tt) = Some q
+      [/\ M.find a (mwu_recv ch) = Some q
        & 0 <= q <= 1].
   Proof.
     rewrite /mwu_recv.
-    have H: NoDupA (M.eq_key (elt:=Q)) (recv _ tt).
+    move => a0 ch.
+    have H: NoDupA (M.eq_key (elt:=Q)) (recv _ ch).
     { move: (recv_nodup M.key) => H.
       rewrite NoDupA_ext; first by apply: H.
       rewrite /M.eq_key /M.Raw.Proofs.PX.eqk => a b.
-      by rewrite -A.eqP. }
-    move => a.
-    case: (recv_ok a) => q []H2 H3.
+        by rewrite -A.eqP. }
+    move: a0 => a.
+    case: (recv_ok a ch) => q []H2 H3.
     exists q; split => //.
     rewrite MProps.of_list_1b => //.
     move: H H2 {H3}; move: (recv _ _) a q.
@@ -426,7 +434,7 @@ Module MWUProof (T : OrderedFinType).
   
   Inductive match_states : state t -> cstate -> Prop :=
   | mkMatchStates :
-      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs',
+      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs' ch,
         match_maps s m ->
         match_costs_seq ss mm ->
         match_maps w wc ->
@@ -434,7 +442,7 @@ Module MWUProof (T : OrderedFinType).
         match_distrs outs outs' ->
         match_states
           (@mkState _ s s_ok ss w w_ok eps eps_ok outs)
-          (@mkCState m mm wc epsc outs').
+          (@mkCState m mm wc epsc outs' ch).
 
   Definition eval_binopc (b : binop) (v1 v2 : Q) :=
     match b with
@@ -910,7 +918,7 @@ Module MWUProof (T : OrderedFinType).
     case: s H H2 Hinv1 Hmatch; intros.
     inversion H; subst.
     have H3: forall a, exists q, M.find a SWeights0 = Some q.
-    { move => a'; case: (H9 a') => q []H3 H4; exists q => //. }
+    { move => a'; case: (H10 a') => q []H3 H4; exists q => //. }
     case: (Hinv1 H3 H2 a) => q []H1 H4 H5.
     exists q; split => //.
     apply: Hmatch => //.
@@ -971,7 +979,7 @@ Module MWUProof (T : OrderedFinType).
       Unshelve. by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. }
     { intros s tx t'; inversion 1; subst. clear H.
       intros H2.
-      set c := mwu_recv tt.
+      set c := mwu_recv (SChan tx).
       set f :=
         finfun
           (fun a : t =>
@@ -981,7 +989,7 @@ Module MWUProof (T : OrderedFinType).
              end).
       have pf: forall a, (0 <= f a <= 1)%R.
       { move => a. rewrite /f ffunE. clear f.
-        case: (recv_ok a) => q [] -> [] H H3.
+        case: (recv_ok a (SChan tx)) => q [] -> [] H H3.
         apply/andP; split.
         { rewrite -Q_to_rat0; apply: Q_to_rat_le.
           have H4: Qeq (Qred q) q by apply: Qred_correct.
@@ -1011,7 +1019,7 @@ Module MWUProof (T : OrderedFinType).
       inversion H2; subst. simpl in *.
       constructor; try solve[auto | constructor; auto].
       rewrite /match_maps => a.
-      case: (recv_ok a) => q []; rewrite /f ffunE => -> _.
+      case: (recv_ok a ch) => q []; rewrite /f ffunE => -> _.
       exists q.
       split; auto.
       by rewrite rat_to_QK. }

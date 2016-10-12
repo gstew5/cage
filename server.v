@@ -64,10 +64,12 @@ Module Server (C : ServerConfig) (A : OrderedType).
             ; the_channel : chan
             }.
 
-  Definition init_chan : chan := server_init tt.
+  Definition init_chan (n : nat) : chan := server_init n.
   
   Definition init_state : state :=
-    mkState (M.empty A.t) C.num_players C.num_players C.num_rounds init_chan.
+    mkState (M.empty A.t)
+            C.num_players C.num_players C.num_rounds
+            (init_chan C.num_players).
 
   Section server.
   Context `{GameTypeIsEnumerable : Enumerable A.t}.
@@ -121,7 +123,7 @@ Module Server (C : ServerConfig) (A : OrderedType).
     end.
   
   Definition server (s : state) : state :=
-    let _ := server_init tt in
+    let _ := server_init (num_players s) in
     rounds s (num_rounds s).
   End server.
 End Server.
