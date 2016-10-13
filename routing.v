@@ -13,7 +13,7 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import combinators games compile orderedtypes weightsextract.
+Require Import combinators games compile orderedtypes weightsextract server.
 
 Local Open Scope ring_scope.
 
@@ -84,3 +84,13 @@ Definition mwu := mwu0 (Qmake 1 3) 1000.
 
 Extraction "runtime/mwu.ml" mwu.
 
+Module C : ServerConfig.
+  Definition num_players := 2.             
+  Definition num_rounds := 10.
+End C.
+
+Module Server := Server C P5.
+
+Definition run := Server.server Server.init_state.
+
+Extraction "runtime/server.ml" run.
