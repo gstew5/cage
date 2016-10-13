@@ -78,7 +78,7 @@ Fixpoint sample_aux
   | nil => a0
   | (a, q) :: l' =>
     if Qle_bool acc q
-       && Qle_bool q (Qplus acc p) 
+       && Qle_bool q (Qplus acc p)
        && negb (Qeq_bool q (Qplus acc p))
     then a
     else sample_aux a0 acc p l'
@@ -115,13 +115,13 @@ Extract Constant bogus_chan => "Unix.stderr".
 
 Axiom send : forall A : Type, A -> chan.
 Extract Constant send =>
-(* Create socket, connect to server, send action, return socket *)
+(* Create socket, connect to server, send action, return socket. *)
+(* Need to know IP address of the server, but it's also possible to do
+   host name resolution. *)
 "fun a ->
-   let my_name = Unix.gethostname() in
-   let my_entry = Unix.gethostbyname my_name in
-   let my_addr = my_entry.Unix.h_addr_list.(0) in
    let sd = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-   Unix.connect sd (Unix.ADDR_INET(my_addr, 13337));
+   Unix.connect sd (Unix.ADDR_INET
+     (Unix.inet_addr_of_string ""127.0.0.1"", 13337));
    let out_chan = Unix.out_channel_of_descr sd in
    Marshal.to_channel out_chan a [];
    flush out_chan;
