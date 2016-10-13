@@ -18,6 +18,7 @@ Extract Constant chan => "Unix.file_descr".
 Axiom server_init : nat -> chan.
 Extract Constant server_init =>
 "fun num_players ->
+   let _ = Printf.eprintf ""Initializing...""; prerr_newline () in
    let rec int_of_nat n = 
      (match n with 
         | O -> 0
@@ -35,6 +36,7 @@ Extract Constant server_recv =>
 (* We might need to return service_socket as well so that it can be used
    in server_send. There is a different service socket for each client. *)
 "fun sd ->
+   let _ = Printf.eprintf ""Receiving...""; prerr_newline () in
    let (service_socket, _) = Unix.accept sd in
    let in_chan = Unix.in_channel_of_descr service_socket in
    let o = Marshal.from_channel in_chan in
@@ -47,6 +49,7 @@ Extract Constant server_send =>
 (* Here it is taking service_socket as an argument which is assumed to
    be the socket created in recv that corresponds to player i *)
 "fun service_socket i cost_vector ->
+   let _ = Printf.eprintf ""Sending...""; prerr_newline () in
    match service_socket with
    | Some sock ->
      let out_chan = Unix.out_channel_of_descr sock in

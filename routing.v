@@ -80,7 +80,7 @@ Definition mwu0 (eps : Q) (nx : N.t) :=
     (weightslang.mult_weights P5.t nx)
     (MWU.init_cstate eps).
 
-Definition mwu := mwu0 (Qmake 1 3) 1000.
+Definition mwu := mwu0 (Qmake 1 3) 10.
 
 Extraction "runtime/mwu.ml" mwu.
 

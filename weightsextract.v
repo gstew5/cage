@@ -101,6 +101,7 @@ Extract Constant rand =>
   let sd = String.sub s 2 10 in
   let d = int_of_string sd
   in
+  Printf.eprintf ""Generated random r = %f"" r; prerr_newline ();
   q_of_ocamlint d".
 
 Definition sample (A : Type) (a0 : A) (l : list (A*Q)) : A := 
@@ -119,6 +120,7 @@ Extract Constant send =>
 (* Need to know IP address of the server, but it's also possible to do
    host name resolution. *)
 "fun a ->
+   let _ = Printf.eprintf ""Sending...""; prerr_newline () in
    let sd = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
    Unix.connect sd (Unix.ADDR_INET
      (Unix.inet_addr_of_string ""127.0.0.1"", 13337));
@@ -131,6 +133,7 @@ Axiom recv : forall A : Type, chan -> list (A*Q).
 Extract Constant recv =>
 (* Read cost vector from socket, close the socket *)
 "fun sd ->
+   let _ = Printf.eprintf ""Receiving...""; prerr_newline () in
    let in_chan = Unix.in_channel_of_descr sd in
    let cost_vector = Marshal.from_channel in_chan in
    close_in in_chan;
