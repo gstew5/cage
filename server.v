@@ -40,11 +40,16 @@ Extract Constant server_recv =>
    let (service_socket, _) = Unix.accept sd in
    let in_chan = Unix.in_channel_of_descr service_socket in
    let o = Marshal.from_channel in_chan in
+   let _ = Printf.eprintf ""Received a value...""; prerr_newline () in
    Pair (o, service_socket)".
 
 (** Server send *)
+Axiom result : Type.
+Extract Constant result => "unit".
+Axiom bogus_result : result.
+Extract Constant bogus_result => "()".
 Axiom server_send :
-  forall A : Type, option chan -> nat (*player index*) -> list (A * Q) -> unit.
+  forall A : Type, option chan -> nat (*player index*) -> list (A * Q) -> result.
 Extract Constant server_send =>
 (* Here it is taking service_socket as an argument which is assumed to
    be the socket created in recv that corresponds to player i *)
@@ -55,30 +60,38 @@ Extract Constant server_send =>
      let out_chan = Unix.out_channel_of_descr sock in
      Marshal.to_channel out_chan cost_vector [];
      close_out out_chan
-   | None -> ()".
+   | None -> Printf.eprintf ""Error: Empty socket""; prerr_newline ()".
 
 Module Type ServerConfig.
   Parameter num_players : nat.
   Parameter num_rounds : nat.
 End ServerConfig.
 
+Axiom eprint_nat : nat -> result.
+Extract Constant eprint_nat =>
+"fun n -> 
+   let rec int_of_nat n = 
+     (match n with 
+        | O -> 0
+        | S n' -> 1 + int_of_nat n') in 
+   Printf.eprintf ""num_players = %d"" (int_of_nat n);
+   prerr_newline ()".
+
 Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
   Record state : Type :=
     mkState { actions_received : M.t A.t
-            ; num_players : nat
-            ; cur_player : nat
-            ; num_rounds : nat
             ; listen_channel : chan
             ; service_channels : list chan
+            ; res : result
             }.
 
   Definition init_chan (n : nat) : chan := server_init n.
   
   Definition init_state : state :=
     mkState (M.empty A.t)
-            C.num_players C.num_players C.num_rounds
             (init_chan C.num_players)
-            nil.
+            nil
+            bogus_result.
   
   Section server.
   Context `{GameTypeIsEnumerable : Enumerable A.t}.
@@ -93,35 +106,29 @@ Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
     match player with
     | O => s
     | S player' =>
-      let _ := server_send (hd_error (service_channels s)) player' (cost_vector s (N.of_nat player'))
+      let r := server_send (hd_error (service_channels s)) player' (cost_vector s (N.of_nat player'))
       in send (mkState (actions_received s)
-                       (num_players s)
-                       player'
-                       (num_rounds s)
                        (listen_channel s)
-                       (tl (service_channels s)))
+                       (tl (service_channels s))
+                       r)
               player'
     end.
   
   Fixpoint round (s : state) (player : nat) : state :=
     match player with
     | O => send (mkState (actions_received s)
-                         (num_players s)
-                         (num_players s)
-                         (num_rounds s) (*reset cur_player=num_players*)
                          (listen_channel s)
-                         (service_channels s))
-                (num_players s)
+                         (service_channels s)
+                         (res s))
+                C.num_players (*reset cur_player=num_players*)
     | S player' =>
       let (a, c) := server_recv _ (listen_channel s) in
       round
         (mkState
            (M.add (N.of_nat player') a (actions_received s))
-           (num_players s)
-           player'
-           (num_rounds s)
            (listen_channel s)
-           ((service_channels s) ++ (c :: nil)))
+           (service_channels s ++ c::nil)
+           (res s))
         player'
     end.
 
@@ -129,13 +136,28 @@ Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
     match r with
     | O => s
     | S r' =>
-      let s' := round s (num_players s) in
+      let s' := round s C.num_players in
       rounds s' r'
     end.
-  
+
+  Definition register_result (r : result) (s : state) : state := 
+    mkState
+      (actions_received s)
+      (listen_channel s)
+      (service_channels s)
+      r.
+
+  Definition register_listener (c : chan) (s : state) : state := 
+    mkState
+      (actions_received s)
+      c
+      (service_channels s)
+      (res s).
+
   Definition server (s : state) : state :=
-    let _ := server_init (num_players s) in
-    rounds s (num_rounds s).
+    let rx := eprint_nat C.num_players in
+    let s' := register_result rx s in
+    rounds s' C.num_rounds.
   End server.
 End Server.
 

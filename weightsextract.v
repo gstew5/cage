@@ -127,6 +127,7 @@ Extract Constant send =>
    let out_chan = Unix.out_channel_of_descr sd in
    Marshal.to_channel out_chan a [];
    flush out_chan;
+   Printf.eprintf ""Sent value...""; prerr_newline ();
    sd".
 
 Axiom recv : forall A : Type, chan -> list (A*Q).
@@ -137,6 +138,7 @@ Extract Constant recv =>
    let in_chan = Unix.in_channel_of_descr sd in
    let cost_vector = Marshal.from_channel in_chan in
    close_in in_chan;
+   Printf.eprintf ""Received cost vector...""; prerr_newline ();
    cost_vector".
 
 Axiom recv_ok :

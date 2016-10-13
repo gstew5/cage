@@ -80,13 +80,16 @@ Definition mwu0 (eps : Q) (nx : N.t) :=
     (weightslang.mult_weights P5.t nx)
     (MWU.init_cstate eps).
 
-Definition mwu := mwu0 (Qmake 1 3) 10.
+Definition mwu := mwu0 (Qmake 1 3) 1000.
+
+Unset Extraction Optimize.
+Unset Extraction AutoInline.
 
 Extraction "runtime/mwu.ml" mwu.
 
 Module C : ServerConfig.
-  Definition num_players := 2.             
-  Definition num_rounds := 10.
+  Definition num_players := 2%N.             
+  Definition num_rounds := 2%N.
 End C.
 
 Module Server := Server C P5.
