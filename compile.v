@@ -69,13 +69,13 @@ Class RefineTypeClass (T : finType)
     from positive player indices and maps (positive -> strategy) 
     to Q-valued costs *)
 
-Class CCostClass (T : Type) :=
+Class CCostClass (N : nat) (T : Type) :=
   ccost_fun : OrdNat.t -> M.t T -> Q.
-Notation "'ccost'" := (@ccost_fun _) (at level 30).
+Notation "'ccost'" := (@ccost_fun _ _) (at level 30).
 
 Class RefineCostAxiomClass N (T : finType)
       (costClass : CostClass N rat_realFieldType T)
-      (ccostClass : CCostClass T) :=
+      (ccostClass : CCostClass N T) :=
   refineCostAxiom_fun :
     forall (i : OrdNat.t) (pf : (nat_of_bin i < N)%nat) m (s : {ffun 'I_N -> T}),
       let: i' := Ordinal pf in
@@ -86,7 +86,7 @@ Class RefineCostAxiomClass N (T : finType)
 
 Class RefineCostClass N (T : finType)
       (costClass : CostClass N rat_realFieldType T)
-      (ccostClass : CCostClass T)
+      (ccostClass : CCostClass N T)
       `(@RefineCostAxiomClass N T costClass ccostClass).
 
 (** A compilable game is one:
@@ -97,7 +97,7 @@ Class cgame N (T : finType)
       `(RefineTypeClass T)
       `(costClass : CostClass N rat_realFieldType T)
       `(costAxiomClass : @CostAxiomClass N rat_realFieldType T costClass)
-      `(ccostClass : CCostClass T)
+      `(ccostClass : CCostClass N T)
       `(refineCostAxiomClass : @RefineCostAxiomClass N T costClass ccostClass)
       `(refineCostClass : @RefineCostClass N T costClass ccostClass refineCostAxiomClass)
       `(@game T N rat_realFieldType costClass costAxiomClass) : Type := {}.

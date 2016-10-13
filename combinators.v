@@ -355,10 +355,7 @@ Qed.
 Instance resourceRefineTypeInstance
   : @RefineTypeClass [finType of resource] _ _.
 
-Section resourceCompilable.
-Variable (N : OrdNat.t).
-
-Definition ctraffic (m : M.t resource) : Qcoq :=
+Definition ctraffic (N : nat) (m : M.t resource) : Qcoq :=
   M.fold (fun i r acc =>
             if (i < N)%N
               then match r with
@@ -368,7 +365,7 @@ Definition ctraffic (m : M.t resource) : Qcoq :=
               else acc)
          m 0%coq_Qscope.
 
-Definition ctraffic' (m : M.t resource) : Qcoq :=
+Definition ctraffic' N (m : M.t resource) : Qcoq :=
   big_sumQ (M.elements m)
     (fun p =>
       match p with (k, e) =>
@@ -408,7 +405,8 @@ Proof.
   rewrite /Qplus /Qnum /Qden.
   f_equal. ring.
 Qed.
-Lemma ctraffic_sub0 (l : seq (M.key * resource)) n :
+
+Lemma ctraffic_sub0 N (l : seq (M.key * resource)) n :
   List.fold_left
     (fun acc p => 
         if ((nat_of_bin p.1) < N)%N
@@ -442,7 +440,7 @@ Proof.
   f_equal. apply Qplus_leib_comm.
 Qed.
 
-Lemma ctraffic_subP l n :
+Lemma ctraffic_subP N l n :
   List.fold_left
     (fun acc p => 
         if (nat_of_bin p.1 < N)%N
@@ -468,7 +466,7 @@ Proof.
   rewrite IHl0.
   case: (a.1 < N)%N => //.
   case: (a.2) => //.
-  rewrite (ctraffic_sub0 _ (n+1)%coq_Qscope) ctraffic_sub0.
+  rewrite (ctraffic_sub0 _ _ (n+1)%coq_Qscope) ctraffic_sub0.
   rewrite Qplus_leib_assoc => //.
 Qed.
 
@@ -505,7 +503,7 @@ Proof.
   }
 Qed.
 
-Lemma ctraffic_subF l n :
+Lemma ctraffic_subF N l n :
   List.fold_left
     (fun acc p => 
         if (nat_of_bin p.1 < N)%N
@@ -639,23 +637,23 @@ Proof.
   rewrite Qplus_leib_comm Qplus_leib_0_l => //.
 Qed.
 
-Definition resource_ccost (i : OrdNat.t) (m : M.t resource) : Qcoq :=
+Definition resource_ccost N (i : OrdNat.t) (m : M.t resource) : Qcoq :=
   match M.find i m with
-  | Some RYes => ctraffic m
+  | Some RYes => ctraffic N m
   | Some RNo => 0%coq_Qscope
   | None => 0%coq_Qscope (*won't occur when i < N*)
   end.
 
-Instance resourceCCostInstance : CCostClass [finType of resource]
-  := resource_ccost.
+Instance resourceCCostInstance N : CCostClass N resource
+  := resource_ccost N.
 
-Definition lift_traffic (s : {ffun 'I_N -> resource})
+Definition lift_traffic N (s : {ffun 'I_N -> resource})
   : seq (M.key*resource):=
-map
+ map
   (fun (x : 'I_N) => ((N.of_nat x), s x))
   (index_enum (ordinal_finType N)).  
 
-Lemma list_trafficP (s : {ffun 'I_N -> resource}) :
+Lemma list_trafficP N (s : {ffun 'I_N -> resource}) :
   count (fun j : (M.key*resource) => j.2 == RYes) (lift_traffic s)
   =
   count (fun j: ordinal_finType N => s j == RYes)
@@ -700,7 +698,6 @@ Proof.
   rewrite H. by apply positive_nat_N.
 Qed.
 
-
 Lemma of_bin_N_of_nat x :
   nat_of_bin (N.of_nat x) = x.
 Proof.
@@ -741,7 +738,7 @@ Proof.
   }
 Qed.
 
-Program Instance resourceRefineCostAxiomInstance
+Program Instance resourceRefineCostAxiomInstance N
   : @RefineCostAxiomClass N [finType of resource] _ _.
 Next Obligation.  
   rewrite /(ccost) /resourceCCostInstance /resource_ccost.
@@ -841,7 +838,7 @@ Next Obligation.
     {
       rewrite mem_filter in H4.
       case_eq (x \in [seq (N.of_nat (nat_of_ord x0), fun_of_fin s x0)
-                | x0 <- index_enum (ordinal_finType (nat_of_bin N))])=> H5 => //.
+                | x0 <- index_enum (ordinal_finType N)])=> H5 => //.
       case/mapP: H5 => y H6 H7.
       case/andP: H4; split; destruct x as [x1 x2]; inversion H7 => /=.
       rewrite /index_enum -enumT //= in H6.
@@ -873,13 +870,11 @@ Next Obligation.
   }
 Qed.
 
-Instance resourceRefineCostInstance
+Instance resourceRefineCostInstance N
   : @RefineCostClass N [finType of resource] _ _ _.
 
-Instance resource_cgame 
+Instance resource_cgame N
   : cgame (N:=N) (T:=[finType of resource]) _ _ _.
-
-End resourceCompilable.
 
 (** Location Games *)
 
@@ -1157,7 +1152,7 @@ Qed.
     : @RefineTypeClass (singletonType A)  _ _.
 
   Instance singCCostInstance `(Boolable A)
-    : CCostClass (singletonType A)
+    : CCostClass N (singletonType A)
     :=      
       fun (i : OrdNat.t) (m : M.t (singletonType A)) =>
         (match M.find i m with
@@ -1425,10 +1420,10 @@ Section sigmaCompilable.
     : @RefineTypeClass [finType of {x : A | the_pred x}]  _ _.
 
   Instance sigmaCCostInstance
-           (A : Type)
+           (A : Type) N
            (predInstance : PredClass A)
-           (ccostA : @CCostClass A)
-    : CCostClass {x : A | the_pred x}
+           (ccostA : @CCostClass N A)
+    : CCostClass N {x : A | the_pred x}
     :=
       fun (i : OrdNat.t) (m : M.t {x : A | the_pred x}) =>
         ccost i (M.map (fun x => proj1_sig x) m).
@@ -1437,12 +1432,12 @@ Section sigmaCompilable.
           (N : nat) (A : finType)
           (predInstance : PredClass A)
           (costA : CostClass N rat_realFieldType A)
-          (ccostA : CCostClass A)
+          (ccostA : CCostClass N A)
           (refineA : RefineCostAxiomClass costA ccostA)
     : @RefineCostAxiomClass
         N [finType of {x : A | the_pred x}]
         (@sigmaCostInstance N rat_realFieldType A _ costA)
-        (@sigmaCCostInstance A _ ccostA).
+        (@sigmaCCostInstance A _ _ ccostA).
   Next Obligation.
     apply refineA=> j pf'; rewrite ffunE.
     apply MProps.F.find_mapsto_iff, MProps.F.map_mapsto_iff.
@@ -1453,7 +1448,7 @@ Section sigmaCompilable.
   Instance sigmaRefineCostInstance (N : nat) (A : finType)
            (predInstance : PredClass A)
            (costA : CostClass N rat_realFieldType A)
-           (ccostA : CCostClass A)
+           (ccostA : CCostClass N A)
            (refineA : RefineCostAxiomClass costA ccostA)
     : @RefineCostClass N [finType of {x : A | the_pred x}] _ _ _.
 
@@ -1461,7 +1456,7 @@ Section sigmaCompilable.
            (predInstance : PredClass A)
            (costA : CostClass N rat_realFieldType A)
            (costAxiomA : @CostAxiomClass N rat_realFieldType A costA)
-           (ccostA : CCostClass A)
+           (ccostA : CCostClass N A)
            `(refineTypeA : RefineTypeClass A)
            (refineCostAxiomA : @RefineCostAxiomClass N A costA ccostA)
            (refineCostA : @RefineCostClass N A costA ccostA _)
@@ -1783,10 +1778,11 @@ Instance prodEnumerableInstance (aT bT : Type)
   Qed.
 
   Instance prodCCostInstance
-           (aT bT : finType)
-           `(ccostA : CCostClass aT)
-           `(ccostB : CCostClass bT)
-    : CCostClass [finType of aT*bT]
+           N 
+           (aT bT : Type)
+           `(ccostA : CCostClass N aT)
+           `(ccostB : CCostClass N bT)
+    : CCostClass N (aT*bT)
     :=
       fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
         Qred (match M.find i m with
@@ -1799,14 +1795,14 @@ Instance prodEnumerableInstance (aT bT : Type)
           (N : nat) (aT bT : finType)
           (costA : CostClass N rat_realFieldType aT)
           (costB : CostClass N rat_realFieldType bT)
-          (ccostA : CCostClass aT)
-          (ccostB : CCostClass bT)
+          (ccostA : CCostClass N aT)
+          (ccostB : CCostClass N bT)
           (refineA : RefineCostAxiomClass costA ccostA)
           (refineB : RefineCostAxiomClass costB ccostB)
     : @RefineCostAxiomClass
         N [finType of aT*bT]
         (@prodCostInstance N rat_realFieldType aT bT costA costB)
-        (@prodCCostInstance aT bT ccostA ccostB).
+        (@prodCCostInstance N aT bT ccostA ccostB).
   Next Obligation.
     rewrite /cost_fun /prodCostInstance /cost_fun.
     rewrite /ccost_fun /prodCCostInstance /ccost_fun.
@@ -1854,8 +1850,8 @@ Qed.
   Instance prodRefineCostInstance (N : nat) (aT bT : finType)
            (costA : CostClass N rat_realFieldType aT)
            (costB : CostClass N rat_realFieldType bT)
-           (ccostA : CCostClass aT)
-           (ccostB : CCostClass bT)
+           (ccostA : CCostClass N aT)
+           (ccostB : CCostClass N bT)
            (refineA : RefineCostAxiomClass costA ccostA)
            (refineB : RefineCostAxiomClass costB ccostB)
     : @RefineCostClass N [finType of aT*bT] _ _ _.
@@ -1863,7 +1859,7 @@ Qed.
   Instance prod_cgame (N : nat) (aT bT : finType)
            `(costA : CostClass N rat_realFieldType aT)
            `(costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
-           `(ccostA : CCostClass aT)
+           `(ccostA : CCostClass N aT)
            `(refineTypeA : RefineTypeClass aT)
            `(refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA)
            `(refineCostA : @RefineCostClass N aT costA ccostA _)
@@ -1871,7 +1867,7 @@ Qed.
            `(cgA : @cgame N aT _ _ _ _ _ _ _ _ _)
            `(costB : CostClass N rat_realFieldType bT)
            `(costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
-           `(ccostB : CCostClass bT)
+           `(ccostB : CCostClass N bT)
            `(refineTypeB : RefineTypeClass bT)
            `(refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB)
            `(refineCostB : @RefineCostClass N bT costB ccostB _)
@@ -2083,8 +2079,8 @@ Section scalarCompilable.
     }
   Qed.
 
-  Instance scalarCCostInstance
-    : CCostClass (scalarType q A)
+  Instance scalarCCostInstance N
+    : CCostClass N (scalarType q A)
     :=
       fun (i : OrdNat.t) (m : M.t (scalarType q A)) =>
         Qred(Qmult (rat_to_Q q) (ccost i (unwrapScalarTree m))).
@@ -2333,8 +2329,8 @@ Section biasCompilable.
     }
   Qed.
 
-  Instance biasCCostInstance
-    : CCostClass (biasType q A)
+  Instance biasCCostInstance N
+    : CCostClass N (biasType q A)
     :=
       fun (i : OrdNat.t) (m : M.t (biasType q A)) =>
         Qred(Qplus (rat_to_Q q) (ccostClass i (unwrapBiasTree m))).
@@ -2484,7 +2480,7 @@ Section unitCompilable.
   Definition unit_ccost (i : OrdNat.t) (m : M.t unitTy) : Qcoq :=
     0%coq_Qscope.
 
-  Instance unitCCostInstance : CCostClass unitType
+  Instance unitCCostInstance : CCostClass N unitType
     := unit_ccost.
 
   Program Instance unitRefineCostAxiomInstance :

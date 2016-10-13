@@ -18,12 +18,15 @@ Extract Constant chan => "Unix.file_descr".
 Axiom server_init : nat -> chan.
 Extract Constant server_init =>
 "fun num_players ->
-   let my_name = Unix.gethostname() in
-   let my_entry = Unix.gethostbyname my_name in
-   let my_addr = my_entry.Unix.h_addr_list.(0) in
+   let rec int_of_nat n = 
+     (match n with 
+        | O -> 0
+        | S n' -> 1 + int_of_nat n') in 
    let sd = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
-   Unix.bind sd (Unix.ADDR_INET(my_addr, 13337));
-   Unix.listen sd num_players;
+   Unix.bind sd 
+     (Unix.ADDR_INET
+      (Unix.inet_addr_of_string ""127.0.0.1"", 13337));
+   Unix.listen sd (int_of_nat num_players);
    sd".
 
 (** Blocking server receive *)
@@ -35,7 +38,7 @@ Extract Constant server_recv =>
    let (service_socket, _) = Unix.accept sd in
    let in_chan = Unix.in_channel_of_descr service_socket in
    let o = Marshal.from_channel in_chan in
-   (o, service_socket)".
+   Pair (o, service_socket)".
 
 (** Server send *)
 Axiom server_send :
@@ -56,7 +59,7 @@ Module Type ServerConfig.
   Parameter num_rounds : nat.
 End ServerConfig.
 
-Module Server (C : ServerConfig) (A : OrderedType).
+Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
   Record state : Type :=
     mkState { actions_received : M.t A.t
             ; num_players : nat
@@ -73,11 +76,10 @@ Module Server (C : ServerConfig) (A : OrderedType).
             C.num_players C.num_players C.num_rounds
             (init_chan C.num_players)
             nil.
-
+  
   Section server.
   Context `{GameTypeIsEnumerable : Enumerable A.t}.
-  Context `{CCostInstance : CCostClass A.t}.
-
+  Context `{CCostInstance : CCostClass C.num_players A.t}.
   Definition cost_vector (s : state) (player : N) : list (A.t * Q) :=
     List.fold_left
       (fun l a => (a, ccost player (M.add player a (actions_received s))) :: l)
@@ -133,3 +135,4 @@ Module Server (C : ServerConfig) (A : OrderedType).
     rounds s (num_rounds s).
   End server.
 End Server.
+

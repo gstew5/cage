@@ -11,6 +11,7 @@ Module Type OrderedType.
   Parameter t : Type.
   Parameter t0 : t. (*The type is inhabited.*)
   Parameter enumerable : Enumerable t.
+  Parameter cost_instance : forall N, CCostClass N t.
   Parameter eq : t -> t -> Prop.
   Parameter lt : t -> t -> Prop.
   Parameter lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
@@ -48,6 +49,7 @@ Module OrderedResource <: OrderedType.
   Definition t := resource.
   Definition t0 := RNo.
   Definition enumerable := resourceEnumerableInstance.
+  Definition cost_instance := resourceCCostInstance.
   Definition eq r1 r2 := resource_eq r1 r2 = true.
   Definition lt r1 r2 :=
     match r1, r2 with
@@ -106,6 +108,8 @@ Module OrderedProd (A B : OrderedType) <: OrderedType.
   Definition t := (A.t*B.t)%type.
   Definition t0 := (A.t0, B.t0).
   Definition enumerable := prodEnumerableInstance A.enumerable B.enumerable.
+  Definition cost_instance N :=
+    prodCCostInstance (A.cost_instance N) (B.cost_instance N).
   Definition eq p1 p2 := A.eq p1.1 p2.1 /\ B.eq p1.2 p2.2.
   Definition lt p1 p2 :=
     match p1, p2 with
