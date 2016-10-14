@@ -62,20 +62,29 @@ Extract Constant server_send =>
      close_out out_chan
    | None -> Printf.eprintf ""Error: Empty socket""; prerr_newline ()".
 
-Module Type ServerConfig.
-  Parameter num_players : nat.
-  Parameter num_rounds : nat.
-End ServerConfig.
-
-Axiom eprint_nat : nat -> result.
+Axiom eprint_nat : forall T : Type, nat -> T -> T.
 Extract Constant eprint_nat =>
-"fun n -> 
+  "fun n s -> 
    let rec int_of_nat n = 
      (match n with 
         | O -> 0
         | S n' -> 1 + int_of_nat n') in 
-   Printf.eprintf ""num_players = %d"" (int_of_nat n);
-   prerr_newline ()".
+   Printf.eprintf ""%d"" (int_of_nat n);
+   flush stderr; 
+   s".
+
+Axiom eprint_comma : forall T : Type, T -> T.
+Extract Constant eprint_comma =>
+  "fun s -> Printf.eprintf "",""; flush stderr; s".
+
+Axiom eprint_newline : forall T : Type, T -> T.
+Extract Constant eprint_newline =>
+  "fun s -> prerr_newline (); s".
+
+Module Type ServerConfig.
+  Parameter num_players : nat.
+  Parameter num_rounds : nat.
+End ServerConfig.
 
 Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
   Record state : Type :=
@@ -84,7 +93,7 @@ Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
             ; service_channels : list chan
             ; res : result
             }.
-
+  
   Definition init_chan (n : nat) : chan := server_init n.
   
   Definition init_state : state :=
@@ -96,6 +105,18 @@ Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
   Section server.
   Context `{GameTypeIsEnumerable : Enumerable A.t}.
   Context `{CCostInstance : CCostClass C.num_players A.t}.
+
+  Definition eprint_Q (q : Q) (s : state) : state :=
+    match q with
+    | Qmake n d =>
+      let n := N.to_nat (Z.abs_N n) in
+      let d := Pos.to_nat d in
+      let s1 := eprint_nat n s in
+      let s2 := eprint_comma s1 in
+      let s3 := eprint_nat d s2 in
+      eprint_newline s3
+    end.
+
   Definition cost_vector (s : state) (player : N) : list (A.t * Q) :=
     List.fold_left
       (fun l a => (a, ccost player (M.add player a (actions_received s))) :: l)
@@ -106,7 +127,8 @@ Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
     match player with
     | O => s
     | S player' =>
-      let r := server_send (hd_error (service_channels s)) player' (cost_vector s (N.of_nat player'))
+      let v := cost_vector s (N.of_nat player') in
+      let r := server_send (hd_error (service_channels s)) player' v
       in send (mkState (actions_received s)
                        (listen_channel s)
                        (tl (service_channels s))
@@ -139,25 +161,9 @@ Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
       let s' := round s C.num_players in
       rounds s' r'
     end.
-
-  Definition register_result (r : result) (s : state) : state := 
-    mkState
-      (actions_received s)
-      (listen_channel s)
-      (service_channels s)
-      r.
-
-  Definition register_listener (c : chan) (s : state) : state := 
-    mkState
-      (actions_received s)
-      c
-      (service_channels s)
-      (res s).
-
+  
   Definition server (s : state) : state :=
-    let rx := eprint_nat C.num_players in
-    let s' := register_result rx s in
-    rounds s' C.num_rounds.
+    let s1 := eprint_newline (eprint_nat C.num_players s) in
+    rounds s1 C.num_rounds.
   End server.
 End Server.
-

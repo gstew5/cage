@@ -73,11 +73,11 @@ Module P4 : OrderedType := OrderedProd R P3.
 Module P5 : OrderedType := OrderedProd R P4.
 
 (* The program *)
-Module MWU := MWU P5.
+Module MWU := MWU R.
 
 Definition mwu0 (eps : Q) (nx : N.t) :=
   MWU.interp
-    (weightslang.mult_weights P5.t nx)
+    (weightslang.mult_weights R.t nx)
     (MWU.init_cstate eps).
 
 Definition mwu := mwu0 (Qmake 1 3) 1000.
@@ -88,11 +88,11 @@ Unset Extraction AutoInline.
 Extraction "runtime/mwu.ml" mwu.
 
 Module C : ServerConfig.
-  Definition num_players := 2%N.             
-  Definition num_rounds := 2%N.
+  Definition num_players := 1%N.             
+  Definition num_rounds := 100%N.
 End C.
 
-Module Server := Server C P5.
+Module Server := Server C R.
 
 Definition run := Server.server Server.init_state.
 
