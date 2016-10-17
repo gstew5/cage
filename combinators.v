@@ -2541,11 +2541,21 @@ Program Instance  unitCostAxiomInstance
         (N : nat) (rty : realFieldType)
   : @CostAxiomClass N rty unitType (@unitCostInstance N rty).
 
+Instance unitCostMaxInstance (rty : realFieldType)
+  : CostMaxClass rty unitType :=
+  0.
+
+Program Instance unitCostMaxAxiomInstance
+        (N : nat) (rty : realFieldType)
+  : CostMaxAxiomClass (@unitCostInstance N rty)
+                      (unitCostMaxInstance _).
+
 Program Instance unitGameInstance
         (N : nat) (rty : realFieldType) 
   : @game unitType N rty 
           (@unitCostInstance N rty)
-          (@unitCostAxiomInstance N rty).
+          (@unitCostAxiomInstance N rty) _
+          (unitCostMaxAxiomInstance _ _).
 
 Module UnitGameTest. Section unitGameTest.
   Context {N rty} `{gameA : game unitType N rty}.
@@ -2575,7 +2585,7 @@ Next Obligation.
 Qed.
                                           
 Program Instance unitSmoothAxiomInstance {N rty}
-  : @SmoothnessAxiomClass unitType N rty _ _ _ _ _ _ _.
+  : @SmoothnessAxiomClass unitType N rty _ _ _ _ _ _ _ _ _.
 Next Obligation.
   rewrite mul1r mul0r addr0; have ->: t = t'.
   { apply/ffunP; case => m i. case: (t _)=> s. case: (t' _)=> s'.
@@ -2584,7 +2594,7 @@ Next Obligation.
 Qed.
 
 Instance unitSmoothInstance {N rty}
-  : @smooth unitType N rty _ _ _ _ _ _ _ _.
+  : @smooth unitType N rty _ _ _ _ _ _ _ _ _ _.
 
 Module UnitSmoothTest. Section unitSmoothTest.
   Context {N rty} `{gameA : smooth unitType N rty}.
