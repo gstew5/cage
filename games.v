@@ -36,8 +36,19 @@ End costLemmas.
   CostClass cN rty [finType of cT] :=
   @cost_fun cN rty [finType of cT] H.*)
 
-Class game (T : finType) (N : nat) (rty : realFieldType) 
-      `(costAxiomClass : CostAxiomClass N rty T)
+Class CostMaxClass (rty : realFieldType) (T : finType) :=
+  costmax_fun : rty.
+
+Class CostMaxAxiomClass (N : nat) (rty : realFieldType) (T : finType)
+      (costClass : CostClass N rty T)
+      (costMaxClass : CostMaxClass rty T) :=
+  costMaxAxiom_fun : forall i s, cost i s  <= costmax_fun.
+
+Class game (T : finType) (N : nat) (rty : realFieldType)
+      (costClass : CostClass N rty T)
+      (costAxiomClass : CostAxiomClass costClass)
+      (costMaxClass : CostMaxClass rty T)
+      (costMaxAxiomClass : CostMaxAxiomClass costClass costMaxClass)
   : Type := {}.
 
 (***********************)

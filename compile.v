@@ -96,8 +96,17 @@ Class RefineCostClass N (T : finType)
 Class cgame N (T : finType)
       `(RefineTypeClass T)
       `(costClass : CostClass N rat_realFieldType T)
-      `(costAxiomClass : @CostAxiomClass N rat_realFieldType T costClass)
+      (costAxiomClass : @CostAxiomClass N rat_realFieldType T costClass)
+      (costMaxClass : CostMaxClass rat_realFieldType T)
+      (costMaxAxiomClass : @CostMaxAxiomClass N rat_realFieldType T
+                                              costClass costMaxClass)
       `(ccostClass : CCostClass N T)
-      `(refineCostAxiomClass : @RefineCostAxiomClass N T costClass ccostClass)
-      `(refineCostClass : @RefineCostClass N T costClass ccostClass refineCostAxiomClass)
-      `(@game T N rat_realFieldType costClass costAxiomClass) : Type := {}.
+      `(refineCostAxiomClass : @RefineCostAxiomClass N T costClass
+                                                     ccostClass)
+      `(refineCostClass : @RefineCostClass N T costClass ccostClass
+                                           refineCostAxiomClass)
+      `(@game T N rat_realFieldType costClass costAxiomClass
+              costMaxClass costMaxAxiomClass)
+: Type := {}.
+
+Check cgame.

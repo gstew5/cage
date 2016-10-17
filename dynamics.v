@@ -198,7 +198,7 @@ Section history.
     case: sut=> [][]s u t; case: sut'=> [][]s' u' t' H1 Hx H2; move: H1.
     inversion H2; subst.
     split.
-    { case: H1=> H4 H5; split.
+    { case: H0=> H4 H5; split.
       { move=> x /=.
         move: (H4 x)=> /= <-.
         case H9: (s x)=> //=.
@@ -217,8 +217,8 @@ Section history.
       by case: (x == t').
       by simpl; rewrite eq_refl.
     }
-    inversion H2; subst. move {H7 H9}.
-    by case: (step_P H1 Hx H11).
+    inversion H2; subst. move {H6 H8}.
+    by case: (step_P H0 Hx H10).
   Qed.
   
   Lemma step_hstep su t t' :
@@ -228,7 +228,7 @@ Section history.
   Proof.
     case: su=> s u H0 H2.
     exists (predU1 t' s, predD1 u t').
-    case: (step_P H0 H2 H1)=> ??.
+    case: (step_P H0 H2 H)=> ??.
     split=> //.                               
   Qed.
 
@@ -299,8 +299,8 @@ Section history.
     { move=> t; apply: step_refl.
     }
     move=> t'' t t' H0 H2 H3; inversion H0; subst; simpl in *.
-    by apply: (step_trans _ H4).
-  Qed.      
+    by apply: (step_trans _ H1).
+  Qed.
   
   Lemma safe_step_hstep s u t :
     inv (s,u,t) ->
@@ -344,7 +344,7 @@ Section history.
       { apply: IH.
         { inversion H3; subst.
           simpl in H0|-*.
-          rewrite (cardD1 t') /in_mem /= H1 /= in H0.
+          rewrite (cardD1 t') /in_mem /= H /= in H0.
           by case: H0=> <-.
         }
         apply: (safe_step H2 H3).
@@ -375,10 +375,10 @@ Section history.
   Proof.
     case=> H0.
     { inversion 1; subst.
-      apply: (halted_doesnt_step H0 H3).
+      apply: (halted_doesnt_step H0 H2).
     }
     inversion 1; subst.
-    rewrite /= (cardD1 t') /in_mem /= H2 /= in H0=> //.
+    rewrite /= (cardD1 t') /in_mem /= H1 /= in H0=> //.
   Qed.                                                     
   
   Lemma everywhere_halts_hstep_step sut :

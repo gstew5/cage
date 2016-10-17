@@ -14,29 +14,44 @@ Require Import extrema games dynamics.
 Local Open Scope ring_scope.
 
 Class PhiClass (pN : nat) (rty : realFieldType) (pT : finType)
-      `(costAxiomClass : CostAxiomClass pN rty pT)
-      (gameClass : game costAxiomClass)
+      `(gameClass : game)
   : Type := Phi : state pN pT -> rty.
 
+(* Class PhiAxiomClass (pN : nat) (rty : realFieldType) (pT : finType) *)
+(*       `(costAxiomClass : CostAxiomClass pN rty pT) *)
+(*       (gameClass : game costAxiomClass) *)
+(*       (phiClass : PhiClass gameClass) : Type := *)
+(*   PhiAxiom :  *)
+(*     forall (i : 'I_pN) (t t' : state pN pT), *)
+(*       Phi t' - Phi t = cost i t' - cost i t. *)
+(* Notation "'phi_ax'" := (@PhiAxiom _ _ _ _ _ _ _) (at level 50). *)
+
 Class PhiAxiomClass (pN : nat) (rty : realFieldType) (pT : finType)
-      `(costAxiomClass : CostAxiomClass pN rty pT)
-      (gameClass : game costAxiomClass)
-      (phiClass : PhiClass gameClass) : Type :=
+      (costClass : CostClass pN rty pT)
+      (costAxiomClass : CostAxiomClass costClass)
+      (costMaxClass : CostMaxClass rty pT)
+      (costMaxAxiomClass : CostMaxAxiomClass costClass costMaxClass)
+      (gameClass : game _ _)
+      (phiClass : PhiClass _ _ _ gameClass) : Type :=
   PhiAxiom : 
     forall (i : 'I_pN) (t t' : state pN pT),
       Phi t' - Phi t = cost i t' - cost i t.
 Notation "'phi_ax'" := (@PhiAxiom _ _ _ _ _ _ _) (at level 50).
 
-Class Potential (N : nat) (rty : realFieldType) (T : finType)
-      `(costAxiomClass : CostAxiomClass N rty T)
-      (gameClass : game costAxiomClass)
-      (phiClass : PhiClass gameClass)
-      (phiAxiomClass : PhiAxiomClass phiClass)
+(* Class Potential (N : nat) (rty : realFieldType) (T : finType) *)
+(*       `(costAxiomClass : CostAxiomClass N rty T) *)
+(*       (gameClass : game costAxiomClass) *)
+(*       `(phiClass : PhiClass) *)
+(*       (phiAxiomClass : PhiAxiomClass phiClass) *)
+(*   : Type := {}. *)
+
+Class Potential (* (N : nat) (rty : realFieldType) (T : finType) *)
+      `(phiAxiomClass : PhiAxiomClass)
   : Type := {}.
 
 Section PotentialLemmas.
   Context `{potentialClass : Potential}.
-  Notation sT := (state N T).
+  Notation sT := (state pN pT).
   
   Definition minimal : pred sT :=
     [pred t : sT | [forall t' : sT, Phi t <= Phi t']].
@@ -89,10 +104,10 @@ End PotentialLemmas.
 
 Section BestResponseDynamics.
   Context `{potentialClass : Potential}.
-  Notation sT := (state N T).
+  Notation sT := (state pN pT).
   
   Inductive step : sT -> sT -> Prop :=
-  | step_progress t t' (i : 'I_N) :
+  | step_progress t t' (i : 'I_pN) :
       cost i t' < cost i t -> step t t'.
       
   Definition halted (t : sT) := PNE t.
@@ -114,7 +129,7 @@ Section BestResponseDynamics.
   Proof.
     case=> H0 H1 H2 H3; inversion 1; subst.
     have Hx: Phi t' < Phi t.
-    { by apply: (cost_Phi_lt H5).
+    { by apply: (cost_Phi_lt H4).
     }
     suff: ~~ s t'; last first.
     { apply/negP; move=> H6.
@@ -154,7 +169,7 @@ Section BestResponseDynamics.
     rewrite /halted=> H0; inversion 1; subst.
     move: (H0 i)=> H4.
     generalize (ltr_le_asym (cost i t') (cost i t)).
-    by rewrite H2 H4.
+    by rewrite H1 H4.
   Qed.    
 
   Lemma best_response_safe t : 
@@ -165,7 +180,7 @@ Section BestResponseDynamics.
     { by move=> H0; right.
     }
     move=> H0; left.
-    suff H2: ~~ (@PNEb _ _ _ H t); last first.
+    suff H2: ~~ (@PNEb _ _ _ costClass t); last first.
     { apply/negP=> H1; case: (PNE_PNEb t)=> H2 H3.
       by apply: H0; apply H3.
     }
@@ -192,7 +207,7 @@ Section PriceOfStabilityBound.
   (** The following section proves a bound on the Price of Stability 
       of potential games. *)
   Context `{potentialClass : Potential}.
-  Notation sT := (state N T).
+  Notation sT := (state pN pT).
   
   (** We assume the social cost function is positive. *)
   Hypothesis Cost_pos : forall t : sT, 0 < Cost t.
