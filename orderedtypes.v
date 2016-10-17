@@ -2,16 +2,18 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
+Require Import String.
 Require Import Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
-Require Import compile combinators.
+Require Import strings compile combinators.
 
 Module Type OrderedType.
   Parameter t : Type.
   Parameter t0 : t. (*The type is inhabited.*)
   Parameter enumerable : Enumerable t.
   Parameter cost_instance : forall N, CCostClass N t.
+  Parameter showable : Showable t.
   Parameter eq : t -> t -> Prop.
   Parameter lt : t -> t -> Prop.
   Parameter lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
@@ -47,9 +49,10 @@ End OrderedFinType.
 
 Module OrderedResource <: OrderedType.
   Definition t := resource.
-  Definition t0 := RNo.
+  Definition t0 := RYes.
   Definition enumerable := resourceEnumerableInstance.
   Definition cost_instance := resourceCCostInstance.
+  Definition showable := resourceShowable.
   Definition eq r1 r2 := resource_eq r1 r2 = true.
   Definition lt r1 r2 :=
     match r1, r2 with
@@ -110,6 +113,11 @@ Module OrderedProd (A B : OrderedType) <: OrderedType.
   Definition enumerable := prodEnumerableInstance A.enumerable B.enumerable.
   Definition cost_instance N :=
     prodCCostInstance (A.cost_instance N) (B.cost_instance N).
+  Definition show_prod (p : A.t*B.t) : string :=
+    let s1 := to_string p.1 in
+    let s2 := to_string p.2 in
+    append s1 s2.
+  Instance showable : Showable t := mkShowable show_prod.
   Definition eq p1 p2 := A.eq p1.1 p2.1 /\ B.eq p1.2 p2.2.
   Definition lt p1 p2 :=
     match p1, p2 with
@@ -212,7 +220,3 @@ Module OrderedFinProd (X Y : OrderedFinType) <: OrderedFinType.
   Definition choice_mixin := prod_choiceMixin xC yC.
   Definition fin_mixin := prod_finMixin xF yF.
 End OrderedFinProd.
-
-
-
-

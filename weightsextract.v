@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith.
+Require Import QArith String.
 Require Import ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
 
@@ -14,7 +14,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import weights weightslang compile dist numerics orderedtypes.
+Require Import strings weights weightslang compile dist numerics orderedtypes.
 
 (** Here's a description of the compilation algorithm: 
 
@@ -65,23 +65,16 @@ Definition two : Q := Qmake 2 1.
 Set Printing All.
 
 (** * Networking and Random-Number Generation *)
-
 Fixpoint sample_aux
          (A : Type) (a0 : A)
-         (acc p : Q) (l : list (A*Q)) : A :=
-  let sum :=
-      List.fold_left
-        (fun acc1 (x:(A*Q)) => let (a,q) := x in Qplus acc1 q)
-        l 0
-  in
+         (acc r sum : Q) (l : list (A*Q)) : A :=
   match l with
-  | nil => a0
-  | (a, q) :: l' =>
-    if Qle_bool acc q
-       && Qle_bool q (Qplus acc p)
-       && negb (Qeq_bool q (Qplus acc p))
-    then a
-    else sample_aux a0 acc p l'
+  | nil => a0 (*should never occur*)
+  | (a, w) :: l' =>
+    let p := Qdiv w sum in
+    (*let p':= eprint_Q p p in*) (*FIXME: STACK OVERFLOW! int_of_nat *)
+    if Qle_bool acc r && Qle_bool r (Qplus acc p) then eprint_string "ACTION: " a
+    else sample_aux a0 (Qplus acc p) r sum l'
   end.
 
 Axiom rand : unit -> Q. (*in range [0,1]*)
@@ -94,19 +87,28 @@ Extract Constant rand =>
     if i = 0 then qzero
     else if i mod 2 = 0 then qmult qtwo (q_of_ocamlint (i/2))
     else qplus (qmult qtwo (q_of_ocamlint (i/2))) qone
-  in      
+  in  
+  let _ = Random.self_init () in    
   let r = Random.float 1.0 in
   let _ = if r < 0. || r > 1. then failwith ""error in rand"" else () in
   let s = string_of_float r in
-  let sd = String.sub s 2 10 in
-  let d = int_of_string sd
+  let sd = String.sub s 2 2 in (*2 digits of precision*)
+  let d = int_of_string sd in
+  let qn = q_of_ocamlint d in 
+  let qonehund = XO (XO (XI (XO (XO (XI XH))))) in
+  let q = qmult qn { qnum = Zpos XH; qden = qonehund } 
   in
   Printf.eprintf ""Generated random r = %f"" r; prerr_newline ();
-  q_of_ocamlint d".
+  q".
 
-Definition sample (A : Type) (a0 : A) (l : list (A*Q)) : A := 
-  let p := rand tt
-  in sample_aux a0 0 p l.
+Definition sample (A : Type) (a0 : A) (l : list (A*Q)) : A :=
+  let sum :=
+      List.fold_left
+        (fun acc1 (x:(A*Q)) => let (a,q) := x in Qplus acc1 q)
+        l 0
+  in
+  let r := rand tt
+  in sample_aux a0 0 r sum l.
 
 (** A channel *)
 Axiom chan : Type.
@@ -163,7 +165,10 @@ Module MWU (A : OrderedType).
   (** Draw from a distribution, communicating the resulting action 
       to the network. *)
   Definition mwu_send (m : M.t Q) : chan :=
-    let a := sample A.t0 (M.elements m) in send a.
+    let a := sample A.t0 (M.elements m) in
+    let a' := eprint_showable a a in
+    let a'' := eprint_newline a' in
+    send a''.
 
   (* Receive a cost vector (a map) from the network. *)
   Definition mwu_recv : chan -> M.t Q :=

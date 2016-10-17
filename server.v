@@ -1,14 +1,14 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith.
+Require Import QArith String Ascii.
 
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
 Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
-Require Import compile orderedtypes.
+Require Import strings compile orderedtypes.
 
 (** A channel *)
 Axiom chan : Type.
@@ -36,11 +36,11 @@ Extract Constant server_recv =>
 (* We might need to return service_socket as well so that it can be used
    in server_send. There is a different service socket for each client. *)
 "fun sd ->
-   let _ = Printf.eprintf ""Receiving...""; prerr_newline () in
+   let _ = Printf.eprintf ""Waiting...""; prerr_newline () in
    let (service_socket, _) = Unix.accept sd in
    let in_chan = Unix.in_channel_of_descr service_socket in
    let o = Marshal.from_channel in_chan in
-   let _ = Printf.eprintf ""Received a value...""; prerr_newline () in
+   let _ = Printf.eprintf ""Received a value ""; flush stderr in
    Pair (o, service_socket)".
 
 (** Server send *)
@@ -61,25 +61,6 @@ Extract Constant server_send =>
      Marshal.to_channel out_chan cost_vector [];
      close_out out_chan
    | None -> Printf.eprintf ""Error: Empty socket""; prerr_newline ()".
-
-Axiom eprint_nat : forall T : Type, nat -> T -> T.
-Extract Constant eprint_nat =>
-  "fun n s -> 
-   let rec int_of_nat n = 
-     (match n with 
-        | O -> 0
-        | S n' -> 1 + int_of_nat n') in 
-   Printf.eprintf ""%d"" (int_of_nat n);
-   flush stderr; 
-   s".
-
-Axiom eprint_comma : forall T : Type, T -> T.
-Extract Constant eprint_comma =>
-  "fun s -> Printf.eprintf "",""; flush stderr; s".
-
-Axiom eprint_newline : forall T : Type, T -> T.
-Extract Constant eprint_newline =>
-  "fun s -> prerr_newline (); s".
 
 Module Type ServerConfig.
   Parameter num_players : nat.
@@ -105,18 +86,8 @@ Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
   Section server.
   Context `{GameTypeIsEnumerable : Enumerable A.t}.
   Context `{CCostInstance : CCostClass C.num_players A.t}.
-
-  Definition eprint_Q (q : Q) (s : state) : state :=
-    match q with
-    | Qmake n d =>
-      let n := N.to_nat (Z.abs_N n) in
-      let d := Pos.to_nat d in
-      let s1 := eprint_nat n s in
-      let s2 := eprint_comma s1 in
-      let s3 := eprint_nat d s2 in
-      eprint_newline s3
-    end.
-
+  Context `{ShowableInstance : Showable A.t}.
+  
   Definition cost_vector (s : state) (player : N) : list (A.t * Q) :=
     List.fold_left
       (fun l a => (a, ccost player (M.add player a (actions_received s))) :: l)
@@ -145,12 +116,14 @@ Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
                 C.num_players (*reset cur_player=num_players*)
     | S player' =>
       let (a, c) := server_recv _ (listen_channel s) in
+      let s' := eprint_showable a s in
+      let s'':= eprint_newline s' in
       round
         (mkState
-           (M.add (N.of_nat player') a (actions_received s))
-           (listen_channel s)
-           (service_channels s ++ c::nil)
-           (res s))
+           (M.add (N.of_nat player') a (actions_received s''))
+           (listen_channel s'')
+           (service_channels s'' ++ c::nil)
+           (res s''))
         player'
     end.
 

@@ -89,7 +89,7 @@ Extraction "runtime/mwu.ml" mwu.
 
 Module C : ServerConfig.
   Definition num_players := 1%N.             
-  Definition num_rounds := 100%N.
+  Definition num_rounds := 10%N.
 End C.
 
 Module Server := Server C R.

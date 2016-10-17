@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith.
+Require Import QArith String.
 
 (*Avoid clash with Ssreflect*)
 Delimit Scope Q_scope with coq_Qscope.
@@ -13,6 +13,7 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
+Require Import strings.
 Require Import extrema dist numerics bigops.
 Require Import games compile smooth christodoulou.
 
@@ -96,6 +97,15 @@ End WrapperLemmas.
 Inductive resource : Type :=
 | RYes : resource
 | RNo : resource.
+
+Definition string_of_resource (r : resource) : string :=
+  match r with
+  | RYes => "RYes"
+  | RNo => "RNo"
+  end.
+
+Instance resourceShowable : Showable resource :=
+  mkShowable string_of_resource.
 
 Definition resource_eq (r1 r2 : resource) :=
   if r1 is RYes then if r2 is RYes then true else false
