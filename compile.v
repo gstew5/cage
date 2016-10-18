@@ -89,6 +89,81 @@ Class RefineCostClass N (T : finType)
       (ccostClass : CCostClass N T)
       `(@RefineCostAxiomClass N T costClass ccostClass).
 
+Class CCostMaxClass (N : nat) (T : finType) :=
+  ccostmax_fun : Q.
+
+Class RefineCostMaxClass (N : nat) (T : finType)
+        (costMaxClass : CostMaxClass N rat_realFieldType T)
+        (ccostMaxClass : CCostMaxClass N T)
+  :=
+    refineCostMax_fun : (rat_to_Q costMaxClass) <= ccostMaxClass.
+
+Lemma CCostMaxIsMax (N : nat) (T : finType)
+        (costClass : CostClass N rat_realFieldType T)
+        (costMaxClass : CostMaxClass N rat_realFieldType T)
+        (costMaxAxiomClass : CostMaxAxiomClass costClass costMaxClass)
+        (ccostClass : CCostClass N T)        
+        (refineCostAxiomClass : @RefineCostAxiomClass N T costClass ccostClass)
+        (ccostMaxClass : CCostMaxClass N T)
+        (refineCostMaxClass : @RefineCostMaxClass N T costMaxClass ccostMaxClass) 
+  :
+    forall (i : OrdNat.t) (pf : (nat_of_bin i < N)%nat) m (s : {ffun 'I_N -> T}),
+      let: i' := Ordinal pf in
+      (forall j (pf' : (nat_of_bin j < N)%nat),
+          let: j' := Ordinal pf' in
+          M.find j m = Some (s j')) ->
+          (ccost i m) <= (ccostMaxClass).
+Proof.
+  move => i pf m s H.
+  rewrite (refineCostAxiomClass i pf m s) => //.
+  apply Qle_trans with (y := rat_to_Q costMaxClass) => //.
+  apply le_rat_to_Q => //.
+Qed.
+
+Lemma CCostFinalBounds (N : nat) (T : finType)
+        (costClass : CostClass N rat_realFieldType T)
+        (costAxiomClass : CostAxiomClass costClass)
+        (costMaxClass : CostMaxClass N rat_realFieldType T)
+        (costMaxAxiomClass : CostMaxAxiomClass costClass costMaxClass)
+        (ccostClass : CCostClass N T)        
+        (refineCostAxiomClass : @RefineCostAxiomClass N T costClass ccostClass)
+        (ccostMaxClass : CCostMaxClass N T)
+        (refineCostMaxClass : @RefineCostMaxClass N T costMaxClass ccostMaxClass)
+  :
+    forall (i : OrdNat.t) (pf : (nat_of_bin i < N)%nat) m (s : {ffun 'I_N -> T}),
+      let: i' := Ordinal pf in
+      (forall j (pf' : (nat_of_bin j < N)%nat),
+          let: j' := Ordinal pf' in
+          M.find j m = Some (s j')) ->
+    0 <= (ccost i m / ccostMaxClass) <= 1.
+Proof.
+  move => i pf m s H. split.
+  { have H' : 0 <= ccostMaxClass.
+    apply Qle_trans with (y := ccost i m);
+      last by apply CCostMaxIsMax
+        with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
+      rewrite (refineCostAxiomClass i pf m s) => //.
+      (* Probably needs to be moved to numerics *)
+      have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
+        rewrite H'. apply le_rat_to_Q => //. apply Qle_lteq in H'.
+      case: H'; move => H0.
+      {
+        admit.
+      }
+      {
+        rewrite -H0.
+        rewrite /Qdiv.
+        apply Qmult_le_0_compat.
+        rewrite (refineCostAxiomClass i pf m s) => //.
+        (* Probably needs to be moved to numerics *)
+        have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
+        rewrite H'. apply le_rat_to_Q => //.
+        rewrite -Qle_bool_iff; compute => //.
+      }
+    }
+    admit.
+  Admitted.
+
 (** A compilable game is one:
     - over an enumerable type [T], 
     - equipped with a compilable cost function [ccostClass]. *)
@@ -97,7 +172,7 @@ Class cgame N (T : finType)
       `(RefineTypeClass T)
       `(costClass : CostClass N rat_realFieldType T)
       (costAxiomClass : @CostAxiomClass N rat_realFieldType T costClass)
-      (costMaxClass : CostMaxClass rat_realFieldType T)
+      (costMaxClass : CostMaxClass N rat_realFieldType T)
       (costMaxAxiomClass : @CostMaxAxiomClass N rat_realFieldType T
                                               costClass costMaxClass)
       `(ccostClass : CCostClass N T)
@@ -105,6 +180,8 @@ Class cgame N (T : finType)
                                                      ccostClass)
       `(refineCostClass : @RefineCostClass N T costClass ccostClass
                                            refineCostAxiomClass)
+      (ccostMaxClass : CCostMaxClass N T)
+      (refineCCostMaxClass : RefineCostMaxClass costMaxClass ccostMaxClass)
       `(@game T N rat_realFieldType costClass costAxiomClass
               costMaxClass costMaxAxiomClass)
 : Type := {}.

@@ -29,7 +29,7 @@ Class PhiClass (pN : nat) (rty : realFieldType) (pT : finType)
 Class PhiAxiomClass (pN : nat) (rty : realFieldType) (pT : finType)
       (costClass : CostClass pN rty pT)
       (costAxiomClass : CostAxiomClass costClass)
-      (costMaxClass : CostMaxClass rty pT)
+      (costMaxClass : CostMaxClass pN rty pT)
       (costMaxAxiomClass : CostMaxAxiomClass costClass costMaxClass)
       (gameClass : game _ _)
       (phiClass : PhiClass _ _ _ gameClass) : Type :=

@@ -175,12 +175,13 @@ Next Obligation.
   case: (f i)=> //. apply: traffic_pos.
 Qed.
 
-Instance resourceCostMaxInstance (N : nat) (T : finType)
-  : CostMaxClass rat_realFieldType T :=
+Instance resourceCostMaxInstance (N : nat)
+  : CostMaxClass N rat_realFieldType [finType of resource] :=
   N%:R.
 
-Program Instance resourceCostMaxAxiomInstance (N : nat) (T : finType)
-  : CostMaxAxiomClass (@resourceCostInstance N) (resourceCostMaxInstance N T).
+Program Instance resourceCostMaxAxiomInstance (N : nat)
+  : CostMaxAxiomClass (@resourceCostInstance N)
+      (resourceCostMaxInstance N).
 Next Obligation.
   rewrite /cost_fun /resourceCostInstance /resourceCostFun.
   rewrite /costmax_fun /resourceCostMaxInstance.
@@ -190,10 +191,10 @@ Next Obligation.
 Qed.
 
 Instance resourceGame (N : nat) : @game [finType of resource] N _ _ _ _
-                                      (resourceCostMaxAxiomInstance _ _).
+                                      (resourceCostMaxAxiomInstance _).
 
 Instance resourceLambdaInstance 
-  : LambdaClass [finType of resource] rat_realFieldType| 0 := 5%:R/3%:R.
+  : @LambdaClass [finType of resource] rat_realFieldType| 0 := 5%:R/3%:R.
 
 Program Instance resourceLambdaAxiomInstance
   : @LambdaAxiomClass [finType of resource] rat_realFieldType _.
@@ -359,11 +360,11 @@ Qed.
 
 Program Instance resourceSmoothAxiomInstance N
   : @SmoothnessAxiomClass [finType of resource] N rat_realFieldType _ _ _
-                          (resourceCostMaxAxiomInstance _ _) _ _ _ _ _.
+                          (resourceCostMaxAxiomInstance _) _ _ _ _ _.
 Next Obligation. by apply: resourceSmoothnessAxiom. Qed.
 Instance resourceSmoothInstance N
   : @smooth [finType of resource] N rat_realFieldType _ _ _
-            (resourceCostMaxAxiomInstance _ _) _ _ _ _ _ _.
+            (resourceCostMaxAxiomInstance _) _ _ _ _ _ _.
 
 (** Resource games are compilable *)
 
@@ -897,8 +898,20 @@ Qed.
 Instance resourceRefineCostInstance N
   : @RefineCostClass N [finType of resource] _ _ _.
 
+Instance resourceCCostMaxInstance N
+  : @CCostMaxClass N [finType of resource] :=
+      (rat_to_Q (N%:R)).
+
+Instance resourceRefineCostMaxInstance N
+  : @RefineCostMaxClass N _ (resourceCostMaxInstance _) (resourceCCostMaxInstance _).
+Proof.
+  rewrite /RefineCostMaxClass /resourceCCostMaxInstance.
+  apply Qle_lteq. right => //.
+Qed.
+
 Instance resource_cgame N
-  : cgame (N:=N) (T:=[finType of resource]) _ _ (resourceGame N).
+  : cgame (N:=N) (T:=[finType of resource]) _ _ _
+      (resourceGame N).
 
 (** Location Games *)
 
@@ -1057,15 +1070,15 @@ Next Obligation.
   by apply: lerr.
 Qed.
 
-Instance singletonCostMaxInstance (rty : realFieldType) (A : finType)
-  : CostMaxClass rty A :=
+Instance singletonCostMaxInstance (N : nat) (rty : realFieldType) (A : finType)
+  : CostMaxClass N rty A :=
   1.
 
 Program Instance singletonCostMaxAxiomInstance
         (N : nat) (rty : realFieldType) (A : finType)
         `(boolableA : Boolable A)
   : CostMaxAxiomClass (@singletonCostInstance N rty A _)
-                      (singletonCostMaxInstance rty A).
+                      (singletonCostMaxInstance N rty A).
 Next Obligation.
   rewrite /cost_fun /singletonCostInstance.
   rewrite /costmax_fun /singletonCostMaxInstance.
@@ -1218,10 +1231,26 @@ Qed.
   Instance singRefineCostInstance `(Boolable A)
     : @RefineCostClass N (singletonType A) _ _ _.
 
-  Instance sing_cgame `(Boolable A)
-    : @cgame N (singletonType A)  _ _ _ _ _ _
-             (singletonCostMaxAxiomInstance _ _ _ _) _ _ _ _.
+  Instance singCCostMaxInstance N
+    : @CCostMaxClass N (singletonType A) := 1%Q.
 
+  Instance singRefineCostMaxInstance N
+    : @RefineCostMaxClass N _ (singletonCostMaxInstance N _ A) (singCCostMaxInstance N).
+  Proof.
+    rewrite /RefineCostMaxClass /resourceCCostMaxInstance
+            /singletonCostMaxInstance /singCCostMaxInstance => //.
+  Qed.
+
+(*
+  Instance sing_cgame N `(Boolable A)
+  : cgame (N:=N) (T:= singletonType A) _ _ _
+      (singletonGameInstance N ).
+
+Check
+
+  Instance sing_cgame 
+    : @cgame N (singletonType A)  _ _ _ _ _ _ _ _ _ _.
+*)
 End singletonCompilable.
 
 (** Sigma Games {x : A | P x}, with P : A -> bool *)
