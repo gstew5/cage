@@ -62,21 +62,24 @@ Require Import strings weights weightslang compile dist numerics orderedtypes.
 Definition zero : Q := 0.
 Definition one : Q := 1.
 Definition two : Q := Qmake 2 1.
-Set Printing All.
 
 (** * Networking and Random-Number Generation *)
 Fixpoint sample_aux
-         (A : Type) (a0 : A)
+         (A : Type) (to_string : A -> string) (a0 : A)
          (acc r sum : Q) (l : list (A*Q)) : A :=
   match l with
   | nil => a0 (*should never occur*)
   | (a, w) :: l' =>
     let p := Qdiv w sum in
-    (*let p':= eprint_Q p p in*) (*FIXME: STACK OVERFLOW! int_of_nat *)
-    if Qle_bool acc r && Qle_bool r (Qplus acc p) then eprint_string "ACTION: " a
-    else sample_aux a0 (Qplus acc p) r sum l'
+    let p'''':= eprint_string (to_string a) p in
+    let p''':= eprint_string ", " p'''' in    
+    let p'':= eprint_Q p''' p''' in
+    let p':= eprint_newline p'' in
+    if Qle_bool acc r && Qle_bool r (Qplus acc p') then
+      eprint_string "Chose action " a
+    else sample_aux to_string a0 (Qplus acc p') r sum l'
   end.
-
+        
 Axiom rand : unit -> Q. (*in range [0,1]*)
 Extract Constant rand =>
  "fun _ -> 
@@ -101,14 +104,16 @@ Extract Constant rand =>
   Printf.eprintf ""Generated random r = %f"" r; prerr_newline ();
   q".
 
-Definition sample (A : Type) (a0 : A) (l : list (A*Q)) : A :=
+Definition sample (A : Type) (a0 : A)
+           (to_string : A -> string)
+           (l : list (A*Q)) : A :=
   let sum :=
       List.fold_left
         (fun acc1 (x:(A*Q)) => let (a,q) := x in Qplus acc1 q)
         l 0
   in
   let r := rand tt
-  in sample_aux a0 0 r sum l.
+  in sample_aux to_string a0 0 r sum l.
 
 (** A channel *)
 Axiom chan : Type.
@@ -165,7 +170,7 @@ Module MWU (A : OrderedType).
   (** Draw from a distribution, communicating the resulting action 
       to the network. *)
   Definition mwu_send (m : M.t Q) : chan :=
-    let a := sample A.t0 (M.elements m) in
+    let a := sample A.t0 to_string (M.elements m) in
     let a' := eprint_showable a a in
     let a'' := eprint_newline a' in
     send a''.
@@ -228,7 +233,7 @@ Module MWU (A : OrderedType).
            | None => None
            | Some q =>
              match 0 ?= q with
-             | Lt => Some (M.add a q acc')
+             | Lt => Some (M.add a (Qred q) acc')
              | _ => None
              end
            end
@@ -713,7 +718,7 @@ Module MWUProof (T : OrderedFinType).
         | Lt => 
           match (update_weights'_aux f s w l') with
              | None => None
-             | Some m => Some (M.add a q m)
+             | Some m => Some (M.add a (Qred q) m)
           end
         | _ => None
         end
@@ -751,7 +756,7 @@ Module MWUProof (T : OrderedFinType).
     forall a,
       In a l ->
       exists q, 
-        [/\ M.find a m' = Some q
+        [/\ M.find a m' = Some (Qred q)
           , evalc (f a) s = Some q
           & Qlt 0 q].
   Proof.
@@ -787,7 +792,7 @@ Module MWUProof (T : OrderedFinType).
     update_weights' f s = Some m ->
     forall a,
     exists q,
-      [/\ M.find a m = Some q
+      [/\ M.find a m = Some (Qred q)
         , evalc (f a) s = Some q
         & Qlt 0 q].
   Proof.
@@ -826,7 +831,7 @@ Module MWUProof (T : OrderedFinType).
           match evalc (f y.1) s with
           | Some q =>
             match 0 ?= q with
-            | Lt => Some (M.add y.1 q acc')
+            | Lt => Some (M.add y.1 (Qred q) acc')
             | _ => None
             end
           | None => None
@@ -854,7 +859,7 @@ Module MWUProof (T : OrderedFinType).
     update_weights f s = Some m ->
     forall a,
     exists q,
-      [/\ M.find a m = Some q
+      [/\ M.find a m = Some (Qred q)
         , evalc (f a) s = Some q
         & Qlt 0 q].
   Proof.
@@ -917,7 +922,7 @@ Module MWUProof (T : OrderedFinType).
     update_weights f s = Some m ->
     forall a : t,
     exists q,
-      [/\ M.find a m = Some q
+      [/\ M.find a m = Some (Qred q)
         , evalc (f a) s = Some q
         , Qred q = rat_to_Q (eval (f a) r) 
         & Qlt 0 q].
@@ -942,8 +947,11 @@ Module MWUProof (T : OrderedFinType).
   Proof.
     move => H H2; split => a; case: (update_weights_inv2 H H2 a) => q.
     { case => H3 H4 H5 H6.
-      exists q; split => //.
-        by rewrite H5 ffunE. }
+      exists (Qred q); split => //.
+      have H7: Qred (Qred q) = Qred q.
+      { apply: Qred_complete.
+        apply: Qred_correct. }
+        by rewrite H7 H5 ffunE. }
     case => H3 H4 H5 H6.
     have H7: 0 < Qred q by rewrite Qred_correct.
     rewrite H5 in H7; clear - H7.
