@@ -2,13 +2,14 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
+Require Import ProofIrrelevance.
 Require Import String.
 Require Import Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
 Require Import strings compile combinators.
 
-Module Type OrderedType.
+Module Type MyOrderedType.
   Parameter t : Type.
   Parameter t0 : t. (*The type is inhabited.*)
   Parameter enumerable : Enumerable t.
@@ -21,9 +22,9 @@ Module Type OrderedType.
   Parameter compare : forall x y : t, Compare lt eq x y.
   Parameter eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
   Parameter eqP : forall x y, x = y <-> eq x y.
-End OrderedType.
+End MyOrderedType.
 
-Module OrderedType_of_OrderedType (A : OrderedType)
+Module OrderedType_of_MyOrderedType (A : MyOrderedType)
   <: OrderedType.OrderedType.
       Definition t : Type := A.t.
       Definition eq := A.eq.
@@ -38,16 +39,21 @@ Module OrderedType_of_OrderedType (A : OrderedType)
       Definition lt_not_eq := A.lt_not_eq.
       Definition compare := A.compare.
       Definition eq_dec := A.eq_dec.
-End OrderedType_of_OrderedType.
+End OrderedType_of_MyOrderedType.
 
 Module Type OrderedFinType.
-  Declare Module A : OrderedType.
-  Parameter eq_mixin : Equality.mixin_of A.t.
-  Parameter choice_mixin : Choice.mixin_of (EqType A.t eq_mixin).
-  Parameter fin_mixin : Finite.mixin_of (ChoiceType (EqType A.t eq_mixin) choice_mixin).
+  Include MyOrderedType.
+  Parameter eq_mixin : Equality.mixin_of t.
+  Parameter choice_mixin : Choice.mixin_of (EqType t eq_mixin).
+  Parameter fin_mixin : Finite.mixin_of (ChoiceType (EqType t eq_mixin) choice_mixin).
 End OrderedFinType.
 
-Module OrderedResource <: OrderedType.
+Module MyOrderedType_of_OrderedFinType
+       (A : OrderedFinType) <: MyOrderedType.
+  Include A.                                
+End MyOrderedType_of_OrderedFinType.
+  
+Module OrderedResource <: MyOrderedType.
   Definition t := resource.
   Definition t0 := RYes.
   Definition enumerable := resourceEnumerableInstance.
@@ -101,13 +107,13 @@ Module OrderedResource <: OrderedType.
 End OrderedResource.
 
 Module OrderedFinResource <: OrderedFinType.
-  Module A := OrderedResource.                              
+  Include OrderedResource.                              
   Definition eq_mixin := resource_eqMixin.                              
   Definition choice_mixin := resource_choiceMixin.
   Definition fin_mixin := resource_finMixin.
 End OrderedFinResource.
 
-Module OrderedProd (A B : OrderedType) <: OrderedType.
+Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
   Definition t := (A.t*B.t)%type.
   Definition t0 := (A.t0, B.t0).
   Definition enumerable := prodEnumerableInstance A.enumerable B.enumerable.
@@ -206,13 +212,14 @@ Module OrderedProd (A B : OrderedType) <: OrderedType.
 End OrderedProd.
 
 Module OrderedFinProd (X Y : OrderedFinType) <: OrderedFinType.
-  Module A := OrderedProd X.A Y.A. 
-
-  Definition xE := EqType X.A.t X.eq_mixin.
+  Module A := OrderedProd X Y. 
+  Include A.
+  
+  Definition xE := EqType X.t X.eq_mixin.
   Definition xC := ChoiceType xE X.choice_mixin.
   Definition xF := FinType xC X.fin_mixin.
 
-  Definition yE := EqType Y.A.t Y.eq_mixin.
+  Definition yE := EqType Y.t Y.eq_mixin.
   Definition yC := ChoiceType yE Y.choice_mixin.
   Definition yF := FinType yC Y.fin_mixin.
   
@@ -220,3 +227,90 @@ Module OrderedFinProd (X Y : OrderedFinType) <: OrderedFinType.
   Definition choice_mixin := prod_choiceMixin xC yC.
   Definition fin_mixin := prod_finMixin xF yF.
 End OrderedFinProd.
+
+Module Type OrderedPredType.
+  Include MyOrderedType.
+  Parameter pred : t -> bool.
+  Parameter a0 : t.
+  Parameter a0_pred : pred a0.
+End OrderedPredType.
+                      
+Module OrderedSigma (T : OrderedPredType) <: MyOrderedType.
+  Definition pred := T.pred.                                              
+  Definition t := {x : T.t | pred x}%type.
+  Definition t0 := exist T.pred T.a0 T.a0_pred.
+  Instance APredInstance : PredClass T.t := pred.
+  Definition enumerable :=
+    sigmaEnumerableInstance T.enumerable APredInstance.
+  Definition cost_instance N :=
+    sigmaCCostInstance (T.cost_instance N).
+  Definition show_sigma (x : t) : string :=
+    to_string (projT1 x).
+  Instance showable : Showable t := mkShowable show_sigma.
+  Definition eq (x1 x2 : t) := T.eq (projT1 x1) (projT1 x2).
+  Definition lt (x1 x2 : t) := T.lt (projT1 x1) (projT1 x2).
+  
+  Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
+  Proof.
+    case => a H; case => b H2; case => c H3; rewrite /lt /=.
+    apply: T.lt_trans.
+  Qed.    
+
+  Lemma lt_not_eq : forall x y, lt x y -> ~eq x y.
+  Proof.
+    case => a H; case => b H2; rewrite /lt /eq /=.
+    by move/T.lt_not_eq.
+  Qed.    
+  
+  Lemma compare : forall x y, Compare lt eq x y.
+  Proof.
+    case => a H; case => b H2; rewrite /lt /eq /=.
+    case H3: (T.compare a b).
+    { apply: LT => //. }
+    { apply: EQ => //. }
+    apply: GT => //. 
+  Qed.    
+
+  Lemma eq_dec : forall x y, {eq x y} + {~eq x y}.
+  Proof.
+    case => a H; case => b H2; rewrite /eq /=.
+    case: (T.eq_dec a b); first by left.
+    by right.
+  Qed.    
+
+  Lemma eqP : forall x y, x = y <-> eq x y.
+  Proof.
+    case => a H; case => b H2; rewrite /eq /=; move: (T.eqP a b) => <-.
+    split; first by inversion 1.
+    move => H3; move: H H2; subst a => H H2; f_equal.
+    case: (pred b) H H2 => //.
+    apply: proof_irrelevance.
+  Qed.
+End OrderedSigma.
+
+Module Type OrderedPredFinType.
+  Include OrderedFinType.
+  Parameter pred : t -> bool.
+  Parameter a0 : t.
+  Parameter a0_pred : pred a0.
+End OrderedPredFinType.
+
+Module OrderedPredType_of_OrderedPredFinType
+       (X : OrderedPredFinType) <: OrderedPredType.
+  Include X.                                    
+End OrderedPredType_of_OrderedPredFinType.
+  
+Module OrderedFinSigma (X : OrderedPredFinType) <: OrderedFinType.
+  Module Y := OrderedPredType_of_OrderedPredFinType X.
+  Module A := OrderedSigma Y.
+
+  Include A.
+
+  Definition xE := EqType X.t X.eq_mixin.
+  Definition xC := ChoiceType xE X.choice_mixin.
+  Definition xF := FinType xC X.fin_mixin.
+
+  Definition eq_mixin := @sig_eqMixin xE pred.
+  Definition choice_mixin := @sig_choiceMixin xC pred.
+  Definition fin_mixin := @sig_finMixin xF pred.
+End OrderedFinSigma.

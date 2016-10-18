@@ -66,18 +66,36 @@ End pathTypeTest.
 (* Because standard Coq FMaps are parameterized over modules, which 
    aren't first-class in Coq, the following construction has to be 
    done by hand for each game type. *)
-Module R : OrderedType := OrderedResource.
-Module P2 : OrderedType := OrderedProd R R.
-Module P3 : OrderedType := OrderedProd R P2.
-Module P4 : OrderedType := OrderedProd R P3.
-Module P5 : OrderedType := OrderedProd R P4.
+Module R <: MyOrderedType := OrderedResource.
+Module P2 <: MyOrderedType := OrderedProd R R.
+Module P3 <: MyOrderedType := OrderedProd R P2.
+Module P4 <: MyOrderedType := OrderedProd R P3.
+Module P5 <: MyOrderedType := OrderedProd R P4.
+
+(** The game [P2'] implements (resource * resource) in which each 
+    player must choose at least one [RYes]. *)
+Module P <: OrderedPredType.
+  Include P2.               
+  Definition pred (p : P2.t) : bool :=
+    match p with
+    | (RNo,RNo) => false
+    | (RNo,RYes) => true
+    | (RYes,RNo) => true
+    | (RYes,RYes) => true
+    end.
+  Definition a0 := (RNo,RYes).
+  Lemma a0_pred : pred a0. Proof. reflexivity. Qed.
+End P.
+Module P2' <: MyOrderedType := OrderedSigma P.
 
 (* The program *)
-Module MWU := MWU R.
+Module MWU := MWU P2'.
 
+Existing Instance P2'.enumerable.
+(*Why doesn' Coq discover this instance in the following definition?*)
 Definition mwu0 (eps : Q) (nx : N.t) :=
   MWU.interp
-    (weightslang.mult_weights R.t nx)
+    (weightslang.mult_weights P2'.t nx)
     (MWU.init_cstate eps).
 
 Definition mwu := mwu0 (Qmake 1 3) 1000.
@@ -89,11 +107,13 @@ Extraction "runtime/mwu.ml" mwu.
 
 Module C : ServerConfig.
   Definition num_players := 1%N.             
-  Definition num_rounds := 100%N.
+  Definition num_rounds := 10%N.
 End C.
 
-Module Server := Server C R.
+Module Server := Server C P2'.
 
+Existing Instance P2'.cost_instance.
+(*Why doesn' Coq discover this instance in the following definition?*)
 Definition run := Server.server Server.init_state.
 
 Extraction "runtime/server.ml" run.

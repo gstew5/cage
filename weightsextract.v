@@ -158,8 +158,8 @@ Axiom recv_nodup :
 
 (** * Program *)
 
-Module MWU (A : OrderedType).
-  Module A' := OrderedType_of_OrderedType A.
+Module MWU (A : MyOrderedType).
+  Module A' := OrderedType_of_MyOrderedType A.
   Module M := Make A'.
   Module MFacts := Facts M.
   Module MProps := Properties M.
@@ -328,7 +328,7 @@ Module MWU (A : OrderedType).
 End MWU.
   
 Module MWUProof (T : OrderedFinType).
-  Module A := T.A.
+  Module A := MyOrderedType_of_OrderedFinType T.
   Module MWU := MWU A.
   Module M := MWU.M.
   Module MFacts := Facts M.

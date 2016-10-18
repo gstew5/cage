@@ -1386,10 +1386,10 @@ Section sigmaCompilable.
     - destruct (to_sigma f a) eqn:Hs; try right; apply IHl; assumption.
   Qed.
 
-  Instance sigmaEnumerableInstance (A : finType)
+  Instance sigmaEnumerableInstance (A : Type)
            (enumerableInstance : Enumerable A)
            (predInstance : PredClass A)
-    : Enumerable [finType of {x : A | the_pred x}] :=
+    : Enumerable {x : A | the_pred x} :=
     filter_sigma the_pred (enumerate A).
 
   Program Instance sigmaRefineTypeAxiomInstance

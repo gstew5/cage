@@ -67,7 +67,7 @@ Module Type ServerConfig.
   Parameter num_rounds : nat.
 End ServerConfig.
 
-Module Server (C : ServerConfig) (A : orderedtypes.OrderedType).
+Module Server (C : ServerConfig) (A : MyOrderedType).
   Record state : Type :=
     mkState { actions_received : M.t A.t
             ; listen_channel : chan
