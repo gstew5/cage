@@ -2525,7 +2525,7 @@ Check cost i t.
 
 Variable i' : OrdNat.t.
 Variable t' : M.t affineType.
-Check ccost i' t'.
+Check ccost i' t'. (*FIXME: This [Check] generates a regression*)
 End affineGameTest.
 End AffineGame.
   
