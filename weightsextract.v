@@ -59,25 +59,39 @@ Require Import strings weights weightslang compile dist numerics orderedtypes.
     implemented in OCaml by discrete inverse transform.
  *)
 
+Section PrintCostvector.
+  Variable A : Type.
+  Variable to_string : A -> string.
+  Variable sum : Q. (*costs total*)
+
+  Fixpoint print_costvector T (l : list (A*Q)) (t : T) : T :=
+    match l with
+    | nil => t
+    | (a, w) :: l' =>
+      let p := Qred (Qdiv w sum) in
+      let t1 := eprint_string (to_string a) t in
+      let t2 := eprint_string ", " t1 in
+      let t3 := eprint_Q p t2 in
+      let t4 := eprint_newline t3 in
+      print_costvector l' t4
+    end.
+End PrintCostvector.
+
 Definition zero : Q := 0.
 Definition one : Q := 1.
 Definition two : Q := Qmake 2 1.
 
 (** * Networking and Random-Number Generation *)
 Fixpoint sample_aux
-         (A : Type) (to_string : A -> string) (a0 : A)
+         (A : Type) (a0 : A)
          (acc r sum : Q) (l : list (A*Q)) : A :=
   match l with
   | nil => a0 (*should never occur*)
   | (a, w) :: l' =>
     let p := Qdiv w sum in
-    let p'''':= eprint_string (to_string a) p in
-    let p''':= eprint_string ", " p'''' in    
-    let p'':= eprint_Q p''' p''' in
-    let p':= eprint_newline p'' in
-    if Qle_bool acc r && Qle_bool r (Qplus acc p') then
+    if Qle_bool acc r && Qle_bool r (Qplus acc p) then
       eprint_string "Chose action " a
-    else sample_aux to_string a0 (Qplus acc p') r sum l'
+    else sample_aux a0 (Qplus acc p) r sum l'
   end.
         
 Axiom rand : unit -> Q. (*in range [0,1]*)
@@ -112,8 +126,9 @@ Definition sample (A : Type) (a0 : A)
         (fun acc1 (x:(A*Q)) => let (a,q) := x in Qplus acc1 q)
         l 0
   in
-  let r := rand tt
-  in sample_aux to_string a0 0 r sum l.
+  let r := rand tt in
+  let l':= print_costvector to_string sum l l in
+  sample_aux a0 0 r sum l'.
 
 (** A channel *)
 Axiom chan : Type.
