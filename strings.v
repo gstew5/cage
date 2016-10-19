@@ -6,7 +6,7 @@ Require Import String Ascii QArith.
 Class Showable (T : Type) :=
   mkShowable { to_string : T -> string }.
 
-Axiom eprint_natchar : forall (T : Type) (n : N), T -> T.
+Definition eprint_natchar : forall (T : Type) (n : N), T -> T := fun T n t => t.
 (** Raises an exception if [n >= 256]. *)
 Extract Constant eprint_natchar =>
  "fun n s ->  
@@ -23,7 +23,7 @@ Extract Constant eprint_natchar =>
     flush stderr; 
     s".
 
-Axiom eprint_Z : forall (T : Type) (z : Z), T -> T.
+Definition eprint_Z : forall (T : Type) (z : Z), T -> T := fun T z t => t.
 Extract Constant eprint_Z =>
  "fun z s -> 
     let rec length_positive p = 
@@ -58,6 +58,9 @@ Definition eprint_nat (T : Type) (n : nat) (t : T) : T :=
 Definition eprint_ascii (T : Type) (c : ascii) (t : T) : T :=
   eprint_natchar (N_of_ascii c) t.
 
+Lemma eprint_ascii_id T c (t : T) : eprint_ascii c t = t.
+Proof. auto. Qed.
+
 Fixpoint eprint_string (T : Type) (s : string) (t : T) : T := 
   match s with
   | EmptyString => t
@@ -66,6 +69,9 @@ Fixpoint eprint_string (T : Type) (s : string) (t : T) : T :=
     in eprint_string s' t'
   end.
 
+Lemma eprint_string_id T s (t : T) : eprint_string s t = t.
+Proof. induction s; auto. Qed.
+       
 Definition eprint_showable A T `{Showable A} (a : A) (t : T) : T :=
   eprint_string (to_string a) t.
 
@@ -84,3 +90,5 @@ Definition eprint_Q T (q : Q) (t : T) : T :=
     eprint_Z (Zpos d) t2
   end.
 
+Lemma eprint_Q_id T q (t : T) : eprint_Q q t = t.
+Proof. unfold eprint_Q; destruct q; auto. Qed.

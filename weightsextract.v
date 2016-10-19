@@ -59,23 +59,28 @@ Require Import strings weights weightslang compile dist numerics orderedtypes.
     implemented in OCaml by discrete inverse transform.
  *)
 
-Section PrintCostvector.
+Section PrintQvector.
   Variable A : Type.
   Variable to_string : A -> string.
-  Variable sum : Q. (*costs total*)
 
-  Fixpoint print_costvector T (l : list (A*Q)) (t : T) : T :=
+  Fixpoint print_Qvector T (l : list (A*Q)) (t : T) : T :=
     match l with
     | nil => t
     | (a, w) :: l' =>
-      let p := Qred (Qdiv w sum) in
       let t1 := eprint_string (to_string a) t in
       let t2 := eprint_string ", " t1 in
-      let t3 := eprint_Q p t2 in
+      let t3 := eprint_Q w t2 in
       let t4 := eprint_newline t3 in
-      print_costvector l' t4
+      print_Qvector l' t4
     end.
-End PrintCostvector.
+
+  Lemma print_Qvector_id T l (t : T) : print_Qvector l t = t.
+  Proof.
+    elim: l t => //=; case => a q l IH t; rewrite IH. 
+    rewrite /eprint_newline eprint_string_id.
+    by rewrite eprint_Q_id 2!eprint_ascii_id eprint_string_id.
+  Qed.    
+End PrintQvector.
 
 Definition zero : Q := 0.
 Definition one : Q := 1.
@@ -127,7 +132,12 @@ Definition sample (A : Type) (a0 : A)
         l 0
   in
   let r := rand tt in
-  let l':= print_costvector to_string sum l l in
+  let l':= print_Qvector
+             to_string
+             (map (fun p =>
+                     let '(a, w) := p in
+                     (a, Qred (Qdiv w sum)))
+                  l) l in
   sample_aux a0 0 r sum l'.
 
 (** A channel *)
@@ -192,7 +202,10 @@ Module MWU (A : MyOrderedType).
 
   (* Receive a cost vector (a map) from the network. *)
   Definition mwu_recv : chan -> M.t Q :=
-    fun ch => let l := recv _ ch in MProps.of_list l.
+    fun ch =>
+      let l := recv _ ch in
+      let l':= print_Qvector to_string l l in
+      MProps.of_list l'.
       
   Record cstate : Type :=
     mkCState
@@ -400,7 +413,7 @@ Module MWUProof (T : OrderedFinType).
     case: (recv_ok a ch) => q []H2 H3.
     exists q; split => //.
     rewrite MProps.of_list_1b => //.
-    move: H H2 {H3}; move: (recv _ _) a q.
+    move: H H2 {H3}; rewrite print_Qvector_id; move: (recv _ _) a q.
     elim => // [][]a' q' l IH a q; inversion 1; subst; case.
     { case => -> -> /=.
       have ->: MProps.F.eqb a a = true.
@@ -425,6 +438,7 @@ Module MWUProof (T : OrderedFinType).
       move => _; apply: IH => //.
       by move => H7; apply: H6; right. }
     by move => H5; apply: (IH _ _ H3 H5).
+    by rewrite print_Qvector_id.
   Qed.
 
   Definition match_maps

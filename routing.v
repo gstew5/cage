@@ -72,33 +72,31 @@ Module P3 <: MyOrderedType := OrderedProd R P2.
 Module P4 <: MyOrderedType := OrderedProd R P3.
 Module P5 <: MyOrderedType := OrderedProd R P4.
 
-(** The game [P2'] implements (resource * resource) in which each 
+(** The game [P3'] implements (resource * resource) in which each 
     player must choose at least one [RYes]. *)
 Module P <: OrderedPredType.
-  Include P2.               
-  Definition pred (p : P2.t) : bool :=
+  Include P3.               
+  Definition pred (p : P3.t) : bool :=
     match p with
-    | (RNo,RNo) => false
-    | (RNo,RYes) => true
-    | (RYes,RNo) => true
-    | (RYes,RYes) => true
+    | (RNo,(RNo,RNo)) => false
+    | _ => true
     end.
-  Definition a0 := (RNo,RYes).
+  Definition a0 := (RNo,(RNo,RYes)).
   Lemma a0_pred : pred a0. Proof. reflexivity. Qed.
 End P.
-Module P2' <: MyOrderedType := OrderedSigma P.
+Module P3' <: MyOrderedType := OrderedSigma P.
 
 (* The program *)
-Module MWU := MWU P2'.
+Module MWU := MWU P3'.
 
-Existing Instance P2'.enumerable.
+Existing Instance P3'.enumerable.
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition mwu0 (eps : Q) (nx : N.t) :=
   MWU.interp
-    (weightslang.mult_weights P2'.t nx)
+    (weightslang.mult_weights P3'.t nx)
     (MWU.init_cstate eps).
 
-Definition mwu := mwu0 (Qmake 1 3) 1000.
+Definition mwu := mwu0 (Qmake 1 4) 20.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
@@ -107,12 +105,12 @@ Extraction "runtime/mwu.ml" mwu.
 
 Module C : ServerConfig.
   Definition num_players := 1%N.             
-  Definition num_rounds := 10%N.
+  Definition num_rounds := 2000%N.
 End C.
 
-Module Server := Server C P2'.
+Module Server := Server C P3'.
 
-Existing Instance P2'.cost_instance.
+Existing Instance P3'.cost_instance.
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition run := Server.server Server.init_state.
 
