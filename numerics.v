@@ -723,6 +723,34 @@ Section rat_to_Q_lemmas.
     rewrite 2!int_to_Z_mul.
     apply: lt_int_to_Z.
   Qed.
+
+  Lemma lt_rat_to_Q r s :
+    r < s -> Qlt (rat_to_Q r) (rat_to_Q s).
+  Proof.
+    rewrite /Qlt /rat_to_Q; case: r => x y /=; case: s => z w /=.
+    case: x y => x1 z2 /= y; case: z w => z1 x2 /= w.
+    case: (andP y) => H1 H2.
+    case: (andP w) => H3 H4.    
+    rewrite int_to_positive_to_Z => //.
+    rewrite int_to_positive_to_Z => //.
+    rewrite /ltr /= /lt_rat /numq /denq /=.
+    rewrite 2!int_to_Z_mul.
+    apply: int_to_Z_lt.
+  Qed.
+
+  Lemma le_rat_to_Q r s :
+    r <= s -> Qle (rat_to_Q r) (rat_to_Q s).
+Proof.
+  intros.
+  rewrite ler_eqVlt in H.
+  case/orP: H.
+  move/eqP => H.
+  rewrite H. apply Qle_refl.
+  move => H.
+  apply Qlt_le_weak.
+  apply lt_rat_to_Q => //.
+Qed.
+
 End rat_to_Q_lemmas.    
 
 Section rat_to_R.
@@ -1089,11 +1117,27 @@ Section Q_to_rat_lemmas.
     rewrite /Qinv.
     case H: (Qnum r) => [|p|p].
     { have ->: Q_to_rat r = 0%R.
-      { admit. }
-        by rewrite Q_to_rat0 invr0. }
-    admit.
-    admit.
-  Admitted.
+      rewrite /Q_to_rat H frac0q => //.
+      apply /eqP => //.
+    }
+    {
+      move: H.
+      case: r => /= num den H.
+      rewrite H.
+      rewrite /Q_to_rat => /=.
+      rewrite  2!fracqE /= GRing.invf_div //.
+    }
+    {
+      move: H.
+      case: r => /= num den H.
+      rewrite H.
+      rewrite /Q_to_rat => /=.
+      rewrite  2!fracqE /= GRing.invf_div.
+      rewrite 2!NegzE.
+      repeat (rewrite prednK; last by apply /ltP; apply Pos2Nat.is_pos).
+      by rewrite mulrNz mulNr mulrNz GRing.invrN mulrN.
+    }
+  Qed.
 
   Lemma Q_to_rat_div r s :
     Q_to_rat (r / s) = (Q_to_rat r / Q_to_rat s)%R.

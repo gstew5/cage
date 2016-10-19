@@ -161,6 +161,13 @@ Section resourceDefs.
     rewrite /traffic; case H: #|RNo.-support f|=> //.
     by apply: ler0n.
   Qed.
+
+  Lemma traffic_max (f : {ffun 'I_N -> [finType of resource]}) :
+    (traffic f <= N)%N.
+  Proof.
+    rewrite -[N]card_ord -sum1_card trafficP /traffic' big_mkcond /=.
+    apply leq_sum=> i H1; case: (f i) => //.
+  Qed.
   
   Definition resourceCostFun (i : 'I_N) (f : {ffun 'I_N -> resource}) : rty :=
     if f i is RYes then (traffic f)%:R else 0.
@@ -178,10 +185,26 @@ Next Obligation.
   case: (f i)=> //. apply: traffic_pos.
 Qed.
 
-Instance resourceGame (N : nat) : @game [finType of resource] N _ _ _.
+Instance resourceCostMaxInstance (N : nat)
+  : CostMaxClass N rat_realFieldType [finType of resource] :=
+  N%:R.
+
+Program Instance resourceCostMaxAxiomInstance (N : nat)
+  : CostMaxAxiomClass (@resourceCostInstance N)
+      (resourceCostMaxInstance N).
+Next Obligation.
+  rewrite /cost_fun /resourceCostInstance /resourceCostFun.
+  rewrite /costmax_fun /resourceCostMaxInstance.
+  case: (s i); last by apply ler0n.
+  move: (traffic_max s) => H. rewrite -(ler_nat rat_numDomainType) in H.
+  assumption.
+Qed.
+
+Instance resourceGame (N : nat) : @game [finType of resource] N _ _ _ _
+                                      (resourceCostMaxAxiomInstance _).
 
 Instance resourceLambdaInstance 
-  : LambdaClass [finType of resource] rat_realFieldType| 0 := 5%:R/3%:R.
+  : @LambdaClass [finType of resource] rat_realFieldType| 0 := 5%:R/3%:R.
 
 Program Instance resourceLambdaAxiomInstance
   : @LambdaAxiomClass [finType of resource] rat_realFieldType _.
@@ -346,10 +369,12 @@ Proof.
 Qed.
 
 Program Instance resourceSmoothAxiomInstance N
-  : @SmoothnessAxiomClass [finType of resource] N rat_realFieldType _ _ _ _ _ _ _.
+  : @SmoothnessAxiomClass [finType of resource] N rat_realFieldType _ _ _
+                          (resourceCostMaxAxiomInstance _) _ _ _ _ _.
 Next Obligation. by apply: resourceSmoothnessAxiom. Qed.
 Instance resourceSmoothInstance N
-  : @smooth [finType of resource] N rat_realFieldType _ _ _ _ _ _ _ _.
+  : @smooth [finType of resource] N rat_realFieldType _ _ _
+            (resourceCostMaxAxiomInstance _) _ _ _ _ _ _.
 
 (** Resource games are compilable *)
 
@@ -883,8 +908,20 @@ Qed.
 Instance resourceRefineCostInstance N
   : @RefineCostClass N [finType of resource] _ _ _.
 
+Instance resourceCCostMaxInstance N
+  : @CCostMaxClass N [finType of resource] :=
+      (rat_to_Q (N%:R)).
+
+Instance resourceRefineCostMaxInstance N
+  : @RefineCostMaxClass N _ (resourceCostMaxInstance _) (resourceCCostMaxInstance _).
+Proof.
+  rewrite /RefineCostMaxClass /resourceCCostMaxInstance.
+  apply Qle_lteq. right => //.
+Qed.
+
 Instance resource_cgame N
-  : cgame (N:=N) (T:=[finType of resource]) _ _ _.
+  : cgame (N:=N) (T:=[finType of resource]) _ _ _
+      (resourceGame N).
 
 (** Location Games *)
 
@@ -1024,7 +1061,7 @@ Instance BoolableSingleton (A : finType) `(Boolable A)
 
 Instance singletonCostInstance
          (N : nat) (rty : realFieldType) (A : finType)
-         `(costA : CostClass N rty A)
+         (* `(costA : CostClass N rty A) *)
          `(boolableA : Boolable A)
   : CostClass N rty (singletonType A) :=
   fun (i : 'I_N) (f : {ffun 'I_N -> singletonType A}) =>
@@ -1032,24 +1069,40 @@ Instance singletonCostInstance
 
 Program Instance  singletonCostAxiomInstance
         (N : nat) (rty : realFieldType) (A : finType)
-        `(costA : CostAxiomClass N rty A)
+        (* `(costA : CostAxiomClass N rty A) *)
         `(boolableA : Boolable A)        
   : @CostAxiomClass
       N rty
       (singletonType A)
-      (@singletonCostInstance N rty _ _ _).
+      (@singletonCostInstance N rty _ _).
 Next Obligation.
   rewrite /(cost) /singletonCostInstance; case: (boolify _); first by apply: ler01.
   by apply: lerr.
+Qed.
+
+Instance singletonCostMaxInstance (N : nat) (rty : realFieldType) (A : finType)
+  : CostMaxClass N rty A :=
+  1.
+
+Program Instance singletonCostMaxAxiomInstance
+        (N : nat) (rty : realFieldType) (A : finType)
+        `(boolableA : Boolable A)
+  : CostMaxAxiomClass (@singletonCostInstance N rty A _)
+                      (singletonCostMaxInstance N rty A).
+Next Obligation.
+  rewrite /cost_fun /singletonCostInstance.
+  rewrite /costmax_fun /singletonCostMaxInstance.
+  case: (boolify (s i)) => //. apply Num.Internals.ler01.
 Qed.
 
 (*Uses the generic move instance for wrapped types*)
 
 Instance singletonGameInstance
         (N : nat) (rty : realFieldType) (A : finType)
-        `(Boolable A) 
+        `(boolableA :Boolable A) 
         `(gameA : game A N rty)
-  : @game (singletonType A) N rty _ _.
+  : @game (singletonType A) N rty _ _ _
+          (singletonCostMaxAxiomInstance _ _ _ _).
 
 Module SingletonGameTest. Section singletonGameTest.
   Context {A N rty} `{gameA : game A N rty} `{Boolable A}.
@@ -1084,7 +1137,9 @@ Program Instance singletonSmoothAxiomInstance {A N rty}
          `{smoothA : smooth A N rty}
          `{boolableA : Boolable A}
          `{LambdaGe1Class A N rty}
-  : @SmoothnessAxiomClass (singletonType A) N rty _ _ _ _ _ _ _.
+  : @SmoothnessAxiomClass (singletonType A) N rty _ _ _
+                          (singletonCostMaxAxiomInstance _ _ _ _)
+                          _ _ _ _ _.
 Next Obligation.
   rewrite /Cost /(cost) /singletonCostInstance.
   rewrite /lambda_val /singletonLambdaInstance.
@@ -1105,13 +1160,15 @@ Instance singletonSmoothInstance {A N rty}
          `{smoothA : smooth A N rty}
          `{boolableA : Boolable A}
          `{LambdaGe1Class A N rty}
-  : @smooth (singletonType A) N rty _ _ _ _ _ _ _ _.
+  : @smooth (singletonType A) N rty _ _ _
+            (singletonCostMaxAxiomInstance _ _ _ _)
+            _ _ _ _ _ _.
 
 Module SingletonSmoothTest. Section singletonSmoothTest.
   Context {A N rty} `{gameA : smooth A N rty}.
   Context `{Boolable A} `{LambdaGe1Class A N rty}.
   Lemma x0 (t : {ffun 'I_N -> (singletonType A)}) (i : 'I_N) :
-    cost i t == 0. Abort.
+    cost i t == (0 : rty). Abort.
   Lemma x0 (t : {ffun 'I_N -> (singletonType A)}) (i : 'I_N) :
     cost i t == lambda of (singletonType A). Abort.
 End singletonSmoothTest. End SingletonSmoothTest.
@@ -1126,8 +1183,8 @@ Section singletonCompilable.
   Program Instance singRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (singletonType A) singCTypeInstance.
   Next Obligation.
-    clear H0 costClass costAxiomClass ccostClass refineCostAxiomClass
-      refineCostClass H1 H2.
+    clear H0 costMaxAxiomClass costClass costAxiomClass ccostClass
+          refineCostAxiomClass refineCostClass H1 H2.
     generalize H; clear H. rewrite /RefineTypeAxiomClass => H.
     case: H => H0 H1; clear H; split; last first.
     {
@@ -1184,8 +1241,18 @@ Qed.
   Instance singRefineCostInstance `(Boolable A)
     : @RefineCostClass N (singletonType A) _ _ _.
 
+  Instance singCCostMaxInstance
+    : @CCostMaxClass N (singletonType A) := 1%Q.
+
+  Instance singRefineCostMaxInstance
+    : @RefineCostMaxClass N _ (singletonCostMaxInstance N _ A) (singCCostMaxInstance).
+  Proof.
+    rewrite /RefineCostMaxClass /resourceCCostMaxInstance
+            /singletonCostMaxInstance /singCCostMaxInstance => //.
+  Qed.
+
   Instance sing_cgame `(Boolable A)
-    : @cgame N (singletonType A)  _ _ _ _ _ _ _ _ _.
+  : @cgame N (singletonType A) _ _ _ _ _ _ _ _ _ _ _ (singRefineCostMaxInstance) _.
 
 End singletonCompilable.
 
@@ -1211,11 +1278,27 @@ Program Instance  sigmaCostAxiomInstance
     apply: cost_axiom.
   Qed.
 
+Instance sigmaCostMaxInstance (N : nat) (rty : realFieldType) (A : finType)
+         (predInstance : PredClass A)
+         (costMaxInstance : CostMaxClass N rty A)
+  : CostMaxClass N rty [finType of {x : A | the_pred x}] :=
+  costmax_fun.
+
+Program Instance sigmaCostMaxAxiomInstance
+        (N : nat) (rty : realFieldType) (A : finType)
+        (predInstance : PredClass A)
+        `(costA : CostClass N rty A)
+        (costMaxInstance : CostMaxClass N rty A)
+        (costMaxAxiomInstance : @CostMaxAxiomClass N rty A _ _)
+  : CostMaxAxiomClass (@sigmaCostInstance N rty A _ _)
+                      (sigmaCostMaxInstance _ _).
+Next Obligation. by apply costMaxAxiomInstance. Qed.
+
 Instance sigmaGameInstance
          (N : nat) (rty : realFieldType) (A : finType)
          (predInstance : PredClass A)                 
          `(gameA : game A N rty)
-  : @game [finType of {x : A | the_pred x}] _ _ _ _.
+  : @game [finType of {x : A | the_pred x}] _ _ _ _ _ _.
 
 Module SigmaGameTest. Section sigmaGameTest.
   Context {A : finType} {N rty} (predA : PredClass A) `{gameA : game A N rty}.
@@ -1249,8 +1332,8 @@ Proof.
   rewrite /Cost /cost_fun /sigmaCostInstance /cost_fun.
   have ->: (lambda of [finType of {x : A | the_pred x}] = lambda of A) by [].
   have ->: (mu of [finType of {x : A | the_pred x}] = mu of A) by [].
-  have ->: (\sum_(i < N) H i [ffun j => projT1 (upd i t t' j)] =
-            \sum_(i < N) H i
+  have ->: (\sum_(i < N) costClass i [ffun j => projT1 (upd i t t' j)] =
+            \sum_(i < N) costClass i
              (upd i [ffun j => projT1 (t j)] [ffun j => projT1 (t' j)])).
   { apply congr_big => // i _. f_equal. apply ffunP => x /=.
     rewrite !ffunE. case: (i == x) => //. }
@@ -1462,31 +1545,52 @@ Section sigmaCompilable.
            (refineA : RefineCostAxiomClass costA ccostA)
     : @RefineCostClass N [finType of {x : A | the_pred x}] _ _ _.
 
+  Instance sigmaCCostMaxInstance (N : nat) (A : finType)
+           (predInstance : PredClass A)
+           (ccostMaxInstance : CCostMaxClass N A)
+    : @CCostMaxClass N [finType of {x : A | the_pred x}] := ccostMaxInstance.
+
+  Instance sigmaCostMaxRefineInstance (N : nat) (A : finType)
+           (predInstance : PredClass A)
+           (costMaxInstance : CostMaxClass N _ A)
+           (ccostMaxInstance : CCostMaxClass N A)
+           (refineCostMaxInstance : RefineCostMaxClass costMaxInstance ccostMaxInstance)
+    : @RefineCostMaxClass N A
+        (sigmaCostMaxInstance predInstance costMaxInstance)
+        (sigmaCCostMaxInstance predInstance ccostMaxInstance).
+  Proof.
+    rewrite /RefineCostMaxClass /sigmaCostMaxInstance
+            /sigmaCCostMaxInstance => //.
+  Qed.
   Instance sigma_cgame (N : nat) (A : finType)
            (predInstance : PredClass A)
            (costA : CostClass N rat_realFieldType A)
            (costAxiomA : @CostAxiomClass N rat_realFieldType A costA)
+           (costMaxA : CostMaxClass N rat_realFieldType A)
+           (costMaxAxiomA : CostMaxAxiomClass _ _)
            (ccostA : CCostClass N A)
+           (ccostMaxA : CCostMaxClass N A)
+           (refineCostMaxInstanceA : RefineCostMaxClass costMaxA ccostMaxA)
            `(refineTypeA : RefineTypeClass A)
            (refineCostAxiomA : @RefineCostAxiomClass N A costA ccostA)
            (refineCostA : @RefineCostClass N A costA ccostA _)
-           (gA : @game A N rat_realFieldType _ _)
-           (cgA : @cgame N A _ _ _ _ _ _ _ _ _)
-    : @cgame N [finType of {x : A | the_pred x}] (sigmaEnumerableInstance _ _)
-             (sigmaRefineTypeAxiomInstance _ _ _)
-             (sigmaRefineTypeInstance A _ _) _ _ _ _ _ _.
+           (gA : @game A N rat_realFieldType _ _ _ _)
+           (cgA : @cgame N A _ _ _ _ _ _ _ _ _ _ _ _ _)
+    : @cgame N [finType of {x : A | the_pred x}] _ _ _ _ _ _ _ _ _ _ _
+             (sigmaCostMaxRefineInstance refineCostMaxInstanceA)
+             (sigmaGameInstance N _ A predInstance gA) .  
 End sigmaCompilable.
 
 (** Product Games A * B *)
 
 Instance prodCostInstance
          (N : nat) (rty : realFieldType) (aT bT : finType)
-         `(costA : CostClass N rty aT)
-         `(costB : CostClass N rty bT)         
+         (costA : CostClass N rty aT)
+         (costB : CostClass N rty bT)         
   : CostClass N rty [finType of (aT*bT)] :=
   fun (i : 'I_N) (f : {ffun 'I_N -> aT*bT}) =>
     cost i (finfun (fun j => (f j).1)) +
-    cost i (finfun (fun j => (f j).2)).  
+    cost i (finfun (fun j => (f j).2)).
 
 Program Instance  prodCostAxiomInstance
          (N : nat) (rty : realFieldType) (aT bT : finType)
@@ -1498,11 +1602,29 @@ Program Instance  prodCostAxiomInstance
     apply addr_ge0 => //.
   Qed.
 
+Instance prodCostMaxInstance (N : nat) (rty : realFieldType) (aT bT : finType)
+         (costMaxA : CostMaxClass N rty aT)
+         (costMaxB : CostMaxClass N rty bT)
+  : CostMaxClass N rty [finType of aT*bT].
+Proof. apply GRing.add. apply costMaxA. apply costMaxB. Defined.
+
+Program Instance prodCostMaxAxiomInstance
+        (N : nat) (rty : realFieldType) (aT bT : finType)
+        (costA : CostClass N rty aT)
+        (costB : CostClass N rty bT) 
+        (costMaxA : CostMaxClass N rty aT)
+        (costMaxB : CostMaxClass N rty bT)
+        (costMaxAxiomA : CostMaxAxiomClass costA _)
+        (costMaxAxiomB : CostMaxAxiomClass costB _)
+  : CostMaxAxiomClass (@prodCostInstance N rty aT bT _ _)
+                      (prodCostMaxInstance _ _).
+Next Obligation. by apply ler_add. Qed.
+
 Instance prodGameInstance
          (N : nat) (rty : realFieldType) (aT bT : finType)
          `(gameA : game aT N rty)
          `(gameB : game bT N rty) 
-  : @game [finType of aT*bT] _ _ _ _.
+  : @game [finType of aT*bT] _ _ _ _ _ _.
 
 Lemma lambda_of_finType (T : finType) `(smooth T) :
   lambda of T = lambda of [finType of T].
@@ -1686,13 +1808,13 @@ Qed.
 Instance prodSmoothAxiomInstance {aT bT N rty}
          `{smoothA : smooth aT N rty}
          `{smoothB : smooth bT N rty}
-  : @SmoothnessAxiomClass [finType of (aT*bT)] N rty _ _ _ _ _ _ _
+  : @SmoothnessAxiomClass [finType of (aT*bT)] N rty _ _ _ _ _ _ _ _ _
   := prodSmoothnessAxiom.
 
 Instance prodSmoothInstance {aT bT N rty}
          `{smoothA : smooth aT N rty}
          `{smoothB : smooth bT N rty}
-  : @smooth [finType of (aT*bT)] N rty _ _ _ _ _ _ _ _.
+  : @smooth [finType of (aT*bT)] N rty _ _ _ _ _ _ _ _ _ _.
 
 Module ProdSmoothTest. Section prodSmoothTest.
   Context {A B N rty} `{gameA : smooth A N rty} `{gameB : smooth B N rty}.
@@ -1866,26 +1988,54 @@ Qed.
            (refineB : RefineCostAxiomClass costB ccostB)
     : @RefineCostClass N [finType of aT*bT] _ _ _.
 
+  Instance prodCCostMaxInstance (N : nat) (aT bT : finType)
+            (ccostMaxA : CCostMaxClass N aT)
+            (ccostMaxB : CCostMaxClass N bT)
+    : CCostMaxClass N [finType of aT*bT] := (ccostMaxA + ccostMaxB)%Q. 
+
+  Instance prodRefineMaxCostInstance (N : nat) (aT bT : finType)
+            (costMaxA   : CostMaxClass N _ aT)
+            (ccostMaxA  : CCostMaxClass N aT)
+            (refineMaxA : RefineCostMaxClass costMaxA ccostMaxA)
+            (costMaxB   : CostMaxClass N _ bT)
+            (ccostMaxB  : CCostMaxClass N bT)       
+            (refineMaxB : RefineCostMaxClass costMaxB ccostMaxB)
+    : RefineCostMaxClass
+        (prodCostMaxInstance costMaxA costMaxB)
+        (prodCCostMaxInstance ccostMaxA ccostMaxB).
+  Proof.
+    rewrite /RefineCostMaxClass /prodCostMaxInstance /prodCCostMaxInstance
+            rat_to_Q_plus. apply Qplus_le_compat => //.
+  Qed.
+
   Instance prod_cgame (N : nat) (aT bT : finType)
-           `(costA : CostClass N rat_realFieldType aT)
-           `(costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
-           `(ccostA : CCostClass N aT)
+           (costA : CostClass N rat_realFieldType aT)
+           (costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
+           (ccostA : CCostClass N aT)
+           (costMaxA : CostMaxClass N rat_realFieldType aT)
+           (ccostMaxA  : CCostMaxClass N aT)
+           (costMaxAxiomA : CostMaxAxiomClass costA _)
+           (refineMaxA : RefineCostMaxClass costMaxA ccostMaxA)
            `(refineTypeA : RefineTypeClass aT)
-           `(refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA)
-           `(refineCostA : @RefineCostClass N aT costA ccostA _)
-           `(gA : @game aT N rat_realFieldType _ _)
-           `(cgA : @cgame N aT _ _ _ _ _ _ _ _ _)
-           `(costB : CostClass N rat_realFieldType bT)
-           `(costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
-           `(ccostB : CCostClass N bT)
+           (refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA)
+           (refineCostA : @RefineCostClass N aT costA ccostA _)
+           (gA : @game aT N rat_realFieldType _ _ _ _)
+           (cgA : @cgame N aT _ _ _ _ _ _ _ _ _ _ _ _ _)
+           (costB : CostClass N rat_realFieldType bT)
+           (costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
+           (ccostB : CCostClass N bT)
+           (ccostMaxB : CCostMaxClass N bT)
+           (costMaxB : CostMaxClass N rat_realFieldType bT)
+           (costMaxAxiomB : CostMaxAxiomClass costB _)
+           (refineMaxB : RefineCostMaxClass costMaxB ccostMaxB)
            `(refineTypeB : RefineTypeClass bT)
-           `(refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB)
-           `(refineCostB : @RefineCostClass N bT costB ccostB _)
-           `(gB : @game bT N rat_realFieldType _ _)
-           `(cgB : @cgame N bT _ _ _ _ _ _ _ _ _)
-    : @cgame N [finType of aT*bT] (prodEnumerableInstance _ _)
-             (prodRefineTypeAxiomInstance _ _ _ _)
-             (prodRefineTypeInstance aT bT _ _) _ _ _ _ _ _.
+           (refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB)
+           (refineCostB : @RefineCostClass N bT costB ccostB _)
+           (gB : @game bT N rat_realFieldType _ _ _ _)
+           (cgB : @cgame N bT _ _ _ _ _ _ _ _ _ _ _ _ _)
+    : @cgame N [finType of aT*bT] _ _ _ _ _ _ _ _ _ _ _
+             (prodRefineMaxCostInstance refineMaxA refineMaxB)
+             (prodGameInstance N _ _ _ gA gB) .  
 
 (** Scalar Games c * A *)
 
@@ -1931,7 +2081,7 @@ Instance scalarCostInstance
 Program Instance  scalarCostAxiomInstance
         (N : nat) (rty : realFieldType) (A : finType)
         `(costA : CostAxiomClass N rty A)
-        `(scalarA : ScalarAxiomClass rty)        
+        `(scalarA : ScalarAxiomClass rty)
   : @CostAxiomClass
       N rty
       (scalarType scalar_val A)
@@ -1941,13 +2091,31 @@ Next Obligation.
   by apply: ltrW.
 Qed.
 
+Instance scalarCostMaxInstance (N : nat) (rty : realFieldType) (A : finType)
+         (costMax : CostMaxClass N rty A)
+         (scalarA : ScalarClass rty)
+  : CostMaxClass N rty A :=
+  scalar_val * costmax_fun.
+
+Program Instance scalarCostMaxAxiomInstance
+        (N : nat) (rty : realFieldType) (A : finType)
+        (costInstance : CostClass N rty A)
+        (costAxiomInstance : CostAxiomClass costInstance)
+        (costMaxInstance : CostMaxClass N rty A)
+        (costMaxAxiomInstance : CostMaxAxiomClass costInstance _)
+        (scalarInstance : ScalarClass rty)
+        (scalarAxiomInstance : ScalarAxiomClass _)
+  : CostMaxAxiomClass (@scalarCostInstance N rty A _ _) (scalarCostMaxInstance costMaxInstance _).
+Next Obligation. by apply ler_pmul => //; apply ltrW => //. Qed.
+
 Instance scalarGameInstance
         (N : nat) (rty : realFieldType) (A : finType)
         `(ScalarAxiomClass rty) 
         `(gameA : game A N rty)
   : @game (scalarType scalar_val A) N rty 
           (@scalarCostInstance N rty A _ _)
-          (@scalarCostAxiomInstance N rty A _ _ _ _).
+          (@scalarCostAxiomInstance N rty A _ _ _ _) _
+          (scalarCostMaxAxiomInstance _ _ _ _ _ _ _ _ _).
 
 Module ScalarGameTest. Section scalarGameTest.
   Context {A N rty} `{gameA : game A N rty} `{scalarA : ScalarAxiomClass rty}.
@@ -1982,7 +2150,9 @@ Program Instance scalarMuAxiomInstance
 Program Instance scalarSmoothAxiomInstance {A N rty}
          `{smoothA : smooth A N rty}
          `{scalarA : ScalarAxiomClass rty}
-  : @SmoothnessAxiomClass (scalarType scalar_val A) N rty _ _ _ _ _ _ _.
+  : @SmoothnessAxiomClass (scalarType scalar_val A) N rty _ _ _
+                          (scalarCostMaxAxiomInstance _ _ _ _ _ _ _ _ _)
+                          _ _ _ _ _.
 Next Obligation.
   rewrite /Cost /(cost) /scalarCostInstance.
   rewrite /lambda_val /scalarLambdaInstance.
@@ -1997,7 +2167,9 @@ Qed.
 Instance scalarSmoothInstance {A N rty}
          `{smoothA : smooth A N rty}
          `{scalarA : ScalarAxiomClass rty}
-  : @smooth (scalarType scalar_val A) N rty _ _ _ _ _ _ _ _.
+  : @smooth (scalarType scalar_val A) N rty _ _ _
+            (scalarCostMaxAxiomInstance _ _ _ _ _ _ _ _ _)
+            _ _ _ _ _ _.
 
 Module ScalarSmoothTest. Section scalarSmoothTest.
   Context {A N rty} `{gameA : smooth A N rty} `{scalarA : ScalarAxiomClass rty}.
@@ -2016,8 +2188,8 @@ Section scalarCompilable.
   Program Instance scalarRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (scalarType q A) _.
   Next Obligation.
-    clear H1 H2 refineCostAxiomClass  H0
-          refineCostClass ccostClass costAxiomClass costClass.
+    clear H1 H2 refineCostAxiomClass H0 refineCostClass ccostClass
+          costAxiomClass costMaxAxiomClass costClass.
     generalize H; clear H.
     rewrite /RefineTypeAxiomClass => H.
     destruct H; split; last first.
@@ -2062,8 +2234,8 @@ Section scalarCompilable.
     M.find i m = Some t ->
       M.find i (unwrapScalarTree m) = Some (unwrap t).
   Proof.
-    clear H H0 H1 H2 refineCostAxiomClass
-          refineCostClass ccostClass costAxiomClass costClass.
+    clear H H0 H1 H2 refineCostAxiomClass refineCostClass
+          ccostClass costAxiomClass costMaxAxiomClass costClass.
     rewrite /unwrapScalarTree.
     apply MProps.fold_rec_weak.
     {
@@ -2125,9 +2297,23 @@ Section scalarCompilable.
     : @RefineCostClass N (scalarType q A)
         (@scalarCostInstance N _ A costClass _) _ _.
 
+  Instance scalarCCostMaxInstance
+    : @CCostMaxClass N (scalarType q A) := ((rat_to_Q q) * ccostMaxClass)%Q.
+
+  Instance scalarRefineCostMaxInstance `(scalarAxiomInstance : @ScalarAxiomClass _ q)
+    : @RefineCostMaxClass N (scalarType q A)
+        (scalarCostMaxInstance costMaxClass q) scalarCCostMaxInstance.
+  Proof.
+    rewrite /RefineCostMaxClass /scalarCostMaxInstance /scalarCCostMaxInstance 
+            rat_to_Q_mul. apply Qmult_le_l => //.
+    (* Belongs in numerics *)
+    have H3 : rat_to_Q 0 = 0%Q. rewrite /rat_to_Q => //.
+    rewrite -H3. apply lt_rat_to_Q => //.
+  Qed.
+
   Instance scalar_cgame `{scalarA : @ScalarAxiomClass rat_realFieldType q}
-    : @cgame N (scalarType q A) _ _ _ _ _ _ _ _
-        (scalarGameInstance _ _ _ scalarA _).
+    : @cgame N (scalarType q A) _ _ _ _ _ _ _ _ _ _ _ _
+        (scalarGameInstance _ _ _ _ _).
 End scalarCompilable.
 
 (** Bias Games c + A *)
@@ -2171,15 +2357,33 @@ Instance biasCostInstance
   fun (i : 'I_N) (f : {ffun 'I_N -> biasType bias_val A}) =>
     bias_val + cost i (finfun (fun j => unwrap (f j))).
 
-Program Instance  biasCostAxiomInstance
+Program Instance biasCostAxiomInstance
         (N : nat) (rty : realFieldType) (A : finType)
         `(biasA : BiasAxiomClass rty)
         `(costA : CostAxiomClass N rty A)
-  : @CostAxiomClass N rty (biasType scalar_val A) (@biasCostInstance N rty _ bias_val _).
+  : @CostAxiomClass N rty (biasType scalar_val A)
+                    (@biasCostInstance N rty _ bias_val _).
 Next Obligation.
   rewrite /(cost) /biasCostInstance addr_ge0 => //.
   by apply: ltrW; apply bias_axiom.
 Qed.
+
+Instance biasCostMaxInstance (N : nat) (rty : realFieldType) (A : finType)
+         (costMax : CostMaxClass N rty A)
+         `(biasA : BiasAxiomClass rty)
+  : CostMaxClass N rty A :=
+  bias_val + costmax_fun.
+
+Program Instance biasCostMaxAxiomInstance
+        (N : nat) (rty : realFieldType) (A : finType)
+        (costInstance : CostClass N rty A)
+        (costAxiomInstance : CostAxiomClass costInstance)
+        (costMaxInstance : CostMaxClass N rty A)
+        (costMaxAxiomInstance : CostMaxAxiomClass costInstance _)
+        `(biasA : BiasAxiomClass rty)
+  : CostMaxAxiomClass (@biasCostInstance N rty A _ _)
+                      (biasCostMaxInstance _ _ _ costMaxInstance _).
+Next Obligation. by apply ler_add. Qed.
 
 Instance biasGameInstance
         (N : nat) (rty : realFieldType) (A : finType)
@@ -2187,7 +2391,8 @@ Instance biasGameInstance
         `(biasA : BiasAxiomClass rty)
   : @game (biasType bias_val A) N rty 
           (@biasCostInstance N rty A bias_val _)
-          (@biasCostAxiomInstance N rty A _ _ _ _).
+          (@biasCostAxiomInstance N rty A _ _ _ _)
+          _ (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _).
 
 Module BiasGameTest. Section biasGameTest.
   Context {A N rty} `{gameA : game A N rty} `{biasA : BiasAxiomClass rty}.
@@ -2226,7 +2431,9 @@ Program Instance biasSmoothAxiomInstance {A N rty}
         `{smoothA : smooth A N rty}
          (LambdaMu_ge1 : LambdaMuGe1Class smoothA)  
         `{biasA : BiasAxiomClass rty}
-  : @SmoothnessAxiomClass (biasType bias_val A) N rty _ _ _ _ _ _ _.
+  : @SmoothnessAxiomClass (biasType bias_val A) N rty _ _ _
+                          (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
+                          _ _ _ _ _.
 Next Obligation.
   rewrite /Cost /(cost) /biasCostInstance.
   rewrite /lambda_val /biasLambdaInstance.
@@ -2246,7 +2453,9 @@ Instance biasSmoothInstance {A N rty}
          `{smoothA : smooth A N rty}
          (LambdaMu_ge1 : LambdaMuGe1Class smoothA)
          `{biasA : BiasAxiomClass rty}
-  : @smooth (biasType bias_val A) N rty _ _ _ _ _ _ _ _.
+  : @smooth (biasType bias_val A) N rty _ _ _
+            (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
+            _ _ _ _ _ _.
 
 Module BiasSmoothTest. Section biasSmoothTest.
   Context {A N rty} `{gameA : smooth A N rty} `{biasA : BiasAxiomClass rty}.
@@ -2266,8 +2475,8 @@ Section biasCompilable.
   Program Instance biasRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (biasType q A) _.
   Next Obligation.
-    clear H1 H2 refineCostAxiomClass  H0
-          refineCostClass ccostClass costAxiomClass costClass.
+    clear H1 H2 refineCostAxiomClass  H0 refineCostClass
+          ccostClass costAxiomClass costMaxAxiomClass costClass.
     generalize H; clear H.
     rewrite /RefineTypeAxiomClass => H.
     destruct H; split; last first.
@@ -2312,8 +2521,8 @@ Section biasCompilable.
     M.find i m = Some t ->
       M.find i (unwrapBiasTree m) = Some (unwrap t).
   Proof.
-    clear H H0 H1 H2 refineCostAxiomClass
-          refineCostClass ccostClass costAxiomClass costClass.
+    clear H H0 H1 H2 refineCostAxiomClass refineCostClass
+          ccostClass costAxiomClass costMaxAxiomClass costClass.
     rewrite /unwrapBiasTree.
     apply MProps.fold_rec_weak.
     {
@@ -2369,9 +2578,23 @@ Section biasCompilable.
 
   Instance biasRefineCostInstance
     : @RefineCostClass N (biasType q A) (biasCostInstance costClass) _ _.
+  
+  Instance biasCCostMaxInstance
+    : @CCostMaxClass N (biasType q A) := ((rat_to_Q q) + ccostMaxClass)%Q.
 
-  Instance bias_cgame `{@BiasAxiomClass _ q}
-    : @cgame N (biasType q A) _ _ _ _ _ _ _ _ (biasGameInstance _ _ _ _ _).
+  Instance biasRefineCostMaxInstance `(biasAxiomInstance : @BiasAxiomClass _ q)
+    : @RefineCostMaxClass N (biasType q A)
+        (biasCostMaxInstance _ _ _ costMaxClass biasAxiomInstance) biasCCostMaxInstance.
+  Proof.
+    rewrite /RefineCostMaxClass /biasCostMaxInstance /biasCCostMaxInstance
+            rat_to_Q_plus. SearchAbout Qplus. apply Qplus_le_compat => //.
+    apply Qle_refl.
+  Qed.
+
+  Instance bias_cgame `{@BiasAxiomClass rat_realFieldType q}
+    : @cgame N (biasType q A) _ _ _ _ _ _
+             (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
+             _ _ _ _ _(biasGameInstance _ _ _ _ _).
 End biasCompilable.
 (** Unit Games c(s) = 0 *)
 
@@ -2419,11 +2642,21 @@ Program Instance  unitCostAxiomInstance
         (N : nat) (rty : realFieldType)
   : @CostAxiomClass N rty unitType (@unitCostInstance N rty).
 
+Instance unitCostMaxInstance ( N : nat) (rty : realFieldType)
+  : CostMaxClass N rty unitType :=
+  0.
+
+Program Instance unitCostMaxAxiomInstance
+        (N : nat) (rty : realFieldType)
+  : CostMaxAxiomClass (@unitCostInstance N rty)
+                      (unitCostMaxInstance _ _).
+
 Program Instance unitGameInstance
         (N : nat) (rty : realFieldType) 
   : @game unitType N rty 
           (@unitCostInstance N rty)
-          (@unitCostAxiomInstance N rty).
+          (@unitCostAxiomInstance N rty) _
+          (unitCostMaxAxiomInstance _ _).
 
 Module UnitGameTest. Section unitGameTest.
   Context {N rty} `{gameA : game unitType N rty}.
@@ -2453,7 +2686,7 @@ Next Obligation.
 Qed.
                                           
 Program Instance unitSmoothAxiomInstance {N rty}
-  : @SmoothnessAxiomClass unitType N rty _ _ _ _ _ _ _.
+  : @SmoothnessAxiomClass unitType N rty _ _ _ _ _ _ _ _ _.
 Next Obligation.
   rewrite mul1r mul0r addr0; have ->: t = t'.
   { apply/ffunP; case => m i. case: (t _)=> s. case: (t' _)=> s'.
@@ -2462,7 +2695,7 @@ Next Obligation.
 Qed.
 
 Instance unitSmoothInstance {N rty}
-  : @smooth unitType N rty _ _ _ _ _ _ _ _.
+  : @smooth unitType N rty _ _ _ _ _ _ _ _ _ _.
 
 Module UnitSmoothTest. Section unitSmoothTest.
   Context {N rty} `{gameA : smooth unitType N rty}.
@@ -2490,17 +2723,27 @@ Section unitCompilable.
   Definition unit_ccost (i : OrdNat.t) (m : M.t unitTy) : Qcoq :=
     0%coq_Qscope.
 
-  Instance unitCCostInstance : CCostClass N unitType
-    := unit_ccost.
+  Instance unitCCostInstance
+    : CCostClass N unitType := unit_ccost.
 
-  Program Instance unitRefineCostAxiomInstance :
-    @RefineCostAxiomClass N unitType _ _.
+  Program Instance unitRefineCostAxiomInstance
+    : @RefineCostAxiomClass N unitType _ _.
 
   Instance unitRefineCostInstance
     : @RefineCostClass N unitType _ _ _.
 
+  Instance unitCCostMaxInstance
+    : @CCostMaxClass N unitType := 0%Q. 
+
+  Instance unitrefineCostMaxInstance
+    : @RefineCostMaxClass _ _ (unitCostMaxInstance N _) unitCCostMaxInstance.
+  Proof.
+    rewrite /RefineCostMaxClass /unitCostMaxInstance /unitCCostMaxInstance.
+    rewrite /rat_to_Q => //.
+  Qed.
+
   Instance unit_cgame 
-    : cgame (N:=N) (T:=unitType) _ _ _.
+    : cgame (N:=N) (T:=unitType) _ _ _ _.
 
 End unitCompilable.
 
@@ -2528,4 +2771,3 @@ Variable t' : M.t affineType.
 Check ccost i' t'. (*FIXME: This [Check] generates a regression*)
 End affineGameTest.
 End AffineGame.
-  

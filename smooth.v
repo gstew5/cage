@@ -42,8 +42,11 @@ Class MuAxiomClass (mT : finType) (rty : realFieldType)
   : Type := mu_axiom : 0 <= mu of mT < 1.
 
 Class SmoothnessAxiomClass (sT : finType) (sN : nat) (rty : realFieldType)
-      `(costAxiomInstance : CostAxiomClass sN rty sT)
-      (gameInstance : game costAxiomInstance)
+      (costClass : CostClass sN rty sT)
+      (costAxiomInstance : CostAxiomClass costClass)
+      (costMaxClass : CostMaxClass sN rty sT)
+      (costMaxAxiomClass : CostMaxAxiomClass costClass costMaxClass)
+      (gameInstance : game costAxiomInstance costMaxAxiomClass)
       `(lambdaAxiomInstance : LambdaAxiomClass sT rty)
       `(muAxiomInstance : MuAxiomClass sT rty) : Type :=
   SmoothnessAxiom :
@@ -53,8 +56,7 @@ Class SmoothnessAxiomClass (sT : finType) (sN : nat) (rty : realFieldType)
 Notation "'smooth_ax'" := (@SmoothnessAxiom _ _ _ _ _ _ _ _).
 
 Class smooth (T : finType) (N : nat) (rty : realFieldType)
-      `(costAxiomInstance : CostAxiomClass N rty T)
-      (gameInstance : game costAxiomInstance)
+      `(gameInstance : game T N rty)
       `(lambdaAxiomInstance : LambdaAxiomClass T rty)
       `(muAxiomInstance : MuAxiomClass T rty)
       (smoothnessAxiomInstance :
