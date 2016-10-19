@@ -1133,9 +1133,11 @@ Section Q_to_rat_lemmas.
       rewrite H.
       rewrite /Q_to_rat => /=.
       rewrite  2!fracqE /= GRing.invf_div.
-      admit.
+      rewrite 2!NegzE.
+      repeat (rewrite prednK; last by apply /ltP; apply Pos2Nat.is_pos).
+      by rewrite mulrNz mulNr mulrNz GRing.invrN mulrN.
     }
-  Admitted.
+  Qed.
 
   Lemma Q_to_rat_div r s :
     Q_to_rat (r / s) = (Q_to_rat r / Q_to_rat s)%R.
