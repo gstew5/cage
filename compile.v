@@ -142,27 +142,58 @@ Proof.
     apply Qle_trans with (y := ccost i m);
       last by apply CCostMaxIsMax
         with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
+    rewrite (refineCostAxiomClass i pf m s) => //.
+    (* Probably needs to be moved to numerics *)
+    have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
+    rewrite H'. apply le_rat_to_Q => //. apply Qle_lteq in H'.
+    case: H'; move => H0.
+    {
+      apply Qle_shift_div_l => //.
+      rewrite Qmult_0_l => //.
+      rewrite (refineCostAxiomClass i pf m s) => //.
+      have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
+      rewrite H'. apply le_rat_to_Q => //.
+    }
+    {
+      rewrite -H0.
+      rewrite /Qdiv.
+      apply Qmult_le_0_compat.
       rewrite (refineCostAxiomClass i pf m s) => //.
       (* Probably needs to be moved to numerics *)
       have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
-        rewrite H'. apply le_rat_to_Q => //. apply Qle_lteq in H'.
-      case: H'; move => H0.
-      {
-        admit.
-      }
-      {
-        rewrite -H0.
-        rewrite /Qdiv.
-        apply Qmult_le_0_compat.
-        rewrite (refineCostAxiomClass i pf m s) => //.
-        (* Probably needs to be moved to numerics *)
-        have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
-        rewrite H'. apply le_rat_to_Q => //.
-        rewrite -Qle_bool_iff; compute => //.
-      }
+      rewrite H'. apply le_rat_to_Q => //.
+      rewrite -Qle_bool_iff; compute => //.
     }
-    admit.
-  Admitted.
+  }
+  {
+    have H' : 0 <= ccostMaxClass.
+    apply Qle_trans with (y := ccost i m);
+      last by apply CCostMaxIsMax
+        with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
+    rewrite (refineCostAxiomClass i pf m s) => //.
+    (* Probably needs to be moved to numerics *)
+    have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
+    rewrite H'. apply le_rat_to_Q => //. apply Qle_lteq in H'.
+    case: H'; move => H0.
+    {
+      apply Qle_shift_div_r => //.
+      rewrite Qmult_1_l.
+      apply CCostMaxIsMax
+        with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
+    }
+    {
+      rewrite -H0.
+      have H1: ccost i m == 0. apply Qle_antisym.
+      rewrite H0.
+      apply CCostMaxIsMax
+        with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
+      rewrite (refineCostAxiomClass i pf m s) => //.
+      have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
+      rewrite H'. apply le_rat_to_Q => //.
+      rewrite H1 /Qdiv /Qmult => //.
+    }
+  }
+Qed.
 
 (** A compilable game is one:
     - over an enumerable type [T], 
