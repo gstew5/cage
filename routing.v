@@ -112,6 +112,6 @@ Module Server := Server C P3'.
 
 Existing Instance P3'.cost_instance.
 (*Why doesn' Coq discover this instance in the following definition?*)
-Definition run := Server.server Server.init_state.
+Definition run := Server.server (@Server.init_state result ax_oracle).
 
 Extraction "runtime/server.ml" run.
