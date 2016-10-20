@@ -7,11 +7,13 @@ import math
 # Given the output of [./mwu.native], calculate 
 # the client's regret at each iteration t=0..T-1.
 #
-# USAGE: ./calcregret.py [client_output_file] epsilon
+# USAGE: ./calcregret.py [infile] [outfile] [epsilon] 
 
-filename = sys.argv[1]
-epsilon = float(sys.argv[2])
-f = open(filename, 'r')
+infile = sys.argv[1]
+outfile = sys.argv[2] 
+epsilon = float(sys.argv[3])
+f = open(infile, 'r')
+of = open(outfile, 'a')
 
 processing_costs = False
 t = 0
@@ -64,14 +66,18 @@ costs_tbl.pop(len(costs_tbl) - 1)   # = {}
 chosen_tbl.pop(len(chosen_tbl) - 1) # = we don't care because no cost vector was returned
 
 for t in costs_tbl:
+    # for debugging, we print the following to stdout
     print "ROUND", t
     print "Chose", chosen_tbl[t]
     print "Optimal", opt(t)    
     print "Cost", avg_cost(t)
-    print "Regret", (avg_cost(t) - opt(t))
+    regret = avg_cost(t) - opt(t)
+    print "Regret", regret
     print "Regret bound", predicted_regret(t)
     for a in costs_tbl[t]:
         print " ", a, costs_tbl[t][a]
 
-
+    # for later aggregation and plotting, we print the following data to [outfile]:
+    #   round_number, optimal avg cost, client's avg cost, client's regret, regret bound
+    print >> of, t, ",", opt(t), ",", avg_cost(t), ",", regret, ",", predicted_regret(t)
         

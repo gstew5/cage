@@ -62,7 +62,7 @@ for k in bound:
     bound_std[k] = np.std(bound[k])
 
 with plt.xkcd():
-    fig = plt.figure()
+    fig = plt.figure(figsize=(8,8), dpi=120)
     plt.title('Experimental Regret: Routing Game', size=18)
     plt.yscale('log')
     plt.minorticks_off()
@@ -80,6 +80,7 @@ with plt.xkcd():
     for cap in caps: cap.set_markeredgewidth(2)
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.xlabel('#Iterations', size=18)
+    plt.ylabel('Regret, Cost', size=18)    
     plt.legend(['Regret Bound','MWU Cost','Optimal Cost','MWU Regret'])            
 
 plt.show()    
