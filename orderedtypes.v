@@ -4,6 +4,7 @@ From mathcomp Require Import all_algebra.
 
 Require Import ProofIrrelevance.
 Require Import String.
+Require Import QArith.
 Require Import Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
@@ -314,3 +315,32 @@ Module OrderedFinSigma (X : OrderedPredFinType) <: OrderedFinType.
   Definition choice_mixin := @sig_choiceMixin xC pred.
   Definition fin_mixin := @sig_finMixin xF pred.
 End OrderedFinSigma.
+
+Module Type OrderedScalarType.
+  Include MyOrderedType.
+  Parameter scal : rat.
+End OrderedScalarType.
+                      
+(*HERE HERE HERE
+  Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
+  Definition t := T.t.
+  Definition t0 := T.t0.
+  Definition enumerable := T.enumerable.
+  Definition cost_instance (N : nat) :=
+    scalarCCostInstance (q:=T.scal) (N:=N).
+  Definition show_sigma (x : t) : string :=
+    append "Scalar" (to_string x).
+  Instance showable : Showable t := mkShowable show_sigma.
+  Definition eq (x1 x2 : t) := T.eq x1 x2.
+  Definition lt (x1 x2 : t) := T.lt x1 x2.
+  Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
+  Proof. apply: T.lt_trans. Qed.
+  Lemma lt_not_eq : forall x y, lt x y -> ~eq x y.
+  Proof. apply: T.lt_not_eq. Qed.
+  Lemma compare : forall x y, Compare lt eq x y.
+  Proof. apply: T.compare. Qed.
+  Lemma eq_dec : forall x y, {eq x y} + {~eq x y}.
+  Proof. apply: T.eq_dec. Qed.
+  Lemma eqP : forall x y, x = y <-> eq x y.
+  Proof. apply: T.eqP. Qed.
+End OrderedScalar.*)

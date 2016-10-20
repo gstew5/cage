@@ -2261,7 +2261,7 @@ Section scalarCompilable.
     }
   Qed.
 
-  Instance scalarCCostInstance N
+  Instance scalarCCostInstance
     : CCostClass N (scalarType q A)
     :=
       fun (i : OrdNat.t) (m : M.t (scalarType q A)) =>
