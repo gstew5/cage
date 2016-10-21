@@ -15,6 +15,7 @@ Module Type MyOrderedType.
   Parameter t0 : t. (*The type is inhabited.*)
   Parameter enumerable : Enumerable t.
   Parameter cost_instance : forall N, CCostClass N t.
+  Parameter cost_max : forall N, CCostMaxClass N t.
   Parameter showable : Showable t.
   Parameter eq : t -> t -> Prop.
   Parameter lt : t -> t -> Prop.
@@ -59,6 +60,7 @@ Module OrderedResource <: MyOrderedType.
   Definition t0 := RYes.
   Definition enumerable := resourceEnumerableInstance.
   Definition cost_instance := resourceCCostInstance.
+  Definition cost_max := resourceCCostMaxInstance.
   Definition showable := resourceShowable.
   Definition eq r1 r2 := resource_eq r1 r2 = true.
   Definition lt r1 r2 :=
@@ -120,6 +122,8 @@ Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
   Definition enumerable := prodEnumerableInstance A.enumerable B.enumerable.
   Definition cost_instance N :=
     prodCCostInstance (A.cost_instance N) (B.cost_instance N).
+  Definition cost_max N :=         
+    prodCCostMaxInstance (A.cost_max N) (B.cost_max N).
   Definition show_prod (p : A.t*B.t) : string :=
     let s1 := to_string p.1 in
     let s2 := to_string p.2 in
@@ -245,6 +249,7 @@ Module OrderedSigma (T : OrderedPredType) <: MyOrderedType.
     sigmaEnumerableInstance T.enumerable APredInstance.
   Definition cost_instance N :=
     sigmaCCostInstance (T.cost_instance N).
+  Definition cost_max N := sigmaCCostMaxInstance APredInstance (T.cost_max N).
   Definition show_sigma (x : t) : string :=
     to_string (projT1 x).
   Instance showable : Showable t := mkShowable show_sigma.
@@ -321,26 +326,42 @@ Module Type OrderedScalarType.
   Parameter scal : rat.
 End OrderedScalarType.
                       
-(*HERE HERE HERE
-  Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
-  Definition t := T.t.
-  Definition t0 := T.t0.
-  Definition enumerable := T.enumerable.
+Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
+  Definition t := scalar T.scal T.t.
+  Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) T.scal) T.t0.
+  Definition enumerable : Enumerable t :=
+    scalarEnumerableInstance T.enumerable T.scal.
   Definition cost_instance (N : nat) :=
-    scalarCCostInstance (q:=T.scal) (N:=N).
-  Definition show_sigma (x : t) : string :=
-    append "Scalar" (to_string x).
-  Instance showable : Showable t := mkShowable show_sigma.
-  Definition eq (x1 x2 : t) := T.eq x1 x2.
-  Definition lt (x1 x2 : t) := T.lt x1 x2.
+    scalarCCostInstance T.enumerable (T.cost_instance N) (q:=T.scal).
+  Definition cost_max (N : nat) :=
+    scalarCCostMaxInstance (T.cost_max N) T.scal.
+  Definition show_scalar (x : t) : string :=
+    append "Scalar" (to_string (unwrap x)).
+  Instance showable : Showable t := mkShowable show_scalar.
+  Definition eq (x1 x2 : t) := T.eq (unwrap x1) (unwrap x2).
+  Definition lt (x1 x2 : t) := T.lt (unwrap x1) (unwrap x2).
   Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
-  Proof. apply: T.lt_trans. Qed.
+  Proof.
+    case => a; case => b; case => e.
+    apply: T.lt_trans.
+  Qed.
   Lemma lt_not_eq : forall x y, lt x y -> ~eq x y.
-  Proof. apply: T.lt_not_eq. Qed.
+  Proof. case => a; case => b; apply: T.lt_not_eq. Qed.
   Lemma compare : forall x y, Compare lt eq x y.
-  Proof. apply: T.compare. Qed.
+  Proof.
+    case => a; case => b; rewrite /=.
+    case: (T.compare a b) => H.
+    { rewrite /lt; constructor => //. }
+    { by rewrite /lt /eq; apply: EQ. }
+    by rewrite /lt /eq; apply: GT.
+  Qed.
   Lemma eq_dec : forall x y, {eq x y} + {~eq x y}.
-  Proof. apply: T.eq_dec. Qed.
+  Proof. case => a; case => b; apply: T.eq_dec. Qed.
   Lemma eqP : forall x y, x = y <-> eq x y.
-  Proof. apply: T.eqP. Qed.
-End OrderedScalar.*)
+  Proof.
+    case => a; case => b; split => H; rewrite /eq.
+    by rewrite -(T.eqP a b); inversion H.
+    rewrite /eq /= in H; f_equal.
+    by rewrite T.eqP.
+  Qed.
+End OrderedScalar.

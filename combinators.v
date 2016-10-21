@@ -24,9 +24,9 @@ Local Open Scope ring_scope.
 (** A generic wrapper for directing the construction of cost games
     over finite types [T]. [I] is a phantom type, used to direct
     instance resolution. *)
-Inductive Wrapper (I : Type) (T : finType) : Type :=
+Inductive Wrapper (I : Type) (T : Type) : Type :=
   Wrap : T -> Wrapper I T.
-Definition unwrap (I : Type) (T : finType) (w : Wrapper I T) : T :=
+Definition unwrap (I : Type) (T : Type) (w : Wrapper I T) : T :=
   match w with Wrap t => t end.
 
 Section Wrapper.
@@ -1545,10 +1545,10 @@ Section sigmaCompilable.
            (refineA : RefineCostAxiomClass costA ccostA)
     : @RefineCostClass N [finType of {x : A | the_pred x}] _ _ _.
 
-  Instance sigmaCCostMaxInstance (N : nat) (A : finType)
+  Instance sigmaCCostMaxInstance (N : nat) (A : Type)
            (predInstance : PredClass A)
            (ccostMaxInstance : CCostMaxClass N A)
-    : @CCostMaxClass N [finType of {x : A | the_pred x}] := ccostMaxInstance.
+    : @CCostMaxClass N {x : A | the_pred x} := ccostMaxInstance.
 
   Instance sigmaCostMaxRefineInstance (N : nat) (A : finType)
            (predInstance : PredClass A)
@@ -1988,10 +1988,10 @@ Qed.
            (refineB : RefineCostAxiomClass costB ccostB)
     : @RefineCostClass N [finType of aT*bT] _ _ _.
 
-  Instance prodCCostMaxInstance (N : nat) (aT bT : finType)
+  Instance prodCCostMaxInstance (N : nat) (aT bT : Type)
             (ccostMaxA : CCostMaxClass N aT)
             (ccostMaxB : CCostMaxClass N bT)
-    : CCostMaxClass N [finType of aT*bT] := (ccostMaxA + ccostMaxB)%Q. 
+    : CCostMaxClass N (aT*bT) := (ccostMaxA + ccostMaxB)%Q. 
 
   Instance prodRefineMaxCostInstance (N : nat) (aT bT : finType)
             (costMaxA   : CostMaxClass N _ aT)
@@ -2056,7 +2056,7 @@ Definition Scalar_eqMixin c := EqMixin (@Scalar_eqP c).
 Canonical Scalar_eqType c :=
   Eval hnf in EqType (@Scalar c) (Scalar_eqMixin c).
 
-Definition scalar (c : rty) (A : finType) :=
+Definition scalar (c : rty) (A : Type) :=
   Wrapper (Scalar c) A.
 
 Definition scalarType (c : rty) (A : finType) :=
@@ -2178,12 +2178,33 @@ Module ScalarSmoothTest. Section scalarSmoothTest.
   Lemma x0 (t : {ffun 'I_N -> (scalarType scalar_val A)}) (i : 'I_N) :
     cost i t == lambda of (scalarType scalar_val A). Abort.
 End scalarSmoothTest. End ScalarSmoothTest.
+  
+Instance scalarEnumerableInstance
+         (A : Type) `(Enumerable A)
+         (q : rat)
+  : Enumerable (scalar q A) := map (@Wrap (Scalar q) A) (enumerate A).
+
+Definition unwrapScalarTree A (q : rat) : M.t (scalar q A) -> M.t A :=
+  fun m : (M.t (scalar q A)) =>
+    M.fold (fun i r acc =>
+              M.add i (unwrap r) acc)
+      m (M.empty A).    
+
+Instance scalarCCostInstance
+         N (A : Type)
+         `(Enumerable A) `(CCostClass N A)
+         (q : rat)
+  : CCostClass N (scalar q A)
+  :=
+    fun (i : OrdNat.t) (m : M.t (scalar q A)) =>
+      Qred(Qmult (rat_to_Q q) (ccost i (unwrapScalarTree m))).
+
+Instance scalarCCostMaxInstance
+         N (A : Type) `(cmax : CCostMaxClass N A) (q : rat)
+  : @CCostMaxClass N (scalar q A) := (rat_to_Q q * cmax)%Q.
 
 Section scalarCompilable.
   Context {A N} {q : rat} `{cgame N A}.
-
-  Instance scalarCTypeInstance
-    : Enumerable (scalar q A) := map (@Wrap (Scalar q) A) (enumerate A).
 
   Program Instance scalarRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (scalarType q A) _.
@@ -2224,12 +2245,6 @@ Section scalarCompilable.
   Instance scalarRefineTypeInstance
     : @RefineTypeClass (scalarType q A)  _ _.
 
-  Definition unwrapScalarTree : M.t (scalarType q A) -> M.t A :=
-  fun m : (M.t (scalarType q A)) =>
-    M.fold (fun i r acc =>
-              M.add i (unwrap r) acc)
-      m (M.empty A).    
-
   Lemma unwrapScalarTree_spec i (t : scalarType q A) m:
     M.find i m = Some t ->
       M.find i (unwrapScalarTree m) = Some (unwrap t).
@@ -2261,12 +2276,6 @@ Section scalarCompilable.
     }
   Qed.
 
-  Instance scalarCCostInstance
-    : CCostClass N (scalarType q A)
-    :=
-      fun (i : OrdNat.t) (m : M.t (scalarType q A)) =>
-        Qred(Qmult (rat_to_Q q) (ccost i (unwrapScalarTree m))).
-
   Program Instance scalarRefineCostAxiomInstance
     : @RefineCostAxiomClass N (scalarType q A)
         (@scalarCostInstance _ _ _ costClass q) _. 
@@ -2297,17 +2306,13 @@ Section scalarCompilable.
     : @RefineCostClass N (scalarType q A)
         (@scalarCostInstance N _ A costClass _) _ _.
 
-  Instance scalarCCostMaxInstance
-    : @CCostMaxClass N (scalarType q A) := ((rat_to_Q q) * ccostMaxClass)%Q.
-
   Instance scalarRefineCostMaxInstance `(scalarAxiomInstance : @ScalarAxiomClass _ q)
     : @RefineCostMaxClass N (scalarType q A)
-        (scalarCostMaxInstance costMaxClass q) scalarCCostMaxInstance.
+        (scalarCostMaxInstance costMaxClass q) (scalarCCostMaxInstance ccostMaxClass q).
   Proof.
     rewrite /RefineCostMaxClass /scalarCostMaxInstance /scalarCCostMaxInstance 
             rat_to_Q_mul. apply Qmult_le_l => //.
-    (* Belongs in numerics *)
-    have H3 : rat_to_Q 0 = 0%Q. rewrite /rat_to_Q => //.
+    have H3 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
     rewrite -H3. apply lt_rat_to_Q => //.
   Qed.
 

@@ -13,7 +13,7 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import combinators games compile orderedtypes weightsextract server.
+Require Import numerics combinators games compile orderedtypes weightsextract server.
 
 Local Open Scope ring_scope.
 
@@ -72,31 +72,40 @@ Module P3 <: MyOrderedType := OrderedProd R P2.
 Module P4 <: MyOrderedType := OrderedProd R P3.
 Module P5 <: MyOrderedType := OrderedProd R P4.
 
+Definition num_players : nat := 1.
+
+Module P3Scalar <: OrderedScalarType.
+  Include P3.                    
+  Definition scal := Q_to_rat (Qdiv 1 (@ccostmax_fun num_players P3.t _)).
+End P3Scalar.
+
+Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
+  
 (** The game [P3'] implements (resource * resource) in which each 
     player must choose at least one [RYes]. *)
 Module P <: OrderedPredType.
-  Include P3.               
-  Definition pred (p : P3.t) : bool :=
-    match p with
+  Include P3Scaled.               
+  Definition pred (p : P3Scaled.t) : bool :=
+    match unwrap p with
     | (RNo,(RNo,RNo)) => false
     | _ => true
     end.
-  Definition a0 := (RNo,(RNo,RYes)).
+  Definition a0 : P3Scaled.t := Wrap _ (RNo,(RNo,RYes)).
   Lemma a0_pred : pred a0. Proof. reflexivity. Qed.
 End P.
-Module P3' <: MyOrderedType := OrderedSigma P.
+Module P3Scaled' <: MyOrderedType := OrderedSigma P.
 
 (* The program *)
-Module MWU := MWU P3'.
+Module MWU := MWU P3Scaled'.
 
-Existing Instance P3'.enumerable.
+Existing Instance P3Scaled'.enumerable.
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition mwu0 (eps : Q) (nx : N.t) :=
   MWU.interp
-    (weightslang.mult_weights P3'.t nx)
+    (weightslang.mult_weights P3Scaled'.t nx)
     (MWU.init_cstate eps).
 
-Definition mwu := mwu0 (Qmake 1 4) 20.
+Definition mwu := mwu0 (Qmake 1 2) 20.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
@@ -104,13 +113,13 @@ Unset Extraction AutoInline.
 Extraction "runtime/mwu.ml" mwu.
 
 Module C : ServerConfig.
-  Definition num_players := 1%N.             
+  Definition num_players := num_players%N.             
   Definition num_rounds := 2000%N.
 End C.
 
-Module Server := Server C P3'.
+Module Server := Server C P3Scaled'.
 
-Existing Instance P3'.cost_instance.
+Existing Instance P3Scaled'.cost_instance.
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition run := Server.server (@Server.init_state result ax_oracle).
 

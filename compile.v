@@ -89,7 +89,7 @@ Class RefineCostClass N (T : finType)
       (ccostClass : CCostClass N T)
       `(@RefineCostAxiomClass N T costClass ccostClass).
 
-Class CCostMaxClass (N : nat) (T : finType) :=
+Class CCostMaxClass (N : nat) (T : Type) :=
   ccostmax_fun : Q.
 
 Class RefineCostMaxClass (N : nat) (T : finType)
@@ -216,5 +216,3 @@ Class cgame N (T : finType)
       `(@game T N rat_realFieldType costClass costAxiomClass
               costMaxClass costMaxAxiomClass)
 : Type := {}.
-
-Check cgame.

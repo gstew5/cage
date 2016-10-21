@@ -9,8 +9,8 @@ pkill -f ./server.native
 # fire up server, sending eoutput to serverout.txt
 ./server.native &> serverout.txt &
 
-# run the client 10 times
-for i in {1..10}; do
+# run the client 50 times
+for i in {1..50}; do
     ./mwu.native &> "clientout$i.txt"
     if [ $? -eq 0 ]; then
 	echo "Client $i successful"
@@ -28,7 +28,7 @@ if [ -e $OUTFILE ]; then
     rm $OUTFILE
 fi
 
-for i in {1..10}; do
+for i in {1..50}; do
     ./calcregret.py "clientout$i.txt" $OUTFILE $EPSILON
 done
 
