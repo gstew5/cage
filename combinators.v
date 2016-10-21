@@ -1048,8 +1048,8 @@ Proof. by case; case; constructor. Qed.
 Definition Singleton_eqMixin := EqMixin Singleton_eqP.
 Canonical Singleton_eqType := Eval hnf in EqType Singleton Singleton_eqMixin.
 
-Definition singleton (A : finType) :=
-  Wrapper [eqType of Singleton] A.
+Definition singleton (A : Type) :=
+  Wrapper Singleton A.
 
 Definition singletonType (A : finType) :=
   [finType of Wrapper [eqType of Singleton] A].
@@ -1173,6 +1173,18 @@ Module SingletonSmoothTest. Section singletonSmoothTest.
     cost i t == lambda of (singletonType A). Abort.
 End singletonSmoothTest. End SingletonSmoothTest.
 
+Instance singletonBoolableInstance
+         A `(Boolable A)
+  : Boolable (singleton A) := fun a => boolify (unwrap a).
+
+Instance singCCostInstance (A : Type) `(Boolable A) N
+  : CCostClass N (singleton A)
+  :=      
+    fun (i : OrdNat.t) (m : M.t (singleton A)) =>
+      (match M.find i m with
+            | Some t => if (boolify t) then 1%coq_Qscope else 0%coq_Qscope
+            | _ => 0%coq_Qscope
+            end).
 
 Section singletonCompilable.
   Context {A N} `{cgame N A}.
@@ -1218,17 +1230,8 @@ Qed.
   Instance singRefineTypeInstance
     : @RefineTypeClass (singletonType A)  _ _.
 
-  Instance singCCostInstance `(Boolable A)
-    : CCostClass N (singletonType A)
-    :=      
-      fun (i : OrdNat.t) (m : M.t (singletonType A)) =>
-        (match M.find i m with
-              | Some t => if (boolify t) then 1%coq_Qscope else 0%coq_Qscope
-              | _ => 0%coq_Qscope
-              end).
-
   Program Instance singRefineCostAxiomInstance `(Boolable A)
-    : RefineCostAxiomClass _ (singCCostInstance _).
+    : RefineCostAxiomClass _ (singCCostInstance _ N).
   Next Obligation.
     clear H0 costAxiomClass ccostClass refineCostAxiomClass
       refineCostClass H1 H2.
@@ -1255,6 +1258,13 @@ Qed.
   : @cgame N (singletonType A) _ _ _ _ _ _ _ _ _ _ _ (singRefineCostMaxInstance) _.
 
 End singletonCompilable.
+
+Module SingletonCGameTest. Section singletonCGameTest.
+  Context {A : finType} {N : nat} `{Boolable A}.
+  Variable i' : OrdNat.t.
+  Variable t' : M.t (singletonType A).
+  Check ccost_fun (N:=N) i' t'.
+End singletonCGameTest. End SingletonCGameTest.  
 
 (** Sigma Games {x : A | P x}, with P : A -> bool *)
 

@@ -72,7 +72,7 @@ Module P3 <: MyOrderedType := OrderedProd R P2.
 Module P4 <: MyOrderedType := OrderedProd R P3.
 Module P5 <: MyOrderedType := OrderedProd R P4.
 
-Definition num_players : nat := 1.
+Definition num_players : nat := 5.
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.                    
@@ -105,7 +105,7 @@ Definition mwu0 (eps : Q) (nx : N.t) :=
     (weightslang.mult_weights P3Scaled'.t nx)
     (MWU.init_cstate eps).
 
-Definition mwu := mwu0 (Qmake 1 2) 20.
+Definition mwu := mwu0 (Qmake 1 4) 50.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
@@ -114,7 +114,7 @@ Extraction "runtime/mwu.ml" mwu.
 
 Module C : ServerConfig.
   Definition num_players := num_players%N.             
-  Definition num_rounds := 2000%N.
+  Definition num_rounds := 5000%N.
 End C.
 
 Module Server := Server C P3Scaled'.
