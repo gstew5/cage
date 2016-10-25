@@ -1,5 +1,5 @@
 *.vo
-*.glob
+1;3803;0c*.glob
 *.v.d
 *.aux
 *~
@@ -7,5 +7,6 @@
 .\#*
 *.c
 *.cmi
-
+runtime/clientout*
+runtime/serverout*
 
