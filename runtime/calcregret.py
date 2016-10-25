@@ -25,7 +25,7 @@ for line in f:
     if processing_costs:
         costs = re.sub("[,]", " ", line).split()
         if costs[0] == "Generated": processing_costs = False
-        else: costs_tbl[t-1][costs[0]] = float(costs[1]) / float(costs[2])
+        else: costs_tbl[t-1][costs[0]] = float(costs[1])
 
     words = re.sub("[^\w]", " ", line).split()        
     if words[0] == "Received": processing_costs = True

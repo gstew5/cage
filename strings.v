@@ -26,29 +26,41 @@ Extract Constant eprint_natchar =>
 Definition eprint_Z : forall (T : Type) (z : Z), T -> T := fun T z t => t.
 Extract Constant eprint_Z =>
  "fun z s -> 
-    let rec length_positive p = 
-      (match p with 
-         | XI p' -> 1 + length_positive p' 
-         | XO p' -> 1 + length_positive p' 
-         | XH -> 1) in
-    let length_Z z = 
-      (match z with 
-         | Z0 -> 1
-         | Zpos p -> length_positive p
-         | Zneg p -> length_positive p) in
+    let two = Big_int.big_int_of_int 2 in
     let rec int_of_positive p = 
       (match p with 
-         | XI p' -> 2 * (int_of_positive p') + 1
-         | XO p' -> 2 * (int_of_positive p')
-         | XH -> 1) in
+         | XI p' -> Big_int.succ_big_int (Big_int.mult_big_int two (int_of_positive p'))
+         | XO p' -> Big_int.mult_big_int two (int_of_positive p')
+         | XH -> Big_int.unit_big_int) in
     let int_of_Z z = 
       (match z with 
-         | Z0 -> 0
+         | Z0 -> Big_int.zero_big_int
          | Zpos p -> int_of_positive p
-         | Zneg p -> - (int_of_positive p)) in 
-    (if float (length_Z z) > (log (float max_int) /. log 2.0)
-     then Printf.eprintf ""INT_MAX""
-     else Printf.eprintf ""%d"" (int_of_Z z));
+         | Zneg p -> Big_int.minus_big_int (int_of_positive p)) in 
+    Printf.eprintf 
+      ""%f"" (Big_int.float_of_big_int (int_of_Z z));
+    flush stderr;
+    s".
+
+Definition eprint_ZdivPos :
+  forall (T : Type) (n : Z) (p : positive), T -> T := fun T z p t => t.
+Extract Constant eprint_ZdivPos =>
+ "fun n p s -> 
+    let two = Big_int.big_int_of_int 2 in
+    let rec int_of_positive p = 
+      (match p with 
+         | XI p' -> Big_int.succ_big_int (Big_int.mult_big_int two (int_of_positive p'))
+         | XO p' -> Big_int.mult_big_int two (int_of_positive p')
+         | XH -> Big_int.unit_big_int) in
+    let int_of_Z z = 
+      (match z with 
+         | Z0 -> Big_int.zero_big_int
+         | Zpos p -> int_of_positive p
+         | Zneg p -> Big_int.minus_big_int (int_of_positive p)) in 
+    Printf.eprintf 
+      ""%f"" 
+      (Big_int.float_of_big_int (int_of_Z n) /. 
+       Big_int.float_of_big_int (int_of_positive p));
     flush stderr;
     s".
 
@@ -85,9 +97,7 @@ Definition eprint_newline T (t : T) := eprint_string (String nl (String cr Empty
 Definition eprint_Q T (q : Q) (t : T) : T :=
   match q with
   | Qmake n d =>
-    let t1 := eprint_Z n t in
-    let t2 := eprint_comma t1 in
-    eprint_Z (Zpos d) t2
+    eprint_ZdivPos n d t
   end.
 
 Lemma eprint_Q_id T q (t : T) : eprint_Q q t = t.

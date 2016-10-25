@@ -21,7 +21,7 @@ Local Open Scope ring_scope.
 Definition path : Type :=
   (resource * (resource * (resource * (resource * resource))))%type.
 
-(** [validPath] encodes the following topology (multi-paths are disallowed):
+(** [validPath] encodes the following topology (multi-paths are not allowed):
             o
           / | \
        r2/  |  \r3
@@ -73,11 +73,19 @@ Module P3 <: MyOrderedType := OrderedProd R P2.
 Module P4 <: MyOrderedType := OrderedProd R P3.
 Module P5 <: MyOrderedType := OrderedProd R P4.
 
-Definition num_players : nat := 5.
+Module Scalar <: OrderedScalarType.
+  Include P5.    
+  Definition scal := Q_to_rat (Qmake 50 1).
+End Scalar.
+
+Module Scaled <: MyOrderedType := OrderedScalar Scalar.
+
+Definition num_players : nat := 10.
 
 Module P5Scalar <: OrderedScalarType.
-  Include P5.    
-  Definition scal := Q_to_rat (Qdiv 1 (@ccostmax_fun num_players P5.t _)).
+  Include Scaled.    
+  Definition scal :=
+    Q_to_rat (Qdiv 1 (@ccostmax_fun num_players Scaled.t _)).
 End P5Scalar.
 
 Module P5Scaled <: MyOrderedType := OrderedScalar P5Scalar.
@@ -85,11 +93,11 @@ Module P5Scaled <: MyOrderedType := OrderedScalar P5Scalar.
 Module P <: OrderedPredType.
   Include P5Scaled.
   Definition pred (p : P5Scaled.t) : bool :=
-    match unwrap p with
+    match unwrap (unwrap p) with
     | p' => validPath p'
     end.
   Definition a0 : P5Scaled.t :=
-    Wrap _ (RNo, (RYes, (RYes, (RNo, RNo)))).
+    Wrap _ (Wrap _ (RNo, (RYes, (RYes, (RNo, RNo))))).
   Lemma a0_pred : pred a0. Proof. reflexivity. Qed.
 End P.
 Module P5Scaled' <: MyOrderedType := OrderedSigma P.
@@ -98,13 +106,14 @@ Module P5Scaled' <: MyOrderedType := OrderedSigma P.
 Module MWU := MWU P5Scaled'.
 
 Existing Instance P5Scaled'.enumerable.
+
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition mwu0 (eps : Q) (nx : N.t) :=
   MWU.interp
     (weightslang.mult_weights P5Scaled'.t nx)
     (MWU.init_cstate eps).
 
-Definition mwu := mwu0 (Qmake 1 4) 50.
+Definition mwu := mwu0 (Qmake 1 4) 40.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
