@@ -13,12 +13,13 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics combinators games compile orderedtypes weightsextract server.
+Require Import numerics combinators games compile orderedtypes.
+Require Import weightsextract server.
 
 Local Open Scope ring_scope.
 
 Definition path : Type :=
-  (resource * resource * resource * resource * resource)%type.
+  (resource * (resource * (resource * (resource * resource))))%type.
 
 (** [validPath] encodes the following topology (multi-paths are disallowed):
             o
@@ -35,10 +36,10 @@ Definition path : Type :=
 
 Definition validPath (p : path) : bool :=
   match p with
-  | (RNo, RYes, RYes, RNo, RNo) => true
-  | (RNo, RYes, RNo, RYes, RYes) => true
-  | (RYes, RNo, RNo, RYes, RNo) => true
-  | (RYes, RNo, RYes, RNo, RYes) => true
+  | (RNo, (RYes, (RYes, (RNo, RNo)))) => true
+  | (RNo, (RYes, (RNo, (RYes, RYes)))) => true
+  | (RYes, (RNo, (RNo, (RYes, RNo)))) => true
+  | (RYes, (RNo, (RYes, (RNo, RYes)))) => true
   | _ => false
   end.
 
@@ -74,35 +75,33 @@ Module P5 <: MyOrderedType := OrderedProd R P4.
 
 Definition num_players : nat := 5.
 
-Module P3Scalar <: OrderedScalarType.
-  Include P3.                    
-  Definition scal := Q_to_rat (Qdiv 1 (@ccostmax_fun num_players P3.t _)).
-End P3Scalar.
+Module P5Scalar <: OrderedScalarType.
+  Include P5.    
+  Definition scal := Q_to_rat (Qdiv 1 (@ccostmax_fun num_players P5.t _)).
+End P5Scalar.
 
-Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
+Module P5Scaled <: MyOrderedType := OrderedScalar P5Scalar.
   
-(** The game [P3'] implements (resource * resource) in which each 
-    player must choose at least one [RYes]. *)
 Module P <: OrderedPredType.
-  Include P3Scaled.               
-  Definition pred (p : P3Scaled.t) : bool :=
+  Include P5Scaled.
+  Definition pred (p : P5Scaled.t) : bool :=
     match unwrap p with
-    | (RNo,(RNo,RNo)) => false
-    | _ => true
+    | p' => validPath p'
     end.
-  Definition a0 : P3Scaled.t := Wrap _ (RNo,(RNo,RYes)).
+  Definition a0 : P5Scaled.t :=
+    Wrap _ (RNo, (RYes, (RYes, (RNo, RNo)))).
   Lemma a0_pred : pred a0. Proof. reflexivity. Qed.
 End P.
-Module P3Scaled' <: MyOrderedType := OrderedSigma P.
+Module P5Scaled' <: MyOrderedType := OrderedSigma P.
 
 (* The program *)
-Module MWU := MWU P3Scaled'.
+Module MWU := MWU P5Scaled'.
 
-Existing Instance P3Scaled'.enumerable.
+Existing Instance P5Scaled'.enumerable.
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition mwu0 (eps : Q) (nx : N.t) :=
   MWU.interp
-    (weightslang.mult_weights P3Scaled'.t nx)
+    (weightslang.mult_weights P5Scaled'.t nx)
     (MWU.init_cstate eps).
 
 Definition mwu := mwu0 (Qmake 1 4) 50.
@@ -117,9 +116,9 @@ Module C : ServerConfig.
   Definition num_rounds := 5000%N.
 End C.
 
-Module Server := Server C P3Scaled'.
+Module Server := Server C P5Scaled'.
 
-Existing Instance P3Scaled'.cost_instance.
+Existing Instance P5Scaled'.cost_instance.
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition run := Server.server (@Server.init_state result ax_oracle).
 
