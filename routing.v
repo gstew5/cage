@@ -10,7 +10,6 @@ Definition Qcoq := Q.
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
-
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import numerics combinators games compile orderedtypes.
@@ -22,49 +21,21 @@ Definition path : Type :=
   (resource * (resource * (resource * (resource * resource))))%type.
 
 (** [validPath] encodes the following topology (multi-paths are not allowed):
-            o
-          / | \
-       r2/  |  \r3
-        /   |   \
-   SRC o  r5|    o SNK
-        \   |   /
-      r1 \  |  /r4
-          \ | /
-            o
+
+            SRC
+           _ o_
+          /  | \
+       r2/ r5|  \r3
+        / r6 | r7\
+       o --- o -- o 
+        \    |   /
+      r1 \ r8|  /r4
+          \ _| /
+             o
+            SNK
+
     We assume (for now) that each player is trying to get from SRC to SNK.
 *)
-
-Definition validPath (p : path) : bool :=
-  match p with
-  | (RNo, (RYes, (RYes, (RNo, RNo)))) => true
-  | (RNo, (RYes, (RNo, (RYes, RYes)))) => true
-  | (RYes, (RNo, (RNo, (RYes, RNo)))) => true
-  | (RYes, (RNo, (RYes, (RNo, RYes)))) => true
-  | _ => false
-  end.
-
-Instance predInstance_validPath : PredClass path := validPath.
-
-Definition pathType := [finType of {p : path | the_pred p}].
-Check cancel.
-Check pathType.
-Print pathType.
-Section pathTest.
-  Variable p : path.
-  Variable N : nat.
-  Variable i : 'I_N.
-  Variable f : {ffun 'I_N -> path}.
-  Check (cost i f : rat_realFieldType).
-End pathTest.
-
-Section pathTypeTest.
-  Variable p : pathType.
-  Variable N : nat.
-  Variable i : 'I_N.
-  Variable f : {ffun 'I_N -> pathType}.
-  Variable rty : realFieldType.
-  Check (cost i f : rat_realFieldType).
-End pathTypeTest.
 
 (* Because standard Coq FMaps are parameterized over modules, which 
    aren't first-class in Coq, the following construction has to be 
@@ -74,11 +45,21 @@ Module P2 <: MyOrderedType := OrderedProd R R.
 Module P3 <: MyOrderedType := OrderedProd R P2.
 Module P4 <: MyOrderedType := OrderedProd R P3.
 Module P5 <: MyOrderedType := OrderedProd R P4.
+Module P6 <: MyOrderedType := OrderedProd R P5.
+Module P7 <: MyOrderedType := OrderedProd R P6.
+Module P8 <: MyOrderedType := OrderedProd R P7.
 
-Module Scalar <: OrderedScalarType.
-  Include P5.    
-  Definition scal := Q_to_rat (Qmake 50 1).
-End Scalar.
+Module P5Scalar <: OrderedScalarType.
+Include P5. Definition scal := Q_to_rat (Qmake 50 1).
+End P5Scalar.
+
+Module P4Scalar <: OrderedScalarType.
+Include P4. Definition scal := Q_to_rat (Qmake 30 1).
+End P4Scalar.
+
+Module P2Bias <: OrderedScalarType.
+Include P2. Definition bias := Q_to_rat (Qmake 100 1).
+End P2Bias.
 
 Module Scaled <: MyOrderedType := OrderedScalar Scalar.
 

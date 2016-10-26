@@ -389,3 +389,48 @@ Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
     by rewrite T.eqP.
   Qed.
 End OrderedScalar.
+
+Module Type OrderedBiasType.
+  Include MyOrderedType.
+  Parameter bias : rat.
+End OrderedBiasType.
+                      
+Module OrderedBias (T : OrderedBiasType) <: MyOrderedType.
+  Definition t := bias T.bias T.t.
+  Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) T.bias) T.t0.
+  Definition enumerable : Enumerable t :=
+    biasEnumerableInstance T.enumerable T.bias.
+  Definition cost_instance (N : nat) :=
+    scalarCCostInstance T.enumerable (T.cost_instance N) (q:=T.bias).
+  Definition cost_max (N : nat) :=
+    scalarCCostMaxInstance (T.cost_max N) T.bias.
+  Definition show_scalar (x : t) : string :=
+    append "Scalar" (to_string (unwrap x)).
+  Instance showable : Showable t := mkShowable show_scalar.
+  Definition eq (x1 x2 : t) := T.eq (unwrap x1) (unwrap x2).
+  Definition lt (x1 x2 : t) := T.lt (unwrap x1) (unwrap x2).
+  Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
+  Proof.
+    case => a; case => b; case => e.
+    apply: T.lt_trans.
+  Qed.
+  Lemma lt_not_eq : forall x y, lt x y -> ~eq x y.
+  Proof. case => a; case => b; apply: T.lt_not_eq. Qed.
+  Lemma compare : forall x y, Compare lt eq x y.
+  Proof.
+    case => a; case => b; rewrite /=.
+    case: (T.compare a b) => H.
+    { rewrite /lt; constructor => //. }
+    { by rewrite /lt /eq; apply: EQ. }
+    by rewrite /lt /eq; apply: GT.
+  Qed.
+  Lemma eq_dec : forall x y, {eq x y} + {~eq x y}.
+  Proof. case => a; case => b; apply: T.eq_dec. Qed.
+  Lemma eqP : forall x y, x = y <-> eq x y.
+  Proof.
+    case => a; case => b; split => H; rewrite /eq.
+    by rewrite -(T.eqP a b); inversion H.
+    rewrite /eq /= in H; f_equal.
+    by rewrite T.eqP.
+  Qed.
+End OrderedScalar.
