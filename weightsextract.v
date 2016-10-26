@@ -130,7 +130,7 @@ Module MWU (A : MyOrderedType).
 
   Section mwu.
     Context {T : Type} `{oracle: ClientOracle T}
-            {default_oracle_st : T} {bogus_chan : oracle_chanty}.
+            {init_oracle_st : T} {bogus_chan : oracle_chanty}.
 
     Record cstate : Type :=
       mkCState
@@ -307,7 +307,7 @@ Module MWU (A : MyOrderedType).
           epsQ
           [::]
           bogus_chan
-          default_oracle_st.
+          init_oracle_st.
     End init.
 
     (* Context `{Enumerable A.t}. *)
@@ -317,1007 +317,1026 @@ Module MWU (A : MyOrderedType).
   End mwu.
 End MWU.
   
-(* Module MWUProof (T : OrderedFinType). *)
-(*   Module A := MyOrderedType_of_OrderedFinType T. *)
-(*   Module MWU := MWU A. *)
-(*   Module M := MWU.M. *)
-(*   Module MFacts := Facts M. *)
-(*   Module MProps := Properties M. *)
+Module MWUProof (T : OrderedFinType).
+  Module A := MyOrderedType_of_OrderedFinType T.
+  Module MWU := MWU A.
+  Module M := MWU.M.
+  Module MFacts := Facts M.
+  Module MProps := Properties M.
 
-(*   Definition t : finType := *)
-(*     FinType (ChoiceType (EqType A.t T.eq_mixin) T.choice_mixin) T.fin_mixin. *)
+  Definition t : finType :=
+    FinType (ChoiceType (EqType A.t T.eq_mixin) T.choice_mixin) T.fin_mixin.
   
-(*   Import MWU. *)
+  Import MWU.
 
-(*   Lemma InA_ext A (P Q : A -> A -> Prop) l x : *)
-(*     (forall a b, P a b <-> Q a b) -> *)
-(*     InA P x l <-> InA Q x l. *)
-(*   Proof. *)
-(*     move => H; elim: l. *)
-(*     { split; inversion 1. } *)
-(*     move => a l IH; split; inversion 1; subst. *)
-(*     { by constructor; rewrite -H. } *)
-(*     { by apply: InA_cons_tl; rewrite -IH. } *)
-(*     { by constructor; rewrite H. } *)
-(*     by apply: InA_cons_tl; rewrite IH. *)
-(*   Qed. *)
+  Lemma InA_ext A (P Q : A -> A -> Prop) l x :
+    (forall a b, P a b <-> Q a b) ->
+    InA P x l <-> InA Q x l.
+  Proof.
+    move => H; elim: l.
+    { split; inversion 1. }
+    move => a l IH; split; inversion 1; subst.
+    { by constructor; rewrite -H. }
+    { by apply: InA_cons_tl; rewrite -IH. }
+    { by constructor; rewrite H. }
+    by apply: InA_cons_tl; rewrite IH.
+  Qed.
   
-(*   Lemma NoDupA_ext A (P Q : A -> A -> Prop) l : *)
-(*     (forall a b, P a b <-> Q a b) -> *)
-(*     NoDupA P l <-> NoDupA Q l. *)
-(*   Proof. *)
-(*     elim: l => // a l IH H; split; inversion 1; subst. *)
-(*     { constructor. *)
-(*       move => H5; apply: H3; rewrite InA_ext => //. *)
-(*       apply: H5. *)
-(*       by rewrite -IH. } *)
-(*     constructor => //. *)
-(*     move => H5; apply: H3; rewrite InA_ext => //. *)
-(*     apply: H5. *)
-(*     by move => ax b; rewrite -H. *)
-(*     rewrite IH => //. *)
-(*   Qed. *)
+  Lemma NoDupA_ext A (P Q : A -> A -> Prop) l :
+    (forall a b, P a b <-> Q a b) ->
+    NoDupA P l <-> NoDupA Q l.
+  Proof.
+    elim: l => // a l IH H; split; inversion 1; subst.
+    { constructor.
+      move => H5; apply: H3; rewrite InA_ext => //.
+      apply: H5.
+      by rewrite -IH. }
+    constructor => //.
+    move => H5; apply: H3; rewrite InA_ext => //.
+    apply: H5.
+    by move => ax b; rewrite -H.
+    rewrite IH => //.
+  Qed.
 
-(*   Section mwuProof. *)
-(*     Context T `{oracle: ClientOracle T}. *)
+  Section mwuProof.
+    Context oracle_T `{oracle: ClientOracle oracle_T}.
     
-(*     Lemma recv_ok : *)
-(*       forall a ch, *)
-(*       exists q, *)
-(*         [/\ M.find a (mwu_recv ch) = Some q *)
-(*          & 0 <= q <= 1]. *)
-(*     Proof. *)
-(*       rewrite /mwu_recv. *)
-(*       move => a0 ch. *)
-(*       have H: NoDupA (M.eq_key (elt:=Q)) (recv _ ch). *)
-(*       { move: (recv_nodup M.key) => H. *)
-(*         rewrite NoDupA_ext; first by apply: H. *)
-(*         rewrite /M.eq_key /M.Raw.Proofs.PX.eqk => a b. *)
-(*           by rewrite -A.eqP. } *)
-(*       move: a0 => a. *)
-(*       case: (recv_ok a ch) => q []H2 H3. *)
-(*       exists q; split => //. *)
-(*       rewrite MProps.of_list_1b => //. *)
-(*       move: H H2 {H3}; rewrite print_Qvector_id; move: (recv _ _) a q. *)
-(*       elim => // [][]a' q' l IH a q; inversion 1; subst; case. *)
-(*       { case => -> -> /=. *)
-(*         have ->: MProps.F.eqb a a = true. *)
-(*         { rewrite /MProps.F.eqb. *)
-(*           case: (MProps.F.eq_dec a a) => //. *)
-(*             by rewrite -A.eqP. } *)
-(*           by []. } *)
-(*       simpl. *)
-(*       case H4: (MProps.F.eqb a a'). *)
-(*       { move => H5. *)
-(*         rewrite /MProps.F.eqb in H4. *)
-(*         move: H4. *)
-(*         case: (MProps.F.eq_dec a a') => //. *)
-(*         rewrite -A.eqP => Hx; subst a'. *)
-(*         clear - H2 H5. *)
-(*         elim: l H2 H5 => // a0 l IH H6 H7. *)
-(*         destruct H7. *)
-(*         { inversion H; subst. clear H0. *)
-(*           elimtype False. *)
-(*           apply: H6. *)
-(*             by left; rewrite /M.eq_key /M.Raw.Proofs.PX.eqk /= -A.eqP. } *)
-(*         move => _; apply: IH => //. *)
-(*           by move => H7; apply: H6; right. } *)
-(*         by move => H5; apply: (IH _ _ H3 H5). *)
-(*         by rewrite print_Qvector_id. *)
-(*     Qed. *)
+    Lemma recv_ok :
+      forall a ch,
+      exists q,
+        [/\ M.find a (mwu_recv ch).1 = Some q
+         & 0 <= q <= 1].
+    Proof.
+      rewrite /mwu_recv.
+      move => a0 ch.
+      have H: NoDupA (M.eq_key (elt:=Q)) (oracle_recv _ ch).1.
+      { move: (oracle_recv_nodup M.key ch) => H.
+        rewrite NoDupA_ext; first by apply: H.
+        rewrite /M.eq_key /M.Raw.Proofs.PX.eqk => a b.
+          by rewrite -A.eqP. }
+      move: a0 => a.
+      case: (oracle_recv_ok a ch) => q []H2 H3.
+      exists q; split => //.
+      destruct (oracle_recv M.key ch).
+      rewrite MProps.of_list_1b => //.
+      move: H H2 {H3}; rewrite print_Qvector_id; move: (oracle_recv M.key ch) a q.
+      move=> _ /=. move: l. elim => // [][]a' q' l' IH a q; inversion 1; subst; case.
+      { case => -> -> /=.
+        have ->: MProps.F.eqb a a = true.
+        { rewrite /MProps.F.eqb.
+          case: (MProps.F.eq_dec a a) => //.
+            by rewrite -A.eqP. }
+          by []. }
+      simpl.
+      case H4: (MProps.F.eqb a a').
+      { move => H5.
+        rewrite /MProps.F.eqb in H4.
+        move: H4.
+        case: (MProps.F.eq_dec a a') => //.
+        rewrite -A.eqP => Hx; subst a'.
+        clear - H2 H5.
+        elim: l' H2 H5 => // a0 l IH H6 H7.
+        destruct H7.
+        { inversion H; subst. clear H0.
+          elimtype False.
+          apply: H6.
+            by left; rewrite /M.eq_key /M.Raw.Proofs.PX.eqk /= -A.eqP. }
+        move => _; apply: IH => //.
+          by move => H7; apply: H6; right. }
+        by move => H5; apply: (IH _ _ H3 H5).
+        by rewrite print_Qvector_id.
+    Qed.
 
-(*   Definition match_maps *)
-(*              (s : {ffun t -> rat}) *)
-(*              (m : M.t Q) : Prop := *)
-(*     forall a, *)
-(*     exists q, M.find a m = Some q /\ Qred q = rat_to_Q (s a). *)
+  Definition match_maps
+             (s : {ffun t -> rat})
+             (m : M.t Q) : Prop :=
+    forall a,
+    exists q, M.find a m = Some q /\ Qred q = rat_to_Q (s a).
   
-(*   Definition match_costs *)
-(*              (s : {c : {ffun t -> rat} & forall a : t, (0 <= c a <= 1)%R}) *)
-(*              (m : M.t Q) : Prop := *)
-(*     match_maps (projT1 s) m. *)
+  Definition match_costs
+             (s : {c : {ffun t -> rat} & forall a : t, (0 <= c a <= 1)%R})
+             (m : M.t Q) : Prop :=
+    match_maps (projT1 s) m.
   
-(*   Inductive match_costs_seq : *)
-(*     seq {c : {ffun t -> rat} & forall a : t, (0 <= c a <= 1)%R} -> *)
-(*     list (M.t Q) -> *)
-(*     Prop := *)
-(*   | match_costs_nil : *)
-(*       match_costs_seq nil nil *)
-(*   | match_costs_cons : *)
-(*       forall s ss m mm, *)
-(*         match_costs s m -> *)
-(*         match_costs_seq ss mm -> *)
-(*         match_costs_seq [:: s & ss] [:: m & mm]. *)
+  Inductive match_costs_seq :
+    seq {c : {ffun t -> rat} & forall a : t, (0 <= c a <= 1)%R} ->
+    list (M.t Q) ->
+    Prop :=
+  | match_costs_nil :
+      match_costs_seq nil nil
+  | match_costs_cons :
+      forall s ss m mm,
+        match_costs s m ->
+        match_costs_seq ss mm ->
+        match_costs_seq [:: s & ss] [:: m & mm].
 
-(*   Inductive match_distrs : *)
-(*     seq (dist t rat_realFieldType) -> *)
-(*     seq (t -> Q) -> *)
-(*     Prop := *)
-(*   | match_distrs_nil : *)
-(*       match_distrs nil nil *)
-(*   | match_distrs_cons : *)
-(*       forall d f l l', *)
-(*         pmf d = finfun (fun a => Q_to_rat (f a)) -> *)
-(*         match_distrs l l' -> *)
-(*         match_distrs [:: d & l] [:: f & l']. *)
+  Inductive match_distrs :
+    seq (dist t rat_realFieldType) ->
+    seq (t -> Q) ->
+    Prop :=
+  | match_distrs_nil :
+      match_distrs nil nil
+  | match_distrs_cons :
+      forall d f l l',
+        pmf d = finfun (fun a => Q_to_rat (f a)) ->
+        match_distrs l l' ->
+        match_distrs [:: d & l] [:: f & l'].
   
-(*   Inductive match_states : state t -> cstate -> Prop := *)
-(*   | mkMatchStates : *)
-(*       forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs' ch, *)
-(*         match_maps s m -> *)
-(*         match_costs_seq ss mm -> *)
-(*         match_maps w wc -> *)
-(*         rat_to_Q eps = Qred epsc -> *)
-(*         match_distrs outs outs' -> *)
-(*         match_states *)
-(*           (@mkState _ s s_ok ss w w_ok eps eps_ok outs) *)
-(*           (@mkCState m mm wc epsc outs' ch). *)
+  Inductive match_states : state t -> cstate -> Prop :=
+  | mkMatchStates :
+      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs' ch oracle_st,
+        match_maps s m ->
+        match_costs_seq ss mm ->
+        match_maps w wc ->
+        rat_to_Q eps = Qred epsc ->
+        match_distrs outs outs' ->
+        match_states
+          (@mkState _ s s_ok ss w w_ok eps eps_ok outs)
+          (@mkCState _ oracle m mm wc epsc outs' ch oracle_st).
 
-(*   Definition eval_binopc (b : binop) (v1 v2 : Q) := *)
-(*     match b with *)
-(*     | BPlus => v1 + v2 *)
-(*     | BMinus => v1 - v2                       *)
-(*     | BMult => v1 * v2 *)
-(*     end. *)
+  Definition eval_binopc (b : binop) (v1 v2 : Q) :=
+    match b with
+    | BPlus => v1 + v2
+    | BMinus => v1 - v2
+    | BMult => v1 * v2
+    end.
   
-(*   Fixpoint evalc (e : expr t) (s : cstate) : option Q := *)
-(*     match e with *)
-(*     | EVal v => *)
-(*       match v with *)
-(*       | QVal q => Some q *)
-(*       end *)
-(*     | EOpp e' => *)
-(*       match evalc e' s with *)
-(*       | Some v' => Some (- v') *)
-(*       | None => None *)
-(*       end *)
-(*     | EWeight a => M.find a (SWeights s) *)
-(*     | ECost a => M.find a (SCosts s) *)
-(*     | EEps => Some (SEpsilon s) *)
-(*     | EBinop b e1 e2 => *)
-(*       let: v1 := evalc e1 s in *)
-(*       let: v2 := evalc e2 s in *)
-(*       match v1, v2 with *)
-(*       | Some v1', Some v2' => Some (eval_binopc b v1' v2') *)
-(*       | _, _ => None *)
-(*       end *)
-(*     end. *)
+  Fixpoint evalc (e : expr t) (s : cstate) : option Q :=
+    match e with
+    | EVal v =>
+      match v with
+      | QVal q => Some q
+      end
+    | EOpp e' =>
+      match evalc e' s with
+      | Some v' => Some (- v')
+      | None => None
+      end
+    | EWeight a => M.find a (SWeights s)
+    | ECost a => M.find a (SCosts s)
+    | EEps => Some (SEpsilon s)
+    | EBinop b e1 e2 =>
+      let: v1 := evalc e1 s in
+      let: v2 := evalc e2 s in
+      match v1, v2 with
+      | Some v1', Some v2' => Some (eval_binopc b v1' v2')
+      | _, _ => None
+      end
+    end.
 
-(*   Fixpoint cGamma'_aux (l : list (M.key * Q)) := *)
-(*     match l with *)
-(*     | nil => 0 *)
-(*     | a :: l' => a.2 + cGamma'_aux l'  *)
-(*     end. *)
+  Fixpoint cGamma'_aux (l : list (M.key * Q)) :=
+    match l with
+    | nil => 0
+    | a :: l' => a.2 + cGamma'_aux l'
+    end.
 
-(*   Lemma cGamma_cGamma'_aux l : *)
-(*     fold_right *)
-(*       (fun y : M.key * Q => [eta Qplus y.2])       *)
-(*       0 *)
-(*       l = *)
-(*     cGamma'_aux l. *)
-(*   Proof. elim: l => // a l IH /=; rewrite IH. Qed. *)
+  Lemma cGamma_cGamma'_aux l :
+    fold_right
+      (fun y : M.key * Q => [eta Qplus y.2])
+      0
+      l =
+    cGamma'_aux l.
+  Proof. elim: l => // a l IH /=; rewrite IH. Qed.
 
-(*   Definition cGamma' m := *)
-(*     cGamma'_aux (List.rev (M.elements m)). *)
+  Definition cGamma' m :=
+    cGamma'_aux (List.rev (M.elements m)).
   
-(*   Lemma cGamma_cGamma' m : *)
-(*     cGamma m = cGamma' m. *)
-(*   Proof. *)
-(*     rewrite /cGamma /cGamma' M.fold_1 -fold_left_rev_right. *)
-(*     by rewrite cGamma_cGamma'_aux. *)
-(*   Qed. *)
+  Lemma cGamma_cGamma' m :
+    cGamma m = cGamma' m.
+  Proof.
+    rewrite /cGamma /cGamma' M.fold_1 -fold_left_rev_right.
+    by rewrite cGamma_cGamma'_aux.
+  Qed.
   
-(*   Definition gamma' (l : seq t) (s : {ffun t -> rat}) : rat := *)
-(*     \sum_(a <- l) (s a)%R. *)
+  Definition gamma' (l : seq t) (s : {ffun t -> rat}) : rat :=
+    \sum_(a <- l) (s a)%R.
 
-(*   Lemma gamma'_cons x l s : *)
-(*     (gamma' (x :: l) s = s x + gamma' l s)%R. *)
-(*   Proof. by rewrite /gamma' big_cons. Qed. *)
+  Lemma gamma'_cons x l s :
+    (gamma' (x :: l) s = s x + gamma' l s)%R.
+  Proof. by rewrite /gamma' big_cons. Qed.
 
-(*   Lemma gamma_gamma' w : gamma' (index_enum t) w = gamma w. *)
-(*   Proof. by []. Qed. *)
+  Lemma gamma_gamma' w : gamma' (index_enum t) w = gamma w.
+  Proof. by []. Qed.
     
-(*   Lemma match_maps_gamma_cGamma'_aux *)
-(*         (s : {ffun t -> rat}) *)
-(*         (l : list (M.key * Q)) : *)
-(*     (forall a q, In (a, q) l -> rat_to_Q (s a) = Qred q) ->  *)
-(*     gamma' (List.map (fun x => x.1) l) s = Q_to_rat (cGamma'_aux l). *)
-(*   Proof. *)
-(*     elim: l s => //. *)
-(*     { by move => s /= IH; rewrite /gamma' /= big_nil Q_to_rat0. } *)
-(*     case => a q l IH s /= H. *)
-(*     rewrite gamma'_cons Q_to_rat_plus IH. *)
-(*     { have ->: s a = Q_to_rat q. *)
-(*       { move: (H _ _ (or_introl erefl)) => H2. *)
-(*         rewrite (rat_to_QK2 (r:=s a)) => //. *)
-(*         by rewrite -(Qred_correct q) H2. } *)
-(*       by []. } *)
-(*     move => ax qx H2. *)
-(*     by apply: (H _ _ (or_intror H2)). *)
-(*   Qed. *)
+  Lemma match_maps_gamma_cGamma'_aux
+        (s : {ffun t -> rat})
+        (l : list (M.key * Q)) :
+    (forall a q, In (a, q) l -> rat_to_Q (s a) = Qred q) ->
+    gamma' (List.map (fun x => x.1) l) s = Q_to_rat (cGamma'_aux l).
+  Proof.
+    elim: l s => //.
+    { by move => s /= IH; rewrite /gamma' /= big_nil Q_to_rat0. }
+    case => a q l IH s /= H.
+    rewrite gamma'_cons Q_to_rat_plus IH.
+    { have ->: s a = Q_to_rat q.
+      { move: (H _ _ (or_introl erefl)) => H2.
+        rewrite (rat_to_QK2 (r:=s a)) => //.
+        by rewrite -(Qred_correct q) H2. }
+      by []. }
+    move => ax qx H2.
+    by apply: (H _ _ (or_intror H2)).
+  Qed.
 
-(*   Lemma InA_notin a (l : seq t) : ~InA A.eq a l -> a \notin l. *)
-(*   Proof. *)
-(*     elim: l a => // a l IH ax H; rewrite /in_mem /=; apply/negP; case/orP. *)
-(*     { by move/eqP => H2; subst ax; apply: H; left; rewrite -A.eqP. } *)
-(*     move => H2; apply: H; right. *)
-(*     case: (InA_dec A.eq_dec ax l) => // H3; move: (IH _ H3). *)
-(*     by rewrite /in_mem /= H2. *)
-(*   Qed. *)
+  Lemma InA_notin a (l : seq t) : ~InA A.eq a l -> a \notin l.
+  Proof.
+    elim: l a => // a l IH ax H; rewrite /in_mem /=; apply/negP; case/orP.
+    { by move/eqP => H2; subst ax; apply: H; left; rewrite -A.eqP. }
+    move => H2; apply: H; right.
+    case: (InA_dec A.eq_dec ax l) => // H3; move: (IH _ H3).
+    by rewrite /in_mem /= H2.
+  Qed.
 
-(*   Lemma notin_InA a (l : seq t) : a \notin l -> ~InA A.eq a l. *)
-(*   Proof. *)
-(*     elim: l a => //. *)
-(*     { move => a _; inversion 1. } *)
-(*     move => a l IH ax H; rewrite /in_mem /=; inversion 1; subst. *)
-(*     { move: H2; rewrite -A.eqP => H3; subst ax; clear H0. *)
-(*       by rewrite in_cons in H; move: (negP H); apply; apply/orP; left. } *)
-(*     apply: IH; last by apply: H2. *)
-(*     by move: (negP H) => H3; apply/negP => H4; apply: H3; apply/orP; right. *)
-(*   Qed. *)
+  Lemma notin_InA a (l : seq t) : a \notin l -> ~InA A.eq a l.
+  Proof.
+    elim: l a => //.
+    { move => a _; inversion 1. }
+    move => a l IH ax H; rewrite /in_mem /=; inversion 1; subst.
+    { move: H2; rewrite -A.eqP => H3; subst ax; clear H0.
+      by rewrite in_cons in H; move: (negP H); apply; apply/orP; left. }
+    apply: IH; last by apply: H2.
+    by move: (negP H) => H3; apply/negP => H4; apply: H3; apply/orP; right.
+  Qed.
   
-(*   Lemma InA_not_InA_eq x y (l : seq t) : InA A.eq x l -> ~InA A.eq y l -> x<>y. *)
-(*   Proof. *)
-(*     elim: l; first by inversion 1. *)
-(*     move => a l IH. *)
-(*     inversion 1; subst; clear H. *)
-(*     { move => H2 H3; subst y. *)
-(*         by apply: H2; left. } *)
-(*     move => H2 H3; subst x. *)
-(*     by apply: H2; right. *)
-(*   Qed.     *)
+  Lemma InA_not_InA_eq x y (l : seq t) : InA A.eq x l -> ~InA A.eq y l -> x<>y.
+  Proof.
+    elim: l; first by inversion 1.
+    move => a l IH.
+    inversion 1; subst; clear H.
+    { move => H2 H3; subst y.
+        by apply: H2; left. }
+    move => H2 H3; subst x.
+    by apply: H2; right.
+  Qed.
 
-(*   Lemma InA_map A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) x l (f : A -> B) : *)
-(*     (forall x y, Aeq x y -> Beq (f x) (f y)) -> *)
-(*     InA Aeq x l -> *)
-(*     InA Beq (f x) (List.map f l). *)
-(*   Proof. *)
-(*     move => H; elim: l; first by inversion 1. *)
-(*     move => a l IH. *)
-(*     inversion 1; subst; clear H0. *)
-(*     { by left; apply: H. } *)
-(*       by simpl; right; apply: (IH H2). *)
-(*   Qed.     *)
+  Lemma InA_map A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) x l (f : A -> B) :
+    (forall x y, Aeq x y -> Beq (f x) (f y)) ->
+    InA Aeq x l ->
+    InA Beq (f x) (List.map f l).
+  Proof.
+    move => H; elim: l; first by inversion 1.
+    move => a l IH.
+    inversion 1; subst; clear H0.
+    { by left; apply: H. }
+      by simpl; right; apply: (IH H2).
+  Qed.
 
-(*   Lemma InA_map' A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) x l (f : A -> B) : *)
-(*     (forall x y, Beq (f x) (f y) -> Aeq x y) -> *)
-(*     InA Beq (f x) (List.map f l) ->      *)
-(*     InA Aeq x l. *)
-(*   Proof. *)
-(*     move => H; elim: l; first by inversion 1. *)
-(*     move => a l IH. *)
-(*     inversion 1; subst; clear H0. *)
-(*     { by left; apply: H. } *)
-(*       by simpl; right; apply: (IH H2). *)
-(*   Qed.     *)
+  Lemma InA_map' A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) x l (f : A -> B) :
+    (forall x y, Beq (f x) (f y) -> Aeq x y) ->
+    InA Beq (f x) (List.map f l) ->
+    InA Aeq x l.
+  Proof.
+    move => H; elim: l; first by inversion 1.
+    move => a l IH.
+    inversion 1; subst; clear H0.
+    { by left; apply: H. }
+      by simpl; right; apply: (IH H2).
+  Qed.
   
-(*   Lemma NoDupA_map A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) l (f : A -> B) : *)
-(*     (forall x y, Beq (f x) (f y) -> Aeq x y) -> *)
-(*     NoDupA Aeq l -> *)
-(*     NoDupA Beq (List.map f l). *)
-(*   Proof. *)
-(*     move => H; induction 1; first by constructor. *)
-(*     simpl; constructor => // H2; apply: H0. *)
-(*     by apply: (InA_map' H). *)
-(*   Qed.     *)
+  Lemma NoDupA_map A B (Aeq : A -> A -> Prop) (Beq : B -> B -> Prop) l (f : A -> B) :
+    (forall x y, Beq (f x) (f y) -> Aeq x y) ->
+    NoDupA Aeq l ->
+    NoDupA Beq (List.map f l).
+  Proof.
+    move => H; induction 1; first by constructor.
+    simpl; constructor => // H2; apply: H0.
+    by apply: (InA_map' H).
+  Qed.
       
-(*   Lemma match_maps_find1 (x : t) m q :  *)
-(*     M.find (elt:=Q) x m = Some q ->  *)
-(*     (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) = 1%N. *)
-(*   Proof. *)
-(*     move: (M.elements_3w m); move/NoDupA_rev => H H2. *)
-(*     have H3: InA A.eq x (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))). *)
-(*     { have H3: M.find (elt:=Q) x m <> None. *)
-(*       { move => H3; rewrite H3 in H2; congruence. } *)
-(*       clear H2; move: H3; rewrite -MProps.F.in_find_iff MProps.F.elements_in_iff. *)
-(*       case => e; move: (M.elements _) => l; clear H => H. *)
-(*       have ->: x = fst (x, e) by []. *)
-(*       have H2: InA (M.eq_key_elt (elt:=Q)) (x, e) (List.rev l). *)
-(*       { by rewrite InA_rev. } *)
-(*       have H3: forall x y : M.key * Q, M.eq_key_elt x y -> A.eq x.1 y.1. *)
-(*       { by case => x1 x2; case => y1 y2; case. } *)
-(*       by apply (InA_map H3 H2). } *)
-(*     have H4: NoDupA A.eq (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))). *)
-(*     { move: (H2); rewrite -MProps.F.find_mapsto_iff MProps.F.elements_mapsto_iff => H4. *)
-(*       clear - H; apply: (NoDupA_map _ H); case => x1 x2; case => y1 y2 //. } *)
-(*     clear H. *)
-(*     move: H3 H4; move: (List.map _ _) => l. *)
-(*     clear H2 m q. *)
-(*     elim: l => //. *)
-(*     { inversion 1. } *)
-(*     move => a l' IH; inversion 1; subst. *)
-(*     { clear H3. *)
-(*       inversion 1; subst. *)
-(*       simpl. *)
-(*       move: H0; rewrite -A.eqP => ->. *)
-(*       have [a' Hx]: exists a' : t, a = a'. *)
-(*       { by exists a. } *)
-(*       have [l'' Hl]: exists l'' : seq t, l' = l''. *)
-(*       { by exists l'. } *)
-(*       subst a l'. *)
-(*       have ->: (count_mem a') l'' = 0%N. *)
-(*       { have H5: a' \notin l'' by apply: InA_notin. *)
-(*         apply: (count_memPn H5). } *)
-(*       by rewrite addn0 eq_refl. } *)
-(*     inversion 1; subst => /=. *)
-(*     have [a' Hx]: exists a' : t, a = a'. { by exists a. } *)
-(*     have [l'' Hl]: exists l'' : seq t, l' = l''. { by exists l'. } subst a l'. *)
-(*     have ->: a' == x = false. *)
-(*     { move: (InA_not_InA_eq H0 H2) => H6. *)
-(*       case H7: (a' == x) => //. *)
-(*       move: (eqP H7) => H8; subst x; contradiction. } *)
-(*     rewrite IH => //. *)
-(*   Qed. *)
+  Lemma match_maps_find1 (x : t) m q :
+    M.find (elt:=Q) x m = Some q ->
+    (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) = 1%N.
+  Proof.
+    move: (M.elements_3w m); move/NoDupA_rev => H H2.
+    have H3: InA A.eq x (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+    { have H3: M.find (elt:=Q) x m <> None.
+      { move => H3; rewrite H3 in H2; congruence. }
+      clear H2; move: H3; rewrite -MProps.F.in_find_iff MProps.F.elements_in_iff.
+      case => e; move: (M.elements _) => l; clear H => H.
+      have ->: x = fst (x, e) by [].
+      have H2: InA (M.eq_key_elt (elt:=Q)) (x, e) (List.rev l).
+      { by rewrite InA_rev. }
+      have H3: forall x y : M.key * Q, M.eq_key_elt x y -> A.eq x.1 y.1.
+      { by case => x1 x2; case => y1 y2; case. }
+      by apply (InA_map H3 H2). }
+    have H4: NoDupA A.eq (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+    { move: (H2); rewrite -MProps.F.find_mapsto_iff MProps.F.elements_mapsto_iff => H4.
+      clear - H; apply: (NoDupA_map _ H); case => x1 x2; case => y1 y2 //. }
+    clear H.
+    move: H3 H4; move: (List.map _ _) => l.
+    clear H2 m q.
+    elim: l => //.
+    { inversion 1. }
+    move => a l' IH; inversion 1; subst.
+    { clear H3.
+      inversion 1; subst.
+      simpl.
+      move: H0; rewrite -A.eqP => ->.
+      have [a' Hx]: exists a' : t, a = a'.
+      { by exists a. }
+      have [l'' Hl]: exists l'' : seq t, l' = l''.
+      { by exists l'. }
+      subst a l'.
+      have ->: (count_mem a') l'' = 0%N.
+      { have H5: a' \notin l'' by apply: InA_notin.
+        apply: (count_memPn H5). }
+      by rewrite addn0 eq_refl. }
+    inversion 1; subst => /=.
+    have [a' Hx]: exists a' : t, a = a'. { by exists a. }
+    have [l'' Hl]: exists l'' : seq t, l' = l''. { by exists l'. } subst a l'.
+    have ->: a' == x = false.
+    { move: (InA_not_InA_eq H0 H2) => H6.
+      case H7: (a' == x) => //.
+      move: (eqP H7) => H8; subst x; contradiction. }
+    rewrite IH => //.
+  Qed.
   
-(*   Lemma match_maps_enum_count_mem s m : *)
-(*     match_maps s m -> *)
-(*     forall x : t, *)
-(*     (count_mem x) (index_enum t) = *)
-(*     (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))). *)
-(*   Proof. *)
-(*     move => H x; case: (H x) => q []H1 H2; move {H}; rewrite (@enumP t x). *)
-(*     by rewrite (match_maps_find1 H1). *)
-(*   Qed. *)
+  Lemma match_maps_enum_count_mem s m :
+    match_maps s m ->
+    forall x : t,
+    (count_mem x) (index_enum t) =
+    (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+  Proof.
+    move => H x; case: (H x) => q []H1 H2; move {H}; rewrite (@enumP t x).
+    by rewrite (match_maps_find1 H1).
+  Qed.
   
-(*   Lemma match_maps_enum_perm_eq s m : *)
-(*     match_maps s m ->  *)
-(*     perm_eq (index_enum t) *)
-(*             (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))). *)
-(*   Proof. *)
-(*     move => H; rewrite /perm_eq; apply/allP => x. *)
-(*     by rewrite mem_cat; case/orP => /= H2; *)
-(*        apply/eqP; apply: match_maps_enum_count_mem. *)
-(*   Qed. *)
+  Lemma match_maps_enum_perm_eq s m :
+    match_maps s m ->
+    perm_eq (index_enum t)
+            (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+  Proof.
+    move => H; rewrite /perm_eq; apply/allP => x.
+    by rewrite mem_cat; case/orP => /= H2;
+       apply/eqP; apply: match_maps_enum_count_mem.
+  Qed.
   
-(*   Lemma match_maps_gamma'_elements s m :  *)
-(*     match_maps s m ->  *)
-(*     gamma' (index_enum t) s = *)
-(*     gamma' (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) s. *)
-(*   Proof. *)
-(*     rewrite /gamma' /match_maps => H; apply: eq_big_perm. *)
-(*     by apply: (match_maps_enum_perm_eq H). *)
-(*   Qed. *)
+  Lemma match_maps_gamma'_elements s m :
+    match_maps s m ->
+    gamma' (index_enum t) s =
+    gamma' (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) s.
+  Proof.
+    rewrite /gamma' /match_maps => H; apply: eq_big_perm.
+    by apply: (match_maps_enum_perm_eq H).
+  Qed.
     
-(*   Lemma match_maps_gamma_cGamma s m : *)
-(*     match_maps s m -> *)
-(*     gamma s = Q_to_rat (cGamma m). *)
-(*   Proof. *)
-(*     rewrite cGamma_cGamma' -(gamma_gamma' s). *)
-(*     move => H; rewrite -(match_maps_gamma_cGamma'_aux (s:=s)). *)
-(*     { apply: match_maps_gamma'_elements => //. } *)
-(*     move => a q H2. *)
-(*     case: (H a) => q' []H3 H4. *)
-(*     have H5: In (a,q) (M.elements (elt:=Q) m). *)
-(*     { by rewrite in_rev. } *)
-(*     clear H2; have ->: q = q'. *)
-(*     { move: H3; rewrite -MProps.F.find_mapsto_iff => H3. *)
-(*       have H6: InA (M.eq_key_elt (elt:=Q)) (a, q) (M.elements (elt:=Q) m). *)
-(*       { apply: In_InA => //. } *)
-(*       move: H6; rewrite -MProps.F.elements_mapsto_iff => H6. *)
-(*       apply: MProps.F.MapsTo_fun; first by apply: H6. *)
-(*       apply: H3. } *)
-(*     by rewrite H4.  *)
-(*   Qed. *)
+  Lemma match_maps_gamma_cGamma s m :
+    match_maps s m ->
+    gamma s = Q_to_rat (cGamma m).
+  Proof.
+    rewrite cGamma_cGamma' -(gamma_gamma' s).
+    move => H; rewrite -(match_maps_gamma_cGamma'_aux (s:=s)).
+    { apply: match_maps_gamma'_elements => //. }
+    move => a q H2.
+    case: (H a) => q' []H3 H4.
+    have H5: In (a,q) (M.elements (elt:=Q) m).
+    { by rewrite in_rev. }
+    clear H2; have ->: q = q'.
+    { move: H3; rewrite -MProps.F.find_mapsto_iff => H3.
+      have H6: InA (M.eq_key_elt (elt:=Q)) (a, q) (M.elements (elt:=Q) m).
+      { apply: In_InA => //. }
+      move: H6; rewrite -MProps.F.elements_mapsto_iff => H6.
+      apply: MProps.F.MapsTo_fun; first by apply: H6.
+      apply: H3. }
+    by rewrite H4.
+  Qed.
 
-(*   Fixpoint update_weights'_aux *)
-(*              (f : t -> expr t) (s : cstate) w l *)
-(*     : option (M.t Q) := *)
-(*     match l with *)
-(*     | nil => Some w *)
-(*     | a :: l' => *)
-(*       match evalc (f a) s with *)
-(*       | None => None *)
-(*       | Some q => *)
-(*         match 0 ?= q with *)
-(*         | Lt => *)
-(*           match (update_weights'_aux f s w l') with *)
-(*              | None => None *)
-(*              | Some m => Some (M.add a (Qred q) m) *)
-(*           end *)
-(*         | _ => None *)
-(*         end *)
-(*       end *)
-(*     end. *)
+  Fixpoint update_weights'_aux
+             (f : t -> expr t) (s : cstate) w l
+    : option (M.t Q) :=
+    match l with
+    | nil => Some w
+    | a :: l' =>
+      match evalc (f a) s with
+      | None => None
+      | Some q =>
+        match 0 ?= q with
+        | Lt =>
+          match (update_weights'_aux f s w l') with
+             | None => None
+             | Some m => Some (M.add a (Qred q) m)
+          end
+        | _ => None
+        end
+      end
+    end.
 
-(*   Lemma update_weights'_aux_app f s w l1 l2 : *)
-(*     update_weights'_aux f s w (l1 ++ l2) = *)
-(*     match update_weights'_aux f s w l2 with *)
-(*     | None => None *)
-(*     | Some w' => update_weights'_aux f s w' l1 *)
-(*     end. *)
-(*   Proof. *)
-(*     elim: l1 l2 w => //=. *)
-(*     { move => l2 w; case: (update_weights'_aux _ _ _ _) => //. } *)
-(*     move => a l IH l2 w; move: IH. *)
-(*     case H2: (update_weights'_aux _ _ _ l2) => [w'|]. *)
-(*     { move => IH. *)
-(*       case: (evalc (f a) s) => // x. *)
-(*       case: (0 ?= x) => //. *)
-(*       by rewrite IH H2. } *)
-(*     move => ->; rewrite H2. *)
-(*     case: (evalc (f a) s) => //. *)
-(*     move => a0; case: (0 ?= a0) => //. *)
-(*   Qed. *)
+  Lemma update_weights'_aux_app f s w l1 l2 :
+    update_weights'_aux f s w (l1 ++ l2) =
+    match update_weights'_aux f s w l2 with
+    | None => None
+    | Some w' => update_weights'_aux f s w' l1
+    end.
+  Proof.
+    elim: l1 l2 w => //=.
+    { move => l2 w; case: (update_weights'_aux _ _ _ _) => //. }
+    move => a l IH l2 w; move: IH.
+    case H2: (update_weights'_aux _ _ _ l2) => [w'|].
+    { move => IH.
+      case: (evalc (f a) s) => // x.
+      case: (0 ?= x) => //.
+      by rewrite IH H2. }
+    move => ->; rewrite H2.
+    case: (evalc (f a) s) => //.
+    move => a0; case: (0 ?= a0) => //.
+  Qed.
   
-(*   Definition update_weights' *)
-(*              (f : t -> expr t) (s : cstate) *)
-(*     : option (M.t Q) := *)
-(*     update_weights'_aux f s (M.empty Q) *)
-(*       (List.map (fun x => x.1) (List.rev (M.elements (SWeights s)))). *)
+  Definition update_weights'
+             (f : t -> expr t) (s : cstate)
+    : option (M.t Q) :=
+    update_weights'_aux f s (M.empty Q)
+      (List.map (fun x => x.1) (List.rev (M.elements (SWeights s)))).
 
-(*   Lemma update_weights'_aux_inv f s m l m' : *)
-(*     update_weights'_aux f s m l = Some m' -> *)
-(*     forall a, *)
-(*       In a l -> *)
-(*       exists q, *)
-(*         [/\ M.find a m' = Some (Qred q) *)
-(*           , evalc (f a) s = Some q *)
-(*           & Qlt 0 q]. *)
-(*   Proof. *)
-(*     elim: l m m' => // a l IH m m' /=. *)
-(*     case H: (evalc _ _) => // [q]. *)
-(*     case H2: (0 ?= q) => //. *)
-(*     case H3: (update_weights'_aux _ _ _ _) => // [m''] H4 a' H5. *)
-(*     case: H5. *)
-(*     { move => H6; subst a'; inversion H4; subst. *)
-(*       rewrite MProps.F.add_eq_o. *)
-(*       { exists q. *)
-(*         split => //. } *)
-(*       rewrite /A.eq. *)
-(*       by rewrite -A.eqP. *)
-(*     } *)
-(*     move => H5. *)
-(*     case: (IH _ _ H3 _ H5) => q' []H6 H7 H8. *)
-(*     case: (A.eq_dec a a'). *)
-(*     { rewrite -A.eqP => H9. subst a'. *)
-(*       exists q; split => //. *)
-(*       inversion H4; subst. *)
-(*       rewrite MProps.F.add_eq_o; last by rewrite /A.eq -A.eqP. *)
-(*         by []. } *)
-(*     move => H9. *)
-(*     exists q'. *)
-(*     split => //. *)
-(*     inversion H4; subst. *)
-(*     rewrite MProps.F.add_neq_o => //. *)
-(*   Qed. *)
+  Lemma update_weights'_aux_inv f s m l m' :
+    update_weights'_aux f s m l = Some m' ->
+    forall a,
+      In a l ->
+      exists q,
+        [/\ M.find a m' = Some (Qred q)
+          , evalc (f a) s = Some q
+          & Qlt 0 q].
+  Proof.
+    elim: l m m' => // a l IH m m' /=.
+    case H: (evalc _ _) => // [q].
+    case H2: (0 ?= q) => //.
+    case H3: (update_weights'_aux _ _ _ _) => // [m''] H4 a' H5.
+    case: H5.
+    { move => H6; subst a'; inversion H4; subst.
+      rewrite MProps.F.add_eq_o.
+      { exists q.
+        split => //. }
+      rewrite /A.eq.
+      by rewrite -A.eqP.
+    }
+    move => H5.
+    case: (IH _ _ H3 _ H5) => q' []H6 H7 H8.
+    case: (A.eq_dec a a').
+    { rewrite -A.eqP => H9. subst a'.
+      exists q; split => //.
+      inversion H4; subst.
+      rewrite MProps.F.add_eq_o; last by rewrite /A.eq -A.eqP.
+        by []. }
+    move => H9.
+    exists q'.
+    split => //.
+    inversion H4; subst.
+    rewrite MProps.F.add_neq_o => //.
+  Qed.
 
-(*   Lemma update_weights'_inv1 f s m : *)
-(*     (forall a, exists q, M.find a (SWeights s) = Some q) -> *)
-(*     update_weights' f s = Some m -> *)
-(*     forall a, *)
-(*     exists q, *)
-(*       [/\ M.find a m = Some (Qred q) *)
-(*         , evalc (f a) s = Some q *)
-(*         & Qlt 0 q]. *)
-(*   Proof. *)
-(*     rewrite /update_weights' => H H2 a. *)
-(*     have H3: In a (List.map [eta fst] (List.rev (M.elements (elt:=Q) (SWeights s)))). *)
-(*     { clear - H. *)
-(*       case: (H a) => q H2. *)
-(*       have H3: M.find (elt:=Q) a (SWeights s) <> None. *)
-(*       { move => H4; rewrite H4 in H2; congruence. } *)
-(*       move: H3; rewrite -MProps.F.in_find_iff MProps.F.elements_in_iff. *)
-(*       case => q'; move: (M.elements _) => l. *)
-(*       elim: l => //=. *)
-(*       { inversion 1. } *)
-(*       case => []a' b l IH /=. *)
-(*       inversion 1; subst. *)
-(*       { destruct H1; simpl in *; subst. *)
-(*         move: H0; rewrite /A.eq -A.eqP => H3; subst a'. *)
-(*         have ->: a = (a, b).1 by []. *)
-(*         apply: in_map. *)
-(*         apply: in_or_app. *)
-(*         right. *)
-(*         left => //. } *)
-(*       move: (IH H1). *)
-(*       rewrite in_map_iff; case; case => a'' b' /=; case => -> H3. *)
-(*       have ->: a = (a, b').1 by []. *)
-(*       apply: in_map. *)
-(*         by apply: in_or_app; left. } *)
-(*     apply: (update_weights'_aux_inv H2 H3). *)
-(*   Qed. *)
+  Lemma update_weights'_inv1 f s m :
+    (forall a, exists q, M.find a (SWeights s) = Some q) ->
+    update_weights' f s = Some m ->
+    forall a,
+    exists q,
+      [/\ M.find a m = Some (Qred q)
+        , evalc (f a) s = Some q
+        & Qlt 0 q].
+  Proof.
+    rewrite /update_weights' => H H2 a.
+    have H3: In a (List.map [eta fst] (List.rev (M.elements (elt:=Q) (SWeights s)))).
+    { clear - H.
+      case: (H a) => q H2.
+      have H3: M.find (elt:=Q) a (SWeights s) <> None.
+      { move => H4; rewrite H4 in H2; congruence. }
+      move: H3; rewrite -MProps.F.in_find_iff MProps.F.elements_in_iff.
+      case => q'; move: (M.elements _) => l.
+      elim: l => //=.
+      { inversion 1. }
+      case => []a' b l IH /=.
+      inversion 1; subst.
+      { destruct H1; simpl in *; subst.
+        move: H0; rewrite /A.eq -A.eqP => H3; subst a'.
+        have ->: a = (a, b).1 by [].
+        apply: in_map.
+        apply: in_or_app.
+        right.
+        left => //. }
+      move: (IH H1).
+      rewrite in_map_iff; case; case => a'' b' /=; case => -> H3.
+      have ->: a = (a, b').1 by [].
+      apply: in_map.
+        by apply: in_or_app; left. }
+    apply: (update_weights'_aux_inv H2 H3).
+  Qed.
 
-(*   Lemma update_weights_weights'_aux f s l w : *)
-(*     fold_right *)
-(*      (fun (y : M.key * Q) (x : option (M.t Q)) => *)
-(*       match x with *)
-(*       | Some acc' => *)
-(*           match evalc (f y.1) s with *)
-(*           | Some q => *)
-(*             match 0 ?= q with *)
-(*             | Lt => Some (M.add y.1 (Qred q) acc') *)
-(*             | _ => None *)
-(*             end *)
-(*           | None => None *)
-(*           end *)
-(*       | None => None *)
-(*       end) (Some w) l = *)
-(*     update_weights'_aux f s w (List.map [eta fst] l). *)
-(*   Proof. *)
-(*     move: w; elim: l => // [][]a b l IH. *)
-(*     move => w /=; rewrite IH. *)
-(*     case: (update_weights'_aux _ _ _ _) => //. *)
-(*     case: (evalc _ _) => // q''. *)
-(*     case: (0 ?= q'') => //. *)
-(*   Qed. *)
+  Lemma update_weights_weights'_aux f s l w :
+    fold_right
+     (fun (y : M.key * Q) (x : option (M.t Q)) =>
+      match x with
+      | Some acc' =>
+          match evalc (f y.1) s with
+          | Some q =>
+            match 0 ?= q with
+            | Lt => Some (M.add y.1 (Qred q) acc')
+            | _ => None
+            end
+          | None => None
+          end
+      | None => None
+      end) (Some w) l =
+    update_weights'_aux f s w (List.map [eta fst] l).
+  Proof.
+    move: w; elim: l => // [][]a b l IH.
+    move => w /=; rewrite IH.
+    case: (update_weights'_aux _ _ _ _) => //.
+    case: (evalc _ _) => // q''.
+    case: (0 ?= q'') => //.
+  Qed.
     
-(*   Lemma update_weights_weights' f s : *)
-(*     update_weights f s = update_weights' f s. *)
-(*   Proof. *)
-(*     rewrite /update_weights /update_weights' M.fold_1 -fold_left_rev_right. *)
-(*     apply: update_weights_weights'_aux. *)
-(*   Qed. *)
+  Lemma update_weights_weights' f s :
+    update_weights f s = update_weights' f s.
+  Proof.
+    rewrite /update_weights /update_weights' M.fold_1 -fold_left_rev_right.
+    apply: update_weights_weights'_aux.
+  Qed.
     
-(*   Lemma update_weights_inv1 f s m : *)
-(*     (forall a, exists q, M.find a (SWeights s) = Some q) -> *)
-(*     update_weights f s = Some m -> *)
-(*     forall a, *)
-(*     exists q, *)
-(*       [/\ M.find a m = Some (Qred q) *)
-(*         , evalc (f a) s = Some q *)
-(*         & Qlt 0 q]. *)
-(*   Proof. *)
-(*     rewrite update_weights_weights'. *)
-(*     apply: update_weights'_inv1. *)
-(*   Qed. *)
+  Lemma update_weights_inv1 f s m :
+    (forall a, exists q, M.find a (SWeights s) = Some q) ->
+    update_weights f s = Some m ->
+    forall a,
+    exists q,
+      [/\ M.find a m = Some (Qred q)
+        , evalc (f a) s = Some q
+        & Qlt 0 q].
+  Proof.
+    rewrite update_weights_weights'.
+    apply: update_weights'_inv1.
+  Qed.
 
-(*   Lemma match_eval f (r : state t) (s : cstate) q : *)
-(*     match_maps (weightslang.SWeights r) (SWeights s) -> *)
-(*     match_maps (weightslang.SCosts r) (SCosts s) -> *)
-(*     rat_to_Q (weightslang.SEpsilon r) = Qred (SEpsilon s) -> *)
-(*     forall a : t, *)
-(*       evalc (f a) s = Some q -> *)
-(*       Qred q = rat_to_Q (eval (f a) r). *)
-(*   Proof. *)
-(*     move => H Hx Hy a; move: (f a) => e. *)
-(*     elim: e q. *)
-(*     { move => v q /=. *)
-(*       case: v => // q'. *)
-(*       inversion 1; subst. *)
-(*         by rewrite rat_to_QK1. } *)
-(*     { move => e IH q /=. *)
-(*       case H2: (evalc e s) => // [q']; inversion 1; subst. *)
-(*       rewrite Qred_opp. *)
-(*       rewrite IH => //. *)
-(*         by rewrite rat_to_Qopp. } *)
-(*     { move => a' q /= H2. *)
-(*       case: (H a') => q' []H3 H4. *)
-(*       rewrite H3 in H2; inversion H2; subst. clear H2. *)
-(*         by rewrite H4. } *)
-(*     { move => a' q /= H2. *)
-(*       case: (Hx a') => q' []H3 H4. *)
-(*       rewrite H3 in H2; inversion H2; subst. clear H2. *)
-(*         by rewrite H4. } *)
-(*     { move => q /=; inversion 1; subst. *)
-(*         by rewrite Hy. } *)
-(*     move => b e1 IH1 e2 IH2 q /=. *)
-(*     case H1: (evalc e1 s) => // [v1]. *)
-(*     case H2: (evalc e2 s) => // [v2]. *)
-(*     inversion 1; subst. clear H0. *)
-(*     (*case analysis on the binary operations*) *)
-(*     case: b; rewrite /eval_binopc /eval_binop. *)
-(*     { rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_plus. *)
-(*       rewrite -(IH1 _ H1). *)
-(*       rewrite -(IH2 _ H2). *)
-(*       by rewrite 2!Qred_correct. } *)
-(*     { rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_plus. *)
-(*       rewrite -(IH1 _ H1). *)
-(*       rewrite rat_to_Qopp. *)
-(*       rewrite -(IH2 _ H2). *)
-(*       by rewrite 2!Qred_correct. } *)
-(*     rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_mul. *)
-(*     rewrite -(IH1 _ H1). *)
-(*     rewrite -(IH2 _ H2). *)
-(*     by rewrite 2!Qred_correct. *)
-(*   Qed. *)
+  Lemma match_eval f (r : state t) (s : cstate) q :
+    match_maps (weightslang.SWeights r) (SWeights s) ->
+    match_maps (weightslang.SCosts r) (SCosts s) ->
+    rat_to_Q (weightslang.SEpsilon r) = Qred (SEpsilon s) ->
+    forall a : t,
+      evalc (f a) s = Some q ->
+      Qred q = rat_to_Q (eval (f a) r).
+  Proof.
+    move => H Hx Hy a; move: (f a) => e.
+    elim: e q.
+    { move => v q /=.
+      case: v => // q'.
+      inversion 1; subst.
+        by rewrite rat_to_QK1. }
+    { move => e IH q /=.
+      case H2: (evalc e s) => // [q']; inversion 1; subst.
+      rewrite Qred_opp.
+      rewrite IH => //.
+        by rewrite rat_to_Qopp. }
+    { move => a' q /= H2.
+      case: (H a') => q' []H3 H4.
+      rewrite H3 in H2; inversion H2; subst. clear H2.
+        by rewrite H4. }
+    { move => a' q /= H2.
+      case: (Hx a') => q' []H3 H4.
+      rewrite H3 in H2; inversion H2; subst. clear H2.
+        by rewrite H4. }
+    { move => q /=; inversion 1; subst.
+        by rewrite Hy. }
+    move => b e1 IH1 e2 IH2 q /=.
+    case H1: (evalc e1 s) => // [v1].
+    case H2: (evalc e2 s) => // [v2].
+    inversion 1; subst. clear H0.
+    (*case analysis on the binary operations*)
+    case: b; rewrite /eval_binopc /eval_binop.
+    { rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_plus.
+      rewrite -(IH1 _ H1).
+      rewrite -(IH2 _ H2).
+      by rewrite 2!Qred_correct. }
+    { rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_plus.
+      rewrite -(IH1 _ H1).
+      rewrite rat_to_Qopp.
+      rewrite -(IH2 _ H2).
+      by rewrite 2!Qred_correct. }
+    rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_mul.
+    rewrite -(IH1 _ H1).
+    rewrite -(IH2 _ H2).
+    by rewrite 2!Qred_correct.
+  Qed.
   
-(*   Lemma update_weights_inv2 (f : t -> expr t) r s m : *)
-(*     match_states r s -> *)
-(*     update_weights f s = Some m -> *)
-(*     forall a : t, *)
-(*     exists q, *)
-(*       [/\ M.find a m = Some (Qred q) *)
-(*         , evalc (f a) s = Some q *)
-(*         , Qred q = rat_to_Q (eval (f a) r) *)
-(*         & Qlt 0 q]. *)
-(*   Proof. *)
-(*     move => H H2 a. *)
-(*     move: (@update_weights_inv1 f s m) => Hinv1. *)
-(*     move: (@match_eval f r s) => Hmatch. *)
-(*     case: s H H2 Hinv1 Hmatch; intros. *)
-(*     inversion H; subst. *)
-(*     have H3: forall a, exists q, M.find a SWeights0 = Some q. *)
-(*     { move => a'; case: (H10 a') => q []H3 H4; exists q => //. } *)
-(*     case: (Hinv1 H3 H2 a) => q []H1 H4 H5. *)
-(*     exists q; split => //. *)
-(*     apply: Hmatch => //. *)
-(*   Qed. *)
+  Lemma update_weights_inv2 (f : t -> expr t) r s m :
+    match_states r s ->
+    update_weights f s = Some m ->
+    forall a : t,
+    exists q,
+      [/\ M.find a m = Some (Qred q)
+        , evalc (f a) s = Some q
+        , Qred q = rat_to_Q (eval (f a) r)
+        & Qlt 0 q].
+  Proof.
+    move => H H2 a.
+    move: (@update_weights_inv1 f s m) => Hinv1.
+    move: (@match_eval f r s) => Hmatch.
+    case: s H H2 Hinv1 Hmatch; intros.
+    inversion H; subst.
+    have H3: forall a, exists q, M.find a SWeights0 = Some q.
+    { move => a'; case: (H11 a') => q []H3 H4; exists q => //. }
+    case: (Hinv1 H3 H2 a) => q []H1 H4 H5.
+    exists q; split => //.
+    apply: Hmatch => //.
+  Qed.
   
-(*   Lemma match_maps_update_weights (f : t -> expr t) r s m : *)
-(*     match_states r s -> *)
-(*     update_weights f s = Some m -> *)
-(*     match_maps [ffun a => eval (f a) r] m /\ *)
-(*     (forall a, 0 < eval (f a) r)%R. *)
-(*   Proof. *)
-(*     move => H H2; split => a; case: (update_weights_inv2 H H2 a) => q. *)
-(*     { case => H3 H4 H5 H6. *)
-(*       exists (Qred q); split => //. *)
-(*       have H7: Qred (Qred q) = Qred q. *)
-(*       { apply: Qred_complete. *)
-(*         apply: Qred_correct. } *)
-(*         by rewrite H7 H5 ffunE. } *)
-(*     case => H3 H4 H5 H6. *)
-(*     have H7: 0 < Qred q by rewrite Qred_correct. *)
-(*     rewrite H5 in H7; clear - H7. *)
-(*     have H6: 0 = inject_Z 0 by []. *)
-(*     rewrite H6 -rat_to_Q0 in H7. *)
-(*     by apply: rat_to_Q_lt'. *)
-(*   Qed. *)
+  Lemma match_maps_update_weights (f : t -> expr t) r s m :
+    match_states r s ->
+    update_weights f s = Some m ->
+    match_maps [ffun a => eval (f a) r] m /\
+    (forall a, 0 < eval (f a) r)%R.
+  Proof.
+    move => H H2; split => a; case: (update_weights_inv2 H H2 a) => q.
+    { case => H3 H4 H5 H6.
+      exists (Qred q); split => //.
+      have H7: Qred (Qred q) = Qred q.
+      { apply: Qred_complete.
+        apply: Qred_correct. }
+        by rewrite H7 H5 ffunE. }
+    case => H3 H4 H5 H6.
+    have H7: 0 < Qred q by rewrite Qred_correct.
+    rewrite H5 in H7; clear - H7.
+    have H6: 0 = inject_Z 0 by [].
+    rewrite H6 -rat_to_Q0 in H7.
+    by apply: rat_to_Q_lt'.
+  Qed.
 
-(*   Variable a0 : t. *)
+  Variable a0 : t.
   
-(*   Lemma interp_step_plus : *)
-(*     forall (s : state t) (tx tx' : cstate) (c : com t), *)
-(*       interp c tx = Some tx' -> *)
-(*       match_states s tx -> *)
-(*       exists c' s', *)
-(*         final_com c' /\ *)
-(*         ((c=CSkip /\ s=s') \/ step_plus a0 c s c' s') /\ *)
-(*         match_states s' tx'. *)
-(*   Proof. *)
-(*     intros s t t' c H; revert s t t' H; induction c; simpl. *)
-(*     { intros s t t'; inversion 1; subst. *)
-(*       intros H2. *)
-(*       exists CSkip, s. *)
-(*       split; [solve[constructor; auto]|]. *)
-(*       split; auto. } *)
-(*     { intros s t t' H H2. *)
-(*       move: (@match_maps_update_weights e s t) H. *)
-(*       case: (update_weights e t) => // m; move/(_ m) => H3. *)
-(*       inversion 1; subst; clear H. *)
-(*       generalize H2 => H2'. *)
-(*       inversion H2; subst; simpl in *; clear H2. *)
-(*       move: (H3 H2' erefl) => H5x; clear H3. *)
-(*       exists CSkip. *)
-(*       eexists. *)
-(*       split => //. *)
-(*       split. *)
-(*       { right. *)
-(*         constructor. *)
-(*         constructor. } *)
-(*       simpl. *)
-(*       case: H5x => H5x H6. *)
-(*       constructor => //. *)
-(*       Unshelve. by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. } *)
-(*     { intros s tx t'; inversion 1; subst. clear H. *)
-(*       intros H2. *)
-(*       set c := mwu_recv (SChan tx). *)
-(*       set f := *)
-(*         finfun *)
-(*           (fun a : t => *)
-(*              match M.find a c with *)
-(*              | None => 0%R (*bogus*) *)
-(*              | Some q => Q_to_rat (Qred q) *)
-(*              end). *)
-(*       have pf: forall a, (0 <= f a <= 1)%R. *)
-(*       { move => a. rewrite /f ffunE. clear f. *)
-(*         case: (recv_ok a (SChan tx)) => q [] -> [] H H3. *)
-(*         apply/andP; split. *)
-(*         { rewrite -Q_to_rat0; apply: Q_to_rat_le. *)
-(*           have H4: Qeq (Qred q) q by apply: Qred_correct. *)
-(*           by rewrite H4. } *)
-(*         rewrite -Q_to_rat1; apply: Q_to_rat_le. *)
-(*         by move: (Qred_correct q) ->. } *)
-(*       exists CSkip. *)
-(*       exists *)
-(*         (@mkState *)
-(*            _ *)
-(*            f *)
-(*            pf *)
-(*            (existT *)
-(*               _ *)
-(*               (weightslang.SCosts s) *)
-(*               (weightslang.SCostsOk s) :: weightslang.SPrevCosts s) *)
-(*            (weightslang.SWeights s) *)
-(*            (weightslang.SWeightsOk s) *)
-(*            (weightslang.SEpsilon s) *)
-(*            (weightslang.SEpsilonOk s) *)
-(*            (weightslang.SOutputs s)). *)
-(*       split; first by constructor. *)
-(*       split. *)
-(*       { right. *)
-(*         constructor. *)
-(*         constructor. } *)
-(*       inversion H2; subst. simpl in *. *)
-(*       constructor; try solve[auto | constructor; auto]. *)
-(*       rewrite /match_maps => a. *)
-(*       case: (recv_ok a ch) => q []; rewrite /f ffunE => -> _. *)
-(*       exists q. *)
-(*       split; auto. *)
-(*       by rewrite rat_to_QK. } *)
-(*     { intros s tx; inversion 1; subst; clear H. *)
-(*       intros H2. *)
-(*       exists CSkip. *)
-(*       exists *)
-(*         (@mkState *)
-(*            _ *)
-(*            (weightslang.SCosts s) *)
-(*            (weightslang.SCostsOk s) *)
-(*            (weightslang.SPrevCosts s) *)
-(*            (weightslang.SWeights s) *)
-(*            (weightslang.SWeightsOk s) *)
-(*            (weightslang.SEpsilon s) *)
-(*            (weightslang.SEpsilonOk s) *)
-(*            (p_aux_dist *)
-(*               a0 *)
-(*               (weightslang.SEpsilonOk s) *)
-(*               (weightslang.SWeightsOk s) *)
-(*               (@CMAX_nil t) *)
-(*               :: weightslang.SOutputs s)). *)
-(*       split; first by constructor. *)
-(*       split. *)
-(*       { right. *)
-(*         constructor. *)
-(*         constructor. } *)
-(*       inversion H2; subst. simpl in *. *)
-(*       move: H3 => Heps. *)
-(*       have H3: *)
-(*         pmf (p_aux_dist (A:=t) a0 (eps:=eps) eps_ok *)
-(*                         (w:=w) w_ok (cs:=[::]) *)
-(*                         (CMAX_nil (A:=t))) = *)
-(*         finfun (fun a : t => Q_to_rat (weights_distr wc a)). *)
-(*       { rewrite /p_aux_dist. *)
-(*         simpl. *)
-(*         move: H4 => H4x. *)
-(*         have Hx: *)
-(*              [ffun a : t => match M.find (elt:=Q) a wc with *)
-(*                         | Some q => (Q_to_rat q / Q_to_rat (cGamma wc))%R *)
-(*                         | None => 0%R *)
-(*                         end] = p_aux (A:=t) eps [::] w. *)
-(*         { rewrite /p_aux; apply/ffunP => a; rewrite 2!ffunE. *)
-(*           move: (match_maps_gamma_cGamma H1) => H1'. *)
-(*           rewrite /match_maps in H1; case: (H1 a) => y []H3 H4. clear H1. *)
-(*           rewrite H3 /= H1'; f_equal. clear - H4. *)
-(*           rewrite rat_to_Q_red in H4. *)
-(*           have H5: Qeq y (rat_to_Q (w a)). *)
-(*           { by rewrite -(Qred_correct y) -(Qred_correct (rat_to_Q (w a))) H4. } *)
-(*             by apply: rat_to_QK2. } *)
-(*         rewrite -Hx. *)
-(*         apply/ffunP => x; rewrite 2!ffunE /weights_distr. *)
-(*         case Hy: (M.find _ _) => // [q]. *)
-(*         by rewrite Q_to_rat_div. } *)
-(*       constructor; auto. *)
-(*       constructor; auto. } *)
-(*     { move => s t t'. *)
-(*       case H: (interp c1 t) => [t''|]. *)
-(*       { move => H2 H3. *)
-(*         case: (IHc1 _ _ _ H H3) => cx []tx []H4 []H5 H6. *)
-(*         case: (IHc2 _ _ _ H2 H6) => cy []ty []H7 []H8 H9. *)
-(*         case: H5. *)
-(*         { case => -> ->. *)
-(*           case: H8. *)
-(*           { case => -> ->. *)
-(*             exists cy, ty. *)
-(*             split; auto. *)
-(*             split; auto. *)
-(*             right; auto. *)
-(*             constructor. *)
-(*             inversion H7; subst. *)
-(*             apply: SSeq1. } *)
-(*           move => H10. *)
-(*           exists cy, ty. *)
-(*           split; auto. *)
-(*           split; auto. *)
-(*           right; auto. *)
-(*           apply: step_trans. *)
-(*           constructor. *)
-(*           apply: H10. } *)
-(*         move => H10. *)
-(*         case: H8. *)
-(*         { case => -> H11. subst ty. *)
-(*           exists CSkip, tx. *)
-(*           split; first by constructor. *)
-(*           split; auto. *)
-(*           right. *)
-(*           apply: step_plus_trans. *)
-(*           apply: step_plus_seq. *)
-(*           apply: H10. *)
-(*           inversion H4; subst. *)
-(*           constructor. *)
-(*           constructor. } *)
-(*         move => H11. *)
-(*         exists cy, ty. *)
-(*         split => //. *)
-(*         split => //. *)
-(*         right. *)
-(*         apply: step_plus_trans. *)
-(*         apply: step_plus_seq. *)
-(*         apply: H10. *)
-(*         inversion H4; subst. *)
-(*         apply: step_trans. *)
-(*         constructor. *)
-(*         inversion H7; subst. *)
-(*         apply: H11. } *)
-(*       inversion 1. } *)
-(*     move => s tx0 t'. *)
-(*     rewrite N2Nat.inj_iter. *)
-(*     move H: (N.to_nat t0) => n. *)
-(*     move: s tx0 t0 t' H; elim: n. *)
-(*     { move => s t0 t t' H; inversion 1; subst. clear H0 => H2. *)
-(*       exists CSkip, s; split => //. *)
-(*       split => //. *)
-(*       right. *)
-(*       constructor. *)
-(*       have H3: t = Coq.Numbers.BinNums.N0. *)
-(*       { case: t H => //= p H. *)
-(*         move: (PosN0 p). *)
-(*           by rewrite H. } *)
-(*       rewrite H3. *)
-(*       constructor. } *)
-(*     move => n IH s t0 t t' H H2 H3. *)
-(*     have [x [H4 H5]]: exists x, [/\ t = N.succ x & N.to_nat x = n]. *)
-(*     { clear - H. *)
-(*       exists (N.pred t). *)
-(*       rewrite N.succ_pred. *)
-(*       { split => //. *)
-(*           by rewrite N2Nat.inj_pred H. } *)
-(*       move => H2; rewrite H2 /= in H; discriminate. } *)
-(*     subst t n. clear H. *)
-(*     move: H2 => /=. *)
-(*     case H4: (Nat.iter (N.to_nat x) *)
-(*                        (fun s0 : option cstate => *)
-(*                           match s0 with *)
-(*                           | Some s' => interp c s' *)
-(*                           | None => None *)
-(*                           end) (Some t0)) => [tx|]. *)
-(*     { move => H5. *)
-(*       case: (IH _ _ _ _ erefl H4 H3) => c0 []s0 []H6 []H7 H8. *)
-(*       case: (IHc _ _ _ H5 H8) => cx []sx []H9 []H10 H11. *)
-(*       case: H7. *)
-(*       { case. *)
-(*         inversion 1. } *)
-(*       move => H12. *)
-(*       case: H10. *)
-(*       { case => H13 H14. subst c s0. *)
-(*         exists c0, sx. *)
-(*         split => //. *)
-(*         split => //. *)
-(*         right. *)
-(*         apply: step_trans. *)
-(*         { apply SIterS. *)
-(*           rewrite nat_of_bin_to_nat. *)
-(*             by rewrite N2Nat.inj_succ. } *)
-(*         apply: step_trans. *)
-(*         constructor. *)
-(*         rewrite N.pred_succ. *)
-(*         apply: H12. } *)
-(*       move => H13. *)
-(*       exists cx, sx. *)
-(*       split => //. *)
-(*       split => //. *)
-(*       right. *)
-(*       apply: step_trans. *)
-(*       constructor. *)
-(*       { by rewrite nat_of_bin_to_nat N2Nat.inj_succ. } *)
-(*       rewrite N.pred_succ. *)
-(*       apply: step_plus_iter_flip => //. *)
-(*       inversion H6; subst. *)
-(*       apply: H12. *)
-(*       apply: H13. } *)
-(*     inversion 1. *)
-(*   Qed. *)
+  Lemma interp_step_plus :
+    forall (s : state t) (tx tx' : cstate) (c : com t),
+      interp c tx = Some tx' ->
+      match_states s tx ->
+      exists c' s',
+        final_com c' /\
+        ((c=CSkip /\ s=s') \/ step_plus a0 c s c' s') /\
+        match_states s' tx'.
+  Proof.
+    intros s t t' c H; revert s t t' H; induction c; simpl.
+    { intros s t t'; inversion 1; subst.
+      intros H2.
+      exists CSkip, s.
+      split; [solve[constructor; auto]|].
+      split; auto. }
+    { intros s t t' H H2.
+      move: (@match_maps_update_weights e s t) H.
+      case: (update_weights e t) => // m; move/(_ m) => H3.
+      inversion 1; subst; clear H.
+      generalize H2 => H2'.
+      inversion H2; subst; simpl in *; clear H2.
+      move: (H3 H2' erefl) => H5x; clear H3.
+      exists CSkip.
+      eexists.
+      split => //.
+      split.
+      { right.
+        constructor.
+        constructor. }
+      simpl.
+      case: H5x => H5x H6.
+      constructor => //.
+      Unshelve. by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. }
+    { intros s tx t'; inversion 1; subst. clear H.
+      intros H2.
+      set c := mwu_recv (SChan tx).
+      set f :=
+        finfun
+          (fun a : t =>
+             match M.find a c.1 with
+             | None => 0%R (*bogus*)
+             | Some q => Q_to_rat (Qred q)
+             end).
+      have pf: forall a, (0 <= f a <= 1)%R.
+      { move => a. rewrite /f ffunE. clear f.
+        case: (recv_ok a (SChan tx)) => q [] -> [] H H3.
+        apply/andP; split.
+        { rewrite -Q_to_rat0; apply: Q_to_rat_le.
+          have H4: Qeq (Qred q) q by apply: Qred_correct.
+          by rewrite H4. }
+        rewrite -Q_to_rat1; apply: Q_to_rat_le.
+        by move: (Qred_correct q) ->. }
+      exists CSkip.
+      exists
+        (@mkState
+           _
+           f
+           pf
+           (existT
+              _
+              (weightslang.SCosts s)
+              (weightslang.SCostsOk s) :: weightslang.SPrevCosts s)
+           (weightslang.SWeights s)
+           (weightslang.SWeightsOk s)
+           (weightslang.SEpsilon s)
+           (weightslang.SEpsilonOk s)
+           (weightslang.SOutputs s)).
+      split; first by constructor.
+      split.
+      { right.
+        constructor.
+        constructor. }
+      inversion H2; subst. simpl in *.
+      destruct (mwu_recv ch) eqn:Hrecv. inversion H1; subst.
+      constructor; try solve[auto | constructor; auto].
+      rewrite /match_maps => a.
+      case: (recv_ok a ch) => q []. rewrite /f ffunE Hrecv => -> _.
+      exists q.
+      split; auto.
+      by rewrite rat_to_QK. }
+    { intros s tx; inversion 1; subst; clear H.
+      intros H2.
+      exists CSkip.
+      exists
+        (@mkState
+           _
+           (weightslang.SCosts s)
+           (weightslang.SCostsOk s)
+           (weightslang.SPrevCosts s)
+           (weightslang.SWeights s)
+           (weightslang.SWeightsOk s)
+           (weightslang.SEpsilon s)
+           (weightslang.SEpsilonOk s)
+           (p_aux_dist
+              a0
+              (weightslang.SEpsilonOk s)
+              (weightslang.SWeightsOk s)
+              (@CMAX_nil t)
+              :: weightslang.SOutputs s)).
+      split; first by constructor.
+      split.
+      { right.
+        constructor.
+        constructor. }
+      inversion H2; subst. simpl in *.
+      move: H1 H3 H4 H5 => Hchst H1 Heps H4.
+      (* move: H1 => Hchst. *)
+      (* move: H3 => H1. *)
+      (* move: H4 => Heps. *)
+      (* move: H5 => H4. *)
+      have H3:
+        pmf (p_aux_dist (A:=t) a0 (eps:=eps) eps_ok
+                        (w:=w) w_ok (cs:=[::])
+                        (CMAX_nil (A:=t))) =
+        finfun (fun a : t => Q_to_rat (weights_distr wc a)).
+      { rewrite /p_aux_dist.
+        simpl.
+        move: H4 => H4x.
+        have Hx:
+             [ffun a : t => match M.find (elt:=Q) a wc with
+                        | Some q => (Q_to_rat q / Q_to_rat (cGamma wc))%R
+                        | None => 0%R
+                        end] = p_aux (A:=t) eps [::] w.
+        { rewrite /p_aux; apply/ffunP => a; rewrite 2!ffunE.
+          move: (match_maps_gamma_cGamma H1) => H1'.
+          rewrite /match_maps in H1; case: (H1 a) => y []H3 H4. clear H1.
+          rewrite H3 /= H1'; f_equal. clear - H4.
+          rewrite rat_to_Q_red in H4.
+          have H5: Qeq y (rat_to_Q (w a)).
+          { by rewrite -(Qred_correct y) -(Qred_correct (rat_to_Q (w a))) H4. }
+            by apply: rat_to_QK2. }
+        rewrite -Hx.
+        apply/ffunP => x; rewrite 2!ffunE /weights_distr.
+        case Hy: (M.find _ _) => // [q].
+        by rewrite Q_to_rat_div. }
+      destruct (mwu_send wc) eqn:Hsendwc. inversion Hchst.
+      constructor; auto.
+      constructor; auto. }
+    { move => s t t'.
+      case H: (interp c1 t) => [t''|].
+      { move => H2 H3.
+        case: (IHc1 _ _ _ H H3) => cx []tx []H4 []H5 H6.
+        case: (IHc2 _ _ _ H2 H6) => cy []ty []H7 []H8 H9.
+        case: H5.
+        { case => -> ->.
+          case: H8.
+          { case => -> ->.
+            exists cy, ty.
+            split; auto.
+            split; auto.
+            right; auto.
+            constructor.
+            inversion H7; subst.
+            apply: SSeq1. }
+          move => H10.
+          exists cy, ty.
+          split; auto.
+          split; auto.
+          right; auto.
+          apply: step_trans.
+          constructor.
+          apply: H10. }
+        move => H10.
+        case: H8.
+        { case => -> H11. subst ty.
+          exists CSkip, tx.
+          split; first by constructor.
+          split; auto.
+          right.
+          apply: step_plus_trans.
+          apply: step_plus_seq.
+          apply: H10.
+          inversion H4; subst.
+          constructor.
+          constructor. }
+        move => H11.
+        exists cy, ty.
+        split => //.
+        split => //.
+        right.
+        apply: step_plus_trans.
+        apply: step_plus_seq.
+        apply: H10.
+        inversion H4; subst.
+        apply: step_trans.
+        constructor.
+        inversion H7; subst.
+        apply: H11. }
+      inversion 1. }
+    move => s tx0 t'.
+    rewrite N2Nat.inj_iter.
+    move H: (N.to_nat t0) => n.
+    move: s tx0 t0 t' H; elim: n.
+    { move => s t0 t t' H; inversion 1; subst. clear H0 => H2.
+      exists CSkip, s; split => //.
+      split => //.
+      right.
+      constructor.
+      have H3: t = Coq.Numbers.BinNums.N0.
+      { case: t H => //= p H.
+        move: (PosN0 p).
+          by rewrite H. }
+      rewrite H3.
+      constructor. }
+    move => n IH s t0 t t' H H2 H3.
+    have [x [H4 H5]]: exists x, [/\ t = N.succ x & N.to_nat x = n].
+    { clear - H.
+      exists (N.pred t).
+      rewrite N.succ_pred.
+      { split => //.
+          by rewrite N2Nat.inj_pred H. }
+      move => H2; rewrite H2 /= in H; discriminate. }
+    subst t n. clear H.
+    move: H2 => /=.
+    case H4: (Nat.iter (N.to_nat x)
+                       (fun s0 : option cstate =>
+                          match s0 with
+                          | Some s' => interp c s'
+                          | None => None
+                          end) (Some t0)) => [tx|].
+    { move => H5.
+      case: (IH _ _ _ _ erefl H4 H3) => c0 []s0 []H6 []H7 H8.
+      case: (IHc _ _ _ H5 H8) => cx []sx []H9 []H10 H11.
+      case: H7.
+      { case.
+        inversion 1. }
+      move => H12.
+      case: H10.
+      { case => H13 H14. subst c s0.
+        exists c0, sx.
+        split => //.
+        split => //.
+        right.
+        apply: step_trans.
+        { apply SIterS.
+          rewrite nat_of_bin_to_nat.
+            by rewrite N2Nat.inj_succ. }
+        apply: step_trans.
+        constructor.
+        rewrite N.pred_succ.
+        apply: H12. }
+      move => H13.
+      exists cx, sx.
+      split => //.
+      split => //.
+      right.
+      apply: step_trans.
+      constructor.
+      { by rewrite nat_of_bin_to_nat N2Nat.inj_succ. }
+      rewrite N.pred_succ.
+      apply: step_plus_iter_flip => //.
+      inversion H6; subst.
+      apply: H12.
+      apply: H13. }
+    inversion 1.
+  Qed.
 
-(*   Lemma findA_map1_Some1 a (l : list t) : *)
-(*     a \in l ->  *)
-(*     findA (MProps.F.eqb a) (List.map (pair^~ 1) l) = Some 1. *)
-(*   Proof. *)
-(*     elim: l a => // a l IH a1; case/orP. *)
-(*     { move/eqP => ->. *)
-(*       rewrite /MProps.F.eqb /= /M.E.eq_dec /A'.eq_dec. *)
-(*       rewrite /A.eq_dec. *)
-(*       case: (A.eq_dec _ _) => // [H]; elimtype False; apply: H. *)
-(*       by rewrite -A.eqP. } *)
-(*     move => H; simpl; case H3: (MProps.F.eqb a1 a) => //. *)
-(*     by apply: IH. *)
-(*   Qed. *)
+  Lemma findA_map1_Some1 a (l : list t) :
+    a \in l ->
+    findA (MProps.F.eqb a) (List.map (pair^~ 1) l) = Some 1.
+  Proof.
+    elim: l a => // a l IH a1; case/orP.
+    { move/eqP => ->.
+      rewrite /MProps.F.eqb /= /M.E.eq_dec /A'.eq_dec.
+      rewrite /A.eq_dec.
+      case: (A.eq_dec _ _) => // [H]; elimtype False; apply: H.
+      by rewrite -A.eqP. }
+    move => H; simpl; case H3: (MProps.F.eqb a1 a) => //.
+    by apply: IH.
+  Qed.
 
-(*   Lemma uniq_NoDupA (l : seq t) : *)
-(*     uniq l ->   *)
-(*     NoDupA A.eq l. *)
-(*   Proof. *)
-(*     elim: l => // a l IH; case/andP => H H1; constructor. *)
-(*     { by move => H2; apply: (notin_InA H). } *)
-(*     by apply: IH. *)
-(*   Qed.             *)
+  Lemma uniq_NoDupA (l : seq t) :
+    uniq l ->
+    NoDupA A.eq l.
+  Proof.
+    elim: l => // a l IH; case/andP => H H1; constructor.
+    { by move => H2; apply: (notin_InA H). }
+    by apply: IH.
+  Qed.
   
-(*   Section mwuproof. *)
-(*   (*I introduce explicit names here to make the proofs that follow  *)
-(*     below more maintainable.*) *)
-(*   Context {GameTypeIsEnumerable : Enumerable t}. *)
-(*   Context {EnumerationOK : RefineTypeAxiomClass GameTypeIsEnumerable}. *)
+  Section mwuproof.
+  (*I introduce explicit names here to make the proofs that follow  *)
+(*     below more maintainable.*)
+  Context {GameTypeIsEnumerable : Enumerable t}.
+  Context {EnumerationOK : RefineTypeAxiomClass GameTypeIsEnumerable}.
+  Context {init_oracle_st : oracle_T}.
     
-(*   Lemma match_maps_init : match_maps (init_weights t) init_map. *)
-(*   Proof. *)
-(*     move => a; rewrite /init_weights /init_costs /init_map. *)
-(*     generalize (enumerateP t) => [][]H Huniq; move: (H a) => H2. *)
-(*     move: (enumP (T:=t) a) => H3. *)
-(*     exists 1; rewrite MProps.of_list_1b. *)
-(*     { split. *)
-(*       { apply: findA_map1_Some1; rewrite H2 mem_enum => //. } *)
-(*       by rewrite ffunE. } *)
-(*     have H4: forall x y, M.eq_key (elt:=Q) ((pair^~ 1) x) ((pair^~ 1) y) -> A.eq x y. *)
-(*     { by []. } *)
-(*     apply: (@NoDupA_map _ _ _ (M.eq_key (elt:=Q)) _ _ H4). *)
-(*     by apply: uniq_NoDupA. *)
-(*   Qed. *)
+  Lemma match_maps_init : match_maps (init_weights t) init_map.
+  Proof.
+    move => a; rewrite /init_weights /init_costs /init_map.
+    generalize (enumerateP t) => [][]H Huniq; move: (H a) => H2.
+    move: (enumP (T:=t) a) => H3.
+    exists 1; rewrite MProps.of_list_1b.
+    { split.
+      { apply: findA_map1_Some1; rewrite H2 mem_enum => //. }
+      by rewrite ffunE. }
+    have H4: forall x y, M.eq_key (elt:=Q) ((pair^~ 1) x) ((pair^~ 1) y) -> A.eq x y.
+    { by []. }
+    apply: (@NoDupA_map _ _ _ (M.eq_key (elt:=Q)) _ _ H4).
+    by apply: uniq_NoDupA.
+  Qed.
 
-(*   Lemma match_states_init eps eps_ok : *)
-(*     match_states (@init_state t eps eps_ok) (init_cstate (rat_to_Q eps)). *)
-(*   Proof. *)
-(*     constructor. *)
-(*     { apply: match_maps_init. } *)
-(*     { constructor. } *)
-(*     { apply: match_maps_init. } *)
-(*     apply: rat_to_Q_red. *)
-(*     constructor. *)
-(*   Qed. *)
+  Lemma match_states_init eps eps_ok :
+    match_states (@init_state t eps eps_ok)
+                 (init_cstate (init_oracle_st:=init_oracle_st)
+                              (bogus_chan:=oracle_bogus_chan)
+                              (rat_to_Q eps)).
+  Proof.
+    constructor.
+    { apply: match_maps_init. }
+    { constructor. }
+    { apply: match_maps_init. }
+    apply: rat_to_Q_red.
+    constructor.
+  Qed.
 
 (*   (*This is a technical lemma about the interpretation of the specific  *)
 (*     program [mult_weights t nx].*) *)
-(*   Lemma size_costs_interp_mult_weights (nx : N.t) eps tx : *)
-(*     (0 < nx)%N -> *)
-(*     interp (mult_weights t nx) (init_cstate (rat_to_Q eps)) = Some tx -> *)
-(*     (0 < size (SPrevCosts tx))%N. *)
-(*   Proof. *)
-(*     rewrite /init_cstate /=; case: (update_weights _ _) => //= a. *)
-(*     case Hnx: nx => /= [//|p]; rewrite Pos2Nat.inj_iter => H. *)
-(*     have [n ->]: exists n, Pos.to_nat p = n.+1. *)
-(*     { apply: Pos2Nat.is_succ. } *)
-(*     simpl. *)
-(*     case: (nat_rect _ _) => // [s1]. *)
-(*     case: (update_weights _ _) => //= a1. *)
-(*     inversion 1; subst => /=. *)
-(*     case: (SPrevCosts _) => //. *)
-(*   Qed. *)
+  Lemma size_costs_interp_mult_weights (nx : N.t) eps tx :
+    (0 < nx)%N ->
+    interp (mult_weights t nx)
+           (init_cstate (init_oracle_st:=init_oracle_st)
+                        (bogus_chan:=oracle_bogus_chan)
+                        (rat_to_Q eps)) = Some tx ->
+    (0 < size (SPrevCosts tx))%N.
+  Proof.
+    rewrite /init_cstate /=; case: (update_weights _ _) => //= a.
+    destruct (mwu_send a) eqn:Hsend.
+    case Hnx: nx => /= [//|p]; rewrite Pos2Nat.inj_iter => H.
+    have [n ->]: exists n, Pos.to_nat p = n.+1.
+    { apply: Pos2Nat.is_succ. }
+    simpl.
+    case: (nat_rect _ _) => // [s1].
+    destruct (mwu_recv (SChan s1)) eqn:Hrecv => /=.
+    case: (update_weights _ _) => //= a1.
+    destruct (mwu_send a1) eqn:Hsenda1.
+    inversion 1; subst => /=.
+    case: (SPrevCosts _) => //.
+  Qed.
   
-(*   (*[Reals] introduces its own scope [R], so this definition goes first.*) *)
-(*   Definition epsOk (eps : rat) : Prop := (0 < eps <= 1 / 2%:R)%R. *)
+  (*[Reals] introduces its own scope [R], so this definition goes first.*)
+  Definition epsOk (eps : rat) : Prop := (0 < eps <= 1 / 2%:R)%R.
   
-(*   Require Import Reals. *)
+  Require Import Reals.
   
-(*   Lemma interp_mult_weights_epsilon_no_regret : *)
-(*     forall (nx : N) (t' : cstate) (eps : rat) (eps_ok : epsOk eps), *)
-(*       (0 < nx)%N -> *)
-(*       interp (mult_weights t nx) (init_cstate (rat_to_Q eps)) = Some t' -> *)
-(*       exists s', *)
-(*         match_states s' t' /\ *)
-(*         ((state_expCost1 (all_costs0 s') s' - OPTR a0 s') / T nx <= *)
-(*          rat_to_R eps + *)
-(*          Rpower.ln (rat_to_R #|t|%:R) / (rat_to_R eps * T nx))%R. *)
-(*   Proof. *)
-(*     move => nx t' eps epsOk Hnx H. *)
-(*     case: (interp_step_plus H (match_states_init epsOk)) => c' []s'. *)
-(*     case => H2 [] []; first by case; inversion 1. *)
-(*     move => H3 H4; exists s'; split => //. *)
-(*     move: (size_costs_interp_mult_weights Hnx H) => H5. *)
-(*     have H6: size (SPrevCosts t') = size (all_costs' s'). *)
-(*     { inversion H4; subst; simpl in *. clear - H1. *)
-(*       rewrite /all_costs' /all_costs0 /all_costs. *)
-(*       rewrite /weightslang.SCosts /SCostsOk /weightslang.SPrevCosts. *)
-(*       rewrite size_map size_removelast /=. *)
-(*       clear - H1. induction H1 => //. *)
-(*       by rewrite /= IHmatch_costs_seq. } *)
-(*     have H7: (0 < size (all_costs' s'))%N. *)
-(*     { by rewrite -H6. } *)
-(*     inversion H2; subst. *)
-(*     apply: mult_weights_epsilon_no_regret => //. *)
-(*     apply: H3. *)
-(*   Qed. *)
-(*   End mwuproof. *)
-(*   Print Assumptions interp_mult_weights_epsilon_no_regret. *)
-(*   End mwuproof. *)
-(*   End mwuProof. *)
-(* End MWUProof. *)
+  Lemma interp_mult_weights_epsilon_no_regret :
+    forall (nx : N) (t' : cstate) (eps : rat) (eps_ok : epsOk eps),
+      (0 < nx)%N ->
+      interp (mult_weights t nx)
+             ((init_cstate (init_oracle_st:=init_oracle_st)
+                           (bogus_chan:=oracle_bogus_chan)
+                           (rat_to_Q eps))) = Some t' ->
+      exists s',
+        match_states s' t' /\
+        ((state_expCost1 (all_costs0 s') s' - OPTR a0 s') / T nx <=
+         rat_to_R eps +
+         Rpower.ln (rat_to_R #|t|%:R) / (rat_to_R eps * T nx))%R.
+  Proof.
+    move => nx t' eps epsOk Hnx H.
+    case: (interp_step_plus H (match_states_init epsOk)) => c' []s'.
+    case => H2 [] []; first by case; inversion 1.
+    move => H3 H4; exists s'; split => //.
+    move: (size_costs_interp_mult_weights Hnx H) => H5.
+    have H6: size (SPrevCosts t') = size (all_costs' s').
+    { inversion H4; subst; simpl in *. clear - H1.
+      rewrite /all_costs' /all_costs0 /all_costs.
+      rewrite /weightslang.SCosts /SCostsOk /weightslang.SPrevCosts.
+      rewrite size_map size_removelast /=.
+      clear - H1. induction H1 => //.
+      by rewrite /= IHmatch_costs_seq. }
+    have H7: (0 < size (all_costs' s'))%N.
+    { by rewrite -H6. }
+    inversion H2; subst.
+    apply: mult_weights_epsilon_no_regret => //.
+    apply: H3.
+  Qed.
+  Print Assumptions interp_mult_weights_epsilon_no_regret.
+  End mwuproof.
+  End mwuProof.
+End MWUProof.
 
 (* For some reason when I try to just use Coq unit type directly here
    it introduces a new "unit0" type in the extracted OCaml code which
