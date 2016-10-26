@@ -46,7 +46,9 @@ Definition validPath (p : path) : bool :=
 Instance predInstance_validPath : PredClass path := validPath.
 
 Definition pathType := [finType of {p : path | the_pred p}].
-
+Check cancel.
+Check pathType.
+Print pathType.
 Section pathTest.
   Variable p : path.
   Variable N : nat.

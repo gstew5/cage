@@ -54,7 +54,31 @@ Module MyOrderedType_of_OrderedFinType
        (A : OrderedFinType) <: MyOrderedType.
   Include A.                                
 End MyOrderedType_of_OrderedFinType.
-  
+
+Module OrderedUnit <: MyOrderedType.
+  Definition t := Unit.
+  Definition t0 := mkUnit.
+  Definition enumerable := unit_enum.
+  Definition cost_instance := unitCCostInstance.
+  Definition cost_max := unitCCostMaxInstance.
+  Definition showable := unitShowable.
+  Definition eq u1 u2 := Unit_eq u1 u2 = true.
+  Definition lt (u1 u2 : Unit) := False.
+  Lemma eq_refl : forall x, eq x x. by []. Qed.
+  Lemma eq_symm : forall x y, eq x y -> eq y x. by []. Qed.
+  Lemma eq_trans : forall x y z, eq x y -> eq y z -> eq x z. by []. Qed.
+  Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z. by []. Qed.
+  Lemma lt_not_eq : forall x y, lt x y -> ~ eq x y. by []. Qed.
+  Lemma compare : forall x y, Compare lt eq x y.
+    move => x y; by apply EQ => //. Qed.
+  Lemma eq_dec : forall x y, {eq x y} + {~ eq x y}. by left => //. Qed.
+  Lemma eqP : forall x y, x = y <-> eq x y.
+  Proof.
+    move => x y. split; first by [].
+    case: x => H. case y => //.
+  Qed.
+End OrderedUnit.
+
 Module OrderedResource <: MyOrderedType.
   Definition t := resource.
   Definition t0 := RYes.
