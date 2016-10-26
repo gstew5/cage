@@ -110,12 +110,13 @@ Module MWU := MWU P5Scaled'.
 Existing Instance P5Scaled'.enumerable.
 
 (*Why doesn' Coq discover this instance in the following definition?*)
-Definition mwu0 (eps : Q) (nx : N.t) :=
+Definition mwu0 (eps : Q) (nx : N.t) {T : Type} {oracle : ClientOracle T}
+           (init_oracle_st : T) (bogus_chan : oracle_chanty) :=
   MWU.interp
     (weightslang.mult_weights P5Scaled'.t nx)
-    (MWU.init_cstate eps).
+    (@MWU.init_cstate T oracle init_oracle_st bogus_chan _ eps).
 
-Definition mwu := mwu0 (Qmake 1 4) 40.
+Definition mwu := mwu0 (Qmake 1 4) 40 empty_ax_st ax_bogus_chan.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
