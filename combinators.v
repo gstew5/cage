@@ -1362,6 +1362,11 @@ Extraction resources'.
 
 (** Sigma games are compilable *)
 
+Instance sigmaCCostMaxInstance (N : nat) (A : Type)
+         (predInstance : PredClass A)
+         (ccostMaxInstance : CCostMaxClass N A)
+  : @CCostMaxClass N {x : A | the_pred x} := ccostMaxInstance.
+
 Section sigmaCompilable.
 
   Definition to_sigma A (f : A -> bool) (x : A) : option {x : A | f x} :=
@@ -1540,11 +1545,6 @@ Section sigmaCompilable.
            (ccostA : CCostClass N A)
            (refineA : RefineCostAxiomClass costA ccostA)
     : @RefineCostClass N [finType of {x : A | the_pred x}] _ _ _.
-
-  Instance sigmaCCostMaxInstance (N : nat) (A : Type)
-           (predInstance : PredClass A)
-           (ccostMaxInstance : CCostMaxClass N A)
-    : @CCostMaxClass N {x : A | the_pred x} := ccostMaxInstance.
 
   Instance sigmaCostMaxRefineInstance (N : nat) (A : finType)
            (predInstance : PredClass A)
@@ -2511,12 +2511,13 @@ End biasSmoothTest. End BiasSmoothTest.
   Instance biasCCostMaxInstance N (A : Type) `(cmax : CCostMaxClass N A) (q : rat)
     : @CCostMaxClass N (bias q A) := ((rat_to_Q q) + cmax)%Q.
 
+  Instance biasCTypeInstance A (q : rat)
+           `(Enumerable A)
+    : Enumerable (bias q A) :=
+    map (@Wrap (Bias q) A) (enumerate A).
 
 Section biasCompilable.
   Context {A N} {q : rat} `{cgame N A}.
-
-  Instance biasCTypeInstance
-    : Enumerable (bias q A) := map (@Wrap (Bias q) A) (enumerate A).
 
   Program Instance biasRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (biasType q A) _.

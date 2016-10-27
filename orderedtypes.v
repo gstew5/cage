@@ -397,16 +397,16 @@ End OrderedBiasType.
                       
 Module OrderedBias (T : OrderedBiasType) <: MyOrderedType.
   Definition t := bias T.bias T.t.
-  Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) T.bias) T.t0.
+  Definition t0 := Wrap (Bias (rty:=rat_realFieldType) T.bias) T.t0.
   Definition enumerable : Enumerable t :=
-    biasEnumerableInstance T.enumerable T.bias.
+    biasCTypeInstance T.bias T.enumerable.
   Definition cost_instance (N : nat) :=
-    scalarCCostInstance T.enumerable (T.cost_instance N) (q:=T.bias).
+    biasCCostInstance T.enumerable (T.cost_instance N) (q:=T.bias).
   Definition cost_max (N : nat) :=
-    scalarCCostMaxInstance (T.cost_max N) T.bias.
-  Definition show_scalar (x : t) : string :=
-    append "Scalar" (to_string (unwrap x)).
-  Instance showable : Showable t := mkShowable show_scalar.
+    biasCCostMaxInstance (T.cost_max N) T.bias.
+  Definition show_bias (x : t) : string :=
+    append "Bias" (to_string (unwrap x)).
+  Instance showable : Showable t := mkShowable show_bias.
   Definition eq (x1 x2 : t) := T.eq (unwrap x1) (unwrap x2).
   Definition lt (x1 x2 : t) := T.lt (unwrap x1) (unwrap x2).
   Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
@@ -433,4 +433,46 @@ Module OrderedBias (T : OrderedBiasType) <: MyOrderedType.
     rewrite /eq /= in H; f_equal.
     by rewrite T.eqP.
   Qed.
-End OrderedScalar.
+End OrderedBias.
+
+Module Type OrderedAffineType.
+  Include MyOrderedType.
+  Parameter scal : rat.
+  Parameter bias : rat.
+  Parameter a0 : t.
+End OrderedAffineType.
+
+Module OrderedScalarType_of_OrderedAffineType (A : OrderedAffineType)
+  <: OrderedScalarType.
+  Include A.      
+End OrderedScalarType_of_OrderedAffineType.
+
+Module OrderedBiasType_of_OrderedAffineType (A : OrderedAffineType)
+  <: OrderedBiasType.
+  Include A.      
+End OrderedBiasType_of_OrderedAffineType.
+
+Module OrderedAffine (A : OrderedAffineType) <: MyOrderedType.
+  Module S := OrderedScalarType_of_OrderedAffineType A.                       Module B := OrderedBiasType_of_OrderedAffineType A.
+  Module Scaled := OrderedScalar S.
+  Module Biased := OrderedBias B.
+  Module Prod := OrderedProd Scaled Biased.
+  Definition mypred (p : Prod.t) : bool :=
+    match p.1, p.2 with
+    | Wrap x, Wrap y => A.eq_dec x y
+    end.
+  Module Pred <: OrderedPredType.
+    Include Prod.                  
+    Definition pred := mypred.
+    Definition a0 : t := (Wrap _ A.a0, Wrap _ A.a0).
+    Lemma a0_pred : mypred a0.
+    Proof.
+      rewrite /a0 /mypred /=.
+      case H: (A.eq_dec A.a0 A.a0) => // [x].
+      move: (A.eqP A.a0 A.a0) => []H2 H3.
+      by elimtype False; move {H}; apply: x; apply: H2.
+    Qed.
+  End Pred.
+  Module P := OrderedSigma Pred.
+  Include P.
+End OrderedAffine.  
