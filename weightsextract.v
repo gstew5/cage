@@ -129,8 +129,7 @@ Module MWU (A : MyOrderedType).
     M.fold (fun a q acc => q + acc) weights 0.
 
   Section mwu.
-    Context {T : Type} `{oracle: ClientOracle T}
-            {init_oracle_st : T} {bogus_chan : oracle_chanty}.
+    Context {T : Type} `{oracle: ClientOracle T} {init_oracle_st : T}.
 
     Record cstate : Type :=
       mkCState
@@ -306,7 +305,7 @@ Module MWU (A : MyOrderedType).
           init_map
           epsQ
           [::]
-          bogus_chan
+          oracle_bogus_chan
           init_oracle_st.
     End init.
 
@@ -1063,10 +1062,6 @@ Module MWUProof (T : OrderedFinType).
         constructor. }
       inversion H2; subst. simpl in *.
       move: H1 H3 H4 H5 => Hchst H1 Heps H4.
-      (* move: H1 => Hchst. *)
-      (* move: H3 => H1. *)
-      (* move: H4 => Heps. *)
-      (* move: H5 => H4. *)
       have H3:
         pmf (p_aux_dist (A:=t) a0 (eps:=eps) eps_ok
                         (w:=w) w_ok (cs:=[::])
@@ -1262,7 +1257,6 @@ Module MWUProof (T : OrderedFinType).
   Lemma match_states_init eps eps_ok :
     match_states (@init_state t eps eps_ok)
                  (init_cstate (init_oracle_st:=init_oracle_st)
-                              (bogus_chan:=oracle_bogus_chan)
                               (rat_to_Q eps)).
   Proof.
     constructor.
@@ -1279,7 +1273,6 @@ Module MWUProof (T : OrderedFinType).
     (0 < nx)%N ->
     interp (mult_weights t nx)
            (init_cstate (init_oracle_st:=init_oracle_st)
-                        (bogus_chan:=oracle_bogus_chan)
                         (rat_to_Q eps)) = Some tx ->
     (0 < size (SPrevCosts tx))%N.
   Proof.
@@ -1307,7 +1300,6 @@ Module MWUProof (T : OrderedFinType).
       (0 < nx)%N ->
       interp (mult_weights t nx)
              ((init_cstate (init_oracle_st:=init_oracle_st)
-                           (bogus_chan:=oracle_bogus_chan)
                            (rat_to_Q eps))) = Some t' ->
       exists s',
         match_states s' t' /\
