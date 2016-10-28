@@ -2,8 +2,8 @@
 
 EPSILON=0.25
 OUTFILE=out.txt
-CLIENTS=3
-ROUNDS=3
+CLIENTS=5
+ROUNDS=10
 
 # kill ./server.native if it's currently running
 pkill -f ./server.native

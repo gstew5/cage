@@ -93,11 +93,10 @@ Fixpoint sample_aux
   match l with
   | nil => a0 (*should never occur*)
   | (a, w) :: l' =>
-    let p := Qred (Qdiv w sum) in
-    let acc_p := Qred (Qplus acc p) in
-    if Qle_bool acc r && Qle_bool r acc_p then
+    let p := Qdiv w sum in
+    if Qle_bool acc r && Qle_bool r (Qplus acc p) then
       eprint_string "Chose action " a
-    else sample_aux a0 acc_p r sum l'
+    else sample_aux a0 (Qplus acc p) r sum l'
   end.
 
 (* Client oracle *)
@@ -1344,11 +1343,10 @@ Extract Constant empty_ax_st => "()".
 Axiom rand : ax_st_ty -> (Q * ax_st_ty). (*in range [0,1]*)
 Extract Constant rand =>
  "fun _ -> 
-  let rec q_of_ocamlint i = 
-    let qzero = { qnum = Big_int.zero_big_int; qden = Big_int.unit_big_int } in
-    let qone = { qnum = Big_int.unit_big_int; qden = Big_int.unit_big_int } in
-    let qtwo = { qnum = Big_int.succ_big_int Big_int.unit_big_int; 
-                 qden = Big_int.unit_big_int } in
+  let rec q_of_ocamlint i =
+    let qzero = { qnum = Z0; qden = XH } in
+    let qone = { qnum = Zpos XH; qden = XH } in
+    let qtwo = { qnum = Zpos (XO XH); qden = XH } in
     if i = 0 then qzero
     else if i mod 2 = 0 then qmult qtwo (q_of_ocamlint (i/2))
     else qplus (qmult qtwo (q_of_ocamlint (i/2))) qone
@@ -1360,8 +1358,8 @@ Extract Constant rand =>
   let sd = String.sub s 2 2 in (*2 digits of precision*)
   let d = int_of_string sd in
   let qn = q_of_ocamlint d in 
-  let qonehund = Big_int.big_int_of_int 100 in
-  let q = qmult qn { qnum = Big_int.unit_big_int; qden = qonehund } 
+  let qonehund = XO (XO (XI (XO (XO (XI XH))))) in
+  let q = qmult qn { qnum = Zpos XH; qden = qonehund } 
   in
   Printf.eprintf ""Generated random r = %f"" r; prerr_newline ();
   Pair (q, ())".
