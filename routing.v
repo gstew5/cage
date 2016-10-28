@@ -274,7 +274,7 @@ Definition mwu0 (eps : Q) (nx : N.t)
     (weightslang.mult_weights P8Scaled'.t nx)
     (@MWU.init_cstate T oracle init_oracle_st _ eps).
 
-Definition mwu := mwu0 (Qmake 1 4) 5 empty_ax_st ax_bogus_chan.
+Definition mwu := mwu0 (Qmake 1 4) 5 empty_ax_st.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
