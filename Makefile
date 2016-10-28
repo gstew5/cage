@@ -113,7 +113,8 @@ VFILES:=axioms.v\
   weights.v\
   orderedtypes.v\
   server.v\
-  strings.v
+  strings.v\
+  extract.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))

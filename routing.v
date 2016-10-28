@@ -13,7 +13,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import numerics combinators games compile orderedtypes.
-Require Import weightsextract server.
+Require Import extract weightsextract server.
 
 Local Open Scope ring_scope.
 
@@ -227,7 +227,7 @@ Instance BoolableT n : Boolable (T n) :=
   end.
 End T.
 
-Definition num_players : nat := 10.
+Definition num_players : nat := 3.
 
 Module P8Scalar <: OrderedScalarType.
   Include P8.
@@ -274,7 +274,7 @@ Definition mwu0 (eps : Q) (nx : N.t)
     (weightslang.mult_weights P8Scaled'.t nx)
     (@MWU.init_cstate T oracle init_oracle_st _ eps).
 
-Definition mwu := mwu0 (Qmake 1 4) 40 empty_ax_st.
+Definition mwu := mwu0 (Qmake 1 4) 5 empty_ax_st ax_bogus_chan.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
