@@ -15,14 +15,14 @@ Module Type ServerConfig.
   Parameter num_rounds : nat.
 End ServerConfig.
 
-Class Oracle T :=
+Class ServerOracle T :=
   mkOracle { oracle_chan : Type
              ; oracle_state : T
              ; oracle_init : nat -> (oracle_chan * T)
              ; oracle_recv : forall A : Type,
-                 oracle_chan -> (A * oracle_chan * T)
+                 T -> oracle_chan -> (A * oracle_chan * T)
              ; oracle_send : forall A : Type,
-                 option oracle_chan ->
+                 T -> option oracle_chan ->
                  nat (*player index*) ->
                  list (A * Q) -> T
            }.
@@ -32,7 +32,7 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
   Context `{GameTypeIsEnumerable : Enumerable A.t}.
   Context `{CCostInstance : CCostClass C.num_players A.t}.
   Context `{ShowableInstance : Showable A.t}.
-  Context T `{oracle : Oracle T}.
+  Context T `{oracle : ServerOracle T}.
 
   Record state : Type :=
     mkState { actions_received : M.t A.t
@@ -61,11 +61,11 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
     | O => s
     | S player' =>
       let v := cost_vector s (N.of_nat player') in
-      let st := oracle_send (hd_error (service_channels s)) player' v
+      let st' := oracle_send (oracle_st s) (hd_error (service_channels s)) player' v
       in send (mkState (actions_received s)
                        (listen_channel s)
                        (tl (service_channels s))
-                       st)
+                       st')
               player'
     end.
   
@@ -77,7 +77,7 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
                          (oracle_st s))
                 C.num_players (*reset cur_player=num_players*)
     | S player' =>
-      let '(a, c, st) := oracle_recv _ (listen_channel s) in
+      let '(a, c, st') := oracle_recv _ (oracle_st s) (listen_channel s) in
       let s' := eprint_showable a s in
       let s'':= eprint_newline s' in
       round
@@ -85,7 +85,7 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
            (M.add (N.of_nat player') a (actions_received s''))
            (listen_channel s'')
            (service_channels s'' ++ c::nil)
-           st)
+           st')
         player'
     end.
 
@@ -103,7 +103,7 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
   End server.
 End Server.
 
-(** Axiomatized oracle *)
+(** Axiomatized server oracle *)
 
 Axiom result : Type.
 Extract Constant result => "unit".
@@ -132,9 +132,9 @@ Extract Constant server_init =>
    Pair (sd, ())".
 
 (* Blocking server receive *)
-Axiom server_recv : forall A : Type, chan -> (A * chan * result).
+Axiom server_recv : forall A : Type, result -> chan -> (A * chan * result).
 Extract Constant server_recv =>
-"fun sd ->
+"fun _ sd ->
    let _ = Printf.eprintf ""Waiting...""; prerr_newline () in
    let (service_socket, _) = Unix.accept sd in
    let in_chan = Unix.in_channel_of_descr service_socket in
@@ -144,11 +144,11 @@ Extract Constant server_recv =>
 
 (* Server send *)
 Axiom server_send :
-  forall A : Type, option chan -> nat (*player index*) -> list (A * Q) -> result.
+  forall A : Type, result -> option chan -> nat (*player index*) -> list (A * Q) -> result.
 Extract Constant server_send =>
 (* Here it is taking service_socket as an argument which is assumed to *)
 (*    be the socket created in recv that corresponds to player i *)
-"fun service_socket i cost_vector ->
+"fun _ service_socket i cost_vector ->
    let _ = Printf.eprintf ""Sending...""; prerr_newline () in
    match service_socket with
    | Some sock ->
@@ -157,5 +157,5 @@ Extract Constant server_send =>
      close_out out_chan
    | None -> Printf.eprintf ""Error: Empty socket""; prerr_newline ()".
 
-Instance ax_oracle : Oracle result :=
+Instance ax_oracle : ServerOracle result :=
   mkOracle bogus_result server_init server_recv server_send.

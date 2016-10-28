@@ -106,15 +106,15 @@ Class ClientOracle T :=
              ; oracle_state : T
              ; oracle_rand : T -> (Q * T)
              ; oracle_recv : forall A : Type,
-                 oracle_chanty -> (list (A * Q) * T)
+                 T -> oracle_chanty -> (list (A * Q) * T)
              ; oracle_send : forall A : Type,
-                 A -> (oracle_chanty * T)
-             ; oracle_recv_ok : forall A (a : A) ch,
+                 T -> A -> (oracle_chanty * T)
+             ; oracle_recv_ok : forall A (a : A) st ch,
                  exists q,
-                   [/\ In (a, q) (oracle_recv _ ch).1
+                   [/\ In (a, q) (oracle_recv _ st ch).1
                     & 0 <= q <= 1]
-             ; oracle_recv_nodup : forall (A : Type) ch,
-                 NoDupA (fun p q => p.1 = q.1) (oracle_recv A ch).1
+             ; oracle_recv_nodup : forall (A : Type) st ch,
+                 NoDupA (fun p q => p.1 = q.1) (oracle_recv A st ch).1
            }.
 
 (** * Program *)
@@ -161,18 +161,18 @@ Module MWU (A : MyOrderedType).
 
     (** Draw from a distribution, communicating the resulting action 
       to the network. *)
-    Definition mwu_send (m : M.t Q) : (oracle_chanty * T) :=
+    Definition mwu_send (m : M.t Q) (oracle_st : T) : (oracle_chanty * T) :=
       let a := sample A.t0 to_string (M.elements m) in
       let a' := eprint_showable a a in
       let a'' := eprint_newline a' in
-      oracle_send a''.
+      oracle_send oracle_st a''.
 
     (* Receive a cost vector (a map) from the network. *)
-    Definition mwu_recv : oracle_chanty -> (M.t Q * T) :=
-      fun ch =>
-        let (l, st) := oracle_recv _ ch in
+    Definition mwu_recv : oracle_chanty -> T -> (M.t Q * T) :=
+      fun ch => fun st =>
+        let (l, st') := oracle_recv _ st ch in
         let l':= print_Qvector to_string l l in
-        (MProps.of_list l', st).
+        (MProps.of_list l', st').
 
     Definition eval_binopc (b : binop) (v1 v2 : Q) :=
       match b with
@@ -251,7 +251,7 @@ Module MWU (A : MyOrderedType).
                      (SOracleSt s))
            end
       | CRecv =>
-        let (c, st) := mwu_recv (SChan s)
+        let (c, st') := mwu_recv (SChan s) (SOracleSt s)
         in Some (mkCState
                    c
                    (SCosts s :: SPrevCosts s)
@@ -259,9 +259,9 @@ Module MWU (A : MyOrderedType).
                    (SEpsilon s)
                    (SOutputs s)
                    (SChan s)
-                   st)
+                   st')
       | CSend =>
-        let (ch, st) := mwu_send (SWeights s) in
+        let (ch, st') := mwu_send (SWeights s) (SOracleSt s) in
         let d := weights_distr (SWeights s)
         in Some (mkCState
                    (SCosts s)
@@ -270,7 +270,7 @@ Module MWU (A : MyOrderedType).
                    (SEpsilon s)
                    (d :: SOutputs s)
                    ch
-                   st)
+                   st')
       | CSeq c1 c2 =>
         match interp c1 s with
         | None => None
@@ -361,24 +361,24 @@ Module MWUProof (T : OrderedFinType).
     Context oracle_T `{oracle: ClientOracle oracle_T}.
     
     Lemma recv_ok :
-      forall a ch,
+      forall a st ch,
       exists q,
-        [/\ M.find a (mwu_recv ch).1 = Some q
+        [/\ M.find a (mwu_recv ch st).1 = Some q
          & 0 <= q <= 1].
     Proof.
       rewrite /mwu_recv.
-      move => a0 ch.
-      have H: NoDupA (M.eq_key (elt:=Q)) (oracle_recv _ ch).1.
-      { move: (oracle_recv_nodup M.key ch) => H.
+      move => a0 st ch.
+      have H: NoDupA (M.eq_key (elt:=Q)) (oracle_recv _ st ch).1.
+      { move: (oracle_recv_nodup M.key st ch) => H.
         rewrite NoDupA_ext; first by apply: H.
         rewrite /M.eq_key /M.Raw.Proofs.PX.eqk => a b.
           by rewrite -A.eqP. }
       move: a0 => a.
-      case: (oracle_recv_ok a ch) => q []H2 H3.
+      case: (oracle_recv_ok a st ch) => q []H2 H3.
       exists q; split => //.
-      destruct (oracle_recv M.key ch).
+      destruct (oracle_recv M.key st ch).
       rewrite MProps.of_list_1b => //.
-      move: H H2 {H3}; rewrite print_Qvector_id; move: (oracle_recv M.key ch) a q.
+      move: H H2 {H3}; rewrite print_Qvector_id; move: (oracle_recv M.key st ch) a q.
       move=> _ /=. move: l. elim => // [][]a' q' l' IH a q; inversion 1; subst; case.
       { case => -> -> /=.
         have ->: MProps.F.eqb a a = true.
@@ -991,7 +991,7 @@ Module MWUProof (T : OrderedFinType).
       Unshelve. by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. }
     { intros s tx t'; inversion 1; subst. clear H.
       intros H2.
-      set c := mwu_recv (SChan tx).
+      set c := mwu_recv (SChan tx) (SOracleSt tx).
       set f :=
         finfun
           (fun a : t =>
@@ -1001,7 +1001,7 @@ Module MWUProof (T : OrderedFinType).
              end).
       have pf: forall a, (0 <= f a <= 1)%R.
       { move => a. rewrite /f ffunE. clear f.
-        case: (recv_ok a (SChan tx)) => q [] -> [] H H3.
+        case: (recv_ok a (SOracleSt tx) (SChan tx)) => q [] -> [] H H3.
         apply/andP; split.
         { rewrite -Q_to_rat0; apply: Q_to_rat_le.
           have H4: Qeq (Qred q) q by apply: Qred_correct.
@@ -1032,7 +1032,7 @@ Module MWUProof (T : OrderedFinType).
       destruct (mwu_recv ch) eqn:Hrecv. inversion H1; subst.
       constructor; try solve[auto | constructor; auto].
       rewrite /match_maps => a.
-      case: (recv_ok a ch) => q []. rewrite /f ffunE Hrecv => -> _.
+      case: (recv_ok a oracle_st ch) => q []. rewrite /f ffunE Hrecv => -> _.
       exists q.
       split; auto.
       by rewrite rat_to_QK. }
@@ -1330,6 +1330,8 @@ Module MWUProof (T : OrderedFinType).
   End mwuProof.
 End MWUProof.
 
+(** Axiomatized client oracle *)
+
 (* For some reason when I try to just use Coq unit type directly here
    it introduces a new "unit0" type in the extracted OCaml code which
    causes type errors. *)
@@ -1368,12 +1370,12 @@ Extract Constant ax_chan => "Unix.file_descr".
 Axiom ax_bogus_chan : ax_chan.
 Extract Constant ax_bogus_chan => "Unix.stderr".
 
-Axiom send : forall A : Type, A -> (ax_chan * ax_st_ty).
+Axiom send : forall A : Type, ax_st_ty -> A -> (ax_chan * ax_st_ty).
 Extract Constant send =>
 (* Create socket, connect to server, send action, return socket. *)
 (* Need to know IP address of the server, but it's also possible to do
    host name resolution. *)
-"fun a ->
+"fun _ a ->
    let _ = Printf.eprintf ""Sending...""; prerr_newline () in
    let sd = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
    Unix.connect sd (Unix.ADDR_INET
@@ -1384,10 +1386,10 @@ Extract Constant send =>
    Printf.eprintf ""Sent value...""; prerr_newline ();
    Pair (sd, ())".
 
-Axiom recv : forall A : Type, ax_chan -> (list (A*Q) * ax_st_ty).
+Axiom recv : forall A : Type, ax_st_ty -> ax_chan -> (list (A*Q) * ax_st_ty).
 Extract Constant recv =>
 (* Read cost vector from socket, close the socket *)
-"fun sd ->
+"fun _ sd ->
    let _ = Printf.eprintf ""Receiving...""; prerr_newline () in
    let in_chan = Unix.in_channel_of_descr sd in
    let cost_vector = Marshal.from_channel in_chan in
@@ -1396,12 +1398,12 @@ Extract Constant recv =>
    Pair (cost_vector, ())".
 
 Axiom recv_ok :
-  forall A (a : A) ch,
+  forall A (a : A) st ch,
   exists q,
-    [/\ In (a, q) (recv _ ch).1
+    [/\ In (a, q) (recv _ st ch).1
      & 0 <= q <= 1].
 Axiom recv_nodup :
-  forall (A : Type) ch, NoDupA (fun p q => p.1 = q.1) (recv A ch).1.
+  forall (A : Type) st ch, NoDupA (fun p q => p.1 = q.1) (recv A st ch).1.
 
 Instance client_ax_oracle : ClientOracle ax_st_ty :=
   mkOracle ax_bogus_chan empty_ax_st rand send recv_ok recv_nodup.
