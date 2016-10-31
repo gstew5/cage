@@ -17,7 +17,6 @@ End ServerConfig.
 
 Class ServerOracle T :=
   mkOracle { oracle_chan : Type
-             ; oracle_state : T
              ; oracle_init : nat -> (oracle_chan * T)
              ; oracle_recv : forall A : Type,
                  T -> oracle_chan -> (A * oracle_chan * T)
@@ -158,4 +157,4 @@ Extract Constant server_send =>
    | None -> Printf.eprintf ""Error: Empty socket""; prerr_newline ()".
 
 Instance ax_oracle : ServerOracle result :=
-  mkOracle bogus_result server_init server_recv server_send.
+  mkOracle server_init server_recv server_send.
