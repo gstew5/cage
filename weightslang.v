@@ -112,10 +112,27 @@ Definition mult_weights (A : Type) (n : N.t) : com A :=
     (** 2. The main MWU loop *)
     (CIter n (mult_weights_body A)).
 
+Section client_oracle.
+  Local Open Scope ring_scope.
+  
+  (* Client oracle *)
+  Class ClientOracle T :=
+    mkOracle { oracle_chanty : Type
+             ; oracle_rand : T -> (rat * T)
+             ; oracle_recv : forall A : finType,
+                 T -> oracle_chanty -> ({ffun A -> rat} * T)
+             ; oracle_send : forall A : Type,
+                 T -> A -> (oracle_chanty * T)
+             ; oracle_recv_ok : forall (A : finType) (a : A) st ch,
+                 0 <= (@oracle_recv _ st ch).1 a <= 1
+             }.
+End client_oracle.  
+
 Section semantics.
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
+  Context T `{Hco : ClientOracle T}.
 
   Record state : Type :=
     mkState
@@ -128,7 +145,9 @@ Section semantics.
       ; SEpsilon : rat (* epsilon -- a parameter *)
       ; SEpsilonOk : 0 < SEpsilon <= 1 / 2%:R 
         (* the history of the generated distributions over actions *)                     
-      ; SOutputs : seq (dist A rat_realFieldType) }.
+      ; SOutputs : seq (dist A rat_realFieldType)
+      ; SChan : oracle_chanty
+      ; SOracleSt : T }.
 
   Definition eval_binop (b : binop) (v1 v2 : rat) :=
     match b with
@@ -162,7 +181,7 @@ Section semantics.
     exists (c :: projT1 cs); apply/CMAXP => c'.
     rewrite in_cons; case/orP.
     { by move/eqP => ->. }
-    by move => H a; apply: (CMAXP _ (projT2 cs) c' H a).
+    by move => Hx a; apply: (CMAXP _ (projT2 cs) c' Hx a).
   Defined.
 
   Lemma CMAX_nil :
@@ -183,27 +202,42 @@ Section semantics.
              pf
              (SEpsilon s)             
              (SEpsilonOk s)
-             (SOutputs s) 
+             (SOutputs s)
+             (SChan s)
+             (SOracleSt s)
         in
         step (CUpdate f) s CSkip s'
              
   | SRecv :
-      forall (c : {ffun A -> rat}) (pf : forall a, 0 <= c a <= 1) s,
+      forall s,
+        let: p := oracle_recv A (SOracleSt s) (SChan s) in 
         let: s' :=
            @mkState
-             c
-             pf
+             p.1
+             (fun a => oracle_recv_ok a (SOracleSt s) (SChan s))
              (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
              (SWeights s)
              (SWeightsOk s)
              (SEpsilon s)
              (SEpsilonOk s)
              (SOutputs s)
+             (SChan s)
+             p.2
         in 
         step CRecv s CSkip s'
 
   | SSend :
       forall s,
+        let: d:=
+           p_aux_dist
+             a0
+             (SEpsilonOk s)
+             (SWeightsOk s)
+             CMAX_nil (*Important that [cs := nil] here! 
+                        [p_aux_dist] applied to the empty sequence
+                        of cost functions specializes to the distribution formed
+                        by: SWeights w / \Gamma. *) in
+        let: p := oracle_send (SOracleSt s) d in
         let: s' :=
            @mkState
              (SCosts s)
@@ -213,15 +247,9 @@ Section semantics.
              (SWeightsOk s)
              (SEpsilon s)
              (SEpsilonOk s)             
-             (p_aux_dist
-                a0
-                (SEpsilonOk s)
-                (SWeightsOk s)
-                CMAX_nil (*Important that [cs := nil] here! 
-                           [p_aux_dist] applied to the empty sequence
-                           of cost functions specializes to the distribution formed
-                           by: SWeights w / \Gamma. *)
-                    :: SOutputs s)
+             (d :: SOutputs s)
+             p.1
+             p.2
         in 
         step CSend s CSkip s'
              
@@ -277,27 +305,39 @@ Section semantics.
              pf
              (SEpsilon s)             
              (SEpsilonOk s)
-             (SOutputs s) 
+             (SOutputs s)
+             (SChan s)
+             (SOracleSt s)
         in
         stepN (S n) (CUpdate f) s s'
              
   | NRecv :
-      forall n (c : {ffun A -> rat}) (pf : forall a, 0 <= c a <= 1) s,
+      forall n s,
+        let: p := oracle_recv A (SOracleSt s) (SChan s) in 
         let: s' :=
            @mkState
-             c
-             pf
+             p.1
+             (fun a => oracle_recv_ok a (SOracleSt s) (SChan s))
              (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
              (SWeights s)
              (SWeightsOk s)
              (SEpsilon s)             
              (SEpsilonOk s)
              (SOutputs s)
+             (SChan s)
+             p.2
         in 
         stepN (S n) CRecv s s'
 
   | NSend :
       forall n s,
+        let: d:=
+           p_aux_dist
+             a0
+             (SEpsilonOk s)
+             (SWeightsOk s)
+             CMAX_nil in
+        let: p := oracle_send (SOracleSt s) d in        
         let: s' :=
            @mkState
              (SCosts s)
@@ -307,12 +347,9 @@ Section semantics.
              (SWeightsOk s)
              (SEpsilon s)
              (SEpsilonOk s)
-             (p_aux_dist
-                a0
-                (SEpsilonOk s)
-                (SWeightsOk s)
-                CMAX_nil 
-                    :: SOutputs s)
+             (d :: SOutputs s)
+             p.1
+             p.2
         in 
         stepN (S n) CSend s s'
 
@@ -1006,6 +1043,9 @@ Section mult_weights_refinement.
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A.
+  Context T `{Hco : ClientOracle T}.
+
+  Notation "'state' A" := (@state A T Hco) (at level 50).
   
   (* REFINEMENT 1: 
      Show that 
@@ -1034,22 +1074,26 @@ Section mult_weights_refinement.
              (pf : forall a, 0 <= c a <= 1)
              (s : state A)
     : state A :=
-    let: old_costs := existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s
+    let: old_costs := existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s in
+    let: c_t := oracle_recv _ (SOracleSt s) (SChan s) in
+    let: d := p_aux_dist
+                a0
+                (SEpsilonOk s)
+                (update_weights_gt0 (SEpsilonOk s) pf (SWeightsOk s))         
+                (CMAX_nil (A:=A)) in
+    let: ch_t' := oracle_send c_t.2 d
     in 
-    @mkState A
-      c
-      pf
+    @mkState A T Hco
+      c_t.1
+      (fun a : A => oracle_recv_ok _ _ _)
       old_costs
       (update_weights (SEpsilon s) (SWeights s) c)
       (update_weights_gt0 (SEpsilonOk s) pf (SWeightsOk s))
       (SEpsilon s)
       (SEpsilonOk s)
-      (p_aux_dist
-         a0
-         (SEpsilonOk s)
-         (update_weights_gt0 (SEpsilonOk s) pf (SWeightsOk s))         
-         (CMAX_nil (A:=A))
-         :: SOutputs s).
+      (d :: SOutputs s)
+      ch_t'.1
+      ch_t'.2.
 
   (** [length cs] loops of the functional implementation. 
       *** NOTE ***  In this implementation of the algorithm, the sequence
@@ -1085,9 +1129,9 @@ Section mult_weights_refinement.
   Qed.
     
   Definition mult_weights1_init
-             (s : state A)
+             (s : state A) (ch : oracle_chanty) (t : T)
     : state A :=
-    @mkState A
+    @mkState A T Hco
       (SCosts s)
       (SCostsOk s)
       (SPrevCosts s)
@@ -1100,13 +1144,15 @@ Section mult_weights_refinement.
          (SEpsilonOk s)
          (init_weights_gt0 (A:=A))
          (CMAX_nil (A:=A))
-         :: SOutputs s).
+         :: SOutputs s)
+      ch
+      t.
 
   Definition mult_weights1
              (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
-             (s : state A)
+             (s : state A) ch t
     : state A :=
-    mult_weights1_loop_left cs (mult_weights1_init s).
+    mult_weights1_loop_left cs (mult_weights1_init s ch t).
 
   (** Now the proof: *)
   
@@ -1127,6 +1173,14 @@ Section mult_weights_refinement.
     f_equal.
     f_equal.
     apply: proof_irrelevance.
+    f_equal.
+    f_equal.
+    f_equal.
+    apply: proof_irrelevance.
+    f_equal.
+    f_equal.
+    f_equal.
+    apply: proof_irrelevance.    
   Qed.      
 
   Definition all_costs (s : state A) :=
@@ -1152,7 +1206,9 @@ Section mult_weights_refinement.
       exists l, all_costs s' = l ++ all_costs s.
   Proof.
     move => c s c' s'; induction 1; try solve[exists nil => //].
-    by exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1) c pf].
+      by exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1)
+                    (oracle_recv A (SOracleSt s) (SChan s)).1
+                    (fun a => oracle_recv_ok (A:=A) a (SOracleSt s) (SChan s))].
     by case: IHstep => l ->; exists l.                    
   Qed.
   
@@ -1161,10 +1217,10 @@ Section mult_weights_refinement.
     all_costs s' = [:: existT _ _ (SCostsOk s') & all_costs s].
   Proof. by rewrite /mult_weights1_one; case: s'; inversion 1; subst. Qed.
 
-  Lemma cat_cons' T (x : T) l1 l2 : l1 ++ x :: l2 = rcons l1 x ++ l2.
+  Lemma cat_cons' Tx (x : Tx) l1 l2 : l1 ++ x :: l2 = rcons l1 x ++ l2.
   Proof. by elim: l1 l2 x => // a l IH l2 x /=; rewrite IH. Qed.
 
-  Lemma rcons_inj T (x y : T) l1 l2 :
+  Lemma rcons_inj Tx (x y : Tx) l1 l2 :
     rcons l1 x = rcons l2 y -> l1 = l2 /\ x = y.
   Proof.
     elim: l1 l2.
@@ -1175,7 +1231,7 @@ Section mult_weights_refinement.
     by move => a1 l2; case => -> H2; case: (IH _ H2) => -> ->.
   Qed.
     
-  Lemma cat_inj T (l : list T) l0 s :
+  Lemma cat_inj Tx (l : list Tx) l0 s :
     l ++ s = l0 ++ s -> l = l0.
   Proof.
     elim: s l0 l; first by move => l0 l; rewrite 2!cats0.
@@ -1183,21 +1239,21 @@ Section mult_weights_refinement.
     by move: (IH _ _ H) => H2; case: (rcons_inj H2) => ->.
   Qed.
 
-  Lemma size_rev_cat1 T (a : T) l s :
+  Lemma size_rev_cat1 Tx (a : Tx) l s :
     (0 < size (rev l ++ [:: a & s]))%N.
   Proof.
     rewrite size_cat; elim: l => // a1 l IH.
     by rewrite size_rev.
   Qed.      
 
-  Lemma rev_nil T : rev (T:=T) nil = nil.
+  Lemma rev_nil Tx : rev (T:=Tx) nil = nil.
   Proof. by []. Qed.
 
-  Lemma rcons_nil_inv T (l : list T) x :
+  Lemma rcons_nil_inv Tx (l : list Tx) x :
     [::] = rcons l x -> False.
   Proof. by elim: l. Qed.
   
-  Lemma rev_inj T (l : list T) l0 :
+  Lemma rev_inj Tx (l : list Tx) l0 :
     rev l = rev l0 -> l = l0.
   Proof.
     elim: l l0.
@@ -1211,7 +1267,7 @@ Section mult_weights_refinement.
     by rewrite (IH _ H2).
   Qed.    
                         
-  Lemma catrev_cons_inv T (l : list T) s l0 x :
+  Lemma catrev_cons_inv Tx (l : list Tx) s l0 x :
     catrev l s = catrev l0 [:: x & s] ->
     l = [:: x & l0].
   Proof. by rewrite 2!catrevE -cat_rcons -rev_cons; move/cat_inj/rev_inj. Qed.
@@ -1242,7 +1298,7 @@ Section mult_weights_refinement.
     by exists [:: x & l]; rewrite H12 H10.
   Qed.    
 
-  Lemma catrev_inj_nil T (l : list T) x : catrev l x = x -> l = [::].
+  Lemma catrev_inj_nil Tx (l : list Tx) x : catrev l x = x -> l = [::].
   Proof.
     rewrite catrevE -(cat0s x); move/cat_inj.
     by rewrite -(revK [::]) => /rev_inj => ->.
@@ -1325,11 +1381,14 @@ Section mult_weights_refinement.
     apply: stepN_mult_weights_refines_mult_weights1_one.
     apply: H3.
   Qed.    
-  
+
   Lemma stepN_mult_weights_refines_mult_weights1_init :
-    forall n (s s' : state A),
+    forall n (s s' : state A) pf,
+      let: d := p_aux_dist (A:=A) a0 (eps:=SEpsilon s) (SEpsilonOk s)
+                           (w:=[ffun=> Q_to_rat 1]) pf (cs:=[::]) (CMAX_nil (A:=A)) in
+      let: p := oracle_send (SOracleSt s) d in
       stepN a0 n (mult_weights_init A) s s' ->
-      mult_weights1_init s = s'.
+      mult_weights1_init s p.1 p.2 = s'.
   Proof.
     move => n s s'; inversion 1; subst.
     inversion H6; subst.
@@ -1340,16 +1399,27 @@ Section mult_weights_refinement.
     f_equal.
     f_equal.
     apply: proof_irrelevance.
+    f_equal.
+    f_equal.
+    f_equal.
+    apply: proof_irrelevance.
+    f_equal.
+    f_equal.
+    f_equal.
+    apply: proof_irrelevance.
   Qed.
   
   Lemma stepN_mult_weights_refines_mult_weights1 :
-    forall n nx (s s' : state A) l,
+    forall n nx (s s' : state A) l pf,
+      let: d := p_aux_dist (A:=A) a0 (eps:=SEpsilon s) (SEpsilonOk s)
+                           (w:=[ffun=> Q_to_rat 1]) pf (cs:=[::]) (CMAX_nil (A:=A)) in
+      let: p := oracle_send (SOracleSt s) d in
       stepN a0 n (mult_weights A nx) s s' ->
       catrev l (all_costs s) = all_costs s' -> 
-      mult_weights1 l s = s'.
+      mult_weights1 l s p.1 p.2 = s'.
   Proof.
     move => n nx s s'; inversion 1; subst.
-    move: (stepN_mult_weights_refines_mult_weights1_init H3) => H7.
+    move: (stepN_mult_weights_refines_mult_weights1_init pf H3) => H7.
     rewrite -H7 in H6.
     rewrite /mult_weights1 => H8.
     apply: stepN_mult_weights_refines_mult_weights1_loop.
@@ -1358,13 +1428,16 @@ Section mult_weights_refinement.
   Qed.
 
   Lemma step_plus_mult_weights_refines_mult_weights1 :
-    forall nx (s s' : state A) c' l,
+    forall nx (s s' : state A) c' l pf,
+      let: d := p_aux_dist (A:=A) a0 (eps:=SEpsilon s) (SEpsilonOk s)
+                           (w:=[ffun=> Q_to_rat 1]) pf (cs:=[::]) (CMAX_nil (A:=A)) in
+      let: p := oracle_send (SOracleSt s) d in
       step_plus a0 (mult_weights A nx) s c' s' ->
       final_com c' ->
       catrev l (all_costs s) = all_costs s' ->       
-      mult_weights1 l s = s'.
+      mult_weights1 l s p.1 p.2 = s'.
   Proof.
-    move => nx s s' c' l; move/step_plus_stepN => H H2; case: (H H2) => n H3.
+    move => nx s s' c' l pf; move/step_plus_stepN => H H2; case: (H H2) => n H3.
     apply: stepN_mult_weights_refines_mult_weights1.
     apply: H3.
   Qed.
@@ -1520,7 +1593,7 @@ Section mult_weights_refinement.
   Qed.                 
   
   Lemma mult_weights1_one_hd
-        (c : {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
+        (c : {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1})
         cs
         (s : state A)
         d :
@@ -1539,7 +1612,9 @@ Section mult_weights_refinement.
                (SPrevCosts s')
                (SWeightsOk s')
                (SEpsilonOk s')
-               (d :: SOutputs s)))).
+               (d :: SOutputs s)
+               (SChan s')
+               (SOracleSt s')))).
   Proof. by case H: (mult_weights1_loop_right cs s). Qed.
 
   Lemma mult_weights1_loop_right_refines_p_aux_dist :
@@ -1592,11 +1667,11 @@ Section mult_weights_refinement.
       results in final output distribution equal to that 
       calculated by [pdist]. *)
   Lemma mult_weights1_refines_pdist :
-    forall cs (s : state A),
-      List.hd_error (SOutputs (mult_weights1 cs s)) = 
+    forall cs (s : state A) ch t,
+      List.hd_error (SOutputs (mult_weights1 cs s ch t)) = 
         Some (pdist a0 (SEpsilonOk s) (@CMAX_all (rev cs))).
   Proof.
-    move => cs s; rewrite /mult_weights1 mult_weights1_loop_leftright.
+    move => cs s ch t; rewrite /mult_weights1 mult_weights1_loop_leftright.
     rewrite (@mult_weights1_loop_right_refines_p_aux_dist _ _ nil (init_weights A)).
     { apply: init_weights_gt0. }
     { move => H1; f_equal; rewrite /pdist /p_aux_dist /p cats0; f_equal => /=.
@@ -1615,7 +1690,9 @@ Section mult_weights_refinement.
       Some (pdist a0 (SEpsilonOk s) (@CMAX_all (rev l))).
   Proof.
     move => nx s c' s' l H H2 H3.
-    rewrite -(step_plus_mult_weights_refines_mult_weights1 H H2 H3).
+    have pf: forall a : A, 0 < [ffun=> Q_to_rat 1] a.
+    { by move => a; rewrite ffunE. }
+    rewrite -(step_plus_mult_weights_refines_mult_weights1 pf H H2 H3).
     by rewrite mult_weights1_refines_pdist.
   Qed.      
 End mult_weights_refinement.
@@ -1646,7 +1723,10 @@ Section semantics_lemmas.
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
+  Context T `{Hco : ClientOracle T}.
 
+  Notation "'state' A" := (@state A T Hco) (at level 50).
+  
   (** The total expected cost of state [s].
     Assuming costs are (in fold-right form):
                  c_1 :: c_2 :: ... :: c_T :: c_(T+1)
@@ -1731,14 +1811,14 @@ Section semantics_lemmas.
   Qed.
     
   Lemma state_expCost12_mult_weights1 :
-    forall cs s s',
+    forall cs s s' ch t,
       SOutputs s = [::] -> 
-      mult_weights1 a0 (rev cs) s = s' ->
+      mult_weights1 a0 (rev cs) s ch t = s' ->
       state_expCost1 cs s' = state_expCost2 (SEpsilonOk s) cs.
   Proof.
-    rewrite /mult_weights1 => cs s s'.
+    rewrite /mult_weights1 => cs s s' ch t.
     rewrite mult_weights1_loop_leftright revK.
-    set s0 := mult_weights1_init a0 s.
+    set s0 := mult_weights1_init a0 s ch t.
     set w :=
       p_aux_dist (A:=A) a0 (eps:=SEpsilon s) (SEpsilonOk s)
                  (w:=init_weights A)
@@ -1768,7 +1848,9 @@ Section semantics_lemmas.
       state_expCost1 l s' = state_expCost2 (SEpsilonOk s) l.
   Proof.
     move => nx c' s s' l H0 H H2 H3.
-    move: (step_plus_mult_weights_refines_mult_weights1 H H2 H3).
+    have pf: forall a : A, 0 < [ffun=> Q_to_rat 1] a.
+    { by move => a; rewrite ffunE. }
+    move: (step_plus_mult_weights_refines_mult_weights1 pf H H2 H3).
     by move/state_expCost12_mult_weights1; move/(_ H0).
   Qed.
 
@@ -1807,9 +1889,9 @@ Section semantics_lemmas.
   Variable epsOk : 0 < eps <= 1/2%:R.
   Notation epsR := (rat_to_R eps).
   
-  Definition init_state :=
+  Definition init_state (ch : oracle_chanty) (t : T) :=
     @mkState
-      _
+      _ _ _ 
       init_costs (** The initial cost function is never used -- 
                      we only include it because the type [state] forces 
                      an [SCost] projection. *)
@@ -1819,9 +1901,11 @@ Section semantics_lemmas.
       init_weights_ok
       eps
       epsOk
-      [::].
+      [::]
+      ch
+      t.
 
-  Lemma size_all_costs_init_state : size (all_costs init_state) = 1%N.
+  Lemma size_all_costs_init_state ch t : size (all_costs (init_state ch t)) = 1%N.
   Proof. by []. Qed.
   
   (** Because the last cost vector is bogus, we remove it using 
@@ -1852,36 +1936,36 @@ Section semantics_lemmas.
   Definition num_costs (s : state A) := INR (size (all_costs' s)).
 
   Lemma mult_weights_T :
-    forall nx (c' : com A) (s' : state A),
+    forall nx (c' : com A) (s' : state A) ch t,
       (0 < size (all_costs s'))%N ->       
-      step_plus a0 (mult_weights A nx) init_state c' s' ->
+      step_plus a0 (mult_weights A nx) (init_state ch t) c' s' ->
       final_com c' -> 
       num_costs s' = INR (N.to_nat nx).
   Proof.    
-    move => nx c' s' Hsz H H2.
+    move => nx c' s' ch t Hsz H H2.
     move: (step_plus_mult_weights_size_all_costs H H2).
     rewrite /num_costs /all_costs' /all_costs0 size_map size_all_costs_init_state.
     rewrite size_removelast => H3; rewrite H3 in Hsz|-*; move: Hsz.
     by case: (N.to_nat nx) => // n _; f_equal => /=; rewrite -addnE addn1.
   Qed.    
 
-  Definition T nx := INR (N.to_nat nx).
+  Definition Tx nx := INR (N.to_nat nx).
   
   Lemma mult_weights_epsilon_no_regret :
-    forall nx (c' : com A) (s' : state A),
-      step_plus a0 (mult_weights A nx) init_state c' s' ->
+    forall nx (c' : com A) (s' : state A) (ch : oracle_chanty) (t : T),
+      step_plus a0 (mult_weights A nx) (init_state ch t) c' s' ->
       final_com c' ->
       (0 < size (all_costs' s'))%N -> 
       let: eCost := state_expCost1 (all_costs0 s') s'
-      in ((eCost - OPTR s') / T nx <= epsR + ln size_A / (epsR * T nx))%R.
+      in ((eCost - OPTR s') / Tx nx <= epsR + ln size_A / (epsR * Tx nx))%R.
   Proof.
-    move => nx c' s' H H2 Hsize.
-    have H3: SOutputs init_state = [::] by [].
-    have H4: catrev (rev (all_costs0 s')) (all_costs init_state) = all_costs s'.
+    move => nx c' s' ch t H H2 Hsize.
+    have H3: SOutputs (init_state ch t) = [::] by [].
+    have H4: catrev (rev (all_costs0 s')) (all_costs (init_state ch t)) = all_costs s'.
     { case: (step_plus_all_costs_cat H) => l; rewrite /all_costs0 => ->.
       rewrite removelast_cat => //.
       by rewrite catrevE revK -catA. }
-    rewrite (mult_weights_refines_MWU H3 H H2 H4) /OPTR /OPT /astar /T.
+    rewrite (mult_weights_refines_MWU H3 H H2 H4) /OPTR /OPT /astar /Tx.
     have Hsize': (0 < size (all_costs s'))%N.
     { clear - Hsize; move: Hsize; rewrite /all_costs' size_map /all_costs0.
       rewrite size_removelast => //. }
