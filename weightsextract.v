@@ -103,7 +103,6 @@ Fixpoint sample_aux
 Class ClientOracle T :=
   mkOracle { oracle_chanty : Type
              ; oracle_bogus_chan : oracle_chanty
-             ; oracle_state : T
              ; oracle_rand : T -> (Q * T)
              ; oracle_recv : forall A : Type,
                  T -> oracle_chanty -> (list (A * Q) * T)
@@ -144,13 +143,14 @@ Module MWU (A : MyOrderedType).
 
     Definition sample (A : Type) (a0 : A)
                (to_string : A -> string)
-               (l : list (A*Q)) : A :=
+               (l : list (A*Q))
+               (oracle_st : T): A :=
       let sum :=
           List.fold_left
             (fun acc1 (x:(A*Q)) => let (a,q) := x in Qplus acc1 q)
             l 0
       in
-      let (r, _) := oracle_rand oracle_state in
+      let (r, _) := oracle_rand oracle_st in
       let l':= print_Qvector
                  to_string
                  (map (fun p =>
@@ -162,7 +162,7 @@ Module MWU (A : MyOrderedType).
     (** Draw from a distribution, communicating the resulting action 
       to the network. *)
     Definition mwu_send (m : M.t Q) (oracle_st : T) : (oracle_chanty * T) :=
-      let a := sample A.t0 to_string (M.elements m) in
+      let a := sample A.t0 to_string (M.elements m) oracle_st in
       let a' := eprint_showable a a in
       let a'' := eprint_newline a' in
       oracle_send oracle_st a''.
@@ -1406,7 +1406,7 @@ Axiom recv_nodup :
   forall (A : Type) st ch, NoDupA (fun p q => p.1 = q.1) (recv A st ch).1.
 
 Instance client_ax_oracle : ClientOracle ax_st_ty :=
-  mkOracle ax_bogus_chan empty_ax_st rand send recv_ok recv_nodup.
+  mkOracle ax_bogus_chan rand send recv_ok recv_nodup.
 
 (** Test extraction: *)
 
