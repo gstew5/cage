@@ -118,13 +118,13 @@ Section client_oracle.
   (* Client oracle *)
   Class ClientOracle T :=
     mkOracle { oracle_chanty : Type
-             ; oracle_rand : T -> (rat * T)
              ; oracle_recv : forall A : finType,
-                 T -> oracle_chanty -> ({ffun A -> rat} * T)
+                 T -> oracle_chanty -> {ffun A -> rat} -> T -> Prop
              ; oracle_send : forall A : Type,
-                 T -> A -> (oracle_chanty * T)
-             ; oracle_recv_ok : forall (A : finType) (a : A) st ch,
-                 0 <= (@oracle_recv _ st ch).1 a <= 1
+                 T -> A -> oracle_chanty -> T -> Prop
+             ; oracle_recv_ok : forall (A : finType) st ch f t' (a : A),
+                 @oracle_recv _ st ch f t' -> 
+                 0 <= f a <= 1
              }.
 End client_oracle.  
 
@@ -209,12 +209,11 @@ Section semantics.
         step (CUpdate f) s CSkip s'
              
   | SRecv :
-      forall s,
-        let: p := oracle_recv A (SOracleSt s) (SChan s) in 
+      forall s f t' (Hrecv : oracle_recv (SOracleSt s) (SChan s) f t'),
         let: s' :=
            @mkState
-             p.1
-             (fun a => oracle_recv_ok a (SOracleSt s) (SChan s))
+             f
+             (fun a => oracle_recv_ok a Hrecv)
              (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
              (SWeights s)
              (SWeightsOk s)
@@ -222,12 +221,12 @@ Section semantics.
              (SEpsilonOk s)
              (SOutputs s)
              (SChan s)
-             p.2
+             t'
         in 
         step CRecv s CSkip s'
 
   | SSend :
-      forall s,
+      forall s ch t',
         let: d:=
            p_aux_dist
              a0
@@ -237,7 +236,7 @@ Section semantics.
                         [p_aux_dist] applied to the empty sequence
                         of cost functions specializes to the distribution formed
                         by: SWeights w / \Gamma. *) in
-        let: p := oracle_send (SOracleSt s) d in
+        oracle_send (SOracleSt s) d ch t' -> 
         let: s' :=
            @mkState
              (SCosts s)
@@ -248,8 +247,8 @@ Section semantics.
              (SEpsilon s)
              (SEpsilonOk s)             
              (d :: SOutputs s)
-             p.1
-             p.2
+             ch
+             t'
         in 
         step CSend s CSkip s'
              
@@ -312,12 +311,11 @@ Section semantics.
         stepN (S n) (CUpdate f) s s'
              
   | NRecv :
-      forall n s,
-        let: p := oracle_recv A (SOracleSt s) (SChan s) in 
+      forall n s f t' (Hrecv : oracle_recv (SOracleSt s) (SChan s) f t'),
         let: s' :=
            @mkState
-             p.1
-             (fun a => oracle_recv_ok a (SOracleSt s) (SChan s))
+             f
+             (fun a => oracle_recv_ok a Hrecv)
              (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
              (SWeights s)
              (SWeightsOk s)
@@ -325,19 +323,19 @@ Section semantics.
              (SEpsilonOk s)
              (SOutputs s)
              (SChan s)
-             p.2
+             t'
         in 
         stepN (S n) CRecv s s'
 
   | NSend :
-      forall n s,
+      forall n s ch t',
         let: d:=
            p_aux_dist
              a0
              (SEpsilonOk s)
              (SWeightsOk s)
              CMAX_nil in
-        let: p := oracle_send (SOracleSt s) d in        
+        oracle_send (SOracleSt s) d ch t' -> 
         let: s' :=
            @mkState
              (SCosts s)
@@ -348,8 +346,8 @@ Section semantics.
              (SEpsilon s)
              (SEpsilonOk s)
              (d :: SOutputs s)
-             p.1
-             p.2
+             ch
+             t'
         in 
         stepN (S n) CSend s s'
 
@@ -944,7 +942,7 @@ Section semantics.
       case: n' H IH; try solve[move => X; elimtype False; omega].
       move => n0 H4 IH.
       have H5: (n0 >= n)%coq_nat by omega.
-      constructor. }
+      constructor => //. }
     { rewrite /P in IH; move {P}.
       case: n' H IH; try solve[move => X; elimtype False; omega].
       move => n0 H4 IH.
@@ -968,22 +966,20 @@ Section semantics.
     exists n', (n' > n)%coq_nat /\ stepN n' c s s'.
   Proof.
     move => H; move: H s'; induction 1; subst;
-      try solve[inversion 1; subst; eexists; split => //; constructor].
+      try solve[inversion 1; subst; eexists; split => //; constructor => //].
     { move => s' H; exists n.+1; split => //.
       apply: NSeq; first by constructor.
       by []. }
-    { inversion 1; subst c0 c3 s0 s3 n.
-      have H8: (n0.+1 >= n0)%coq_nat by omega.
-      case: (IHstep _ (stepN_weaken H8 H4)) => n []H1 H2.
-      exists n.+1; split; try omega.
-      have H9: (n >= n0)%coq_nat by omega.
-      apply: NSeq.
-      apply: H2.
-      apply: stepN_weaken.
-      apply: H9.
-      apply: H7. }
-    move => s' H1; exists n.+1; split; try omega.
-    inversion H1; subst. constructor => //.
+    inversion 1; subst c0 c3 s0 s3 n.
+    have H8: (n0.+1 >= n0)%coq_nat by omega.
+    case: (IHstep _ (stepN_weaken H8 H4)) => n []H1 H2.
+    exists n.+1; split; try omega.
+    have H9: (n >= n0)%coq_nat by omega.
+    apply: NSeq.
+    apply: H2.
+    apply: stepN_weaken.
+    apply: H9.
+    apply: H7.
   Qed.
 
   Lemma step_stepN_final c s c' s' :
@@ -992,7 +988,7 @@ Section semantics.
     exists n, stepN n c s s'.
   Proof.        
     move => H H2; inversion H2; subst; move {H2}.
-    inversion H; subst; try solve[exists (S O); constructor].
+    inversion H; subst; try solve[exists (S O); constructor => //].
     exists (S (S O)). apply: NSeq. constructor. constructor.
   Qed.    
     
@@ -1007,7 +1003,7 @@ Section semantics.
     inversion H; subst.
     { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
     { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
-    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
+    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor => //. }
     { case: IHstep_plus => // n H2.
       exists (S n).
       apply: NSeq; first by constructor.
@@ -1075,25 +1071,26 @@ Section mult_weights_refinement.
              (s : state A)
     : state A :=
     let: old_costs := existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s in
-    let: c_t := oracle_recv _ (SOracleSt s) (SChan s) in
     let: d := p_aux_dist
                 a0
                 (SEpsilonOk s)
                 (update_weights_gt0 (SEpsilonOk s) pf (SWeightsOk s))         
-                (CMAX_nil (A:=A)) in
-    let: ch_t' := oracle_send c_t.2 d
+                (CMAX_nil (A:=A))
     in 
     @mkState A T Hco
-      c_t.1
-      (fun a : A => oracle_recv_ok _ _ _)
+      c
+      pf
       old_costs
       (update_weights (SEpsilon s) (SWeights s) c)
       (update_weights_gt0 (SEpsilonOk s) pf (SWeightsOk s))
       (SEpsilon s)
       (SEpsilonOk s)
       (d :: SOutputs s)
-      ch_t'.1
-      ch_t'.2.
+      (** The functional implementation doesn't even bother to simulate 
+          the oracle state -- it doesn't matter once we've extracted the 
+          cost vector history from a particular stepN execution. *)
+      (SChan s)
+      (SOracleSt s).
 
   (** [length cs] loops of the functional implementation. 
       *** NOTE ***  In this implementation of the algorithm, the sequence
@@ -1155,11 +1152,17 @@ Section mult_weights_refinement.
     mult_weights1_loop_left cs (mult_weights1_init s ch t).
 
   (** Now the proof: *)
+
+  Definition upto_oracle_eq (s s' : state A) : Prop :=
+    [/\ SCosts s = SCosts s'
+     , SWeights s = SWeights s'
+     , SEpsilon s = SEpsilon s'
+     & SOutputs s = SOutputs s'].                        
   
   Lemma stepN_mult_weights_refines_mult_weights1_one :
     forall n (s s' : state A),
       stepN a0 n (mult_weights_body A) s s' ->
-      mult_weights1_one (SCostsOk s') s = s'.
+      upto_oracle_eq (mult_weights1_one (SCostsOk s') s) s'.
   Proof.
     move => n s s'.
     inversion 1; subst. clear H.
@@ -1167,20 +1170,10 @@ Section mult_weights_refinement.
     inversion H6; subst. clear H6.
     inversion H2; subst. simpl in *. clear H2.
     inversion H5; subst. simpl in *. clear H5.
-    rewrite /mult_weights1_one.
-    f_equal.
-    apply: proof_irrelevance.
+    rewrite /mult_weights1_one /upto_oracle_eq; split => //=.
     f_equal.
     f_equal.
     apply: proof_irrelevance.
-    f_equal.
-    f_equal.
-    f_equal.
-    apply: proof_irrelevance.
-    f_equal.
-    f_equal.
-    f_equal.
-    apply: proof_irrelevance.    
   Qed.      
 
   Definition all_costs (s : state A) :=
@@ -1206,9 +1199,8 @@ Section mult_weights_refinement.
       exists l, all_costs s' = l ++ all_costs s.
   Proof.
     move => c s c' s'; induction 1; try solve[exists nil => //].
-      by exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1)
-                    (oracle_recv A (SOracleSt s) (SChan s)).1
-                    (fun a => oracle_recv_ok (A:=A) a (SOracleSt s) (SChan s))].
+    by exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1) f
+                    (fun a => oracle_recv_ok (A:=A) a Hrecv)].
     by case: IHstep => l ->; exists l.                    
   Qed.
   
@@ -1304,6 +1296,92 @@ Section mult_weights_refinement.
     by rewrite -(revK [::]) => /rev_inj => ->.
   Qed.
   
+  Lemma stepN_iter_foldR :
+    forall n nx (s s' : state A) l c (R : state A -> state A -> Prop)
+           (Hrefl : forall s, R s s)
+           (Hsym : forall s s', R s s' -> R s' s)           
+           (Htrans : forall s1 s2 s3, R s1 s2 -> R s2 s3 -> R s1 s3)
+           (f : forall c : {ffun A -> rat},
+               (forall a, 0 <= c a <= 1) ->
+               state A -> state A)
+           (Hf : forall c pf s1 s2,
+               R s1 s2 ->
+               R (f c pf s1) (f c pf s2)),
+      (forall n s s', stepN a0 n c s s' -> R (f (SCosts s') (SCostsOk s') s) s') ->
+      (forall n s s',
+          stepN a0 n c s s' ->
+          all_costs s' = [:: existT _ _ (SCostsOk s') & all_costs s]) ->
+      stepN a0 n (CIter nx c) s s' ->
+      catrev l (all_costs s) = all_costs s' ->
+      exists s0,
+        [/\ R s0 s
+         & R (foldl (fun s c => f (projT1 c) (projT2 c) s) s0 l) s'].
+  Proof.
+    set P :=
+      fun (n : nat) =>               
+        forall nx (s s' : state A) l c (R : state A -> state A -> Prop)
+               (Hrefl : forall s, R s s)
+               (Hsym : forall s s', R s s' -> R s' s)
+               (Htrans : forall s1 s2 s3, R s1 s2 -> R s2 s3 -> R s1 s3)
+               (f : forall c : {ffun A -> rat},
+                   (forall a, 0 <= c a <= 1) ->
+                   state A -> state A)
+               (Hf : forall c pf s1 s2,
+                   R s1 s2 ->
+                   R (f c pf s1) (f c pf s2)),
+          (forall n s s', stepN a0 n c s s' ->
+                          R (f (SCosts s') (SCostsOk s') s) s') ->
+          (forall n s s',
+              stepN a0 n c s s' ->
+              all_costs s' = [:: existT _ _ (SCostsOk s') & all_costs s]) ->
+          stepN a0 n (CIter nx c) s s' ->
+          catrev l (all_costs s) = all_costs s' ->
+          exists s0,
+            [/\ R s0 s
+             & R (foldl (fun s c => f (projT1 c) (projT2 c) s) s0 l) s'].
+    move => n; change (P n).
+    apply (well_founded_ind lt_wf); case.
+    { move => _; rewrite /P => nx s s' l c R Hrefl Hsym Htrans f Hf H H2.
+      inversion 1; subst.
+      move => Hx; have ->: l = [::] by move: (catrev_inj_nil Hx).
+      exists s'; split => //. }
+    rewrite /P => m IH nx s s' l c R Hrefl Hsym Htrans f Hf H H2.
+    inversion 1; subst.
+    { move => Hx; have ->: l = [::] by apply: (catrev_inj_nil Hx).
+      by exists s'. }
+    clear H0 => H0.
+    inversion H8; subst. clear H8 P.
+    have Hn0: (n0 < n0.+2)%coq_nat by omega.
+    move: (H2 _ _ _ H6) => H7.
+    have Hx: l = [:: existT _ _ (SCostsOk s1') & behead l].
+    { have H11: exists l0, all_costs s' = catrev l0 (all_costs s1').
+      { apply: catrev_iter; last by apply: H10.
+        move => m sx sx' Hx.
+        exists (existT _ _ (SCostsOk sx')).
+        by rewrite (H2 _ _ _ Hx). }
+      case: H11 => l0 H11.
+      rewrite H11 H7 /= in H0.
+      move: (catrev_cons_inv H0).
+      by clear H0; case: l => // a l' /=; case => -> ->. }
+    rewrite Hx /=.
+    have H11: R (f (SCosts s1') (SCostsOk s1') s) s1'.
+    { by apply: H; apply: H6. }
+    case: (IH _ Hn0 (N.pred nx) s1' s' (behead l) c R Hrefl Hsym Htrans f) => //.
+    by rewrite H7 Hx -H0 Hx.
+    move => sx []Hr Hs.
+    exists s; split => //=.
+    move: Hs.
+    set (F := (fun (s0 : state A)
+           (c0 : {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1}) =>
+                 f (projT1 c0) (projT2 c0) s0)).
+    have Hr': R sx (f (SCosts s1') (SCostsOk s1') s).
+    { apply: Htrans; first by apply: Hr.
+      by apply: Hsym. }
+    clear - Hf Hr' Htrans Hsym.
+    move: (behead l) Hr' => lx.
+    admit. 
+  Admitted.
+
   Lemma stepN_iter_fold :
     forall n nx (s s' : state A) l c
            (f : forall c : {ffun A -> rat},
@@ -1357,7 +1435,7 @@ Section mult_weights_refinement.
     by rewrite H11; apply: H10.
     by rewrite H11 H7 -H0 Hx.
   Qed.
-
+  
   Lemma mult_weights1_loop_left_foldl
         (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}) (s : state A) :
     mult_weights1_loop_left cs s =
@@ -1368,11 +1446,11 @@ Section mult_weights_refinement.
     forall n nx (s s' : state A) l,
       stepN a0 n (CIter nx (mult_weights_body A)) s s' ->
       catrev l (all_costs s) = all_costs s' ->
-      mult_weights1_loop_left l s = s'.
+      upto_oracle_eq (mult_weights1_loop_left l s) s'.
   Proof.
     move => n nx s s' l H H2.
     rewrite mult_weights1_loop_left_foldl.
-    apply: (stepN_iter_fold (n:=n) (nx:=nx) (c:=mult_weights_body A)) => //.
+    rewrite (stepN_iter_fold (n:=n) (nx:=nx) (c:=mult_weights_body A) (s':=s')) => //.
     { move => m sx sx' H3.
       apply: stepN_mult_weights_refines_mult_weights1_one.
       apply: H3. }

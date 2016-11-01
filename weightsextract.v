@@ -358,7 +358,8 @@ Module MWUProof (T : OrderedFinType).
   Qed.
 
   Section mwuProof.
-    Context oracle_T `{oracle: ClientOracle oracle_T}.
+    Context oracle_cT `{coracle: ClientOracle oracle_cT}.
+    Context oracle_T  `{oracle: weightslang.ClientOracle oracle_T}.    
     
     Lemma recv_ok :
       forall a st ch,
@@ -440,6 +441,8 @@ Module MWUProof (T : OrderedFinType).
         pmf d = finfun (fun a => Q_to_rat (f a)) ->
         match_distrs l l' ->
         match_distrs [:: d & l] [:: f & l'].
+
+  
   
   Inductive match_states : state t -> cstate -> Prop :=
   | mkMatchStates :
