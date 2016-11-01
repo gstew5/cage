@@ -1159,6 +1159,27 @@ Section mult_weights_refinement.
      , SWeights s = SWeights s'
      , SEpsilon s = SEpsilon s'
      & SOutputs s = SOutputs s'].                        
+
+  Lemma upto_oracle_eq_refl s : upto_oracle_eq s s.
+  Proof. by rewrite /upto_oracle_eq; split. Qed.
+
+  Lemma upto_oracle_eq_sym s s' :
+    upto_oracle_eq s s' -> upto_oracle_eq s' s.
+  Proof. by move => H; split; case: H. Qed.
+
+  Lemma upto_oracle_eq_trans s1 s2 s3 :
+    upto_oracle_eq s1 s2 ->
+    upto_oracle_eq s2 s3 ->
+    upto_oracle_eq s1 s3.
+  Proof.
+    case => H1 H2 H3 H4 H5.
+    case => H1' H2' H3' H4' H5'.
+    split; first by rewrite H1 H1'.
+    by rewrite H2 H2'.
+    by rewrite H3 H3'.
+    by rewrite H4 H4'.
+    by rewrite H5 H5'.
+  Qed.      
   
   Lemma stepN_mult_weights_refines_mult_weights1_one :
     forall n (s s' : state A),
@@ -1417,15 +1438,35 @@ Section mult_weights_refinement.
       upto_oracle_eq (foldl (fun s c => f (projT1 c) (projT2 c) s) s l) s'.
   Proof.
     move => n nx s s' l c f Hf H H2 H3 H4.
-    edestruct stepN_iter_foldR; eauto.
-    { admit. }
-    { admit. }
-    { admit. }
-    case: H0 => H5 H6.
-    admit.
-  Admitted.    
-  
-  (** FIXME: This lemma is provable from the foldR version *)
+    case:
+      (@stepN_iter_foldR
+         n nx s s' l c
+         upto_oracle_eq
+         upto_oracle_eq_refl upto_oracle_eq_sym upto_oracle_eq_trans
+         f) => //.
+    move => x []H5.
+    set (F := (fun (s0 : state A)
+           (c0 : {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1}) =>
+                 f (projT1 c0) (projT2 c0) s0)).
+    have <-: rev (rev l) = l by apply: revK.
+    rewrite 2!foldl_rev; move: (rev l) => lx.
+    set (G := (fun x0 : {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1} =>
+         F^~ x0)).
+    clear H3 H4; elim: lx x s s' H5.
+    { move => x s s' H3 /= H4.
+      apply: upto_oracle_eq_trans.
+      { apply: upto_oracle_eq_sym; apply: H3. }
+      apply: H4. }
+    move => a ly IH /= x s s' H3 H4.
+    apply: upto_oracle_eq_trans; last by apply: H4.
+    apply: Hf; apply: upto_oracle_eq_trans.
+    { apply: IH.
+      apply: H3.
+      apply: upto_oracle_eq_refl. }
+    apply: upto_oracle_eq_refl.
+  Qed.    
+    
+  (** FIXME: This lemma is provable from the foldR version above *)
   Lemma stepN_iter_fold :
     forall n nx (s s' : state A) l c
            (f : forall c : {ffun A -> rat},
@@ -1500,9 +1541,16 @@ Section mult_weights_refinement.
       case: H3 => H1 H2' H3 H4 H5.
       split => //.
       { simpl; f_equal => //.
-        admit. }
+        move: (SCostsOk s1) (SCostsOk s2); rewrite H1 => pf1 pf2.
+        f_equal.
+        apply: proof_irrelevance. }
       by rewrite /= H3 H4.
-      admit. }
+      rewrite /mult_weights1_one /= H5; f_equal.
+      move: (SEpsilonOk s1) (SEpsilonOk s2); rewrite H4 => pf1 pf2.
+      move: (SWeightsOk s1) (SWeightsOk s2); rewrite H3 => pf3 pf4.
+      f_equal; first by apply: proof_irrelevance.
+      f_equal; first by apply: proof_irrelevance.
+      apply: proof_irrelevance. }
     { move => m sx sx' H3.
       apply: stepN_mult_weights_refines_mult_weights1_one.
       apply: H3. }
@@ -1510,29 +1558,23 @@ Section mult_weights_refinement.
     apply: mult_weights1_one_all_costs.
     apply: stepN_mult_weights_refines_mult_weights1_one.
     apply: H3.
-  Admitted.
+  Qed.
 
   Lemma stepN_mult_weights_refines_mult_weights1_init :
-    forall n (s s' : state A) pf ch t,
+    forall n (s s' : state A) pf,
       let: d := p_aux_dist (A:=A) a0 (eps:=SEpsilon s) (SEpsilonOk s)
                            (w:=[ffun=> Q_to_rat 1]) pf (cs:=[::]) (CMAX_nil (A:=A)) in
       stepN a0 n (mult_weights_init A) s s' ->
-      upto_oracle_eq (mult_weights1_init s ch t) s'.
+      exists ch t',
+      mult_weights1_init s ch t' = s'.
   Proof.
-    move => n s s'; inversion 1; subst.
+    move => n s s' pf; inversion 1; subst.
     inversion H6; subst.
     inversion H3; subst.
     simpl in *.
+    exists ch, t'.    
     rewrite /mult_weights1_init; f_equal.
     apply: proof_irrelevance.
-    f_equal.
-    f_equal.
-    apply: proof_irrelevance.
-    f_equal.
-    f_equal.
-    f_equal.
-    apply: proof_irrelevance.
-    f_equal.
     f_equal.
     f_equal.
     apply: proof_irrelevance.
@@ -1544,13 +1586,15 @@ Section mult_weights_refinement.
                            (w:=[ffun=> Q_to_rat 1]) pf (cs:=[::]) (CMAX_nil (A:=A)) in
       let: p := oracle_send (SOracleSt s) d in
       stepN a0 n (mult_weights A nx) s s' ->
-      catrev l (all_costs s) = all_costs s' -> 
-      mult_weights1 l s p.1 p.2 = s'.
+      catrev l (all_costs s) = all_costs s' ->
+      exists ch t',
+      upto_oracle_eq (mult_weights1 l s ch t') s'.
   Proof.
-    move => n nx s s'; inversion 1; subst.
-    move: (stepN_mult_weights_refines_mult_weights1_init pf H3) => H7.
+    move => n nx s s' l pf; inversion 1; subst.
+    move: (stepN_mult_weights_refines_mult_weights1_init pf H3) => []ch []t' H7.
     rewrite -H7 in H6.
     rewrite /mult_weights1 => H8.
+    exists ch, t'.
     apply: stepN_mult_weights_refines_mult_weights1_loop.
     apply: H6.
     apply: H8.
@@ -1560,14 +1604,14 @@ Section mult_weights_refinement.
     forall nx (s s' : state A) c' l pf,
       let: d := p_aux_dist (A:=A) a0 (eps:=SEpsilon s) (SEpsilonOk s)
                            (w:=[ffun=> Q_to_rat 1]) pf (cs:=[::]) (CMAX_nil (A:=A)) in
-      let: p := oracle_send (SOracleSt s) d in
       step_plus a0 (mult_weights A nx) s c' s' ->
       final_com c' ->
-      catrev l (all_costs s) = all_costs s' ->       
-      mult_weights1 l s p.1 p.2 = s'.
+      catrev l (all_costs s) = all_costs s' ->
+      exists ch t',
+      upto_oracle_eq (mult_weights1 l s ch t') s'.
   Proof.
-    move => nx s s' c' l pf; move/step_plus_stepN => H H2; case: (H H2) => n H3.
-    apply: stepN_mult_weights_refines_mult_weights1.
+    move => nx s s' c' l pf; move/step_plus_stepN => H H2; case: (H H2) => n H3 H4.
+    apply: stepN_mult_weights_refines_mult_weights1 => //.
     apply: H3.
   Qed.
   
@@ -1582,8 +1626,8 @@ Section mult_weights_refinement.
     clear H.
     inversion H0; subst; clear H0.
     inversion H1; subst.
-    { inversion H; subst. }
-    inversion H; subst.
+    { inversion H0. }
+    inversion H0; subst.
   Qed.    
 
   Lemma step_plus_all_costs_cat :
@@ -1821,8 +1865,8 @@ Section mult_weights_refinement.
     move => nx s c' s' l H H2 H3.
     have pf: forall a : A, 0 < [ffun=> Q_to_rat 1] a.
     { by move => a; rewrite ffunE. }
-    rewrite -(step_plus_mult_weights_refines_mult_weights1 pf H H2 H3).
-    by rewrite mult_weights1_refines_pdist.
+    case: (step_plus_mult_weights_refines_mult_weights1 pf H H2 H3)=> ch []t' Hx.
+    by case: Hx => _ _ _ _ <-; rewrite mult_weights1_refines_pdist.
   Qed.      
 End mult_weights_refinement.
   
@@ -1900,7 +1944,7 @@ Section semantics_lemmas.
       SWeights s = weights_of (A:=A) (SEpsilon s) [seq projT1 p | p <- cs2] w ->
       w = init_weights A -> 
       state_expCost1_aux cs2 (last d0 ds1 :: ds2) = state_expCost2 (SEpsilonOk s) cs2 ->
-      mult_weights1_loop_right a0 cs1 s = s' ->
+      upto_oracle_eq (mult_weights1_loop_right a0 cs1 s) s' ->
       SOutputs s' = ds1 ++ ds2 ->
       (size cs1).+1 = size ds1 -> 
       state_expCost1_aux (cs1++cs2) (ds1++ds2) =
@@ -1908,41 +1952,41 @@ Section semantics_lemmas.
   Proof.
     elim => //.
     move => d ds1' IH ds2 cs1 cs2 s s' w pf d0 H H2 Hinit H3.
-    case: cs1 => //=; first by move => <-; case: ds1' IH H3.
-    move => cx cs1' H4 /= H5; case => H6.
+    case => Hc Hd He Hf Hg; rewrite -Hg /=.
+    case: cs1 Hc Hd He Hf Hg => //; first by case: ds1' IH H3.
+    move => cx cs1' Ha Hb Hc Hd He H4 /=; case => H6.
     have [d' [ds1'' H7]]: exists d' ds1'', ds1' = [:: d' & ds1''].
-    { clear IH H3 H5. case: ds1' H6 => // dx ds1'' _.
+    { case: ds1' IH H3 H4 H6 => // dx ds1''.
       by exists dx, ds1''. }
     rewrite H7 /=.
     move: (mult_weights1_loop_right_refines_p_aux_dist cs1' H H2) => H8.
-    move: (mult_weights1_one_hd cx H8) => H9; subst ds1' s'; f_equal.
-    { simpl in H5; inversion H5; rewrite H4 /= in H8; case: H8 => ->.
+    move: (mult_weights1_one_hd cx H8) => H9; subst ds1'; f_equal.
+    { f_equal.
       f_equal.
-      f_equal.
-      rewrite /p_aux_dist /pdist /p.
       subst w.
+      simpl in H4. inversion H4.
+      rewrite H5 /= in H8; inversion H8.
+      rewrite /p_aux_dist /pdist /p.
       f_equal.
       apply: proof_irrelevance. }
     apply: (IH _ _ _ _ _ _ _ d0) => //.
-    by inversion H5; rewrite H4. 
+    inversion H4.
+    by rewrite H5. 
   Qed.    
 
   Lemma mult_weights1_loop_right_outputs_size :
     forall cs (s s' : state A),
-      mult_weights1_loop_right a0 cs s = s' ->
+      upto_oracle_eq (mult_weights1_loop_right a0 cs s) s' ->
       (size (SOutputs s') = size cs + size (SOutputs s))%N.
   Proof.
-    elim; first by move => s s' /= => <-.
-    move => c cs IH s s' /=.
-    set s0 := (mult_weights1_loop_right _ _ _).
-    move: (IH s s0 erefl).
-    by rewrite /mult_weights1_one => H <- /=; rewrite H.
+    move => cs s s'; case => _ _ _ _ <-.
+    by elim: cs => // a l /= ->.
   Qed.
     
   Lemma state_expCost12_mult_weights1 :
     forall cs s s' ch t,
       SOutputs s = [::] -> 
-      mult_weights1 a0 (rev cs) s ch t = s' ->
+      upto_oracle_eq (mult_weights1 a0 (rev cs) s ch t) s' ->
       state_expCost1 cs s' = state_expCost2 (SEpsilonOk s) cs.
   Proof.
     rewrite /mult_weights1 => cs s s' ch t.
@@ -1979,8 +2023,9 @@ Section semantics_lemmas.
     move => nx c' s s' l H0 H H2 H3.
     have pf: forall a : A, 0 < [ffun=> Q_to_rat 1] a.
     { by move => a; rewrite ffunE. }
-    move: (step_plus_mult_weights_refines_mult_weights1 pf H H2 H3).
-    by move/state_expCost12_mult_weights1; move/(_ H0).
+    case: (step_plus_mult_weights_refines_mult_weights1 pf H H2 H3)=> ch []t' Hx.
+    apply: state_expCost12_mult_weights1 => //.
+    apply: Hx.
   Qed.
 
   Lemma state_expCost2_expCostsR
