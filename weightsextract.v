@@ -100,20 +100,19 @@ Fixpoint sample_aux
   end.
 
 (* Client oracle *)
-Class ClientOracle T :=
-  mkOracle { oracle_chanty : Type
-             ; oracle_bogus_chan : oracle_chanty
-             ; oracle_rand : T -> (Q * T)
-             ; oracle_recv : forall A : Type,
-                 T -> oracle_chanty -> (list (A * Q) * T)
-             ; oracle_send : forall A : Type,
-                 T -> A -> (oracle_chanty * T)
-             ; oracle_recv_ok : forall A (a : A) st ch,
-                 exists q,
-                   [/\ In (a, q) (oracle_recv _ st ch).1
-                    & 0 <= q <= 1]
-             ; oracle_recv_nodup : forall (A : Type) st ch,
-                 NoDupA (fun p q => p.1 = q.1) (oracle_recv A st ch).1
+Class ClientOracle T oracle_chanty :=
+  mkOracle { oracle_bogus_chan : oracle_chanty
+           ; oracle_rand : T -> (Q * T)
+           ; oracle_recv : forall A : Type,
+               T -> oracle_chanty -> (list (A * Q) * T)
+           ; oracle_send : forall A : Type,
+               T -> A -> (oracle_chanty * T)
+           ; oracle_recv_ok : forall A (a : A) st ch,
+               exists q,
+                 [/\ In (a, q) (oracle_recv _ st ch).1
+                  & 0 <= q <= 1]
+           ; oracle_recv_nodup : forall (A : Type) st ch,
+               NoDupA (fun p q => p.1 = q.1) (oracle_recv A st ch).1
            }.
 
 (** * Program *)
@@ -128,7 +127,8 @@ Module MWU (A : MyOrderedType).
     M.fold (fun a q acc => q + acc) weights 0.
 
   Section mwu.
-    Context {T : Type} `{oracle: ClientOracle T} {init_oracle_st : T}.
+    Context {T oracle_chanty : Type} `{oracle: ClientOracle T oracle_chanty}
+            (init_oracle_st : T).
 
     Record cstate : Type :=
       mkCState
@@ -358,19 +358,19 @@ Module MWUProof (T : OrderedFinType).
   Qed.
 
   Section mwuProof.
-    Context oracle_cT `{coracle: ClientOracle oracle_cT}.
-    Context oracle_T  `{oracle: weightslang.ClientOracle oracle_T}.    
-    
+    Context {oracle_chanty : Type}.
+    Context oracle_cT `{coracle: ClientOracle oracle_cT oracle_chanty}.
+      
     Lemma recv_ok :
       forall a st ch,
       exists q,
         [/\ M.find a (mwu_recv ch st).1 = Some q
          & 0 <= q <= 1].
     Proof.
-      rewrite /mwu_recv.
+     rewrite /mwu_recv.
       move => a0 st ch.
       have H: NoDupA (M.eq_key (elt:=Q)) (oracle_recv _ st ch).1.
-      { move: (oracle_recv_nodup M.key st ch) => H.
+      { move: (oracle_recv_nodup (ClientOracle:=coracle) M.key st ch) => H.
         rewrite NoDupA_ext; first by apply: H.
         rewrite /M.eq_key /M.Raw.Proofs.PX.eqk => a b.
           by rewrite -A.eqP. }
@@ -379,7 +379,8 @@ Module MWUProof (T : OrderedFinType).
       exists q; split => //.
       destruct (oracle_recv M.key st ch).
       rewrite MProps.of_list_1b => //.
-      move: H H2 {H3}; rewrite print_Qvector_id; move: (oracle_recv M.key st ch) a q.
+      move: H H2 {H3}; rewrite print_Qvector_id;
+       move: (oracle_recv (ClientOracle:=coracle) M.key st ch) a q.
       move=> _ /=. move: l. elim => // [][]a' q' l' IH a q; inversion 1; subst; case.
       { case => -> -> /=.
         have ->: MProps.F.eqb a a = true.
@@ -442,19 +443,48 @@ Module MWUProof (T : OrderedFinType).
         match_distrs l l' ->
         match_distrs [:: d & l] [:: f & l'].
 
-  
+  (** The high-level oracle *)
+  Context oracle_T  `{oracle: weightslang.ClientOracle oracle_T oracle_chanty}.
+  Notation "'state' t" := (@state t oracle_T oracle_chanty) (at level 50).
+
+  (** and its match relation *)
+  Variable match_oracle_states : oracle_T -> oracle_cT -> Prop.
+
+  (** The oracular compilation interface *)
+  Class match_oracles : Prop :=
+    mkMatchOracles {
+      match_oracle_recv : forall (ct : oracle_cT) (t : oracle_T) ch s,
+        match_oracle_states t ct -> 
+        let: (m, ct') := mwu_recv ch ct in
+        exists t',
+        [/\ weightslang.oracle_recv t ch s t'
+          , match_maps s m
+          & match_oracle_states t' ct']
+
+    ; match_oracle_send : forall (ct : oracle_cT) (t : oracle_T) ch' s m,
+        match_oracle_states t ct ->
+        match_maps s m ->
+        let: (ch, ct') := mwu_send m ct in
+        exists t',
+        [/\ weightslang.oracle_send t s ch' t'
+          , match_oracle_states t' ct'
+          & ch=ch' ]                                
+    }.
+  Context (Hmatch_ora : match_oracles).  
   
   Inductive match_states : state t -> cstate -> Prop :=
   | mkMatchStates :
-      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs' ch oracle_st,
+      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs' ch
+             oracle_st coracle_st,
         match_maps s m ->
         match_costs_seq ss mm ->
         match_maps w wc ->
         rat_to_Q eps = Qred epsc ->
         match_distrs outs outs' ->
+        match_oracle_states oracle_st coracle_st ->
         match_states
-          (@mkState _ s s_ok ss w w_ok eps eps_ok outs)
-          (@mkCState _ oracle m mm wc epsc outs' ch oracle_st).
+          (@mkState _ _ _ s s_ok ss w w_ok eps eps_ok outs ch oracle_st)
+          (@mkCState _ _ m mm wc epsc outs' ch coracle_st).
 
   Definition eval_binopc (b : binop) (v1 v2 : Q) :=
     match b with
@@ -476,7 +506,10 @@ Module MWUProof (T : OrderedFinType).
       end
     | EWeight a => M.find a (SWeights s)
     | ECost a => M.find a (SCosts s)
-    | EEps => Some (SEpsilon s)
+    | EEps => Some (SEpsilon
+                      (T:=oracle_cT)
+                      (oracle_chanty:=oracle_chanty)
+                      s)
     | EBinop b e1 e2 =>
       let: v1 := evalc e1 s in
       let: v2 := evalc e2 s in
@@ -989,9 +1022,12 @@ Module MWUProof (T : OrderedFinType).
         constructor.
         constructor. }
       simpl.
+      move: H6 => Hora.
       case: H5x => H5x H6.
       constructor => //.
-      Unshelve. by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. }
+      Unshelve.
+      move: H6 => Hora.
+      by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. }
     { intros s tx t'; inversion 1; subst. clear H.
       intros H2.
       set c := mwu_recv (SChan tx) (SOracleSt tx).
@@ -1012,9 +1048,15 @@ Module MWUProof (T : OrderedFinType).
         rewrite -Q_to_rat1; apply: Q_to_rat_le.
         by move: (Qred_correct q) ->. }
       exists CSkip.
+      have Hora: match_oracle_states (weightslang.SOracleSt s) (SOracleSt tx).
+      { by case: H2. }
+      generalize (match_oracle_recv (SChan tx) f Hora).
+      case Hrecv': (mwu_recv _ _) => // [m tx'] []sx' []Hrecv Hmaps Hora_states.
       exists
         (@mkState
            _
+           _
+           _ 
            f
            pf
            (existT
@@ -1025,20 +1067,22 @@ Module MWUProof (T : OrderedFinType).
            (weightslang.SWeightsOk s)
            (weightslang.SEpsilon s)
            (weightslang.SEpsilonOk s)
-           (weightslang.SOutputs s)).
+           (weightslang.SOutputs s)
+           (weightslang.SChan s)
+           sx').
       split; first by constructor.
       split.
       { right.
         constructor.
-        constructor. }
+        constructor.
+        have ->: weightslang.SChan s = SChan tx.
+        { by case: H2. }
+        by []. }
       inversion H2; subst. simpl in *.
-      destruct (mwu_recv ch) eqn:Hrecv. inversion H1; subst.
-      constructor; try solve[auto | constructor; auto].
-      rewrite /match_maps => a.
-      case: (recv_ok a oracle_st ch) => q []. rewrite /f ffunE Hrecv => -> _.
-      exists q.
-      split; auto.
-      by rewrite rat_to_QK. }
+      rewrite Hrecv' in H1.
+      inversion H1; subst.
+      by constructor; try solve[auto | constructor; auto]. }
+    (* HERE HERE HERE *)    
     { intros s tx; inversion 1; subst; clear H.
       intros H2.
       exists CSkip.

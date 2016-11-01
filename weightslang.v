@@ -116,9 +116,8 @@ Section client_oracle.
   Local Open Scope ring_scope.
   
   (* Client oracle *)
-  Class ClientOracle T :=
-    mkOracle { oracle_chanty : Type
-             ; oracle_recv : forall A : finType,
+  Class ClientOracle T oracle_chanty :=
+    mkOracle { oracle_recv : forall A : finType,
                  T -> oracle_chanty -> {ffun A -> rat} -> T -> Prop
              ; oracle_send : forall A : Type,
                  T -> A -> oracle_chanty -> T -> Prop
@@ -209,11 +208,11 @@ Section semantics.
         step (CUpdate f) s CSkip s'
              
   | SRecv :
-      forall s f t' (Hrecv : oracle_recv (SOracleSt s) (SChan s) f t'),
+      forall s f t' (Hrecv : oracle_recv (SOracleSt s) (SChan s) f t') pf,
         let: s' :=
            @mkState
              f
-             (fun a => oracle_recv_ok a Hrecv)
+             pf
              (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
              (SWeights s)
              (SWeightsOk s)
@@ -311,11 +310,11 @@ Section semantics.
         stepN (S n) (CUpdate f) s s'
              
   | NRecv :
-      forall n s f t' (Hrecv : oracle_recv (SOracleSt s) (SChan s) f t'),
+      forall n s f t' (Hrecv : oracle_recv (SOracleSt s) (SChan s) f t') pf,
         let: s' :=
            @mkState
              f
-             (fun a => oracle_recv_ok a Hrecv)
+             pf
              (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
              (SWeights s)
              (SWeightsOk s)
@@ -937,7 +936,7 @@ Section semantics.
     { move {IH}; case: n' H P; try solve[move => X; elimtype False; omega].
       constructor. }
     { move {IH}; case: n' H P; try solve[move => X; elimtype False; omega].
-      constructor. }
+      constructor => //. }
     { rewrite /P in IH; move {P}.
       case: n' H IH; try solve[move => X; elimtype False; omega].
       move => n0 H4 IH.
@@ -1002,7 +1001,7 @@ Section semantics.
     inversion H2; subst. clear H2.
     inversion H; subst.
     { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
-    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor. }
+    { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor => //. }
     { case: IHstep_plus => // n; inversion 1; subst. exists (S n); constructor => //. }
     { case: IHstep_plus => // n H2.
       exists (S n).
@@ -1039,9 +1038,9 @@ Section mult_weights_refinement.
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A.
-  Context T `{Hco : ClientOracle T}.
+  Context T oracle_chanty `{Hco : ClientOracle T oracle_chanty}.
 
-  Notation "'state' A" := (@state A T Hco) (at level 50).
+  Notation "'state' A" := (@state A T oracle_chanty) (at level 50).
   
   (* REFINEMENT 1: 
      Show that 
@@ -1077,7 +1076,7 @@ Section mult_weights_refinement.
                 (update_weights_gt0 (SEpsilonOk s) pf (SWeightsOk s))         
                 (CMAX_nil (A:=A))
     in 
-    @mkState A T Hco
+    @mkState A T oracle_chanty
       c
       pf
       old_costs
@@ -1128,7 +1127,7 @@ Section mult_weights_refinement.
   Definition mult_weights1_init
              (s : state A) (ch : oracle_chanty) (t : T)
     : state A :=
-    @mkState A T Hco
+    @mkState A T oracle_chanty
       (SCosts s)
       (SCostsOk s)
       (SPrevCosts s)
@@ -1221,8 +1220,10 @@ Section mult_weights_refinement.
       exists l, all_costs s' = l ++ all_costs s.
   Proof.
     move => c s c' s'; induction 1; try solve[exists nil => //].
-    by exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1) f
-                    (fun a => oracle_recv_ok (A:=A) a Hrecv)].
+    { exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1) f
+                 (fun a => oracle_recv_ok (A:=A) a Hrecv)].
+      rewrite /all_costs /=; f_equal; f_equal.
+      apply: proof_irrelevance. }
     by case: IHstep => l ->; exists l.                    
   Qed.
   
@@ -1896,9 +1897,9 @@ Section semantics_lemmas.
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
-  Context T `{Hco : ClientOracle T}.
+  Context T oracle_chanty `{Hco : ClientOracle T oracle_chanty}.
 
-  Notation "'state' A" := (@state A T Hco) (at level 50).
+  Notation "'state' A" := (@state A T oracle_chanty) (at level 50).
   
   (** The total expected cost of state [s].
     Assuming costs are (in fold-right form):
@@ -1919,7 +1920,7 @@ Section semantics_lemmas.
     | _, _ => 0%R
     end.
 
-  Definition state_expCost1 l s := state_expCost1_aux l (SOutputs s).
+  Definition state_expCost1 l (s : state A) := state_expCost1_aux l (SOutputs s).
     
   Fixpoint state_expCost2
            eps
