@@ -250,6 +250,6 @@ Module Server := Server C P3Scaled'.
 
 Existing Instance P3Scaled'.cost_instance.
 (*Why doesn' Coq discover this instance in the following definition?*)
-Definition run := Server.server (@Server.init_state result ax_oracle).
+Definition run := Server.server (@Server.init_state result _ ax_oracle).
 
 Extraction "runtime/server.ml" run.
