@@ -228,11 +228,11 @@ Existing Instance P3Scaled'.enumerable.
 
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition mwu0 (eps : Q) (nx : N.t)
-           {T : Type} {oracle : ClientOracle T}
+           {T chanty : Type} {oracle : ClientOracle T chanty}
            (init_oracle_st : T) :=
   MWU.interp
     (weightslang.mult_weights P3Scaled'.t nx)
-    (@MWU.init_cstate T oracle init_oracle_st _ eps).
+    (@MWU.init_cstate T chanty oracle init_oracle_st _ eps).
 
 Definition mwu := mwu0 eps num_iters empty_ax_st.
 

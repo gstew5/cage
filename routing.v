@@ -264,15 +264,14 @@ Module P8Scaled' <: MyOrderedType := OrderedSigma P.
 (* The program *)
 Module MWU := MWU P8Scaled'.
 
-Existing Instance P8Scaled'.enumerable.
-
 (*Why doesn' Coq discover this instance in the following definition?*)
+Existing Instance P8Scaled'.enumerable.
 Definition mwu0 (eps : Q) (nx : N.t)
-           {T : Type} {oracle : ClientOracle T}
+           {T chanty : Type} {oracle : ClientOracle T chanty}
            (init_oracle_st : T) :=
   MWU.interp
     (weightslang.mult_weights P8Scaled'.t nx)
-    (@MWU.init_cstate T oracle init_oracle_st _ eps).
+    (@MWU.init_cstate T chanty oracle init_oracle_st _ eps).
 
 Definition mwu := mwu0 (Qmake 1 4) 40 empty_ax_st.
 

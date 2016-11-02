@@ -461,16 +461,20 @@ Module MWUProof (T : OrderedFinType).
           , match_maps s m
           & match_oracle_states t' ct']
 
-    ; match_oracle_send : forall (ct : oracle_cT) (t : oracle_T) ch' s m,
-        match_oracle_states t ct ->
+    ; match_oracle_send :
+        forall (ct : oracle_cT) (tx : oracle_T) ch' m
+               (s : {ffun t -> rat}) (s_ok : forall a : t, (0 < s a)%R)
+               a0 eps (eps_ok : (0 < eps <= 1 / 2%:R)%R),
+        match_oracle_states tx ct ->
         match_maps s m ->
         let: (ch, ct') := mwu_send m ct in
+        let: d := p_aux_dist a0 eps_ok s_ok (cs:=[::]) (CMAX_nil (A:=t)) in
         exists t',
-        [/\ weightslang.oracle_send t s ch' t'
+        [/\ weightslang.oracle_send tx d ch' t'
           , match_oracle_states t' ct'
           & ch=ch' ]                                
     }.
-  Context (Hmatch_ora : match_oracles).  
+  Context (Hmatch_ora : match_oracles).
   
   Inductive match_states : state t -> cstate -> Prop :=
   | mkMatchStates :
@@ -1082,13 +1086,27 @@ Module MWUProof (T : OrderedFinType).
       rewrite Hrecv' in H1.
       inversion H1; subst.
       by constructor; try solve[auto | constructor; auto]. }
-    (* HERE HERE HERE *)    
     { intros s tx; inversion 1; subst; clear H.
       intros H2.
       exists CSkip.
+      have Hora: match_oracle_states (weightslang.SOracleSt s) (SOracleSt tx).
+      { by case: H2. }
+      have Hmaps: match_maps (weightslang.SWeights s) (SWeights tx).
+      { by case: H2. }
+      generalize (match_oracle_send
+                    (SChan tx)
+                    (weightslang.SWeightsOk s)
+                    a0
+                    (weightslang.SEpsilonOk s)
+                    Hora
+                    Hmaps).
+      case Hsend': (mwu_send _ _) => [ch tx'].
+      case => sx' [] Hsend Hora' Hchan.
       exists
         (@mkState
            _
+           _
+           _ 
            (weightslang.SCosts s)
            (weightslang.SCostsOk s)
            (weightslang.SPrevCosts s)
@@ -1101,12 +1119,15 @@ Module MWUProof (T : OrderedFinType).
               (weightslang.SEpsilonOk s)
               (weightslang.SWeightsOk s)
               (@CMAX_nil t)
-              :: weightslang.SOutputs s)).
+              :: weightslang.SOutputs s)
+           ch
+           sx').
       split; first by constructor.
       split.
       { right.
         constructor.
-        constructor. }
+        subst ch.
+        constructor => //. }
       inversion H2; subst. simpl in *.
       move: H1 H3 H4 H5 => Hchst H1 Heps H4.
       have H3:
@@ -1135,6 +1156,7 @@ Module MWUProof (T : OrderedFinType).
         case Hy: (M.find _ _) => // [q].
         by rewrite Q_to_rat_div. }
       destruct (mwu_send wc) eqn:Hsendwc. inversion Hchst.
+      inversion Hsend'.
       constructor; auto.
       constructor; auto. }
     { move => s t t'.
@@ -1280,13 +1302,13 @@ Module MWUProof (T : OrderedFinType).
   Qed.
   
   Section mwuproof.
-  (*I introduce explicit names here to make the proofs that follow  *)
-(*     below more maintainable.*)
-  Context {GameTypeIsEnumerable : Enumerable t}.
-  Context {EnumerationOK : RefineTypeAxiomClass GameTypeIsEnumerable}.
-  Context {init_oracle_st : oracle_T}.
+  Context
+    {GameTypeIsEnumerable : Enumerable t}
+    {EnumerationOK : RefineTypeAxiomClass GameTypeIsEnumerable}
+    (init_oracle_cst : oracle_cT).
     
-  Lemma match_maps_init : match_maps (init_weights t) init_map.
+  Lemma match_maps_init
+    : match_maps (init_weights t) init_map.
   Proof.
     move => a; rewrite /init_weights /init_costs /init_map.
     generalize (enumerateP t) => [][]H Huniq; move: (H a) => H2.
@@ -1301,10 +1323,15 @@ Module MWUProof (T : OrderedFinType).
     by apply: uniq_NoDupA.
   Qed.
 
-  Lemma match_states_init eps eps_ok :
-    match_states (@init_state t eps eps_ok)
-                 (init_cstate (init_oracle_st:=init_oracle_st)
-                              (rat_to_Q eps)).
+  Lemma match_states_init
+        eps eps_ok
+        (init_oracle_st : oracle_T)
+        (Hmatch_ora_states : match_oracle_states init_oracle_st init_oracle_cst)
+    : match_states
+        (@init_state
+           t oracle_T oracle_chanty eps eps_ok
+           oracle_bogus_chan init_oracle_st)
+        (init_cstate init_oracle_cst (rat_to_Q eps)).
   Proof.
     constructor.
     { apply: match_maps_init. }
@@ -1312,16 +1339,18 @@ Module MWUProof (T : OrderedFinType).
     { apply: match_maps_init. }
     apply: rat_to_Q_red.
     constructor.
+    apply: Hmatch_ora_states.
   Qed.
 
-(*   (*This is a technical lemma about the interpretation of the specific  *)
-(*     program [mult_weights t nx].*) *)
-  Lemma size_costs_interp_mult_weights (nx : N.t) eps tx :
-    (0 < nx)%N ->
-    interp (mult_weights t nx)
-           (init_cstate (init_oracle_st:=init_oracle_st)
-                        (rat_to_Q eps)) = Some tx ->
-    (0 < size (SPrevCosts tx))%N.
+  (*This is a technical lemma about the interpretation of the specific  *)
+  (*     program [mult_weights t nx].*)
+  Lemma size_costs_interp_mult_weights
+        (nx : N.t) eps tx
+        (init_oracle_st : oracle_cT)
+    : (0 < nx)%N ->
+      interp (mult_weights t nx)
+             (init_cstate init_oracle_st (rat_to_Q eps)) = Some tx ->
+      (0 < size (SPrevCosts tx))%N.
   Proof.
     rewrite /init_cstate /=; case: (update_weights _ _) => //= a.
     destruct (mwu_send a) eqn:Hsend.
@@ -1343,19 +1372,19 @@ Module MWUProof (T : OrderedFinType).
   Require Import Reals.
   
   Lemma interp_mult_weights_epsilon_no_regret :
-    forall (nx : N) (t' : cstate) (eps : rat) (eps_ok : epsOk eps),
+    forall (nx : N) (t' : cstate) (eps : rat) (eps_ok : epsOk eps)
+           (init_oracle_st : oracle_T)
+           (Hmatch_ora_states : match_oracle_states init_oracle_st init_oracle_cst),
       (0 < nx)%N ->
-      interp (mult_weights t nx)
-             ((init_cstate (init_oracle_st:=init_oracle_st)
-                           (rat_to_Q eps))) = Some t' ->
+      interp (mult_weights t nx) (init_cstate init_oracle_cst (rat_to_Q eps)) = Some t' ->
       exists s',
         match_states s' t' /\
-        ((state_expCost1 (all_costs0 s') s' - OPTR a0 s') / T nx <=
+        ((state_expCost1 (all_costs0 s') s' - OPTR a0 s') / Tx nx <=
          rat_to_R eps +
-         Rpower.ln (rat_to_R #|t|%:R) / (rat_to_R eps * T nx))%R.
+         Rpower.ln (rat_to_R #|t|%:R) / (rat_to_R eps * Tx nx))%R.
   Proof.
-    move => nx t' eps epsOk Hnx H.
-    case: (interp_step_plus H (match_states_init epsOk)) => c' []s'.
+    move => nx t' eps epsOk init_oracle_st Hmatch_ora_st Hnx H.
+    case: (interp_step_plus H (match_states_init epsOk Hmatch_ora_st)) => c' []s'.
     case => H2 [] []; first by case; inversion 1.
     move => H3 H4; exists s'; split => //.
     move: (size_costs_interp_mult_weights Hnx H) => H5.
@@ -1452,7 +1481,7 @@ Axiom recv_ok :
 Axiom recv_nodup :
   forall (A : Type) st ch, NoDupA (fun p q => p.1 = q.1) (recv A st ch).1.
 
-Instance client_ax_oracle : ClientOracle ax_st_ty :=
+Instance client_ax_oracle : ClientOracle ax_st_ty ax_chan :=
   mkOracle ax_bogus_chan rand send recv_ok recv_nodup.
 
 (** Test extraction: *)
