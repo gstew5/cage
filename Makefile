@@ -108,6 +108,7 @@ VFILES:=axioms.v\
   potential.v\
   routing.v\
   routing1.v\
+  loadbalancing.v\
   smooth.v\
   weightsextract.v\
   weightslang.v\

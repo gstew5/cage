@@ -108,20 +108,21 @@ End T.
 (** Game parameters *)
 Definition num_players : nat := 3.
 Definition num_flows_per_player : nat := 2.
-Definition num_iters : N.t := 30.
+Definition num_players' : nat :=
+  num_players * num_flows_per_player.
+Definition num_iters : N.t := 60.
 Definition eps : Q := Qmake 1 2.
 
 Module RAffine2Scalar <: OrderedScalarType.
   Include RAffine2.
   Definition scal :=
     Q_to_rat
-      (Qdiv 1 (@ccostmax_fun num_players RAffine2.t
-                             (RAffine2.cost_max num_players))).
+      (Qdiv 1 (@ccostmax_fun num_players' RAffine2.t
+                             (RAffine2.cost_max num_players'))).
 End RAffine2Scalar.
 
 (** Normalized game *)
 Module RAffine2Scaled <: MyOrderedType := OrderedScalar RAffine2Scalar.
-Print OrderedPredType.
 Module P <: OrderedPredType.
   Include RAffine2Scaled.
   Definition pred (p : RAffine2Scaled.t) : bool :=
@@ -173,7 +174,7 @@ Unset Extraction AutoInline.
 Extraction "runtime/mwu.ml" mwu.
 
 Module C : ServerConfig.
-  Definition num_players := (num_players * num_flows_per_player)%N.
+  Definition num_players := num_players'.
   Definition num_rounds := 5000%N.
 End C.
 
