@@ -15,7 +15,7 @@ Section machine_semantics.
   Variable A : finType.
   Variable a0 : A.
   Variable N : nat. (*how many clients?*)
-  Context `{Hgame : game A}.
+  Context `{Hgame : game A N rat_realFieldType}.
   
   Record ClientPkg : Type :=
     mkClientPkg
@@ -63,10 +63,13 @@ Section machine_semantics.
 
   Definition machine_state := {ffun 'I_N -> client_state}.
 
-  Definition all_clients_sent (m : machine_state) : Prop :=
+  Definition all_clients_sent
+             (m : machine_state)
+             (f : {ffun 'I_N -> dist A rat_realFieldType})
+    : Prop :=
     forall i : 'I_N,
       let: (c,s) := m i in
-      exists d, s.(SChan).(sent) = Some d.
+      s.(SChan).(sent) = Some (f i).
 
   Inductive all_clients_recv_empty : machine_state -> machine_state -> Prop :=
   | mkAllClientsRecvEmpty : 
@@ -82,10 +85,34 @@ Section machine_semantics.
       (SChan s).(sent) = (SChan s').(sent) ->
       s'.(SChan).(received) = None ->       
       all_clients_recv_empty m m'.
-
-  Definition upd (i : 'I_N) (s : client_state) (m : machine_state) :=
-    finfun (fun j => if i==j then s else m j).
   
+  Definition upd {A : finType} {T : Type}
+             (a : A) (t : T) (s : {ffun A -> T}) :=
+    finfun (fun b => if a==b then t else s b).
+
+  Inductive all_clients_exp_cost
+            (f : {ffun 'I_N -> dist A rat_realFieldType})
+    : machine_state -> machine_state -> Prop :=
+  | mkAllClientsExpCost :
+      forall (m m' : machine_state) c s c' s' (i : 'I_N)
+             (cost_vec : {ffun A -> rat_realFieldType}),
+      m i = (c,s) ->
+      m' i = (c',s') -> 
+      c=c' -> 
+      SCosts s = SCosts s' -> 
+      SPrevCosts s = SPrevCosts s' -> 
+      SWeights s = SWeights s' -> 
+      SEpsilon s = SEpsilon s' -> 
+      SOutputs s = SOutputs s' -> 
+      (SChan s).(sent) = (SChan s').(sent) ->
+      cost_vec =
+         finfun (fun a : A =>
+                   expectedValue
+                     (prod_dist f)
+                     (fun p => cost i (upd i a p))) -> 
+      s'.(SChan).(received) = Some cost_vec ->       
+      all_clients_exp_cost f m m'.
+
   Inductive machine_step : machine_state -> machine_state -> Prop :=
   (** Step client [i], as long as it hasn't yet sent a distribution. *)
   | MSClientStep :
@@ -98,18 +125,16 @@ Section machine_semantics.
   (** Once all clients have committed to a distribution, clear their 
       received cost vectors. *)
   | MSClearReceived :
-      forall m m',
-        all_clients_sent m ->
+      forall f m m',
+        all_clients_sent m f ->
         all_clients_recv_empty m m' ->
         machine_step m m'
 
-  (** Calculate cost vector for player i. *) 
+  (** Calculate cost vectors. *) 
   | MSExpectedCost :
-      forall (i : 'I_N) m m',
-        all_clients_sent m ->
-        (* HERE HERE HERE *)
-        machine_step m m'.
-        
-  (* MORE WORK REQUIRED HERE *)
+      forall f m m',
+        all_clients_sent m f ->
+        all_clients_exp_cost f m m' ->
+        machine_step m m' .
 End machine_semantics.  
   
