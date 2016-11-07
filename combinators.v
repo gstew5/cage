@@ -1028,8 +1028,22 @@ End locationDefs.
 Class Boolable (A : Type) : Type :=
   boolify : A -> bool.
 
+Class BoolableUnit (A : Type) (boolable : Boolable A) : Type :=
+  boolUnit : A.
+
+Class BoolableUnitAxiom
+  (A : Type) (boolable : Boolable A)
+  (boolableUnit : @BoolableUnit A boolable) : Type :=
+    isUnit : boolable (boolableUnit) = false. 
+
 Instance boolable_Resource : Boolable resource :=
   fun r => match r with RYes => true | RNo => false end.
+
+Instance boolableUnit_Resource :
+  @BoolableUnit resource boolable_Resource := RNo.
+
+Program Instance boolableUnitAxiom_Resource :
+  @BoolableUnitAxiom _ _ boolableUnit_Resource.
 
 (** Singleton Games A : Boolable, 
     c_i s =  if (boolify s_i) then 1 else 0 *)
@@ -1055,9 +1069,17 @@ Definition singletonType (A : finType) :=
   [finType of Wrapper [eqType of Singleton] A].
 End SingletonType.
 
-Instance BoolableSingleton (A : finType) `(Boolable A)
-  : Boolable (singletonType A) :=
-  fun (s : singletonType A) => boolify (unwrap s).
+Instance BoolableSingleton (A : Type) `(Boolable A)
+  : Boolable (singleton A) :=
+  fun (s : singleton A) => boolify (unwrap s).
+
+Instance BoolableUnitSingleton (A : Type) `(bA : BoolableUnit A)
+  : (BoolableUnit (BoolableSingleton _)) :=  (Wrap Singleton bA).
+
+Program Instance BoolableUnitSingletonAxiom
+        (A: Type) `(bA : BoolableUnitAxiom A)
+  : @BoolableUnitAxiom _ _ (BoolableUnitSingleton A _).
+
 Instance singletonCostInstance
          (N : nat) (A : finType)
          (* `(costA : CostClass N rty A) *)
@@ -1250,11 +1272,31 @@ Module SingletonCGameTest. Section singletonCGameTest.
   Variable i' : OrdNat.t.
   Variable t' : M.t (singletonType A).
   Check ccost_fun (N:=N) i' t'.
-End singletonCGameTest. End SingletonCGameTest.  
+End singletonCGameTest.  End SingletonCGameTest.  
+
 
 (** Sigma Games {x : A | P x}, with P : A -> bool *)
 
 Class PredClass (A : Type) := the_pred : A -> bool.
+
+Instance SigmaBoolableInstance
+         A `(Boolable A) `(P : PredClass A)
+  : Boolable {x : A | P x} :=
+  fun p => boolify (projT1 p).
+
+(* We need to ensure that our BoolableUnit surives P *)
+Instance BoolableUnitSigma
+        A `(Boolable A) `(bA : @BoolableUnit A _)
+        `(P : PredClass A) (pf : P bA = true)
+  : BoolableUnit (@SigmaBoolableInstance A _ P) :=
+  (exist _ bA pf).
+
+Program Instance BoolableUnitSigmaAxiom 
+        A `(Boolable A) `(bA : @BoolableUnit A _)
+        `(@BoolableUnitAxiom _ _ bA) 
+        `(P : PredClass A) (pf : P bA = true)
+  : @BoolableUnitAxiom _ _ (BoolableUnitSigma pf).
+
 
 Instance sigmaCostInstance
          (N : nat) (rty : realFieldType) (A : finType)
@@ -1343,7 +1385,6 @@ Qed.
     usually (or ever...?) result in usable OCaml terms. Instead, 
     use the [enumerate] function of the underlying type to build the 
     instance at the current type.
-
     The example below illustrates the general problem: *)
 
 Definition resources : list resource := Eval hnf in enum [finType of resource].
@@ -1578,6 +1619,27 @@ Section sigmaCompilable.
 End sigmaCompilable.
 
 (** Product Games A * B *)
+
+Instance prodBoolableInstance
+         (A B : Type) (bA : Boolable A) (bB : Boolable B)
+  : Boolable (A*B) :=
+      fun ab => (boolify (fst ab)) && (boolify (snd ab)).
+
+Instance prodBoolableUnit
+         (A B : Type) `(bA : BoolableUnit A) `(bB : BoolableUnit B)
+  : BoolableUnit (@prodBoolableInstance A B _ _) :=
+      (bA, bB).
+
+Program Instance prodBoolableUnitAxiom
+          (A B : Type)
+          `(bA : BoolableUnit A)
+          (bAa : BoolableUnitAxiom bA)
+          `(bB : BoolableUnit B)
+          (bBa : BoolableUnitAxiom bB)
+  : BoolableUnitAxiom (prodBoolableUnit A B bA bB).
+Next Obligation.
+  rewrite /prodBoolableInstance !/boolify bAa bBa => //.
+Qed.
 
 Instance prodCostInstance
          (N : nat) (rty : realFieldType) (aT bT : finType)
@@ -2069,6 +2131,13 @@ Instance BoolableScalar (c : rty) (A : finType) `(Boolable A)
   : Boolable (scalarType c A) :=
   fun (s : scalarType c A) => boolify (unwrap s).
 
+Instance BoolableUnitScalar (c : rty) (A : finType) `(bA : BoolableUnit A) :
+  BoolableUnit (@BoolableScalar c A _) := (Wrap [eqType of Scalar c] bA).
+
+Program Instance BoolableUnitScalarAxiom
+  (c : rty) (A : finType) `(bA : BoolableUnit A) `(bAax : @BoolableUnitAxiom _ _ bA) :
+  @BoolableUnitAxiom _ _ (BoolableUnitScalar c A bA).
+
 End ScalarType.
 
 Class ScalarClass (rty : realFieldType)
@@ -2338,7 +2407,8 @@ Module ScalarCGameTest. Section scalarCGameTest.
 End scalarCGameTest. End ScalarCGameTest.
 
 
-(** Bias Games c + A *)
+(*
+ Bias Games c + A *)
 
 Section BiasType.
 Variable rty : realFieldType.
@@ -2366,6 +2436,13 @@ Definition biasType (c : rty) (A : finType) :=
 Instance BoolableBias (c : rty) (A : finType) `(Boolable A)
   : Boolable (biasType c A) :=
   fun (s : biasType c A) => boolify (unwrap s).
+
+Instance BoolableUnitBias (c : rty) (A : finType) `(bA : BoolableUnit A) :
+  BoolableUnit (@BoolableBias c A _) := (Wrap [eqType of Bias c] bA).
+
+Program Instance BoolableUnitBiasAxiom
+  (c : rty) (A : finType) `(bA : BoolableUnit A) `(bAax : @BoolableUnitAxiom _ _ bA) :
+  @BoolableUnitAxiom _ _ (BoolableUnitBias c A bA).
 
 End BiasType.
 
@@ -2806,10 +2883,11 @@ Context (A : finType) (N : nat).
 
 Definition affineType_pre : Type :=
   (scalarType (@scalar_val _ scalarA) A) *
-  (scalarType (@bias_val _ scalarB) (singletonType A))%type.
+  (scalarType (@scalar_val _ scalarB) (singletonType A))%type.
 
 Instance affinePredInstance : PredClass affineType_pre :=
   fun A => (unwrap (fst A)) == (unwrap (unwrap (snd A))).
+
 
 Definition affineType := {x : affineType_pre | affinePredInstance x}.
 End AffineGame.

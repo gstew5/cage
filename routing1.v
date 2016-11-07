@@ -21,7 +21,13 @@ Section generalTopology.
 
 Variable N : nat. (* The number of players *)
 Variable T : nat -> Type.
+(* We require the resources to be boolable *)
 Variable BoolableT : forall n, Boolable (T n).
+(* There must be some value for every resource which boolifies to false *)
+Variable BoolableUnitT : forall n, BoolableUnit ([eta BoolableT] n).
+(* The fact that BoolableUnitT indeed boolifies to false is captured here*) 
+Variable BoolableUnitAxiomT : forall n, BoolableUnitAxiom (BoolableUnitT n).
+
 Variable source : nat.
 Variable sink : nat.
 (* A topology is defined as a mapping from the set of edges to pairs
@@ -91,9 +97,53 @@ Definition isSrcSnkPath : nTuple N T -> bool :=
         sink (coalescePathIter N N (source::nil) nT)
     then true
     else false.
-Unset Strict Implicit.
+
+(* This attempts to replace the Mth term of a tuple with 
+    the boolable unit associated with it's type *)
+Program Fixpoint negateMthTerm m n : nTuple n T -> nTuple n T :=
+match n with
+| O => fun _ => mkUnit
+| S n' =>
+    match m with 
+    | O => fun t => ((fst t), (BoolableUnitT n))
+    | S m' => fun t => ((negateMthTerm m' n' (fst t)), (snd t))
+    end
+end.
+
+(* This determines if replacing the Mth term of a tuple will
+    have an impact on the bollification of the terms in the
+    resulting tuple. Used to determine when to call negateMthTerm *)
+Fixpoint negateMthTermEffective m n : nTuple n T -> bool :=
+match n with
+| O => fun _ => false
+| S n' =>
+    match m with 
+    | O => fun t => (boolify (snd t))
+    | S m' => fun t => (negateMthTermEffective m' n' (fst t))
+    end
+end.
+
+(* Checks to see if there are any valid subpaths to be made by
+    negating a single resource in the range (Unit, R0, R1, R2... Rn) *)
+Program Fixpoint checkSubPaths m : nTuple N T -> bool :=
+match m with
+| O => fun t => false (* There are no potential subpaths to be made by killing the unit*)
+| S m' => fun t =>
+      if (negateMthTermEffective m N t)
+        then (isSrcSnkPath (negateMthTerm m N t)) || (checkSubPaths m' t)
+        else (checkSubPaths m' t)
+end.
+
+Definition isSimplestPath : nTuple N T -> bool :=
+  fun t => negb (checkSubPaths N t).
+
+Definition isValidPath : nTuple N T -> bool :=
+  fun t => isSrcSnkPath t && isSimplestPath t.
+
 End generalTopology.
 
+Unset Strict Implicit.  
+  
 (*MOVE:*)
 Instance UnitCCostMaxClass (N : nat) 
   : CCostMaxClass N Unit := Qmake 0 1.
@@ -103,14 +153,11 @@ Instance WrapperBoolableInstance
          I T `(Boolable T)
   : Boolable (Wrapper I T) :=
   fun w => match w with Wrap t => boolify t end.
+
 Instance ProductBoolableInstance
          A B `(Boolable A) `(Boolable B)
   : Boolable (A * B) :=
   fun p => andb (boolify p.1) (boolify p.2).
-Instance SigmaBoolableInstance
-         A `(Boolable A) `(P : A -> bool)
-  : Boolable {x : A | P x} :=
-  fun p => boolify (projT1 p).
 (*END MOVE*)
 
 (** Topology:
@@ -175,6 +222,10 @@ Definition T (n : nat) : Type :=
   | 3 => R'.t
   | _ => Empty_type
   end.
+
+Existing Instances SigmaBoolableInstance BoolableSingleton
+                   prodBoolableInstance BoolableScalar BoolableBias.
+
 Instance BoolableT n : Boolable (T n) :=
   match n with 
   | O => _
@@ -183,7 +234,36 @@ Instance BoolableT n : Boolable (T n) :=
   | 3 => _
   | _ => _
   end.
-End T.
+apply SigmaBoolableInstance.
+apply prodBoolableInstance.
+apply BoolableScalar.
+apply boolable_Resource.
+apply BoolableBias.
+apply boolable_Resource.
+apply SigmaBoolableInstance.
+apply prodBoolableInstance.
+apply BoolableScalar.
+apply boolable_Resource.
+apply BoolableBias.
+apply boolable_Resource.
+apply SigmaBoolableInstance.
+apply prodBoolableInstance.
+apply BoolableScalar.
+apply boolable_Resource.
+apply BoolableBias.
+apply boolable_Resource.
+Qed.
+
+Instance BoolableUnitT n : BoolableUnit ([eta BoolableT] n) :=
+  match n with
+  | O => _
+  | 1 => _
+  | 2 => _
+  | 3 => _
+  | _ => _
+  end.
+exact mkUnit.
+simpl.
 
 Definition num_players : nat := 15.
 Definition num_iters : N.t := 30.
@@ -201,7 +281,7 @@ Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
 Module P <: OrderedPredType.
   Include P3Scaled.
   Definition pred (p : P3Scaled.t) : bool :=
-    @isSrcSnkPath 3 T BoolableT 0 1 top (unwrap p).
+    @isValidPath 3 T BoolableT BoolableUnitT 0 1 top (unwrap p).
   Lemma RValues_eq_dec_refl x : RValues.eq_dec x x.
   Proof.
     case H: (RValues.eq_dec x x) => [pf|pf] => //.
