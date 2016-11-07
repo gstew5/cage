@@ -21,6 +21,7 @@ Inductive upto_oracle_eq (A : finType) T T' chanty chanty'
       SPrevCosts s = SPrevCosts s' ->
       SWeights s = SWeights s' ->
       SEpsilon s = SEpsilon s' ->
+      SOutputs s = SOutputs s' ->       
       upto_oracle_eq s s'.
 
 Lemma upto_oracle_sym {A T ct T' ct'}
@@ -41,10 +42,11 @@ Proof.
   inversion 1; subst.
   inversion 1; subst.
   split => //.
-  { by rewrite -H5. }
   { by rewrite -H6. }
   { by rewrite -H7. }
-  by rewrite -H8.
+  { by rewrite -H8. }
+  { by rewrite -H9. }
+  by rewrite -H10.
 Qed.  
 
 Section machine_semantics.
@@ -63,6 +65,9 @@ Section machine_semantics.
             received = Some cost_vec -> 
             forall a, (0%:R <= cost_vec a <= 1%:R)%R
       }.
+
+  Program Definition init_ClientPkg : ClientPkg :=
+    @mkClientPkg None None _.
 
   Definition simple_oracle_recv
              (pkg : ClientPkg)
@@ -106,8 +111,6 @@ Section machine_semantics.
   Record machine_state : Type :=
     mkMachineState
       { clients : {ffun 'I_N -> client_state}
-      ; cost_vectors : {ffun 'I_N -> seq {ffun A -> rat}}
-      ; budget : nat
       }.
 
   Definition all_clients_have_sent
@@ -141,31 +144,25 @@ Section machine_semantics.
       s'.(SOracleSt).(sent) = None ->
       (* send new cost vector *)      
       s'.(SOracleSt).(received) = Some cost_vec ->
-      m'.(cost_vectors) i = m.(cost_vectors) i ++ [:: cost_vec]->
       server_sent_cost_vector i f m m'.
 
   Inductive machine_step : machine_state -> machine_state -> Prop :=
   (** Step client [i], as long as it hasn't yet sent a distribution. *)
   | MSClientStep :
-      forall (i : 'I_N) c s c' s' n (m : machine_state),
-        m.(budget) = n.+1 ->         
+      forall (i : 'I_N) c s c' s' (m : machine_state),
         m.(clients) i = (c,s) ->         
         s.(SOracleSt).(sent) = None -> 
         client_step c s c' s' ->
         machine_step
           m
           (mkMachineState
-             (upd i (c',s') m.(clients))
-             (cost_vectors m)
-             n)
+             (upd i (c',s') m.(clients)))
       
   (** Once all clients have committed to a distribution, 
       calculate their new cost vectors and reset [sent] to None (thus 
       acknowledging the send). *) 
   | MSExpectedCost :
-      forall f n m m',
-        m.(budget) = n.+1 ->
-        m'.(budget) = n -> 
+      forall f m m',
         all_clients_have_sent m f ->
         (forall i, server_sent_cost_vector i f m m') ->
         machine_step m m'.
@@ -175,22 +172,19 @@ Section machine_semantics.
       forall m : machine_state,
         (forall (i : 'I_N),
             exists s,
-              m.(clients) i = (CSkip,s) /\
-              (* the client received and processed a cost vector 
-                 but didn't receive another *)
-              received (SOracleSt s) = None) ->
+              m.(clients) i = (CSkip,s)) -> 
         final_state m.
 
-  Inductive step_plus : machine_state -> machine_state -> Prop :=
+  Inductive machine_step_plus : machine_state -> machine_state -> Prop :=
   | step1 :
       forall m m',
         machine_step m m' ->
-        step_plus m m'
+        machine_step_plus m m'
   | step_trans :
       forall m m'' m',
         machine_step m m'' ->
-        step_plus m'' m' ->
-        step_plus m m'.
+        machine_step_plus m'' m' ->
+        machine_step_plus m m'.
 
   Lemma machine_step_CSkip (m m' : machine_state) i s :
     machine_step m m' ->    
@@ -201,16 +195,16 @@ Section machine_semantics.
     { case Heq: (i0 == i).
       { move: (eqP Heq) => Heq'; subst i0.
         move => H4.
-        rewrite H1 in H4; inversion H4; subst; simpl.
-        inversion H3. }
+        rewrite H0 in H4; inversion H4; subst; simpl.
+        inversion H2. }
       by move => H4; simpl; exists s; rewrite /upd ffunE Heq. }
-    move => H4; move: (H3 i); inversion 1; subst.
-    rewrite H4 in H5; inversion H5; subst. clear H5.
+    move => H4; move: (H1 i); inversion 1; subst.
+    rewrite H4 in H3; inversion H3; subst. clear H3.
     by exists s'.
   Qed.
 
-  Lemma step_plus_CSkip (m m' : machine_state) i s :
-    step_plus m m' ->
+  Lemma machine_step_plus_CSkip (m m' : machine_state) i s :
+    machine_step_plus m m' ->
     clients m i = (CSkip,s) ->
     exists s', clients m' i = (CSkip,s').
   Proof.
@@ -357,7 +351,14 @@ Section extract_oracle.
       split.
       { constructor.
         inversion H2; subst.
-        split => //. }
+        split => //=.
+        f_equal => //.
+        move: (SEpsilonOk s) (SEpsilonOk sx).
+        rewrite H6.
+        move: (SWeightsOk s) (SWeightsOk sx).
+        rewrite H5.
+        move => pf pf' pf1 pf1'.
+        f_equal; apply: proof_irrelevance. }
       constructor.
       constructor. }
     { move => H H2.
@@ -379,48 +380,9 @@ Section extract_oracle.
   Qed.
   
   (*Putting this declaration before the lemma above causes errors
-    (depends on costClass which is not declared in current context).*)
+    "Error...depends on costClass which is not declared in current context".*)
   Context `{Hgame : game A N rat_realFieldType}.  
 
-  Lemma oracle_extractible_step' m m' (i : 'I_N) c s c' s' sx :
-    machine_step a0 m m' ->
-    m.(clients) i = (c,s) ->
-    m'.(clients) i = (c',s') ->
-    match_states s sx ->
-    (upto_oracle_eq s s' /\ match_states s' sx /\ (m'.(budget) < m.(budget))%nat) \/
-    exists sx',
-      match_states s' sx' /\
-      @weightslang.step A a0 unit unit _ c sx c' sx'.
-  Proof.
-    inversion 1; subst.
-    { (* client_step *)
-      rewrite /upd ffunE; case Heq: (i0 == i).
-      { move => H3'; inversion 1; subst => H5. clear H4.
-        move: H2; rewrite /client_step => H6.
-        move: (eqP Heq) => H7; subst i0.
-        rewrite H3' in H1; inversion H1; subst. clear H1 Heq.
-        clear - H3 H6 H5.
-        case: (match_client_step H3 H6 H5) => sx' []H7 H8.
-        by right; exists sx'; split. }
-      rewrite H0 => H4 H5 H6; left; split => //.
-      { by rewrite H4 in H5; inversion H5. }
-      split => //.
-      rewrite H4 in H5; inversion H5; subst. clear H5.
-      inversion H6; subst.
-      constructor => //. }
-    (* machine step *)
-    move => H4 H5; inversion 1; subst.
-    have Hupto: upto_oracle_eq s s'.
-    { move: (H3 i); inversion 1; subst.
-      rewrite H8 in H4; inversion H4; subst; clear H4.
-      by rewrite H9 in H5; inversion H5; subst. }
-    rewrite H0; left; split => //.
-    split => //.
-    constructor.
-    move: (upto_oracle_sym Hupto) => Hupto'.
-    by apply: (upto_oracle_trans Hupto' H6). 
-  Qed.      
-  
   Lemma oracle_extractible_step m m' (i : 'I_N) c s c' s' sx :
     machine_step a0 m m' ->
     m.(clients) i = (c,s) ->
@@ -430,8 +392,7 @@ Section extract_oracle.
     (* machine step, step by client j<>i *)
     (upto_oracle_eq s s' /\
      match_states s' sx /\
-     c=c' /\ 
-     (m'.(budget) < m.(budget))%nat) \/
+     c=c') \/ 
 
     (* step by client i *)
     (exists sx',
@@ -442,39 +403,37 @@ Section extract_oracle.
     { (* client_step *)
       rewrite /upd ffunE; case Heq: (i0 == i).
       { (* i = j *)
-        move => H3'; inversion 1; subst => H5. clear H4.
+        move => H3'; inversion 1; subst => H5. 
         move: H3; rewrite /client_step => H7.
         move: (eqP Heq) => H8; subst i0.
-        rewrite H3' in H1; inversion H1; subst. clear H1 Heq.
-        case: (match_client_step H7 H2 H5) => sx' []H8 H9.        
+        rewrite H3' in H0; inversion H0; subst. clear H0 Heq.
+        case: (match_client_step H2 H1 H5) => sx' []H8 H9.        
         by right; exists sx'; split. }
-      rewrite H0 => H4 H5 H6; left; split => //.
+      move => H4 H5 H6; left; split => //.
       { by rewrite H4 in H5; inversion H5. }
       split => //.
       rewrite H4 in H5; inversion H5; subst. clear H5.
       inversion H6; subst.
       constructor => //.
-      split => //.
       by rewrite H4 in H5; inversion H5; subst. }
     (* machine step *)
     move => H4 H5; inversion 1; subst.
     have Hupto: upto_oracle_eq s s'.
-    { move: (H3 i); inversion 1; subst.
-      rewrite H8 in H4; inversion H4; subst.
-      by rewrite H9 in H5; inversion H5; subst. }
-    rewrite H0; left; split => //.
-    move: (H3 i); inversion 1; subst; split => //.
-    rewrite H8 in H4; inversion H4; subst.
-    rewrite H9 in H5; inversion H5; subst.
+    { move: (H1 i); inversion 1; subst.
+      rewrite H7 in H4; inversion H4; subst.
+      by rewrite H8 in H5; inversion H5; subst. }
+    left; split => //.
+    move: (H1 i); inversion 1; subst; split => //.
+    rewrite H7 in H4; inversion H4; subst.
+    rewrite H8 in H5; inversion H5; subst.
     constructor.
-    by apply: (upto_oracle_trans (upto_oracle_sym Hupto) H6).
-    split => //.
-    rewrite H8 in H4; inversion H4; subst.
-    by rewrite H9 in H5; inversion H5; subst.
+    by apply: (upto_oracle_trans (upto_oracle_sym Hupto) H3).
+    rewrite H7 in H4; inversion H4; subst.
+    by rewrite H8 in H5; inversion H5; subst.
   Qed.      
 
   Lemma oracle_extractible_aux m m' (i : 'I_N) c s c' s' sx :
-    step_plus a0 m m' ->
+    machine_step_plus a0 m m' ->
     final_state m' ->
     m.(clients) i = (c,s) ->
     m'.(clients) i = (c',s') ->
@@ -495,14 +454,15 @@ Section extract_oracle.
         split => //.
         left.
         case: (H1 i) => sy []; rewrite H3.
-        by case: H6 => <- H6; case => ->. }
+        subst c'.
+        by inversion 1; subst. }
       case => sx' []Hmatch' H4.
       exists sx'; split => //.
       by right; constructor. }
     move => c s sx H1 H2 H3 Hmatch.
     case H3': (clients m'' i) => [c'' s''].
     case: (oracle_extractible_step H H2 H3' Hmatch).
-    { case => H5; case => H6 []H7 H8.
+    { case => H5; case => H6 H7.
       subst c''.
       case: (IHHstep _ _ _ H1 H3' H3 H6) => sx' []Hmatch' [].
       { move => []H9 H10; subst c.
@@ -515,7 +475,7 @@ Section extract_oracle.
     case: (IHHstep _ _ _ H1 H3' H3 Hmatch') => sx' []Hmatch'' [].
     { move => []H4 H5; subst c'' sx''.
       have H4: c' = CSkip.
-      { by case: (step_plus_CSkip Hstep H3') => sy;
+      { by case: (machine_step_plus_CSkip Hstep H3') => sy;
           rewrite H3; inversion 1; subst. }
       subst c'.
       exists sx'.
@@ -530,6 +490,96 @@ Section extract_oracle.
     { apply: Hstep'. }
     apply: Hstep_plus.
   Qed.
+
+  Lemma oracle_extractible m m' (i : 'I_N) c s c' s' sx :
+    machine_step_plus a0 m m' ->
+    final_state m' ->
+    c<>CSkip -> 
+    m.(clients) i = (c,s) ->
+    m'.(clients) i = (c',s') ->
+    match_states s sx ->
+    exists sx',
+      match_states s' sx' /\
+      @weightslang.step_plus A a0 unit unit _ c sx c' sx'.
+  Proof.
+    move => H1 H2 H3 H4 H5 H6.
+    case: (oracle_extractible_aux H1 H2 H4 H5 H6) => sx' []H7 H8.
+    exists sx'; case: H8.
+    { case => H9 H10.
+      split => //. }
+    move => H8; split => //.
+  Qed.
+
+  Require Import Reals Rpower Ranalysis Fourier.
+  Local Open Scope ring_scope.
+
+  Notation size_A := (rat_to_R #|A|%:R).
+  Variable eps : rat.
+  Variable epsOk : 0 < eps <= 1/2%:R.
+  Notation epsR := (rat_to_R eps).  
+  
+  Lemma perclient_bounded_regret m m' (i : 'I_N) c' s' nx :
+    machine_step_plus a0 m m' ->
+    final_state m' ->
+    m.(clients) i = (mult_weights A nx,init_state A epsOk tt (init_ClientPkg A)) ->
+    m'.(clients) i = (c',s') ->
+    (0 < size (all_costs' s'))%N -> 
+    let: eCost := state_expCost1 (all_costs0 s') s'
+    in ((eCost - OPTR a0 s') / Tx nx <= rat_to_R eps + ln size_A / (epsR * Tx nx))%R.
+  Proof.
+    move => H H1 H2 H3 H4.
+    have Hx: mult_weights A nx <> CSkip by [].
+    move: H2; set s := init_state A (eps:=eps) epsOk tt (init_ClientPkg A) => H2.
+    have Hy:
+      match_states
+        s
+        (@mkState
+           _ _ _
+           (SCosts s)
+           (SCostsOk s)
+           (SPrevCosts s)
+           (SWeights s)
+           (SWeightsOk s)
+           (SEpsilon s)
+           (SEpsilonOk s)
+           (SOutputs s)
+           tt
+           tt).
+    { by constructor; split. }
+    case: (oracle_extractible H H1 Hx H2 H3 Hy) => sx' []Hmatch Hstep.
+    have Hfinal: final_com c'.
+    { inversion H1; subst.
+      case: (H0 i) => s0; rewrite H3; inversion 1; subst.
+      by constructor. }
+    have Hz: all_costs0 s' = all_costs0 sx'.
+    { inversion Hmatch; subst.
+      inversion H0; subst.
+      rewrite /all_costs0 /all_costs /=.
+      move: (SCostsOk s') (SCostsOk sx').
+      rewrite -H5 => pf pf'.
+      f_equal.
+      rewrite H6.
+      case: (SPrevCosts _) => // a l.
+      f_equal.
+      f_equal.
+      apply: proof_irrelevance. }
+    rewrite Hz.
+    have Hw: all_costs' s' = all_costs' sx'.
+    { by rewrite /all_costs' Hz. }
+    rewrite Hw in H4.    
+    have Hu: OPTR a0 s' = OPTR a0 sx'.
+    { by rewrite /OPTR /OPT Hw /astar Hw. }
+    rewrite Hu.
+    have Hq:
+      state_expCost1 (all_costs0 sx') s' =
+      state_expCost1 (all_costs0 sx') sx'.
+    { rewrite /state_expCost1.
+      inversion Hmatch; subst.
+      inversion H0; subst.
+      by rewrite H9. }
+    rewrite Hq.
+    apply: (mult_weights_epsilon_no_regret Hstep Hfinal H4).
+  Qed.    
 End extract_oracle.
 
                            
