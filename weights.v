@@ -224,6 +224,12 @@ Section weights.
     move: Acard_gt0; rewrite -rat_to_R0 -(@ltr_nat rat_numDomainType).
     by apply: rat_to_R_lt.
   Qed.
+
+  Lemma rat_to_R_Acard_ge1 : Rle 1 (rat_to_R #|A|%:R).
+  Proof.
+    move: Acard_gt0; rewrite -rat_to_R1 -(@ler_nat rat_numDomainType).
+    by apply: rat_to_R_le.
+  Qed.
   
   Lemma p_aux_ind
         (cs : seq costs)
@@ -1201,6 +1207,25 @@ Section weights_noregret.
   Lemma Tinv_gt0 : (0 < / T)%R.
   Proof. by apply: Rinv_0_lt_compat; apply: T_gt0. Qed.
 
+  Lemma size_A_ge0 : (0 <= ln (rat_to_R #|A|%:R))%R.
+  Proof.
+    rewrite -ln_1; apply: ln_le.
+    apply: Rlt_zero_1.
+    apply: (rat_to_R_Acard_ge1 a0).
+  Qed.
+
+  Lemma T_neq0 : (T <> 0)%R.
+  Proof.
+    move => H; move: T_gt0; rewrite H.
+    by move: (Rnot_lt0 0); rewrite Rmult_0_l.
+  Qed.
+
+  Lemma Tinv_ge0 : (0 <= / T)%R.
+  Proof. apply: Rlt_le; apply: Tinv_gt0. Qed.
+
+  Lemma T_ge0 : (0 <= T)%R.
+  Proof. apply: Rlt_le; apply: T_gt0. Qed.
+
   (** The expected cost at time [T = size cs]. That is, the expected
       cost of [head cs] given the weights table computed from [behead cs]. *)
   Definition expCostR (cs : CMAX_costs_seq A) : R :=
@@ -1241,4 +1266,89 @@ Section weights_noregret.
       by move: T_gt0=> H H2; rewrite H2 in H; apply Rlt_irrefl in H. }
     by rewrite H; clear H; apply: Rle_refl.
   Qed.
+
+  (** We get a tighter bound by assuming a bit more about epsilon and T: 
+      Namely, let eps = some v s.t. v*v = (ln n)/T AND 0 < v <= 1/2. *)
+
+  Variable v : rat.
+  Notation vR := (rat_to_R v).
+  Variable vR_ok : (vR*vR = ln size_A / T)%R.
+  Variable eps_v : eps = v.
+  
+  Lemma weights_noregret' :
+    (expCostsR <= OPTR + 2 * sqrt (T * ln size_A))%R.
+  Proof.
+    apply: Rle_trans; first by apply: weights_noregret.
+    rewrite /epsR eps_v.
+    set (OPTR' := rat_to_R (\sum_(c <- cs) c astar)).
+    set (vR' := Qreals.Q2R (rat_to_Q v)).
+    suff: (vR' * T + (ln size_A) / vR' <= 2 * sqrt (T * ln size_A))%R.
+    { set (size_A' := rat_to_R #|A|%:R).    
+      move => H; rewrite Rplus_assoc; apply: Rplus_le_compat.
+      by apply: Rle_refl.
+      by apply: H. }
+    set (size_A' := rat_to_R #|A|%:R).
+    have HvR_pos: (0 < vR)%R.
+    { rewrite -rat_to_R0; apply: rat_to_R_lt; rewrite -eps_v.
+      by case: (andP eps_range). }
+    apply: (Rmult_le_reg_l vR) => //.
+    rewrite Rmult_plus_distr_l -Rmult_assoc.
+    rewrite sqrt_mult_alt; last by left; apply: T_gt0.
+    rewrite vR_ok.
+    rewrite /Rdiv Rmult_assoc Rinv_l; last first.
+    { move: T_gt0 => H H2; rewrite H2 in H.
+      by move: (Rnot_lt0 0); rewrite Rmult_0_l. }
+    rewrite Rmult_1_r.
+    rewrite -Rmult_assoc Rmult_comm.
+    have ->: (/vR' * (vR * ln size_A') = ln size_A')%R.
+    { rewrite Rmult_comm [Rmult vR _]Rmult_comm Rmult_assoc Rinv_r; last first.
+      { move => H; rewrite H in HvR_pos.
+        by move: (Rnot_lt0 0); rewrite Rmult_0_l. }
+      by rewrite Rmult_1_r. }
+    have ->: (vR * (2 * (sqrt T * sqrt (ln size_A'))) = 2 * ln size_A')%R.
+    { rewrite -Rmult_assoc [Rmult vR 2]Rmult_comm Rmult_assoc.
+      have ->: (vR * (sqrt T * sqrt (ln size_A')) = ln size_A')%R.
+      { have <-: (sqrt (ln (rat_to_R #|A|%:R) / T) = vR)%R.
+        { rewrite -vR_ok sqrt_square => //.
+          by left. }
+        move: size_A_ge0 T_neq0 Tinv_ge0 T_ge0 => Hx Hy Hz Hw.
+        rewrite sqrt_mult => //.
+        rewrite Rmult_assoc -[Rmult (sqrt (/T)) _]Rmult_assoc.
+        rewrite -sqrt_mult => //.
+        rewrite Rinv_l => //.
+        rewrite sqrt_1 Rmult_1_l -sqrt_mult => //.
+        rewrite sqrt_square => //. }
+      by []. }
+    by rewrite RIneq.double; apply: Rle_refl.
+  Qed.
+
+  Lemma perstep_weights_noregret' :
+    ((expCostsR - OPTR) / T <= 2 * sqrt (ln size_A / T))%R.
+  Proof.
+    have H0: (expCostsR - OPTR <= 2 * sqrt (T * ln size_A))%R.
+    { have H1: (expCostsR - OPTR <= OPTR + 2 * sqrt (T * ln size_A) - OPTR)%R.
+      { rewrite /Rminus; apply: Rplus_le_compat_r; apply: weights_noregret'. }
+      apply: Rle_trans; first by apply: H1.
+      rewrite /Rminus Rplus_comm -Rplus_assoc.
+      by rewrite [(- _ + _)%R]Rplus_comm Rplus_opp_r Rplus_0_l; apply: Rle_refl. }
+    have H1: ((expCostsR - OPTR) / T <= (2 * sqrt (T * ln size_A)) / T)%R.
+    { rewrite /Rdiv; apply: Rmult_le_compat_r => //.
+      by apply: Rlt_le; apply: Tinv_gt0. }
+    clear H0; apply: Rle_trans; first by apply: H1. clear H1.
+    rewrite /Rdiv.
+    move: size_A_ge0 T_neq0 Tinv_ge0 T_ge0 => Hx Hy Hz Hw.    
+    have ->: (/T = sqrt (/T) * sqrt (/T))%R.
+    { rewrite -sqrt_mult => //.
+      rewrite sqrt_square => //. }
+    rewrite sqrt_mult => //.
+    rewrite Rmult_assoc [Rmult (sqrt T) _]Rmult_comm Rmult_assoc.
+    rewrite -[Rmult (sqrt T) _]Rmult_assoc.
+    rewrite -[Rmult (sqrt T) _]sqrt_mult => //.
+    rewrite Rinv_r => //; rewrite sqrt_1 Rmult_1_l.
+    rewrite -sqrt_mult => //.
+    rewrite -sqrt_mult => //.
+    have ->: (sqrt (/T * /T) = /T)%R.
+    { rewrite sqrt_square => //. }
+    by apply: Rle_refl.
+  Qed.    
 End weights_noregret.
