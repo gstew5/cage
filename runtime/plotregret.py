@@ -67,13 +67,15 @@ with plt.xkcd():
     plt.yscale('log')
     plt.minorticks_off()
     plt.xlim([-1,regret_mean.keys()[len(regret_mean.keys())-1]+1])
-    plt.xticks(range(len(regret_mean)), regret_mean.keys())
     plt.plot(range(len(bound_mean)), bound_mean.values(), 'c--')
     (_, caps, _) = plt.errorbar(    
         range(len(cost_mean)), cost_mean.values(),
         yerr=cost_std.values(), fmt='bo', capsize=4, elinewidth=2)
     for cap in caps: cap.set_markeredgewidth(2)    
-    plt.plot(range(len(opt_mean)), opt_mean.values(), 'g-')        
+    (_, caps, _) = plt.errorbar(
+        range(len(opt_mean)), opt_mean.values(),
+        yerr=opt_std.values(), fmt='g^', capsize=4, elinewidth=2)
+    for cap in caps: cap.set_markeredgewidth(2)    
     (_, caps, _) = plt.errorbar(
         range(len(regret_mean)), regret_mean.values(),
         yerr=regret_std.values(), fmt='rD', capsize=4, elinewidth=2)
@@ -81,6 +83,6 @@ with plt.xkcd():
     plt.tick_params(axis='both', which='major', labelsize=16)
     plt.xlabel('#Iterations', size=18)
     plt.ylabel('Regret, Cost', size=18)    
-    plt.legend(['Regret Bound','MWU Cost','Optimal Cost','MWU Regret'])            
+    plt.legend(['Regret Bound','MWU Cost','Best Fixed Action','MWU Regret'])
 
 plt.show()    
