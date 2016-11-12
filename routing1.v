@@ -21,7 +21,14 @@ Section generalTopology.
 
 Variable N : nat. (* The number of players *)
 Variable T : nat -> Type.
+(* We require the resources to be boolable *)
 Variable BoolableT : forall n, Boolable (T n).
+(* There must be some value for every resource which boolifies to false *)
+Variable BoolableUnitT : forall n, @BoolableUnit (T n)(@BoolableT n).
+(* The fact that BoolableUnitT indeed boolifies to false is captured here*) 
+Variable BoolableUnitAxiomT :
+  forall n, @BoolableUnitAxiom (T n) (@BoolableT n)(@BoolableUnitT n).
+
 Variable source : nat.
 Variable sink : nat.
 (* A topology is defined as a mapping from the set of edges to pairs
@@ -91,28 +98,78 @@ Definition isSrcSnkPath : nTuple N T -> bool :=
         sink (coalescePathIter N N (source::nil) nT)
     then true
     else false.
-Unset Strict Implicit.
+
+(* This attempts to replace the Mth term of a tuple with 
+    the boolable unit associated with it's type *)
+Program Fixpoint negateMthTerm m n : nTuple n T -> nTuple n T :=
+match n with
+| O => fun _ => mkUnit
+| S n' =>
+    match m with 
+    | O => fun t => ((fst t), (BoolableUnitT n))
+    | S m' => fun t => ((negateMthTerm m' n' (fst t)), (snd t))
+    end
+end.
+
+(* This determines if replacing the Mth term of a tuple will
+    have an impact on the bollification of the terms in the
+    resulting tuple. Used to determine when to call negateMthTerm *)
+Fixpoint negateMthTermEffective m n : nTuple n T -> bool :=
+match n with
+| O => fun _ => false
+| S n' =>
+    match m with 
+    | O => fun t => (boolify (snd t))
+    | S m' => fun t => (negateMthTermEffective m' n' (fst t))
+    end
+end.
+
+(* Checks to see if there are any valid subpaths to be made by
+    negating a single resource in the range (Unit, R0, R1, R2... Rn) *)
+Program Fixpoint checkSubPaths m : nTuple N T -> bool :=
+match m with
+| O => fun t => false (* There are no potential subpaths to be made by killing the unit*)
+| S m' => fun t =>
+      if (negateMthTermEffective m N t)
+        then (isSrcSnkPath (negateMthTerm m N t)) || (checkSubPaths m' t)
+        else (checkSubPaths m' t)
+end.
+
+Definition isSimplestPath : nTuple N T -> bool :=
+  fun t => negb (checkSubPaths N t).
+
+Definition isValidPath : nTuple N T -> bool :=
+  fun t => isSrcSnkPath t && isSimplestPath t.
+
 End generalTopology.
 
+Unset Strict Implicit.  
+  
 (*MOVE:*)
 Instance UnitCCostMaxClass (N : nat) 
   : CCostMaxClass N Unit := Qmake 0 1.
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
+Instance UnitEq : Eq Unit := fun x y => True.
+Instance UnitEqDec : Eq_Dec UnitEq.
+Proof.
+  left => //.
+Defined.
+Instance UnitBoolableUnit : BoolableUnit UnitBoolableInstance := mkUnit.
+Program Instance UnitBoolableUnitAxiom : BoolableUnitAxiom UnitBoolableUnit.
+  
+(*
 Instance WrapperBoolableInstance
          I T `(Boolable T)
   : Boolable (Wrapper I T) :=
   fun w => match w with Wrap t => boolify t end.
+
 Instance ProductBoolableInstance
          A B `(Boolable A) `(Boolable B)
   : Boolable (A * B) :=
   fun p => andb (boolify p.1) (boolify p.2).
-Instance SigmaBoolableInstance
-         A `(Boolable A) `(P : A -> bool)
-  : Boolable {x : A | P x} :=
-  fun p => boolify (projT1 p).
 (*END MOVE*)
-
+*)
 (** Topology:
 
             r0: x
@@ -139,12 +196,12 @@ End topology.
 (* Because standard Coq FMaps are parameterized over modules, which 
    aren't first-class in Coq, the following construction has to be 
    done by hand for each game type. *)
-Module R <: MyOrderedType := OrderedResource.
+Module R <: BoolableMyOrderedType := OrderedResource.
 
 Module R10Values <: OrderedAffineType.
   Include R.                    
   Definition scal := Q_to_rat (Qmake 10 1).
-  Definition bias := Q_to_rat (Qmake 0 1).
+  Definition offset := Q_to_rat (Qmake 0 1).
   Definition a0 := RNo.
 End R10Values.
 Module R10 := OrderedAffine R10Values.
@@ -152,7 +209,7 @@ Module R10 := OrderedAffine R10Values.
 Module RValues <: OrderedAffineType.
   Include R.                    
   Definition scal := Q_to_rat (Qmake 1 1).
-  Definition bias := Q_to_rat (Qmake 0 1).
+  Definition offset := Q_to_rat (Qmake 0 1).
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
@@ -165,7 +222,10 @@ Module P3 <: MyOrderedType := OrderedProd P2 R'.
 Inductive Empty_type :=.
 Instance EmptyTypeBoolable : Boolable Empty_type :=
   fun e => match e with end.
-
+Instance EmptyTypeEq : Eq Empty_type :=
+  fun e1 e2 => False.
+Instance EmptyTypeEqDec : Eq_Dec EmptyTypeEq.
+  right. inversion x. Defined.
 Section T. Local Open Scope nat_scope.
 Definition T (n : nat) : Type :=
   match n with
@@ -173,8 +233,75 @@ Definition T (n : nat) : Type :=
   | 1 => R'.t           
   | 2 => R10.t
   | 3 => R'.t
-  | _ => Empty_type
+  | _ => Unit
   end.
+
+
+(* Boolification tests
+(* Variable q : rat.
+Definition P : resource_finType -> bool := fun r => r == RYes.
+Definition sing_test : singleton resource_finType := Wrap Singleton RYes.
+Definition scalar_test : scalar q resource_finType := Wrap (Scalar q) RYes.
+Definition bias_test : bias q resource_finType := Wrap (Bias q) RYes.
+Definition prod_test := (sing_test, scalar_test).
+Program Definition pred_test : {x : resource_finType | P x} :=
+  exist P RYes _.
+Definition affine_pre_test : affineType_pre q q resource_finType :=
+  (scalar_test, Wrap (Scalar q) sing_test).
+Program Definition affine_test : affineType q q resource_finType :=
+  exist _ affine_pre_test _.
+
+Check (boolify RYes).
+Check (boolify sing_test).
+Check (boolify scalar_test).
+Check (boolify bias_test). (* Failed *)
+Check (boolify prod_test).
+Check (boolify pred_test).
+Check (boolify affine_pre_test). (* Passes when P : A -> bool,
+                              but fails when P : Pred A *)
+Check (boolify affine_test).
+Print R'.
+Check (boolify R'.t).
+Check (boolify (scalar_test, (Wrap (Scalar q) sing_test))).
+ *)
+Variable q : rat.
+Instance P' : PredClass resource := fun r => r == RYes.
+Definition P : resource -> bool := fun r => r == RYes.
+Definition sing_test : singleton resource := Wrap Singleton RYes.
+Definition scalar_test : scalar q resource := Wrap (Scalar q) RYes.
+Definition bias_test : bias q resource := Wrap (Bias q) RYes.
+Definition prod_test := (sing_test, scalar_test).
+Program Definition pred'_test : {x : resource | P' x} :=
+  exist _ RYes _.
+Program Definition pred_test : {x : resource | P x} :=
+  exist P RYes _.
+Definition affine_pre_test : affine_pre q q resource :=
+  (scalar_test, Wrap (Scalar q) sing_test).
+Program Definition affine_test : @affine q q resource eq _ :=
+  exist _ affine_pre_test _.
+Next Obligation.
+Proof.
+  destruct x; destruct y.
+  left; auto.
+  right; intros H; inversion H.
+  right; intros H; inversion H.
+  left; auto.
+Defined.  
+
+Check (boolify RYes).
+Check (boolify sing_test).
+Check (boolify scalar_test).
+Check (boolify bias_test). (* Failed *)
+Check (boolify prod_test).
+Check (boolify pred'_test).
+Check (boolify pred_test). (* Failed, but okay. Need to set up preds as instances *)
+Check (boolify affine_pre_test).
+Check (boolify affine_test).
+Variable x : R'.t.
+Check (boolify x).
+*)
+
+Existing Instances R'.boolable R10.boolable R'.Pred.boolable R10.Pred.boolable.
 Instance BoolableT n : Boolable (T n) :=
   match n with 
   | O => _
@@ -183,8 +310,71 @@ Instance BoolableT n : Boolable (T n) :=
   | 3 => _
   | _ => _
   end.
-End T.
 
+Instance EqT n : Eq (T n) :=
+  match n with 
+  | O => _
+  | 1 => R'.eq
+  | 2 => R10.eq
+  | 3 => R'.eq
+  | _ => _
+  end.
+
+Instance EqDecT n : @Eq_Dec _ (@EqT n) :=
+match n with
+  | O => _
+  | 1 => R'.eq_dec
+  | 2 => R10.eq_dec
+  | 3 => R'.eq_dec
+  | _ => _
+  end.
+
+Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
+  match n with
+  | O => _
+  | 1 => @BoolableUnitSigma _
+            R'.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 2 => @BoolableUnitSigma _
+            R10.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 3 => @BoolableUnitSigma _
+            R'.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | _ => _
+  end.
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+Defined.
+Instance BoolableUnitAxiomT n : @BoolableUnitAxiom (T n) _ _ :=
+match n with
+  | O => _
+  | 1 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
+  | 2 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
+  | 3 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
+  | _ => _
+end.
+End T.
+  
 Definition num_players : nat := 15.
 Definition num_iters : N.t := 30.
 Definition eps : Q := Qmake 1 2.
@@ -201,20 +391,22 @@ Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
 Module P <: OrderedPredType.
   Include P3Scaled.
   Definition pred (p : P3Scaled.t) : bool :=
-    @isSrcSnkPath 3 T BoolableT 0 1 top (unwrap p).
+    @isValidPath 3 T BoolableT BoolableUnitT 0 1 top (unwrap p).
   Lemma RValues_eq_dec_refl x : RValues.eq_dec x x.
   Proof.
     case H: (RValues.eq_dec x x) => [pf|pf] => //.
     by elimtype False; move {H}; apply: pf; apply/RValues.eqP.
   Qed.      
   Definition a0 : P3Scaled.t.
+     
   Proof.
     Ltac solve_r r := 
       try solve[
-      exists (Wrap _ r, Wrap _ r);
+      exists (Wrap _ r, Wrap _ (Wrap _ r));
         rewrite /R'.pred /R'.Pred.pred /R'.mypred /=;
                 apply: RValues_eq_dec_refl].
-    repeat (split; solve_r RYes).
+    split. split. split. split => //.
+    solve_r RYes. solve_r RNo. solve_r RNo. 
   Defined.    
   Lemma a0_pred : pred a0.
   Proof. by vm_compute. Qed.
