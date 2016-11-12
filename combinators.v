@@ -1932,10 +1932,9 @@ Instance prodEnumerableInstance (aT bT : Type)
         (@prodCostInstance N rat_realFieldType aT bT costA costB)
         (@prodCCostInstance N aT bT ccostA ccostB).
   Next Obligation.
-    rewrite /cost_fun /prodCostInstance /cost_fun.
-    rewrite /ccost_fun /prodCCostInstance /ccost_fun.
-    rewrite /RefineCostAxiomClass in refineA.
-    rewrite /RefineCostAxiomClass in refineB.
+    rewrite /cost_fun /prodCostInstance /cost_fun
+            /ccost_fun /prodCCostInstance /ccost_fun.
+    rewrite /RefineCostAxiomClass in refineA, refineB.
     rewrite (H i pf).
     move: H.
     have ->: (s (Ordinal (n:=N) (m:=i) pf) =
@@ -1963,18 +1962,11 @@ Instance prodEnumerableInstance (aT bT : Type)
       apply map_split_spec in H.
       case: H => H0 H1.
       apply H1. }
-    have H4: ((ccostA i (map_split m).1 =
-               rat_to_Q
-                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1]))).
-    { apply H2. }
-    have H5: ((ccostB i (map_split m).2 =
-               rat_to_Q
-                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2]))).
-    { apply H3. }
-    rewrite H4 H5 [rat_to_Q (_ + _)] rat_to_Q_red.
-    apply Qred_complete. apply Qeq_sym. apply rat_to_Q_plus.
-Qed.
-  
+    rewrite /ccost_fun in H2, H3.
+    rewrite H2 H3 [rat_to_Q (_ + _)] rat_to_Q_red.
+    apply Qred_complete, Qeq_sym, rat_to_Q_plus.
+  Qed.
+
   Instance prodRefineCostInstance (N : nat) (aT bT : finType)
            (costA : CostClass N rat_realFieldType aT)
            (costB : CostClass N rat_realFieldType bT)

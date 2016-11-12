@@ -1408,9 +1408,6 @@ End MWUProof.
 
 (** Axiomatized client oracle *)
 
-(* For some reason when I try to just use Coq unit type directly here
-   it introduces a new "unit0" type in the extracted OCaml code which
-   causes type errors. *)
 Axiom ax_st_ty : Type.
 Extract Constant ax_st_ty => "unit".
 Axiom empty_ax_st : ax_st_ty.
