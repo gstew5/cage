@@ -51,37 +51,32 @@ Instance UnitCCostMaxClass (N : nat)
   : CCostMaxClass N Unit := Qmake 0 1.
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
-Instance WrapperBoolableInstance
-         I T `(Boolable T)
-  : Boolable (Wrapper I T) :=
-  fun w => match w with Wrap t => boolify t end.
-Instance ProductBoolableInstance
-         A B `(Boolable A) `(Boolable B)
-  : Boolable (A * B) :=
-  fun p => andb (boolify p.1) (boolify p.2).
-Instance SigmaBoolableInstance
-         A `(Boolable A) `(P : A -> bool)
-  : Boolable {x : A | P x} :=
-  fun p => boolify (projT1 p).
+Instance UnitEq : Eq Unit := fun x y => True.
+Instance UnitEqDec : Eq_Dec UnitEq.
+Proof.
+  left => //.
+Defined.
+Instance UnitBoolableUnit : BoolableUnit UnitBoolableInstance := mkUnit.
+Program Instance UnitBoolableUnitAxiom : BoolableUnitAxiom UnitBoolableUnit.
 (*END MOVE*)
 
 (* Because standard Coq FMaps are parameterized over modules, which 
    aren't first-class in Coq, the following construction has to be 
    done by hand for each game type. *)
-Module R <: MyOrderedType := OrderedResource.
+Module R <: BoolableMyOrderedType := OrderedResource.
 
 Module RValues <: OrderedAffineType.
   Include R.                    
   Definition scal := Q_to_rat (Qmake 1 1).
-  Definition bias := Q_to_rat (Qmake 0 1).
+  Definition offset := Q_to_rat (Qmake 0 1).
   Definition a0 := RYes.
 End RValues.
 Module RAffine := OrderedAffine RValues.
 
 (** R*R affine game *)
-Module RUnit <: MyOrderedType := OrderedUnit.
-Module RAffine1 <: MyOrderedType := OrderedProd RUnit RAffine.
-Module RAffine2 <: MyOrderedType := OrderedProd RAffine1 RAffine.
+Module RUnit <: BoolableMyOrderedType := OrderedUnit.
+Module RAffine1 <: BoolableMyOrderedType := BoolableOrderedProd RUnit RAffine.
+Module RAffine2 <: BoolableMyOrderedType := BoolableOrderedProd RAffine1 RAffine.
 
 Inductive Empty_type :=.
 Instance EmptyTypeBoolable : Boolable Empty_type :=
@@ -94,8 +89,9 @@ Section T.
     | O => Unit
     | 1 => RAffine.t
     | 2 => RAffine.t
-    | _ => Empty_type
+    | _ => Unit
     end.
+Existing Instances RAffine.boolable.
   Instance BoolableT n : Boolable (T n) :=
     match n with
     | O => _
@@ -103,6 +99,41 @@ Section T.
     | 2 => _
     | _ => _
     end.
+
+Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
+  match n with
+  | O => _
+  | 1 => @BoolableUnitSigma _
+            RAffine.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 2 => @BoolableUnitSigma _
+            RAffine.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | _ => _
+  end.
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+Defined.
+
+Instance BoolableUnitAxiomT n : @BoolableUnitAxiom (T n) _ _ :=
+match n with
+  | O => _
+  | 1 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
+  | 2 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
+  | _ => _
+end.
 End T.
 
 (** Game parameters *)
@@ -136,7 +167,7 @@ Module P <: OrderedPredType.
   Proof.
     Ltac solve_r r :=
       try solve[
-      exists (Wrap _ r, Wrap _ r);
+      exists (Wrap _ r, (Wrap _ (Wrap _ r)));
         rewrite /RAffine.pred /RAffine.Pred.pred /RAffine.mypred /=;
                 apply: RValues_eq_dec_refl].
     (* I think this should make one RYes and the rest RNo *)
