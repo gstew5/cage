@@ -73,10 +73,19 @@ Module RValues <: OrderedAffineType.
 End RValues.
 Module RAffine := OrderedAffine RValues.
 
-(** R*R affine game *)
+Module RExpensive <: OrderedAffineType.
+  Include R.                    
+  Definition scal := Q_to_rat (Qmake 20 1).
+  Definition offset := Q_to_rat (Qmake 0 1).
+  Definition a0 := RYes.
+End RExpensive.
+Module RAffineExpensive := OrderedAffine RExpensive.
+
+(** R*R*R affine game *)
 Module RUnit <: BoolableMyOrderedType := OrderedUnit.
 Module RAffine1 <: BoolableMyOrderedType := BoolableOrderedProd RUnit RAffine.
-Module RAffine2 <: BoolableMyOrderedType := BoolableOrderedProd RAffine1 RAffine.
+Module RAffine2 <: BoolableMyOrderedType := BoolableOrderedProd RAffine1 RAffineExpensive.
+Module RAffine3 <: BoolableMyOrderedType := BoolableOrderedProd RAffine2 RAffine.
 
 Inductive Empty_type :=.
 Instance EmptyTypeBoolable : Boolable Empty_type :=
@@ -88,15 +97,18 @@ Section T.
     match n with
     | O => Unit
     | 1 => RAffine.t
-    | 2 => RAffine.t
+    | 2 => RAffineExpensive.t
+    | 3 => RAffine.t             
     | _ => Unit
     end.
-Existing Instances RAffine.boolable.
+  Existing Instances RAffine.boolable.
+  Existing Instances RAffineExpensive.boolable.  
   Instance BoolableT n : Boolable (T n) :=
     match n with
     | O => _
     | 1 => _
     | 2 => _
+    | 3 => _             
     | _ => _
     end.
 
@@ -108,8 +120,14 @@ Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
             (prodBoolableUnit _ _ 
                (BoolableUnitScalar _ _ boolableUnit_Resource)
                (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
+            _ _
   | 2 => @BoolableUnitSigma _
+            RAffineExpensive.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 3 => @BoolableUnitSigma _
             RAffine.Pred.boolable
             (prodBoolableUnit _ _ 
                (BoolableUnitScalar _ _ boolableUnit_Resource)
@@ -125,6 +143,10 @@ Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
   cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
   rewrite -OrderedResource.eqP => //.
 }
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
 Defined.
 
 Instance BoolableUnitAxiomT n : @BoolableUnitAxiom (T n) _ _ :=
@@ -132,6 +154,7 @@ match n with
   | O => _
   | 1 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
   | 2 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
+  | 3 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)           
   | _ => _
 end.
 End T.
@@ -142,28 +165,28 @@ Definition num_flows_per_player : nat := 2.
 Definition num_players' : nat :=
   num_players * num_flows_per_player.
 Definition num_iters : N.t := 60.
-Definition eps : Q := Qmake 1 2.
+Definition eps : Q := Qmake 1 4.
 
-Module RAffine2Scalar <: OrderedScalarType.
-  Include RAffine2.
+Module RAffine3Scalar <: OrderedScalarType.
+  Include RAffine3.
   Definition scal :=
     Q_to_rat
-      (Qdiv 1 (@ccostmax_fun num_players' RAffine2.t
-                             (RAffine2.cost_max num_players'))).
-End RAffine2Scalar.
+      (Qdiv 1 (@ccostmax_fun num_players' RAffine3.t
+                             (RAffine3.cost_max num_players'))).
+End RAffine3Scalar.
 
 (** Normalized game *)
-Module RAffine2Scaled <: MyOrderedType := OrderedScalar RAffine2Scalar.
+Module RAffine3Scaled <: MyOrderedType := OrderedScalar RAffine3Scalar.
 Module P <: OrderedPredType.
-  Include RAffine2Scaled.
-  Definition pred (p : RAffine2Scaled.t) : bool :=
-    @exactly_one_true T BoolableT 2 (unwrap p).
+  Include RAffine3Scaled.
+  Definition pred (p : RAffine3Scaled.t) : bool :=
+    @exactly_one_true T BoolableT 3 (unwrap p).
   Lemma RValues_eq_dec_refl x : RValues.eq_dec x x.
   Proof.
     case H: (RValues.eq_dec x x) => [pf|pf] => //.
     by elimtype False; move {H}; apply: pf; apply/RValues.eqP.
   Qed.      
-  Definition a0 : RAffine2Scaled.t.
+  Definition a0 : RAffine3Scaled.t.
   Proof.
     Ltac solve_r r :=
       try solve[
@@ -182,19 +205,19 @@ Module P <: OrderedPredType.
 End P.
 
 (** Game with predicated strategy space (choose exactly one resource) *)
-Module RAffine2ScaledSigma <: MyOrderedType := OrderedSigma P.
+Module RAffine3ScaledSigma <: MyOrderedType := OrderedSigma P.
 
 (* The program *)
-Module MWU := MWU RAffine2ScaledSigma.
+Module MWU := MWU RAffine3ScaledSigma.
 
-Existing Instance RAffine2ScaledSigma.enumerable.
+Existing Instance RAffine3ScaledSigma.enumerable.
 
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition mwu0 (eps : Q) (nx : N.t)
            {T chanty : Type} {oracle : ClientOracle T chanty}
            (init_oracle_st : T) :=
   MWU.interp
-    (weightslang.mult_weights RAffine2ScaledSigma.t nx)
+    (weightslang.mult_weights RAffine3ScaledSigma.t nx)
     (@MWU.init_cstate T chanty oracle init_oracle_st _ eps).
 
 Definition mwu := mwu0 eps num_iters empty_ax_st.
@@ -209,9 +232,9 @@ Module C : ServerConfig.
   Definition num_rounds := 5000%N.
 End C.
 
-Module Server := Server C RAffine2ScaledSigma.
+Module Server := Server C RAffine3ScaledSigma.
 
-Existing Instance RAffine2ScaledSigma.cost_instance.
+Existing Instance RAffine3ScaledSigma.cost_instance.
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition run := Server.server (@Server.init_state result _ ax_oracle).
 
