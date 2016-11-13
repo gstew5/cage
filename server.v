@@ -54,6 +54,18 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
       (enumerate A.t)
       nil.
 
+  Fixpoint compute_social_cost (s : state) (player : nat) : Q :=
+  match player with
+  | O => ccost (N.of_nat player) (actions_received s)
+  | S n' => ccost (N.of_nat player) (actions_received s) +
+           compute_social_cost s n'
+  end.
+
+  Definition print_social_cost (s : state) : state :=
+    let s' := eprint_string "Social cost: " s in
+    let s'' := eprint_Q (compute_social_cost s (C.num_players)) s' in
+    eprint_newline s''.
+
   Fixpoint send (s : state) (player : nat) : state :=
     match player with
     | O => s
@@ -69,11 +81,13 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
   
   Fixpoint round (s : state) (player : nat) : state :=
     match player with
-    | O => send (mkState (actions_received s)
-                         (listen_channel s)
-                         (service_channels s)
-                         (oracle_st s))
-                C.num_players (*reset cur_player=num_players*)
+    | O =>
+      (* let st' := mkState (actions_received s) *)
+      (*                    (listen_channel s) *)
+      (*                    (service_channels s) *)
+      (*                    (oracle_st s) in *)
+      let st' := print_social_cost s in
+      send st' C.num_players (*reset cur_player=num_players*)
     | S player' =>
       let '(a, c, st') := oracle_recv _ (oracle_st s) (listen_channel s) in
       let s' := eprint_showable a s in
