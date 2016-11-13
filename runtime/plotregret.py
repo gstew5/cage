@@ -4,6 +4,7 @@ import sys
 import csv
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fmr
+from matplotlib.ticker import ScalarFormatter
 import numpy as np
 
 # Given the output of [./calcregret.py infile datafile epsilon],
@@ -61,28 +62,57 @@ for k in bound:
     bound_mean[k] = np.mean(bound[k])
     bound_std[k] = np.std(bound[k])
 
-with plt.xkcd():
-    fig = plt.figure(figsize=(8,8), dpi=120)
-    plt.title('Experimental Regret: Routing Game', size=18)
-    plt.yscale('log')
-    plt.minorticks_off()
-    plt.xlim([-1,regret_mean.keys()[len(regret_mean.keys())-1]+1])
-    plt.plot(range(len(bound_mean)), bound_mean.values(), 'c--')
-    (_, caps, _) = plt.errorbar(    
-        range(len(cost_mean)), cost_mean.values(),
-        yerr=cost_std.values(), fmt='bo', capsize=4, elinewidth=2)
-    for cap in caps: cap.set_markeredgewidth(2)    
-    (_, caps, _) = plt.errorbar(
-        range(len(opt_mean)), opt_mean.values(),
-        yerr=opt_std.values(), fmt='g^', capsize=4, elinewidth=2)
-    for cap in caps: cap.set_markeredgewidth(2)    
-    (_, caps, _) = plt.errorbar(
-        range(len(regret_mean)), regret_mean.values(),
-        yerr=regret_std.values(), fmt='rD', capsize=4, elinewidth=2)
-    for cap in caps: cap.set_markeredgewidth(2)
-    plt.tick_params(axis='both', which='major', labelsize=16)
-    plt.xlabel('#Iterations', size=18)
-    plt.ylabel('Regret, Cost', size=18)    
-    plt.legend(['Regret Bound','MWU Cost','Best Fixed Action','MWU Regret'])
+fig = plt.figure(figsize=(8,8), dpi=120)
+    
+# These are the "Tableau 20" colors as RGB.
+# From: http://www.randalolson.com/2014/06/28/how-to-make-beautiful-data-visualizations-in-python-with-matplotlib/
+tableau20 = [(31, 119, 180), (174, 199, 232), (255, 127, 14), (255, 187, 120),
+             (44, 160, 44), (152, 223, 138), (214, 39, 40), (255, 152, 150),
+             (148, 103, 189), (197, 176, 213), (140, 86, 75), (196, 156, 148),
+             (227, 119, 194), (247, 182, 210), (127, 127, 127), (199, 199, 199),
+             (188, 189, 34), (219, 219, 141), (23, 190, 207), (158, 218, 229)]
+
+# Scale the RGB values to the [0, 1] range, which is the format matplotlib accepts.
+for i in range(len(tableau20)):
+    r, g, b = tableau20[i]
+    tableau20[i] = (r / 255., g / 255., b / 255.)
+
+# Remove the plot frame lines. They are unnecessary chartjunk.
+ax = plt.subplot(111)
+ax.spines["top"].set_visible(False)
+ax.spines["bottom"].set_visible(False)
+ax.spines["right"].set_visible(False)
+ax.spines["left"].set_visible(False)
+
+# Ensure that the axis ticks only show up on the bottom and left of the plot.
+# Ticks on the right and top of the plot are generally unnecessary chartjunk.
+ax.get_xaxis().tick_bottom()
+ax.get_yaxis().tick_left()
+## END Randal Olson stuff
+
+plt.title('Routing', size=24)
+plt.yscale('symlog',linthreshy=0.1) #so we properly support negative values (error bars)
+plt.minorticks_off()
+plt.xlim([-1,regret_mean.keys()[len(regret_mean.keys())-1]+1])
+plt.plot(range(len(bound_mean)), bound_mean.values(), '--', color=tableau20[0], linewidth=2)
+(_, caps, _) = plt.errorbar(    
+    range(len(cost_mean)), cost_mean.values(),
+    yerr=cost_std.values(), fmt='bo', capsize=4, elinewidth=2,
+    color=tableau20[1])
+for cap in caps: cap.set_markeredgewidth(2)    
+(_, caps, _) = plt.errorbar(
+    range(len(regret_mean)), regret_mean.values(),
+    yerr=regret_std.values(), fmt='rD', capsize=4, elinewidth=2,
+    color=tableau20[6])
+for cap in caps: cap.set_markeredgewidth(2)    
+(_, caps, _) = plt.errorbar(
+    range(len(opt_mean)), opt_mean.values(),
+    yerr=opt_std.values(), fmt='g^', capsize=4, elinewidth=2,
+    color=tableau20[4])    
+for cap in caps: cap.set_markeredgewidth(2)
+plt.tick_params(axis='both', which='major', labelsize=20)
+plt.xlabel('#Iterations', size=22)
+plt.ylabel('Regret, Cost', size=22)    
+plt.legend(['Regret Bound','MWU Cost','MWU Regret','Best Fixed Action'], fontsize=20)
 
 plt.show()    
