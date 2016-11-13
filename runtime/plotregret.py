@@ -95,21 +95,12 @@ plt.yscale('symlog',linthreshy=0.1) #so we properly support negative values (err
 plt.minorticks_off()
 plt.xlim([-1,regret_mean.keys()[len(regret_mean.keys())-1]+1])
 plt.plot(range(len(bound_mean)), bound_mean.values(), '--', color=tableau20[0], linewidth=2)
-(_, caps, _) = plt.errorbar(    
-    range(len(cost_mean)), cost_mean.values(),
-    yerr=cost_std.values(), fmt='bo', capsize=4, elinewidth=2,
-    color=tableau20[1])
-for cap in caps: cap.set_markeredgewidth(2)    
+plt.plot(range(len(cost_mean)), cost_mean.values(), '-', color=tableau20[1], linewidth=2)
 (_, caps, _) = plt.errorbar(
     range(len(regret_mean)), regret_mean.values(),
     yerr=regret_std.values(), fmt='rD', capsize=4, elinewidth=2,
     color=tableau20[6])
-for cap in caps: cap.set_markeredgewidth(2)    
-(_, caps, _) = plt.errorbar(
-    range(len(opt_mean)), opt_mean.values(),
-    yerr=opt_std.values(), fmt='g^', capsize=4, elinewidth=2,
-    color=tableau20[4])    
-for cap in caps: cap.set_markeredgewidth(2)
+plt.plot(range(len(opt_mean)), opt_mean.values(), '-', color=tableau20[4], linewidth=2)
 plt.tick_params(axis='both', which='major', labelsize=20)
 plt.xlabel('#Iterations', size=22)
 plt.ylabel('Regret, Cost', size=22)    
