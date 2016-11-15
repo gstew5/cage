@@ -1003,22 +1003,22 @@ Section locationDefs.
   (* have H1:
       \sum_(i < N) (cost) i ((upd i s) s') <=
       \sum_(i < N) (W (upd i s s') - W (nullify_player i s)).
-    { admit. }
+    { }
     apply: ler_trans; first by apply: H1.
     have H2:
       \sum_(i < N) (W ((upd i s) s') - W (nullify_player i s)) <=
       \sum_(i < N) (C (Z i s s') - C (Z (i - 1) s s')).
-    { admit. }
+    { }
     apply: ler_trans; first by apply: H2.
     rewrite big_split /W => /=.
     have ->:
       \sum_(i < N) - C (Z (i - 1) s s') =
       - \sum_(i < N) C (Z (i - 1) s s').
-    { admit. }
+    { }
     have H3: \sum_(i < N) C (Z i s s') <= C (U s').
-    { admit. }
+    { }
     have H4: C (U s) <= \sum_(i < N) C (Z (i - 1) s s').
-    { admit. }
+    { }
     apply: ler_add => //; by rewrite ler_oppl opprK.*)
   Abort. (* Currently unused *)
 End locationDefs.
