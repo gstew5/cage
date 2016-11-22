@@ -105,6 +105,7 @@ VFILES:=axioms.v\
   games.v\
   neps_exp_le.v\
   numerics.v\
+  dyadic.v\
   potential.v\
   routing.v\
   routing1.v\
