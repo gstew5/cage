@@ -679,7 +679,7 @@ Definition resource_ccost N (i : OrdNat.t) (m : M.t resource) : Qcoq :=
   | None => 0%coq_Qscope (*won't occur when i < N*)
   end.
 
-Instance resourceCCostInstance N : CCostClass N resource
+Global Instance resourceCCostInstance N : CCostClass N resource
   := resource_ccost N.
 
 Definition lift_traffic N (s : {ffun 'I_N -> resource})
@@ -907,7 +907,7 @@ Qed.
 Instance resourceRefineCostInstance N
   : @RefineCostClass N [finType of resource] _ _ _.
 
-Instance resourceCCostMaxInstance N
+Global Instance resourceCCostMaxInstance N
   : @CCostMaxClass N [finType of resource] :=
       (rat_to_Q (N%:R)).
 
@@ -1003,34 +1003,66 @@ Section locationDefs.
   (* have H1:
       \sum_(i < N) (cost) i ((upd i s) s') <=
       \sum_(i < N) (W (upd i s s') - W (nullify_player i s)).
-    { admit. }
+    { }
     apply: ler_trans; first by apply: H1.
     have H2:
       \sum_(i < N) (W ((upd i s) s') - W (nullify_player i s)) <=
       \sum_(i < N) (C (Z i s s') - C (Z (i - 1) s s')).
-    { admit. }
+    { }
     apply: ler_trans; first by apply: H2.
     rewrite big_split /W => /=.
     have ->:
       \sum_(i < N) - C (Z (i - 1) s s') =
       - \sum_(i < N) C (Z (i - 1) s s').
-    { admit. }
+    { }
     have H3: \sum_(i < N) C (Z i s s') <= C (U s').
-    { admit. }
+    { }
     have H4: C (U s) <= \sum_(i < N) C (Z (i - 1) s s').
-    { admit. }
+    { }
     apply: ler_add => //; by rewrite ler_oppl opprK.*)
   Abort. (* Currently unused *)
 End locationDefs.
 
-(** "Boolable" Types *)
+(** "Boolable" and "Eq_dec" Types *)
 
 Class Boolable (A : Type) : Type :=
   boolify : A -> bool.
 
+Class BoolableUnit (A : Type) (boolable : Boolable A) : Type :=
+  boolUnit : A.
+
+Class BoolableUnitAxiom
+  (A : Type) (boolable : Boolable A)
+  (boolableUnit : @BoolableUnit A boolable) : Type :=
+    isUnit : boolable (boolableUnit) = false. 
+
+(* We bundle up equality here to make it
+    visible to the affine cost functions *)
+  (** really this needn't be equality is probably better to rename it to relation *)
+Class Eq (A : Type) : Type :=
+  decEq : A -> A -> Prop.
+
+Class Eq_Dec (A : Type) (eq : Eq A) : Type :=
+  isDec : forall x y : A,  {eq x y} + {~ eq x y}.
+
 Instance boolable_Resource : Boolable resource :=
   fun r => match r with RYes => true | RNo => false end.
 
+Instance boolableUnit_Resource :
+  @BoolableUnit resource boolable_Resource := RNo.
+
+Program Instance boolableUnitAxiom_Resource :
+  @BoolableUnitAxiom _ _ boolableUnit_Resource.
+
+Instance eqResource : Eq resource := eq.
+
+Instance eqDecResource : Eq_Dec eqResource.
+Proof.
+  move => x y.
+  case:(eqVneq x y) => H;
+  [left | right] => //.
+  move/eqP: H => //.
+Defined.
 (** Singleton Games A : Boolable, 
     c_i s =  if (boolify s_i) then 1 else 0 *)
 
@@ -1055,9 +1087,29 @@ Definition singletonType (A : finType) :=
   [finType of Wrapper [eqType of Singleton] A].
 End SingletonType.
 
-Instance BoolableSingleton (A : finType) `(Boolable A)
-  : Boolable (singletonType A) :=
-  fun (s : singletonType A) => boolify (unwrap s).
+Global Instance BoolableSingleton (A : Type) `(Boolable A)
+  : Boolable (singleton A) :=
+  fun (s : singleton A) => boolify (unwrap s).
+
+Global Instance BoolableUnitSingleton (A : Type) `(bA : BoolableUnit A)
+  : (BoolableUnit (BoolableSingleton _)) :=  (Wrap Singleton bA).
+
+Global Program Instance BoolableUnitSingletonAxiom
+        (A: Type) `(bA : BoolableUnitAxiom A)
+  : @BoolableUnitAxiom _ _ (BoolableUnitSingleton A _).
+
+Program Instance eqSingleton (A : Type) (eqA : Eq A) : Eq (singleton A) :=
+  fun a b => 
+    eqA (unwrap a) (unwrap b).
+
+Program Instance eqDecSingleton
+                  (A : Type) (eqA : Eq A)
+                  (eqDecA : Eq_Dec eqA) : Eq_Dec (@eqSingleton A eqA).
+Next Obligation.
+  case: x => x; case: y => y.
+  rewrite /eqSingleton => //.
+Defined.
+
 Instance singletonCostInstance
          (N : nat) (A : finType)
          (* `(costA : CostClass N rty A) *)
@@ -1162,11 +1214,7 @@ Module SingletonSmoothTest. Section singletonSmoothTest.
     cost i t == lambda of (singletonType A). Abort.
 End singletonSmoothTest. End SingletonSmoothTest.
 
-Instance singletonBoolableInstance
-         A `(Boolable A)
-  : Boolable (singleton A) := fun a => boolify (unwrap a).
-
-Instance singCCostInstance (A : Type) `(Boolable A) N
+Global Instance singCCostInstance (A : Type) `(Boolable A) N
   : CCostClass N (singleton A)
   :=      
     fun (i : OrdNat.t) (m : M.t (singleton A)) =>
@@ -1175,14 +1223,18 @@ Instance singCCostInstance (A : Type) `(Boolable A) N
             | _ => 0%coq_Qscope
             end).
 
+Instance singCTypeInstance (A : Type) (EnumA : Enumerable A)
+    : Enumerable (singleton A) := map (@Wrap Singleton A) (enumerate A).
+
+Instance singCCostMaxInstance (N : nat) (A : Type)
+    : @CCostMaxClass N (singleton A) := 1%Q.
+
+
 Section singletonCompilable.
   Context {A : finType} {N: nat} `{RefineTypeAxiomClass A} `{Boolable A}.
 
-  Instance singCTypeInstance
-    : Enumerable (singleton A) := map (@Wrap Singleton A) (enumerate A).
-
   Program Instance singRefineTypeAxiomInstance
-    : @RefineTypeAxiomClass (singletonType A) singCTypeInstance.
+    : @RefineTypeAxiomClass (singletonType A) (singCTypeInstance _).
   Next Obligation.
     generalize H => H1. clear H. case: H1 => H1 H2.
     split; last first.
@@ -1229,11 +1281,8 @@ Qed.
   Instance singRefineCostInstance
     : @RefineCostClass N (singletonType A) _ _ _.
 
-  Instance singCCostMaxInstance
-    : @CCostMaxClass N (singletonType A) := 1%Q.
-
   Instance singRefineCostMaxInstance
-    : @RefineCostMaxClass N _ (singletonCostMaxInstance _ _) (singCCostMaxInstance).
+    : @RefineCostMaxClass N _ (singletonCostMaxInstance _ _) (singCCostMaxInstance N A).
   Proof.
     rewrite /RefineCostMaxClass /resourceCCostMaxInstance
             /singletonCostMaxInstance /singCCostMaxInstance => //.
@@ -1250,11 +1299,48 @@ Module SingletonCGameTest. Section singletonCGameTest.
   Variable i' : OrdNat.t.
   Variable t' : M.t (singletonType A).
   Check ccost_fun (N:=N) i' t'.
-End singletonCGameTest. End SingletonCGameTest.  
+End singletonCGameTest.  End SingletonCGameTest.  
 
 (** Sigma Games {x : A | P x}, with P : A -> bool *)
 
 Class PredClass (A : Type) := the_pred : A -> bool.
+
+Class PredClassPreservesBoolableUnit
+        (A : Type) `(Boolable A) (P : PredClass A)
+        (bA : @BoolableUnit A _)
+  := unitPreserved : P bA = true.
+
+Global Instance SigmaBoolableInstance
+         A (B : Boolable A) (P : PredClass A)
+  : Boolable {x : A | P x} :=
+  fun p => boolify (projT1 p).
+
+(* We need to ensure that our BoolableUnit surives P *)
+Instance BoolableUnitSigma
+        A `(Boolable A) `(bA : @BoolableUnit A _)
+        `(P : PredClass A) `(pf : @PredClassPreservesBoolableUnit A _ P bA)
+  : BoolableUnit (@SigmaBoolableInstance A _ P) :=
+  (exist _ bA pf).
+
+Global Program Instance BoolableUnitSigmaAxiom 
+        A `(Boolable A) `(bA : @BoolableUnit A _)
+        `(@BoolableUnitAxiom _ _ bA) 
+        `(P : PredClass A) (pf : @PredClassPreservesBoolableUnit A _ P bA)
+  : @BoolableUnitAxiom _ _ (BoolableUnitSigma pf).
+
+Program Instance eqSigma (A : Type) (eqA : Eq A) (P : PredClass A)
+  : Eq {x : A | P x} :=
+    fun a b => 
+      eqA (proj1_sig a) (proj1_sig b).
+
+Program Instance eqSigmaDec
+                  (A : Type) (eqA : Eq A)
+                  (eqDecA : Eq_Dec eqA)
+                  (P : PredClass A)
+  : Eq_Dec (@eqSigma _ eqA P).
+Next Obligation.
+  rewrite /eqSigma => //.
+Qed.
 
 Instance sigmaCostInstance
          (N : nat) (rty : realFieldType) (A : finType)
@@ -1343,7 +1429,6 @@ Qed.
     usually (or ever...?) result in usable OCaml terms. Instead, 
     use the [enumerate] function of the underlying type to build the 
     instance at the current type.
-
     The example below illustrates the general problem: *)
 
 Definition resources : list resource := Eval hnf in enum [finType of resource].
@@ -1513,7 +1598,7 @@ Section sigmaCompilable.
            `(refineTypeAxiomInstanceA : RefineTypeAxiomClass A)
     : @RefineTypeClass [finType of {x : A | the_pred x}]  _ _.
 
-  Instance sigmaCCostInstance
+  Global Instance sigmaCCostInstance
            (A : Type) N
            (predInstance : PredClass A)
            (ccostA : @CCostClass N A)
@@ -1578,6 +1663,47 @@ Section sigmaCompilable.
 End sigmaCompilable.
 
 (** Product Games A * B *)
+
+Instance prodBoolableInstance
+         (A B : Type) (bA : Boolable A) (bB : Boolable B)
+  : Boolable (A*B) :=
+      fun ab => (boolify (fst ab)) && (boolify (snd ab)).
+
+Instance prodBoolableUnit
+         (A B : Type) `(bA : BoolableUnit A) `(bB : BoolableUnit B)
+  : BoolableUnit (@prodBoolableInstance A B _ _) :=
+      (bA, bB).
+
+Program Instance prodBoolableUnitAxiom
+          (A B : Type)
+          `(bA : BoolableUnit A)
+          (bAa : BoolableUnitAxiom bA)
+          `(bB : BoolableUnit B)
+          (bBa : BoolableUnitAxiom bB)
+  : BoolableUnitAxiom (prodBoolableUnit A B bA bB).
+Next Obligation.
+  rewrite /prodBoolableInstance !/boolify bAa bBa => //.
+Qed.
+
+Instance eqProd
+      (A B: Type) (eqA : Eq A) (eqB : Eq B)
+  : Eq (A*B)%type :=
+    fun p1 p2 =>
+    match p1, p2 with
+    | (a1, b1), (a2, b2) => (eqA a1 a2) /\ (eqB b1 b2)
+    end. 
+
+Program Instance eqProdDec
+      (A B : Type) (eqA : Eq A) (eqB : Eq B)
+      (eqDecA : Eq_Dec eqA) (eqDecB : Eq_Dec eqB)
+  : Eq_Dec (@eqProd _ _ eqA eqB).
+Next Obligation.
+  rewrite /eqProd.
+  case: (eqDecA a0 a);
+  case: (eqDecB b0 b) => H0 H1;
+  [left | right | right | right] => // => H;
+  [apply H0 | apply H1 | apply H1]; apply H.
+Defined.
 
 Instance prodCostInstance
          (N : nat) (rty : realFieldType) (aT bT : finType)
@@ -1905,7 +2031,7 @@ Instance prodEnumerableInstance (aT bT : Type)
         apply H2. apply H3. apply H3. } }
   Qed.
 
-  Instance prodCCostInstance
+  Global Instance prodCCostInstance
            N 
            (aT bT : Type)
            `(ccostA : CCostClass N aT)
@@ -1932,10 +2058,9 @@ Instance prodEnumerableInstance (aT bT : Type)
         (@prodCostInstance N rat_realFieldType aT bT costA costB)
         (@prodCCostInstance N aT bT ccostA ccostB).
   Next Obligation.
-    rewrite /cost_fun /prodCostInstance /cost_fun.
-    rewrite /ccost_fun /prodCCostInstance /ccost_fun.
-    rewrite /RefineCostAxiomClass in refineA.
-    rewrite /RefineCostAxiomClass in refineB.
+    rewrite /cost_fun /prodCostInstance /cost_fun
+            /ccost_fun /prodCCostInstance /ccost_fun.
+    rewrite /RefineCostAxiomClass in refineA, refineB.
     rewrite (H i pf).
     move: H.
     have ->: (s (Ordinal (n:=N) (m:=i) pf) =
@@ -1963,18 +2088,11 @@ Instance prodEnumerableInstance (aT bT : Type)
       apply map_split_spec in H.
       case: H => H0 H1.
       apply H1. }
-    have H4: ((ccostA i (map_split m).1 =
-               rat_to_Q
-                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1]))).
-    { apply H2. }
-    have H5: ((ccostB i (map_split m).2 =
-               rat_to_Q
-                 ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2]))).
-    { apply H3. }
-    rewrite H4 H5 [rat_to_Q (_ + _)] rat_to_Q_red.
-    apply Qred_complete. apply Qeq_sym. apply rat_to_Q_plus.
-Qed.
-  
+    rewrite /ccost_fun in H2, H3.
+    rewrite H2 H3 [rat_to_Q (_ + _)] rat_to_Q_red.
+    apply Qred_complete, Qeq_sym, rat_to_Q_plus.
+  Qed.
+
   Instance prodRefineCostInstance (N : nat) (aT bT : finType)
            (costA : CostClass N rat_realFieldType aT)
            (costB : CostClass N rat_realFieldType bT)
@@ -2065,9 +2183,31 @@ Definition scalar (c : rty) (A : Type) :=
 Definition scalarType (c : rty) (A : finType) :=
   [finType of Wrapper (Scalar c) A].
 
-Instance BoolableScalar (c : rty) (A : finType) `(Boolable A)
-  : Boolable (scalarType c A) :=
-  fun (s : scalarType c A) => boolify (unwrap s).
+Global Instance BoolableScalar (c : rty) (A : Type) `(Boolable A)
+  : Boolable (scalar c A) :=
+  fun (s : scalar c A) => boolify (unwrap s).
+
+Global Instance BoolableUnitScalar (c : rty) (A : Type) `(bA : BoolableUnit A) :
+  BoolableUnit (@BoolableScalar c A _) := (Wrap (Scalar c) bA).
+
+Global Program Instance BoolableUnitScalarAxiom
+  (c : rty) (A : Type) `(bA : BoolableUnit A) `(bAax : @BoolableUnitAxiom _ _ bA) :
+  @BoolableUnitAxiom _ _ (BoolableUnitScalar c A bA).
+
+Global Instance eqScalar
+      (c : rty) (A : Type) (eqA : Eq A)
+  : Eq (scalar c A) :=
+    fun a1 a2 =>
+    (eqA (unwrap a1) (unwrap a2)). 
+
+Program Instance eqScalarDec
+      (c : rty) (A : Type) (eqA : Eq A)
+      (eqDecA : Eq_Dec eqA)
+  : Eq_Dec (@eqScalar c _  eqA).
+Next Obligation.
+  rewrite /eqScalar.
+  case: x => x; case: y => y //.
+Defined.
 
 End ScalarType.
 
@@ -2198,7 +2338,7 @@ Definition unwrapScalarTree A (q : rat) : M.t (scalar q A) -> M.t A :=
               M.add i (unwrap r) acc)
       m (M.empty A).    
 
-Instance scalarCCostInstance
+Global Instance scalarCCostInstance
          N (A : Type)
          `(Enumerable A) `(CCostClass N A)
          (q : rat)
@@ -2338,7 +2478,8 @@ Module ScalarCGameTest. Section scalarCGameTest.
 End scalarCGameTest. End ScalarCGameTest.
 
 
-(** Bias Games c + A *)
+(*
+ Bias Games c + A *)
 
 Section BiasType.
 Variable rty : realFieldType.
@@ -2363,9 +2504,31 @@ Definition bias (c : rty) (A : Type) :=
 Definition biasType (c : rty) (A : finType) :=
   [finType of Wrapper (Bias c) A].
 
-Instance BoolableBias (c : rty) (A : finType) `(Boolable A)
-  : Boolable (biasType c A) :=
-  fun (s : biasType c A) => boolify (unwrap s).
+Global Instance BoolableBias (c : rty) (A : Type) `(Boolable A)
+  : Boolable (bias c A) :=
+  fun (s : bias c A) => boolify (unwrap s).
+
+Global Instance BoolableUnitBias (c : rty) (A : Type) `(bA : BoolableUnit A) :
+  BoolableUnit (@BoolableBias c A _) := (Wrap (Bias c) bA).
+
+Global Program Instance BoolableUnitBiasAxiom
+  (c : rty) (A : Type) `(bA : BoolableUnit A) `(bAax : @BoolableUnitAxiom _ _ bA) :
+  @BoolableUnitAxiom _ _ (BoolableUnitBias c A bA).
+
+Global Instance eqBias
+      (c : rty) (A : Type) (eqA : Eq A)
+  : Eq (bias c A) :=
+    fun a1 a2 =>
+    (eqA (unwrap a1) (unwrap a2)). 
+
+Program Instance eqBiasDec
+      (c : rty) (A : Type) (eqA : Eq A)
+      (eqDecA : Eq_Dec eqA)
+  : Eq_Dec (@eqBias c _  eqA).
+Next Obligation.
+  rewrite /eqBias.
+  case: x => x; case: y => y //.
+Defined.
 
 End BiasType.
 
@@ -2499,7 +2662,7 @@ End biasSmoothTest. End BiasSmoothTest.
               M.add i (unwrap r) acc)
       m (M.empty A).    
 
-  Instance biasCCostInstance
+  Global Instance biasCCostInstance
          N (A : Type)
          `(Enumerable A) `(CCostClass N A)
          (q : rat)
@@ -2650,7 +2813,7 @@ Inductive Unit : Set := mkUnit : Unit.
 
 Definition string_of_unit (r : Unit) : string :=
   match r with
-  | unit => "tt"
+  | unit => "mkUnit"
   end.
 
 Instance unitShowable : Showable Unit :=
@@ -2773,7 +2936,7 @@ Check RefineTypeAxiomClass.
   Definition unit_ccost (i : OrdNat.t) (m : M.t Unit) : Qcoq :=
     0%coq_Qscope.
 
-  Instance unitCCostInstance
+  Global Instance unitCCostInstance
     : CCostClass N [finType of Unit] := unit_ccost.
 
   Program Instance unitRefineCostAxiomInstance
@@ -2798,36 +2961,95 @@ Check RefineTypeAxiomClass.
 End unitCompilable.
 
 (** Affine Games: C(x) = ax + b, 0 <= a, 0 <= b *)
-Section AffineGame.
-Context `(scalarA : ScalarClass rat_realFieldType)
-        `(scalarB : ScalarClass rat_realFieldType).
+Section AffineType.
+Variables (scalarA : ScalarClass rat_realFieldType)
+          (scalarB : ScalarClass rat_realFieldType).
 
-Context (A : finType) (N : nat).
+Definition affine_pre (A : Type) : Type :=
+  (scalar (@scalar_val _ scalarA) A) *
+  (scalar (@scalar_val _ scalarB) (singleton A))%type.
 
-Definition affineType_pre : Type :=
-  (scalarType (@scalar_val _ scalarA) A) *
-  (scalarType (@bias_val _ scalarB) (singletonType A))%type.
+Global Instance affinePredInstance
+                  (A : Type) (eqA : Eq A) (eqDecA : Eq_Dec eqA) 
+  : PredClass (affine_pre A):=
+  fun p => 
+    match p.1, p.2 with
+    | Wrap x, Wrap (Wrap y) => eqDecA x y
+    end.
 
-Instance affinePredInstance : PredClass affineType_pre :=
-  fun A => (unwrap (fst A)) == (unwrap (unwrap (snd A))).
+(* At least in the case of the instances set up around resource games,
+    this holds. In order to generalize it, Eq_dec will need to be strengthened *)
+Global Instance affinePredPreservesBoolableResourceUnit
+  : @PredClassPreservesBoolableUnit
+      (affine_pre resource) _ (@affinePredInstance resource _ _) _.
+Proof.
+  rewrite /PredClassPreservesBoolableUnit /affinePredInstance /=
+          /eqDecResource.
+  case (eqVneq) => H //.
+Qed.
 
-Definition affineType := {x : affineType_pre | affinePredInstance x}.
-End AffineGame.
+Definition affine
+             (A : Type) (eqA : Eq A) (eqDecA : Eq_Dec eqA)
+  := {x : affine_pre A | (affinePredInstance eqDecA) x}.
+
+Global Instance affineBoolable
+    (A : Type) (eqA : Eq A) (eqDecA : Eq_Dec eqA)
+    (bA : Boolable A) (a : BoolableUnit bA)
+  : Boolable (@affine A _ _).
+Proof.
+  apply (@SigmaBoolableInstance _ _ _).
+Defined.
+
+Global Instance affineBoolableResourceUnit
+  : BoolableUnit (@affineBoolable resource _ _ _ _).
+Proof.
+  apply (@BoolableUnitSigma _ _ _ _ _).
+Defined.
+
+Definition affine_preType (A : finType)
+  := [finType of (affine_pre A)].
+
+Program Definition affineType (A : finType)
+:= [finType of (@affine A eq _ )].
+Next Obligation.
+  move => x y.
+  case: (eqVneq x y) => H; [left | right] => //.
+  apply/eqP => //.
+Defined.
+End AffineType.
+
 
 Section affineGameTest.
 Context `(scalarA : ScalarClass rat_realFieldType) `(@ScalarAxiomClass _ scalarA)
         `(scalarB : ScalarClass rat_realFieldType) `(@ScalarAxiomClass _ scalarB)
-         (A : finType) (N : nat) `(Boolable A) `(cgame N A).
-
+         (A : finType) (N : nat) `(Boolable A) `(cgame N A)
+         (eqA : Eq A) (eqDecA : Eq_Dec eqA).
 (*
   I think there's still issues with regression here, but it looks as though
     the combinators themselves are individually okay :/
 *)
-Variable t : {ffun 'I_N -> @affineType scalarA scalarB A}.
+Variable t : {ffun 'I_N -> affineType scalarA scalarB A}.
 Variable i : 'I_N.
 Check cost i t.
+Variable a : A.
+Check (boolify a).
+Check (boolify (a,a)).
+Definition aT : (@affine_pre scalarA scalarB A).
+  constructor. constructor. exact a. constructor. constructor. exact a.
+Defined.
+Definition aT' : (@affineType scalarA scalarB A). 
+exists aT. rewrite /affinePredInstance => //.
+rewrite /aT => /=.
+rewrite /affineType_obligation_1;
+destruct (@eqVneq (Finite.eqType A) a a) => //.
+generalize i0 =>i1. move/eqP: i0 => i0. apply False_rec.
+apply i0 => //.
+Qed.
+Check (boolify aT').
 
 Variable i' : OrdNat.t.
+Variable t'_pre : M.t (@affine_preType scalarA scalarB A).
 Variable t' : M.t (@affineType scalarA scalarB A).
+Check ccost_fun (N := N) i' t'_pre.
 Check ccost_fun (N:=N) i' t'.
 End affineGameTest.

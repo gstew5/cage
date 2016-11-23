@@ -109,13 +109,15 @@ VFILES:=axioms.v\
   potential.v\
   routing.v\
   routing1.v\
+  loadbalancing.v\
   smooth.v\
   weightsextract.v\
   weightslang.v\
   weights.v\
   orderedtypes.v\
   server.v\
-  strings.v
+  strings.v\
+  machine.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))

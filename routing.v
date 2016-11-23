@@ -16,12 +16,18 @@ Require Import numerics combinators games compile orderedtypes.
 Require Import weightsextract server.
 
 Local Open Scope ring_scope.
-
 Section generalTopology.
 
 Variable N : nat. (* The number of players *)
 Variable T : nat -> Type.
+(* We require the resources to be boolable *)
 Variable BoolableT : forall n, Boolable (T n).
+(* There must be some value for every resource which boolifies to false *)
+Variable BoolableUnitT : forall n, @BoolableUnit (T n)(@BoolableT n).
+(* The fact that BoolableUnitT indeed boolifies to false is captured here*) 
+Variable BoolableUnitAxiomT :
+  forall n, @BoolableUnitAxiom (T n) (@BoolableT n)(@BoolableUnitT n).
+
 Variable source : nat.
 Variable sink : nat.
 (* A topology is defined as a mapping from the set of edges to pairs
@@ -91,7 +97,49 @@ Definition isSrcSnkPath : nTuple N T -> bool :=
         sink (coalescePathIter N N (source::nil) nT)
     then true
     else false.
-Unset Strict Implicit.
+
+(* This attempts to replace the Mth term of a tuple with 
+    the boolable unit associated with it's type *)
+Program Fixpoint negateMthTerm m n : nTuple n T -> nTuple n T :=
+match n with
+| O => fun _ => mkUnit
+| S n' =>
+    match m with 
+    | O => fun t => ((fst t), (BoolableUnitT n))
+    | S m' => fun t => ((negateMthTerm m' n' (fst t)), (snd t))
+    end
+end.
+
+(* This determines if replacing the Mth term of a tuple will
+    have an impact on the bollification of the terms in the
+    resulting tuple. Used to determine when to call negateMthTerm *)
+Fixpoint negateMthTermEffective m n : nTuple n T -> bool :=
+match n with
+| O => fun _ => false
+| S n' =>
+    match m with 
+    | O => fun t => (boolify (snd t))
+    | S m' => fun t => (negateMthTermEffective m' n' (fst t))
+    end
+end.
+
+(* Checks to see if there are any valid subpaths to be made by
+    negating a single resource in the range (Unit, R0, R1, R2... Rn) *)
+Program Fixpoint checkSubPaths m : nTuple N T -> bool :=
+match m with
+| O => fun t => false (* There are no potential subpaths to be made by killing the unit*)
+| S m' => fun t =>
+      if (negateMthTermEffective m N t)
+        then (isSrcSnkPath (negateMthTerm m N t)) || (checkSubPaths m' t)
+        else (checkSubPaths m' t)
+end.
+
+Definition isSimplestPath : nTuple N T -> bool :=
+  fun t => negb (checkSubPaths N t).
+
+Definition isValidPath : nTuple N T -> bool :=
+  fun t => isSrcSnkPath t && isSimplestPath t.
+
 End generalTopology.
 
 (*MOVE:*)
@@ -99,18 +147,13 @@ Instance UnitCCostMaxClass (N : nat)
   : CCostMaxClass N Unit := Qmake 0 1.
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
-Instance WrapperBoolableInstance
-         I T `(Boolable T)
-  : Boolable (Wrapper I T) :=
-  fun w => match w with Wrap t => boolify t end.
-Instance ProductBoolableInstance
-         A B `(Boolable A) `(Boolable B)
-  : Boolable (A * B) :=
-  fun p => andb (boolify p.1) (boolify p.2).
-Instance SigmaBoolableInstance
-         A `(Boolable A) `(P : A -> bool)
-  : Boolable {x : A | P x} :=
-  fun p => boolify (projT1 p).
+Instance UnitEq : Eq Unit := fun x y => True.
+Instance UnitEqDec : Eq_Dec UnitEq.
+Proof.
+  left => //.
+Defined.
+Instance UnitBoolableUnit : BoolableUnit UnitBoolableInstance := mkUnit.
+Program Instance UnitBoolableUnitAxiom : BoolableUnitAxiom UnitBoolableUnit.
 (*END MOVE*)
 
 (** Example topology:
@@ -155,7 +198,7 @@ Module R <: MyOrderedType := OrderedResource.
 Module R5Values <: OrderedAffineType.
   Include R.                    
   Definition scal := Q_to_rat (Qmake 50 1).
-  Definition bias := Q_to_rat (Qmake 0 1).
+  Definition offset := Q_to_rat (Qmake 0 1).
   Definition a0 := RNo.
 End R5Values.
 Module R5 := OrderedAffine R5Values.
@@ -163,7 +206,7 @@ Module R5 := OrderedAffine R5Values.
 Module R4Values <: OrderedAffineType.
   Include R.                    
   Definition scal := Q_to_rat (Qmake 30 1).
-  Definition bias := Q_to_rat (Qmake 0 1).
+  Definition offset := Q_to_rat (Qmake 0 1).
   Definition a0 := RNo.
 End R4Values.
 Module R4 := OrderedAffine R4Values.
@@ -171,7 +214,7 @@ Module R4 := OrderedAffine R4Values.
 Module R2Values <: OrderedAffineType.
   Include R.                    
   Definition scal := Q_to_rat (Qmake 1 1).
-  Definition bias := Q_to_rat (Qmake 100 1).
+  Definition offset := Q_to_rat (Qmake 100 1).
   Definition a0 := RNo.
 End R2Values.
 Module R2 := OrderedAffine R2Values.
@@ -179,7 +222,7 @@ Module R2 := OrderedAffine R2Values.
 Module RValues <: OrderedAffineType.
   Include R.                    
   Definition scal := Q_to_rat (Qmake 1 1).
-  Definition bias := Q_to_rat (Qmake 0 1).
+  Definition offset := Q_to_rat (Qmake 0 1).
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
@@ -210,8 +253,9 @@ Definition T (n : nat) : Type :=
   | 6 => R'.t
   | 7 => R'.t
   | 8 => R'.t
-  | _ => Empty_type
+  | _ => Unit
   end.
+Existing Instances R'.boolable R2.boolable R4.boolable.
 Instance BoolableT n : Boolable (T n) :=
   match n with 
   | O => _
@@ -225,6 +269,112 @@ Instance BoolableT n : Boolable (T n) :=
   | 8 => _           
   | _ => _
   end.
+
+Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
+  match n with
+  | O => _
+  | 1 => @BoolableUnitSigma _
+            R'.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 2 => @BoolableUnitSigma _
+            R2.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 3 => @BoolableUnitSigma _
+            R'.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 4 => @BoolableUnitSigma _
+            R4.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 5 => @BoolableUnitSigma _
+            R'.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 6 => @BoolableUnitSigma _
+            R'.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 7 => @BoolableUnitSigma _
+            R'.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _
+  | 8 => @BoolableUnitSigma _
+            R'.Pred.boolable
+            (prodBoolableUnit _ _ 
+               (BoolableUnitScalar _ _ boolableUnit_Resource)
+               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
+             _ _           
+  | _ => _
+  end.
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+{
+  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
+  rewrite -OrderedResource.eqP => //.
+}
+Defined.
+
+(* Speeds things up in the next step *)
+Instance BoolableUnitAxiomT1 : @BoolableUnitAxiom (T 1) _ _ :=
+  (@BoolableUnitSigmaAxiom _ _ _ _ _ _).
+
+Instance BoolableUnitAxiomT n : @BoolableUnitAxiom (T n) _ _ :=
+match n with
+  | O => _
+  | 1 => BoolableUnitAxiomT1
+  | 2 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
+  | 3 => BoolableUnitAxiomT1
+  | 4 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
+  | 5 => BoolableUnitAxiomT1
+  | 6 => BoolableUnitAxiomT1
+  | 7 => BoolableUnitAxiomT1
+  | 8 => BoolableUnitAxiomT1         
+  | _ => _
+end.
 End T.
 
 Definition num_players : nat := 10.
@@ -251,10 +401,14 @@ Module P <: OrderedPredType.
   Proof.
     Ltac solve_r r := 
       try solve[
-      exists (Wrap _ r, Wrap _ r);
+      exists (Wrap _ r, (Wrap _ (Wrap _ r)));
         rewrite /R'.pred /R'.Pred.pred /R'.mypred /=;
                 apply: RValues_eq_dec_refl].
-    repeat (split; solve_r RYes).
+    repeat split.
+    solve_r RYes. solve_r RYes.
+    solve_r RNo. solve_r RNo.
+    solve_r RNo. solve_r RNo.
+    solve_r RNo. solve_r RNo.
   Defined.    
   Lemma a0_pred : pred a0.
   Proof. by vm_compute. Qed.
@@ -289,6 +443,6 @@ Module Server := Server C P8Scaled'.
 
 Existing Instance P8Scaled'.cost_instance.
 (*Why doesn' Coq discover this instance in the following definition?*)
-Definition run := Server.server (@Server.init_state result ax_oracle).
+Definition run := Server.server (@Server.init_state result _ ax_oracle).
 
 Extraction "runtime/server.ml" run.

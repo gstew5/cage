@@ -102,3 +102,5 @@ Definition eprint_Q T (q : Q) (t : T) : T :=
 
 Lemma eprint_Q_id T q (t : T) : eprint_Q q t = t.
 Proof. unfold eprint_Q; destruct q; auto. Qed.
+
+

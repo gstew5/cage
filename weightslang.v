@@ -116,13 +116,13 @@ Section client_oracle.
   Local Open Scope ring_scope.
   
   (* Client oracle *)
-  Class ClientOracle T oracle_chanty :=
-    mkOracle { oracle_recv : forall A : finType,
+  Class ClientOracle (A : finType) T oracle_chanty :=
+    mkOracle { oracle_recv : 
                  T -> oracle_chanty -> {ffun A -> rat} -> T -> Prop
-             ; oracle_send : forall A : Type,
-                 T -> A -> oracle_chanty -> T -> Prop
-             ; oracle_recv_ok : forall (A : finType) st ch f t' (a : A),
-                 @oracle_recv _ st ch f t' -> 
+             ; oracle_send : 
+                 T -> dist A rat_realFieldType -> oracle_chanty -> T -> Prop
+             ; oracle_recv_ok : forall st ch f t' (a : A),
+                 @oracle_recv st ch f t' -> 
                  0 <= f a <= 1
              }.
 End client_oracle.  
@@ -131,7 +131,7 @@ Section semantics.
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
-  Context T `{Hco : ClientOracle T}.
+  Context T oracle_chanty `{Hco : ClientOracle A T oracle_chanty}.
 
   Record state : Type :=
     mkState
@@ -1038,7 +1038,7 @@ Section mult_weights_refinement.
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A.
-  Context T oracle_chanty `{Hco : ClientOracle T oracle_chanty}.
+  Context T oracle_chanty `{Hco : ClientOracle A T oracle_chanty}.
 
   Notation "'state' A" := (@state A T oracle_chanty) (at level 50).
   
@@ -1897,7 +1897,7 @@ Section semantics_lemmas.
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A. (*A must be inhabited.*)
-  Context T oracle_chanty `{Hco : ClientOracle T oracle_chanty}.
+  Context T oracle_chanty `{Hco : ClientOracle A T oracle_chanty}.
 
   Notation "'state' A" := (@state A T oracle_chanty) (at level 50).
   

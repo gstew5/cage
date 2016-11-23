@@ -15,15 +15,14 @@ Module Type ServerConfig.
   Parameter num_rounds : nat.
 End ServerConfig.
 
-Class ServerOracle T :=
-  mkOracle { oracle_chan : Type
-             ; oracle_init : nat -> (oracle_chan * T)
-             ; oracle_recv : forall A : Type,
-                 T -> oracle_chan -> (A * oracle_chan * T)
-             ; oracle_send : forall A : Type,
-                 T -> option oracle_chan ->
-                 nat (*player index*) ->
-                 list (A * Q) -> T
+Class ServerOracle T oracle_chanty :=
+  mkOracle { oracle_init : nat -> (oracle_chanty * T)
+           ; oracle_recv : forall A : Type,
+               T -> oracle_chanty -> (A * oracle_chanty * T)
+           ; oracle_send : forall A : Type,
+               T -> option oracle_chanty ->
+               nat (*player index*) ->
+               list (A * Q) -> T
            }.
 
 Module Server (C : ServerConfig) (A : MyOrderedType).  
@@ -35,12 +34,12 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
 
   Record state : Type :=
     mkState { actions_received : M.t A.t
-            ; listen_channel : oracle_chan
-            ; service_channels : list oracle_chan
+            ; listen_channel : oracle_chanty
+            ; service_channels : list oracle_chanty
             ; oracle_st : T
             }.
 
-  Definition init_chan (n : nat) : (oracle_chan * T) := oracle_init n.
+  Definition init_chan (n : nat) : (oracle_chanty * T) := oracle_init n.
 
   Definition init_state : state :=
     let (ch, st) := init_chan C.num_players in
@@ -54,6 +53,18 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
       (fun l a => (a, ccost player (M.add player a (actions_received s))) :: l)
       (enumerate A.t)
       nil.
+
+  Fixpoint compute_social_cost (s : state) (player : nat) : Q :=
+  match player with
+  | O => ccost (N.of_nat player) (actions_received s)
+  | S n' => ccost (N.of_nat player) (actions_received s) +
+           compute_social_cost s n'
+  end.
+
+  Definition print_social_cost (s : state) : state :=
+    let s' := eprint_string "Social cost: " s in
+    let s'' := eprint_Q (compute_social_cost s (C.num_players)) s' in
+    eprint_newline s''.
 
   Fixpoint send (s : state) (player : nat) : state :=
     match player with
@@ -70,11 +81,13 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
   
   Fixpoint round (s : state) (player : nat) : state :=
     match player with
-    | O => send (mkState (actions_received s)
-                         (listen_channel s)
-                         (service_channels s)
-                         (oracle_st s))
-                C.num_players (*reset cur_player=num_players*)
+    | O =>
+      (* let st' := mkState (actions_received s) *)
+      (*                    (listen_channel s) *)
+      (*                    (service_channels s) *)
+      (*                    (oracle_st s) in *)
+      let st' := print_social_cost s in
+      send st' C.num_players (*reset cur_player=num_players*)
     | S player' =>
       let '(a, c, st') := oracle_recv _ (oracle_st s) (listen_channel s) in
       let s' := eprint_showable a s in
@@ -156,5 +169,5 @@ Extract Constant server_send =>
      close_out out_chan
    | None -> Printf.eprintf ""Error: Empty socket""; prerr_newline ()".
 
-Instance ax_oracle : ServerOracle result :=
+Instance ax_oracle : ServerOracle result chan :=
   mkOracle server_init server_recv server_send.

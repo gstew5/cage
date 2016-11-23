@@ -43,6 +43,16 @@ Module OrderedType_of_MyOrderedType (A : MyOrderedType)
       Definition eq_dec := A.eq_dec.
 End OrderedType_of_MyOrderedType.
 
+Module Type BoolableMyOrderedType.
+  Include MyOrderedType.
+  Parameter boolable : Boolable t.
+End BoolableMyOrderedType.
+
+Module MyOrderedType_of_BoolableMyOrderedType
+        (A : BoolableMyOrderedType) <: MyOrderedType.
+  Include A.
+End MyOrderedType_of_BoolableMyOrderedType.
+
 Module Type OrderedFinType.
   Include MyOrderedType.
   Parameter eq_mixin : Equality.mixin_of t.
@@ -55,7 +65,7 @@ Module MyOrderedType_of_OrderedFinType
   Include A.                                
 End MyOrderedType_of_OrderedFinType.
 
-Module OrderedUnit <: MyOrderedType.
+Module OrderedUnit <: BoolableMyOrderedType.
   Definition t := Unit.
   Definition t0 := mkUnit.
   Definition enumerable := unit_enum.
@@ -77,9 +87,10 @@ Module OrderedUnit <: MyOrderedType.
     move => x y. split; first by [].
     case: x => H. case y => //.
   Qed.
+  Definition boolable : Boolable t := fun _ => false.
 End OrderedUnit.
 
-Module OrderedResource <: MyOrderedType.
+Module OrderedResource <: BoolableMyOrderedType.
   Definition t := resource.
   Definition t0 := RYes.
   Definition enumerable := resourceEnumerableInstance.
@@ -131,6 +142,8 @@ Module OrderedResource <: MyOrderedType.
 
   Lemma eqP : forall x y, x = y <-> eq x y.
   Proof. by move => x y; rewrite /eq; case: (@resource_eqP x y). Qed.
+
+  Definition boolable : Boolable t := boolable_Resource.
 End OrderedResource.
 
 Module OrderedFinResource <: OrderedFinType.
@@ -139,6 +152,48 @@ Module OrderedFinResource <: OrderedFinType.
   Definition choice_mixin := resource_choiceMixin.
   Definition fin_mixin := resource_finMixin.
 End OrderedFinResource.
+
+Module OrderedSingleton (A : BoolableMyOrderedType) <: BoolableMyOrderedType.
+  Definition t := singleton (A.t).
+  Definition t0 := Wrap Singleton A.t0.
+  Definition enumerable := (singCTypeInstance A.enumerable).
+  Definition cost_instance N := singCCostInstance (A.boolable) N.
+  Print singCCostMaxInstance.
+  Definition cost_max N := @singCCostMaxInstance N A.t.
+  Definition show_sing (sA : singleton (A.t)) : string := 
+      append "Singleton" (to_string (unwrap sA)).
+  Instance showable : Showable t := mkShowable show_sing.
+  Definition eq (p1 p2 : t) := A.eq (unwrap p1) (unwrap p2).
+  Definition lt (p1 p2 : t) := A.lt (unwrap p1) (unwrap p2).
+  Definition lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
+  Proof.
+    rewrite /lt; move => x y z; apply A.lt_trans.
+  Qed.
+  Lemma lt_not_eq : forall x y, lt x y -> ~ eq x y.
+  Proof.
+    rewrite /eq /lt; move => x y; apply A.lt_not_eq.
+  Qed.
+  Lemma compare : forall x y, Compare lt eq x y.
+  Proof.
+    move => x y.
+    case H: (A.compare (unwrap x) (unwrap y)) => [lt_pf|eq_pf|gt_pf];
+    [apply LT | apply EQ | apply GT] => //.
+  Qed.
+  Lemma eq_dec : forall x y, {eq x y} + {~eq x y}.
+  Proof.
+    move => x y.
+    case H : (A.eq_dec (unwrap x) (unwrap y)); [left | right] => //.
+  Qed.
+  Lemma eqP : forall x y, x = y <-> eq x y.
+  Proof.
+    rewrite /t.
+    move => x y. destruct x. destruct y.
+    split => H. rewrite H /eq. apply A.eqP. auto.
+    rewrite /eq /= in H. apply A.eqP in H. rewrite H => //.
+  Qed.
+  Definition boolable := BoolableSingleton (A.boolable).
+End OrderedSingleton.
+
 
 Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
   Definition t := (A.t*B.t)%type.
@@ -239,6 +294,16 @@ Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
     by case; rewrite -A.eqP -B.eqP => -> ->.
   Qed.
 End OrderedProd.
+
+Module BoolableOrderedProd (X Y : BoolableMyOrderedType) <: BoolableMyOrderedType.
+  Include OrderedProd X Y.
+  Definition boolable : Boolable t := 
+    fun p =>
+      match p with
+      | (p1, p2) => (X.boolable p1) && (Y.boolable p2)
+      end.
+End BoolableOrderedProd.
+
 
 Module OrderedFinProd (X Y : OrderedFinType) <: OrderedFinType.
   Module A := OrderedProd X Y. 
@@ -349,6 +414,11 @@ Module Type OrderedScalarType.
   Include MyOrderedType.
   Parameter scal : rat.
 End OrderedScalarType.
+
+Module Type BoolableOrderedScalarType.
+  Include BoolableMyOrderedType.
+  Parameter scal : rat.
+End BoolableOrderedScalarType.
                       
 Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
   Definition t := scalar T.scal T.t.
@@ -390,6 +460,19 @@ Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
   Qed.
 End OrderedScalar.
 
+Module BoolableOrderedScalar (T : BoolableOrderedScalarType) <: MyOrderedType.
+  Include (OrderedScalar T).
+  Definition boolable : Boolable t := BoolableScalar _.
+End BoolableOrderedScalar.
+
+(* Given an OrderedOffsetType, this lifts the ordering
+    to an OrderedScalarType over the OrderedSingletonType *)
+Module OrderedOffsetSingletonComponent
+      (T : BoolableOrderedScalarType) <: OrderedScalarType.
+  Include (OrderedSingleton T).
+  Definition scal := T.scal.
+End OrderedOffsetSingletonComponent.
+  
 Module Type OrderedBiasType.
   Include MyOrderedType.
   Parameter bias : rat.
@@ -436,38 +519,55 @@ Module OrderedBias (T : OrderedBiasType) <: MyOrderedType.
 End OrderedBias.
 
 Module Type OrderedAffineType.
-  Include MyOrderedType.
+  Include BoolableMyOrderedType.
   Parameter scal : rat.
-  Parameter bias : rat.
+  Parameter offset : rat.
+  (* why the a0? *)
   Parameter a0 : t.
 End OrderedAffineType.
 
 Module OrderedScalarType_of_OrderedAffineType (A : OrderedAffineType)
-  <: OrderedScalarType.
+  <: BoolableOrderedScalarType.
   Include A.      
 End OrderedScalarType_of_OrderedAffineType.
 
-Module OrderedBiasType_of_OrderedAffineType (A : OrderedAffineType)
-  <: OrderedBiasType.
-  Include A.      
-End OrderedBiasType_of_OrderedAffineType.
+Module OrderedOffsetType_of_OrderedAffineType (A : OrderedAffineType)
+  <: BoolableOrderedScalarType.
+  Definition t := A.t.
+  Definition t0 := A.t0.
+  Definition enumerable := A.enumerable.
+  Definition cost_instance := A.cost_instance.
+  Definition cost_max := A.cost_max.
+  Instance showable : Showable t := A.showable.
+  Definition eq := A.eq.
+  Definition lt := A.lt.
+  Definition lt_trans := A.lt_trans.
+  Definition lt_not_eq := A.lt_not_eq.
+  Definition compare := A.compare.
+  Definition eq_dec := A.eq_dec.
+  Definition eqP := A.eqP.
+  Definition scal := A.offset.
+  Definition boolable := A.boolable.
+End OrderedOffsetType_of_OrderedAffineType.
 
-Module OrderedAffine (A : OrderedAffineType) <: MyOrderedType.
-  Module S := OrderedScalarType_of_OrderedAffineType A.                       Module B := OrderedBiasType_of_OrderedAffineType A.
-  Module Scaled := OrderedScalar S.
-  Module Biased := OrderedBias B.
-  Module Prod := OrderedProd Scaled Biased.
-  Definition mypred (p : Prod.t) : bool :=
-    match p.1, p.2 with
-    | Wrap x, Wrap y => A.eq_dec x y
-    end.
+Module OrderedAffine (A : OrderedAffineType) <: BoolableMyOrderedType.
+  Module S := OrderedScalarType_of_OrderedAffineType A.
+  Module O := OrderedOffsetType_of_OrderedAffineType A.
+  Module Off := OrderedOffsetSingletonComponent O.
+  Module Scaled := BoolableOrderedScalar S.
+  Module Offset := BoolableOrderedScalar Off.
+  Module Prod := BoolableOrderedProd Scaled Offset.
+
+  Definition mypred : PredClass Prod.t :=
+    affinePredInstance A.eq_dec.
+
   Module Pred <: OrderedPredType.
     Include Prod.                  
     Definition pred := mypred.
-    Definition a0 : t := (Wrap _ A.a0, Wrap _ A.a0).
+    Definition a0 : t := (Wrap _ A.a0, Wrap _ (Wrap _ A.a0)).
     Lemma a0_pred : mypred a0.
     Proof.
-      rewrite /a0 /mypred /=.
+      rewrite /a0 /mypred /affinePredInstance => /=.
       case H: (A.eq_dec A.a0 A.a0) => // [x].
       move: (A.eqP A.a0 A.a0) => []H2 H3.
       by elimtype False; move {H}; apply: x; apply: H2.
@@ -475,4 +575,9 @@ Module OrderedAffine (A : OrderedAffineType) <: MyOrderedType.
   End Pred.
   Module P := OrderedSigma Pred.
   Include P.
+  Definition boolable : Boolable P.t := 
+  fun p =>
+    match (proj1_sig p).2 with
+    | Wrap (Wrap y) => (boolify y)
+    end.
 End OrderedAffine.  

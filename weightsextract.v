@@ -444,7 +444,7 @@ Module MWUProof (T : OrderedFinType).
         match_distrs [:: d & l] [:: f & l'].
 
   (** The high-level oracle *)
-  Context oracle_T  `{oracle: weightslang.ClientOracle oracle_T oracle_chanty}.
+  Context oracle_T  `{oracle: weightslang.ClientOracle t oracle_T oracle_chanty}.
   Notation "'state' t" := (@state t oracle_T oracle_chanty) (at level 50).
 
   (** and its match relation *)
@@ -1408,9 +1408,6 @@ End MWUProof.
 
 (** Axiomatized client oracle *)
 
-(* For some reason when I try to just use Coq unit type directly here
-   it introduces a new "unit0" type in the extracted OCaml code which
-   causes type errors. *)
 Axiom ax_st_ty : Type.
 Extract Constant ax_st_ty => "unit".
 Axiom empty_ax_st : ax_st_ty.
