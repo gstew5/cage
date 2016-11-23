@@ -14,7 +14,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import strings weights weightslang compile dist numerics orderedtypes.
+Require Import strings weights weightslang compile dist numerics dyadic orderedtypes.
 
 (** Here's a description of the compilation algorithm: 
 
@@ -82,6 +82,20 @@ Section PrintQvector.
   Qed.    
 End PrintQvector.
 
+Section PrintDvector.
+  Variable A : Type.
+  Variable to_string : A -> string.
+
+  Definition print_Dvector T (l : list (A*D)) (t : T) : T :=
+    print_Qvector
+      to_string
+      (map (fun p => (p.1, D_to_Q p.2)) l)
+      t.
+
+  Lemma print_Dvector_id T l (t : T) : print_Dvector l t = t.
+  Proof. by rewrite /print_Dvector print_Qvector_id. Qed.
+End PrintDvector.
+
 Definition zero : Q := 0.
 Definition one : Q := 1.
 Definition two : Q := Qmake 2 1.
@@ -89,28 +103,27 @@ Definition two : Q := Qmake 2 1.
 (** * Networking and Random-Number Generation *)
 Fixpoint sample_aux
          (A : Type) (a0 : A)
-         (acc r sum : Q) (l : list (A*Q)) : A :=
+         (acc r : D) (l : list (A*D)) : A :=
   match l with
   | nil => a0 (*should never occur*)
   | (a, w) :: l' =>
-    let p := Qdiv w sum in
-    if Qle_bool acc r && Qle_bool r (Qplus acc p) then
+    if Dle_bool acc r && Dle_bool r (Dadd acc w) then
       eprint_string "Chose action " a
-    else sample_aux a0 (Qplus acc p) r sum l'
+    else sample_aux a0 (Dadd acc w) r l'
   end.
 
 (* Client oracle *)
 Class ClientOracle T oracle_chanty :=
   mkOracle { oracle_bogus_chan : oracle_chanty
-           ; oracle_rand : T -> (Q * T)
+           ; oracle_rand : T -> (D*T)
            ; oracle_recv : forall A : Type,
-               T -> oracle_chanty -> (list (A * Q) * T)
+               T -> oracle_chanty -> (list (A*D) * T)
            ; oracle_send : forall A : Type,
                T -> A -> (oracle_chanty * T)
            ; oracle_recv_ok : forall A (a : A) st ch,
-               exists q,
-                 [/\ In (a, q) (oracle_recv _ st ch).1
-                  & 0 <= q <= 1]
+               exists d,
+                 [/\ In (a,d) (oracle_recv _ st ch).1
+                   , Dle D0 d & Dle d D1]
            ; oracle_recv_nodup : forall (A : Type) st ch,
                NoDupA (fun p q => p.1 = q.1) (oracle_recv A st ch).1
            }.
@@ -123,8 +136,8 @@ Module MWU (A : MyOrderedType).
   Module MFacts := Facts M.
   Module MProps := Properties M.
 
-  Definition cGamma (weights : M.t Q) :=
-    M.fold (fun a q acc => q + acc) weights 0.
+  Definition cGamma (weights : M.t D) : Q :=
+    D_to_Q (M.fold (fun a q acc => Dadd q acc) weights (Dmake 0 1)).
 
   Section mwu.
     Context {T oracle_chanty : Type} `{oracle: ClientOracle T oracle_chanty}
@@ -132,10 +145,10 @@ Module MWU (A : MyOrderedType).
 
     Record cstate : Type :=
       mkCState
-        { SCosts : M.t Q (* the current cost vector *)
-          ; SPrevCosts : list (M.t Q)
-          ; SWeights : M.t Q
-          ; SEpsilon : Q (* epsilon -- a parameter *)
+        { SCosts : M.t D (* the current cost vector *)
+          ; SPrevCosts : list (M.t D)
+          ; SWeights : M.t D
+          ; SEpsilon : D (* epsilon -- a parameter *)
           (* the history of the generated distributions over actions *)                     
           ; SOutputs : list (A.t -> Q)
           ; SChan : oracle_chanty
@@ -143,45 +156,47 @@ Module MWU (A : MyOrderedType).
 
     Definition sample (A : Type) (a0 : A)
                (to_string : A -> string)
-               (l : list (A*Q))
-               (oracle_st : T): A :=
+               (l : list (A*D))
+               (oracle_st : T)
+      : A :=
       let sum :=
           List.fold_left
-            (fun acc1 (x:(A*Q)) => let (a,q) := x in Qplus acc1 q)
-            l 0
+            (fun acc1 (x:(A*D)) => let (a,q) := x in Dadd acc1 q)
+            l (Dmake 0 1)
       in
       let (r, _) := oracle_rand oracle_st in
+      let r' := Dmult r sum in
       let l':= print_Qvector
                  to_string
                  (map (fun p =>
                          let '(a, w) := p in
-                         (a, Qred (Qdiv w sum)))
+                         (a, Qred (Qdiv (D_to_Q w) (D_to_Q sum))))
                       l) l in
-      sample_aux a0 0 r sum l'.
+      sample_aux a0 D0 r' l'.
 
     (** Draw from a distribution, communicating the resulting action 
       to the network. *)
-    Definition mwu_send (m : M.t Q) (oracle_st : T) : (oracle_chanty * T) :=
+    Definition mwu_send (m : M.t D) (oracle_st : T) : (oracle_chanty * T) :=
       let a := sample A.t0 to_string (M.elements m) oracle_st in
       let a' := eprint_showable a a in
       let a'' := eprint_newline a' in
       oracle_send oracle_st a''.
 
     (* Receive a cost vector (a map) from the network. *)
-    Definition mwu_recv : oracle_chanty -> T -> (M.t Q * T) :=
+    Definition mwu_recv : oracle_chanty -> T -> (M.t D * T) :=
       fun ch => fun st =>
         let (l, st') := oracle_recv _ st ch in
-        let l':= print_Qvector to_string l l in
+        let l':= print_Dvector to_string l l in
         (MProps.of_list l', st').
 
-    Definition eval_binopc (b : binop) (v1 v2 : Q) :=
+    Definition eval_binopc (b : binop) (v1 v2 : D) : D :=
       match b with
-      | BPlus => v1 + v2
-      | BMinus => v1 - v2                      
-      | BMult => v1 * v2
+      | BPlus => Dadd v1 v2
+      | BMinus => Dsub v1 v2                      
+      | BMult => Dmult v1 v2
       end.
     
-    Fixpoint evalc (e : expr A.t) (s : cstate) : option Q :=
+    Fixpoint evalc (e : expr A.t) (s : cstate) : option D :=
       match e with
       | EVal v =>
         match v with
@@ -189,7 +204,7 @@ Module MWU (A : MyOrderedType).
         end
       | EOpp e' =>
         match evalc e' s with
-        | Some v' => Some (- v')
+        | Some v' => Some (Dopp v')
         | None => None
         end
       | EWeight a => M.find a (SWeights s)
@@ -208,7 +223,7 @@ Module MWU (A : MyOrderedType).
     fail -- otherwise, we could just use [M.mapi].*)
     Definition update_weights
                (f : A.t -> expr A.t) (s : cstate)
-      : option (M.t Q) :=
+      : option (M.t D) :=
       M.fold
         (fun a _ acc =>
            match acc with
@@ -217,20 +232,18 @@ Module MWU (A : MyOrderedType).
              match evalc (f a) s with
              | None => None
              | Some q =>
-               match 0 ?= q with
-               | Lt => Some (M.add a (Qred q) acc')
-               | _ => None
-               end
+               if Dlt_bool D0 q then Some (M.add a q acc')
+               else None
              end
            end)
         (SWeights s)
-        (Some (M.empty Q)).
+        (Some (M.empty D)).
 
-    Definition weights_distr (weights : M.t Q) : A.t -> Q := 
+    Definition weights_distr (weights : M.t D) : A.t -> Q := 
       fun a : A.t =>
         match M.find a weights with
         | None => 0
-        | Some q => q / cGamma weights
+        | Some d => D_to_Q d / cGamma weights
         end.
     
     Fixpoint interp (c : com A.t) (s : cstate) : option cstate :=
@@ -293,10 +306,10 @@ Module MWU (A : MyOrderedType).
     Section init.
       Context `{Enumerable A.t}.
 
-      Definition init_map : M.t Q :=
-        MProps.of_list (List.map (fun a => (a, 1)) (enumerate A.t)).
+      Definition init_map : M.t D :=
+        MProps.of_list (List.map (fun a => (a, D1)) (enumerate A.t)).
 
-      Definition init_cstate (epsQ : Q) :=
+      Definition init_cstate (epsQ : D) :=
         @mkCState
           init_map (** The initial cost function is never used -- 
                      we only include it because the type [state] forces 
@@ -310,7 +323,7 @@ Module MWU (A : MyOrderedType).
     End init.
 
     (* Context `{Enumerable A.t}. *)
-    Definition mwu (eps : Q) (nx : N.t) : option cstate :=
+    Definition mwu (eps : D) (nx : N.t) : option cstate :=
       interp (mult_weights A.t nx) (init_cstate eps).
 
   End mwu.
@@ -363,13 +376,13 @@ Module MWUProof (T : OrderedFinType).
       
     Lemma recv_ok :
       forall a st ch,
-      exists q,
-        [/\ M.find a (mwu_recv ch st).1 = Some q
-         & 0 <= q <= 1].
+      exists d,
+        [/\ M.find a (mwu_recv ch st).1 = Some d
+          , Dle_bool D0 d & Dle_bool d D1].
     Proof.
      rewrite /mwu_recv.
       move => a0 st ch.
-      have H: NoDupA (M.eq_key (elt:=Q)) (oracle_recv _ st ch).1.
+      have H: NoDupA (M.eq_key (elt:=D)) (oracle_recv _ st ch).1.
       { move: (oracle_recv_nodup (ClientOracle:=coracle) M.key st ch) => H.
         rewrite NoDupA_ext; first by apply: H.
         rewrite /M.eq_key /M.Raw.Proofs.PX.eqk => a b.
@@ -377,9 +390,11 @@ Module MWUProof (T : OrderedFinType).
       move: a0 => a.
       case: (oracle_recv_ok a st ch) => q []H2 H3.
       exists q; split => //.
+      Focus 2. by rewrite <-Dle_bool_iff in H3; rewrite H3.
+      Focus 2. by rewrite <-Dle_bool_iff in p; rewrite p.
       destruct (oracle_recv M.key st ch).
       rewrite MProps.of_list_1b => //.
-      move: H H2 {H3}; rewrite print_Qvector_id;
+      move: H H2 {H3 p}; rewrite print_Dvector_id;
        move: (oracle_recv (ClientOracle:=coracle) M.key st ch) a q.
       move=> _ /=. move: l. elim => // [][]a' q' l' IH a q; inversion 1; subst; case.
       { case => -> -> /=.
@@ -403,25 +418,25 @@ Module MWUProof (T : OrderedFinType).
           apply: H6.
             by left; rewrite /M.eq_key /M.Raw.Proofs.PX.eqk /= -A.eqP. }
         move => _; apply: IH => //.
-          by move => H7; apply: H6; right. }
-        by move => H5; apply: (IH _ _ H3 H5).
-        by rewrite print_Qvector_id.
+        by move => H7; apply: H6; right. }
+      by move => H5; apply: (IH _ _ H3 H5).
+      by rewrite print_Dvector_id.
     Qed.
 
   Definition match_maps
              (s : {ffun t -> rat})
-             (m : M.t Q) : Prop :=
+             (m : M.t D) : Prop :=
     forall a,
-    exists q, M.find a m = Some q /\ Qred q = rat_to_Q (s a).
+    exists q, M.find a m = Some q /\ Qred (D_to_Q q) = rat_to_Q (s a).
   
   Definition match_costs
              (s : {c : {ffun t -> rat} & forall a : t, (0 <= c a <= 1)%R})
-             (m : M.t Q) : Prop :=
+             (m : M.t D) : Prop :=
     match_maps (projT1 s) m.
   
   Inductive match_costs_seq :
     seq {c : {ffun t -> rat} & forall a : t, (0 <= c a <= 1)%R} ->
-    list (M.t Q) ->
+    list (M.t D) ->
     Prop :=
   | match_costs_nil :
       match_costs_seq nil nil
@@ -483,21 +498,21 @@ Module MWUProof (T : OrderedFinType).
         match_maps s m ->
         match_costs_seq ss mm ->
         match_maps w wc ->
-        rat_to_Q eps = Qred epsc ->
+        rat_to_Q eps = Qred (D_to_Q epsc) ->
         match_distrs outs outs' ->
         match_oracle_states oracle_st coracle_st ->
         match_states
           (@mkState _ _ _ s s_ok ss w w_ok eps eps_ok outs ch oracle_st)
           (@mkCState _ _ m mm wc epsc outs' ch coracle_st).
 
-  Definition eval_binopc (b : binop) (v1 v2 : Q) :=
+  Definition eval_binopc (b : binop) (v1 v2 : D) :=
     match b with
-    | BPlus => v1 + v2
-    | BMinus => v1 - v2
-    | BMult => v1 * v2
+    | BPlus => Dadd v1 v2
+    | BMinus => Dsub v1 v2
+    | BMult => Dmult v1 v2
     end.
   
-  Fixpoint evalc (e : expr t) (s : cstate) : option Q :=
+  Fixpoint evalc (e : expr t) (s : cstate) : option D :=
     match e with
     | EVal v =>
       match v with
@@ -505,7 +520,7 @@ Module MWUProof (T : OrderedFinType).
       end
     | EOpp e' =>
       match evalc e' s with
-      | Some v' => Some (- v')
+      | Some v' => Some (Dopp v')
       | None => None
       end
     | EWeight a => M.find a (SWeights s)
@@ -523,29 +538,26 @@ Module MWUProof (T : OrderedFinType).
       end
     end.
 
-  Fixpoint cGamma'_aux (l : list (M.key * Q)) :=
+  Fixpoint cGamma'_aux (l : list (M.key * D)) :=
     match l with
-    | nil => 0
-    | a :: l' => a.2 + cGamma'_aux l'
+    | nil => D0
+    | a :: l' => Dadd a.2 (cGamma'_aux l')
     end.
 
   Lemma cGamma_cGamma'_aux l :
     fold_right
-      (fun y : M.key * Q => [eta Qplus y.2])
-      0
+      (fun y : M.key * D => [eta Dadd y.2])
+      D0
       l =
     cGamma'_aux l.
   Proof. elim: l => // a l IH /=; rewrite IH. Qed.
 
   Definition cGamma' m :=
-    cGamma'_aux (List.rev (M.elements m)).
+    D_to_Q (cGamma'_aux (List.rev (M.elements m))).
   
   Lemma cGamma_cGamma' m :
     cGamma m = cGamma' m.
-  Proof.
-    rewrite /cGamma /cGamma' M.fold_1 -fold_left_rev_right.
-    by rewrite cGamma_cGamma'_aux.
-  Qed.
+  Proof. by rewrite /cGamma /cGamma' M.fold_1 -fold_left_rev_right. Qed.
   
   Definition gamma' (l : seq t) (s : {ffun t -> rat}) : rat :=
     \sum_(a <- l) (s a)%R.
@@ -559,22 +571,27 @@ Module MWUProof (T : OrderedFinType).
     
   Lemma match_maps_gamma_cGamma'_aux
         (s : {ffun t -> rat})
-        (l : list (M.key * Q)) :
-    (forall a q, In (a, q) l -> rat_to_Q (s a) = Qred q) ->
-    gamma' (List.map (fun x => x.1) l) s = Q_to_rat (cGamma'_aux l).
+        (l : list (M.key * D)) :
+    (forall a q, In (a, q) l -> rat_to_Q (s a) = Qred (D_to_Q q)) ->
+    gamma' (List.map (fun x => x.1) l) s = Q_to_rat (D_to_Q (cGamma'_aux l)).
   Proof.
     elim: l s => //.
-    { by move => s /= IH; rewrite /gamma' /= big_nil Q_to_rat0. }
+    { move => s /= IH; rewrite /gamma' /= big_nil.
+      rewrite D_to_Q0' /Q_to_rat /= fracqE /=.
+      by rewrite GRing.mul0r. }
     case => a q l IH s /= H.
-    rewrite gamma'_cons Q_to_rat_plus IH.
-    { have ->: s a = Q_to_rat q.
+    symmetry.
+    apply: rat_to_QK2.
+    rewrite gamma'_cons Dadd_ok IH.
+    { have ->: s a = Q_to_rat (D_to_Q q).
       { move: (H _ _ (or_introl erefl)) => H2.
         rewrite (rat_to_QK2 (r:=s a)) => //.
-        by rewrite -(Qred_correct q) H2. }
-      by []. }
+        by rewrite -(Qred_correct (D_to_Q q)) H2. }
+      rewrite rat_to_Q_plus 2!rat_to_QK1.
+      admit. }
     move => ax qx H2.
     by apply: (H _ _ (or_intror H2)).
-  Qed.
+  Admitted.
 
   Lemma InA_notin a (l : seq t) : ~InA A.eq a l -> a \notin l.
   Proof.
@@ -641,23 +658,23 @@ Module MWUProof (T : OrderedFinType).
     by apply: (InA_map' H).
   Qed.
       
-  Lemma match_maps_find1 (x : t) m q :
-    M.find (elt:=Q) x m = Some q ->
-    (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) = 1%N.
+  Lemma match_maps_find1 T (x : t) m q :
+    M.find (elt:=T) x m = Some q ->
+    (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=T) m))) = 1%N.
   Proof.
     move: (M.elements_3w m); move/NoDupA_rev => H H2.
-    have H3: InA A.eq x (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
-    { have H3: M.find (elt:=Q) x m <> None.
+    have H3: InA A.eq x (List.map [eta fst] (List.rev (M.elements (elt:=T) m))).
+    { have H3: M.find (elt:=T) x m <> None.
       { move => H3; rewrite H3 in H2; congruence. }
       clear H2; move: H3; rewrite -MProps.F.in_find_iff MProps.F.elements_in_iff.
       case => e; move: (M.elements _) => l; clear H => H.
       have ->: x = fst (x, e) by [].
-      have H2: InA (M.eq_key_elt (elt:=Q)) (x, e) (List.rev l).
+      have H2: InA (M.eq_key_elt (elt:=T)) (x, e) (List.rev l).
       { by rewrite InA_rev. }
-      have H3: forall x y : M.key * Q, M.eq_key_elt x y -> A.eq x.1 y.1.
+      have H3: forall x y : M.key * T, M.eq_key_elt x y -> A.eq x.1 y.1.
       { by case => x1 x2; case => y1 y2; case. }
       by apply (InA_map H3 H2). }
-    have H4: NoDupA A.eq (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+    have H4: NoDupA A.eq (List.map [eta fst] (List.rev (M.elements (elt:=T) m))).
     { move: (H2); rewrite -MProps.F.find_mapsto_iff MProps.F.elements_mapsto_iff => H4.
       clear - H; apply: (NoDupA_map _ H); case => x1 x2; case => y1 y2 //. }
     clear H.
@@ -693,7 +710,7 @@ Module MWUProof (T : OrderedFinType).
     match_maps s m ->
     forall x : t,
     (count_mem x) (index_enum t) =
-    (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+    (count_mem x) (List.map [eta fst] (List.rev (M.elements (elt:=D) m))).
   Proof.
     move => H x; case: (H x) => q []H1 H2; move {H}; rewrite (@enumP t x).
     by rewrite (match_maps_find1 H1).
@@ -702,7 +719,7 @@ Module MWUProof (T : OrderedFinType).
   Lemma match_maps_enum_perm_eq s m :
     match_maps s m ->
     perm_eq (index_enum t)
-            (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))).
+            (List.map [eta fst] (List.rev (M.elements m))).
   Proof.
     move => H; rewrite /perm_eq; apply/allP => x.
     by rewrite mem_cat; case/orP => /= H2;
@@ -712,7 +729,7 @@ Module MWUProof (T : OrderedFinType).
   Lemma match_maps_gamma'_elements s m :
     match_maps s m ->
     gamma' (index_enum t) s =
-    gamma' (List.map [eta fst] (List.rev (M.elements (elt:=Q) m))) s.
+    gamma' (List.map [eta fst] (List.rev (M.elements m))) s.
   Proof.
     rewrite /gamma' /match_maps => H; apply: eq_big_perm.
     by apply: (match_maps_enum_perm_eq H).
@@ -727,11 +744,11 @@ Module MWUProof (T : OrderedFinType).
     { apply: match_maps_gamma'_elements => //. }
     move => a q H2.
     case: (H a) => q' []H3 H4.
-    have H5: In (a,q) (M.elements (elt:=Q) m).
+    have H5: In (a,q) (M.elements m).
     { by rewrite in_rev. }
     clear H2; have ->: q = q'.
     { move: H3; rewrite -MProps.F.find_mapsto_iff => H3.
-      have H6: InA (M.eq_key_elt (elt:=Q)) (a, q) (M.elements (elt:=Q) m).
+      have H6: InA (M.eq_key_elt (elt:=D)) (a, q) (M.elements m).
       { apply: In_InA => //. }
       move: H6; rewrite -MProps.F.elements_mapsto_iff => H6.
       apply: MProps.F.MapsTo_fun; first by apply: H6.
@@ -741,21 +758,19 @@ Module MWUProof (T : OrderedFinType).
 
   Fixpoint update_weights'_aux
              (f : t -> expr t) (s : cstate) w l
-    : option (M.t Q) :=
+    : option (M.t D) :=
     match l with
     | nil => Some w
     | a :: l' =>
       match evalc (f a) s with
       | None => None
       | Some q =>
-        match 0 ?= q with
-        | Lt =>
+        if Dlt_bool D0 q then 
           match (update_weights'_aux f s w l') with
              | None => None
-             | Some m => Some (M.add a (Qred q) m)
+             | Some m => Some (M.add a q m)
           end
-        | _ => None
-        end
+        else None
       end
     end.
 
@@ -772,17 +787,17 @@ Module MWUProof (T : OrderedFinType).
     case H2: (update_weights'_aux _ _ _ l2) => [w'|].
     { move => IH.
       case: (evalc (f a) s) => // x.
-      case: (0 ?= x) => //.
+      case: (Dlt_bool D0 x) => //.
       by rewrite IH H2. }
     move => ->; rewrite H2.
     case: (evalc (f a) s) => //.
-    move => a0; case: (0 ?= a0) => //.
+    move => a0; case: (Dlt_bool D0 a0) => //.
   Qed.
   
   Definition update_weights'
              (f : t -> expr t) (s : cstate)
-    : option (M.t Q) :=
-    update_weights'_aux f s (M.empty Q)
+    : option (M.t D) :=
+    update_weights'_aux f s (M.empty D)
       (List.map (fun x => x.1) (List.rev (M.elements (SWeights s)))).
 
   Lemma update_weights'_aux_inv f s m l m' :
@@ -790,19 +805,20 @@ Module MWUProof (T : OrderedFinType).
     forall a,
       In a l ->
       exists q,
-        [/\ M.find a m' = Some (Qred q)
+        [/\ M.find a m' = Some q
           , evalc (f a) s = Some q
-          & Qlt 0 q].
+          & Dlt D0 q].
   Proof.
     elim: l m m' => // a l IH m m' /=.
     case H: (evalc _ _) => // [q].
-    case H2: (0 ?= q) => //.
+    case H2: (Dlt_bool D0 q) => //.
     case H3: (update_weights'_aux _ _ _ _) => // [m''] H4 a' H5.
     case: H5.
     { move => H6; subst a'; inversion H4; subst.
       rewrite MProps.F.add_eq_o.
       { exists q.
-        split => //. }
+        split => //.
+        by rewrite -Dlt_bool_iff. }
       rewrite /A.eq.
       by rewrite -A.eqP.
     }
@@ -813,7 +829,9 @@ Module MWUProof (T : OrderedFinType).
       exists q; split => //.
       inversion H4; subst.
       rewrite MProps.F.add_eq_o; last by rewrite /A.eq -A.eqP.
-        by []. }
+      by [].
+      by rewrite -Dlt_bool_iff.  
+    }
     move => H9.
     exists q'.
     split => //.
@@ -826,15 +844,15 @@ Module MWUProof (T : OrderedFinType).
     update_weights' f s = Some m ->
     forall a,
     exists q,
-      [/\ M.find a m = Some (Qred q)
+      [/\ M.find a m = Some q
         , evalc (f a) s = Some q
-        & Qlt 0 q].
+        & Dlt D0 q].
   Proof.
     rewrite /update_weights' => H H2 a.
-    have H3: In a (List.map [eta fst] (List.rev (M.elements (elt:=Q) (SWeights s)))).
+    have H3: In a (List.map [eta fst] (List.rev (M.elements (SWeights s)))).
     { clear - H.
       case: (H a) => q H2.
-      have H3: M.find (elt:=Q) a (SWeights s) <> None.
+      have H3: M.find a (SWeights s) <> None.
       { move => H4; rewrite H4 in H2; congruence. }
       move: H3; rewrite -MProps.F.in_find_iff MProps.F.elements_in_iff.
       case => q'; move: (M.elements _) => l.
@@ -859,15 +877,13 @@ Module MWUProof (T : OrderedFinType).
 
   Lemma update_weights_weights'_aux f s l w :
     fold_right
-     (fun (y : M.key * Q) (x : option (M.t Q)) =>
+     (fun (y : M.key * D) (x : option (M.t D)) =>
       match x with
       | Some acc' =>
           match evalc (f y.1) s with
           | Some q =>
-            match 0 ?= q with
-            | Lt => Some (M.add y.1 (Qred q) acc')
-            | _ => None
-            end
+            if Dlt_bool D0 q then  Some (M.add y.1 q acc')
+            else None
           | None => None
           end
       | None => None
@@ -878,7 +894,7 @@ Module MWUProof (T : OrderedFinType).
     move => w /=; rewrite IH.
     case: (update_weights'_aux _ _ _ _) => //.
     case: (evalc _ _) => // q''.
-    case: (0 ?= q'') => //.
+    case: (Dlt_bool D0 q'') => //.
   Qed.
     
   Lemma update_weights_weights' f s :
@@ -893,9 +909,9 @@ Module MWUProof (T : OrderedFinType).
     update_weights f s = Some m ->
     forall a,
     exists q,
-      [/\ M.find a m = Some (Qred q)
+      [/\ M.find a m = Some q
         , evalc (f a) s = Some q
-        & Qlt 0 q].
+        & Dlt D0 q].
   Proof.
     rewrite update_weights_weights'.
     apply: update_weights'_inv1.
@@ -904,10 +920,10 @@ Module MWUProof (T : OrderedFinType).
   Lemma match_eval f (r : state t) (s : cstate) q :
     match_maps (weightslang.SWeights r) (SWeights s) ->
     match_maps (weightslang.SCosts r) (SCosts s) ->
-    rat_to_Q (weightslang.SEpsilon r) = Qred (SEpsilon s) ->
+    rat_to_Q (weightslang.SEpsilon r) = Qred (D_to_Q (SEpsilon s)) ->
     forall a : t,
       evalc (f a) s = Some q ->
-      Qred q = rat_to_Q (eval (f a) r).
+      Qred (D_to_Q q) = rat_to_Q (eval (f a) r).
   Proof.
     move => H Hx Hy a; move: (f a) => e.
     elim: e q.
@@ -915,22 +931,25 @@ Module MWUProof (T : OrderedFinType).
       case: v => // q'.
       inversion 1; subst.
         by rewrite rat_to_QK1. }
-    { move => e IH q /=.
+    { move => e IH q.
+      unfold evalc; fold evalc.
       case H2: (evalc e s) => // [q']; inversion 1; subst.
-      rewrite Qred_opp.
-      rewrite IH => //.
-        by rewrite rat_to_Qopp. }
-    { move => a' q /= H2.
+      rewrite Dopp_ok Qred_opp IH => //.
+      by rewrite rat_to_Qopp. }
+    { move => a' q H2.
+      simpl in H2.
       case: (H a') => q' []H3 H4.
       rewrite H3 in H2; inversion H2; subst. clear H2.
-        by rewrite H4. }
-    { move => a' q /= H2.
+      by rewrite H4. }
+    { move => a' q H2.
+      simpl in H2.
       case: (Hx a') => q' []H3 H4.
       rewrite H3 in H2; inversion H2; subst. clear H2.
-        by rewrite H4. }
+      by rewrite H4. }
     { move => q /=; inversion 1; subst.
-        by rewrite Hy. }
-    move => b e1 IH1 e2 IH2 q /=.
+      by rewrite Hy. }
+    move => b e1 IH1 e2 IH2 q.
+    rewrite /evalc -/evalc.
     case H1: (evalc e1 s) => // [v1].
     case H2: (evalc e2 s) => // [v2].
     inversion 1; subst. clear H0.
@@ -939,16 +958,16 @@ Module MWUProof (T : OrderedFinType).
     { rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_plus.
       rewrite -(IH1 _ H1).
       rewrite -(IH2 _ H2).
-      by rewrite 2!Qred_correct. }
+      by rewrite 2!Qred_correct Dadd_ok. }
     { rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_plus.
       rewrite -(IH1 _ H1).
       rewrite rat_to_Qopp.
       rewrite -(IH2 _ H2).
-      by rewrite 2!Qred_correct. }
+      by rewrite 2!Qred_correct Dadd_ok Dopp_ok. }
     rewrite rat_to_Q_red; apply: Qred_complete; rewrite rat_to_Q_mul.
     rewrite -(IH1 _ H1).
     rewrite -(IH2 _ H2).
-    by rewrite 2!Qred_correct.
+    by rewrite 2!Qred_correct Dmult_ok.
   Qed.
   
   Lemma update_weights_inv2 (f : t -> expr t) r s m :
@@ -956,10 +975,10 @@ Module MWUProof (T : OrderedFinType).
     update_weights f s = Some m ->
     forall a : t,
     exists q,
-      [/\ M.find a m = Some (Qred q)
+      [/\ M.find a m = Some q
         , evalc (f a) s = Some q
-        , Qred q = rat_to_Q (eval (f a) r)
-        & Qlt 0 q].
+        , Qred (D_to_Q q) = rat_to_Q (eval (f a) r)
+        & Qlt 0 (D_to_Q q)].
   Proof.
     move => H H2 a.
     move: (@update_weights_inv1 f s m) => Hinv1.
@@ -971,7 +990,9 @@ Module MWUProof (T : OrderedFinType).
     case: (Hinv1 H3 H2 a) => q []H1 H4 H5.
     exists q; split => //.
     apply: Hmatch => //.
-  Qed.
+    rewrite /Dlt in H5.
+    admit.
+  Admitted.
   
   Lemma match_maps_update_weights (f : t -> expr t) r s m :
     match_states r s ->
@@ -981,13 +1002,10 @@ Module MWUProof (T : OrderedFinType).
   Proof.
     move => H H2; split => a; case: (update_weights_inv2 H H2 a) => q.
     { case => H3 H4 H5 H6.
-      exists (Qred q); split => //.
-      have H7: Qred (Qred q) = Qred q.
-      { apply: Qred_complete.
-        apply: Qred_correct. }
-        by rewrite H7 H5 ffunE. }
+      exists q; split => //.
+      by rewrite H5 ffunE. }
     case => H3 H4 H5 H6.
-    have H7: 0 < Qred q by rewrite Qred_correct.
+    have H7: 0 < Qred (D_to_Q q) by rewrite Qred_correct.
     rewrite H5 in H7; clear - H7.
     have H6: 0 = inject_Z 0 by [].
     rewrite H6 -rat_to_Q0 in H7.
@@ -1040,17 +1058,20 @@ Module MWUProof (T : OrderedFinType).
           (fun a : t =>
              match M.find a c.1 with
              | None => 0%R (*bogus*)
-             | Some q => Q_to_rat (Qred q)
+             | Some q => Q_to_rat (Qred (D_to_Q q))
              end).
       have pf: forall a, (0 <= f a <= 1)%R.
       { move => a. rewrite /f ffunE. clear f.
         case: (recv_ok a (SOracleSt tx) (SChan tx)) => q [] -> [] H H3.
         apply/andP; split.
         { rewrite -Q_to_rat0; apply: Q_to_rat_le.
-          have H4: Qeq (Qred q) q by apply: Qred_correct.
-          by rewrite H4. }
+          have H4: (Qeq (Qred (D_to_Q q))) (D_to_Q q) by apply: Qred_correct.
+          rewrite H4.
+          admit.
+        }
         rewrite -Q_to_rat1; apply: Q_to_rat_le.
-        by move: (Qred_correct q) ->. }
+        move: (Qred_correct (D_to_Q q)) ->.
+        admit. }
       exists CSkip.
       have Hora: match_oracle_states (weightslang.SOracleSt s) (SOracleSt tx).
       { by case: H2. }
@@ -1139,8 +1160,8 @@ Module MWUProof (T : OrderedFinType).
         simpl.
         move: H4 => H4x.
         have Hx:
-             [ffun a : t => match M.find (elt:=Q) a wc with
-                        | Some q => (Q_to_rat q / Q_to_rat (cGamma wc))%R
+             [ffun a : t => match M.find (elt:=D) a wc with
+                        | Some q => (Q_to_rat (D_to_Q q) / Q_to_rat (cGamma wc))%R
                         | None => 0%R
                         end] = p_aux (A:=t) eps [::] w.
         { rewrite /p_aux; apply/ffunP => a; rewrite 2!ffunE.
@@ -1148,8 +1169,8 @@ Module MWUProof (T : OrderedFinType).
           rewrite /match_maps in H1; case: (H1 a) => y []H3 H4. clear H1.
           rewrite H3 /= H1'; f_equal. clear - H4.
           rewrite rat_to_Q_red in H4.
-          have H5: Qeq y (rat_to_Q (w a)).
-          { by rewrite -(Qred_correct y) -(Qred_correct (rat_to_Q (w a))) H4. }
+          have H5: Qeq (D_to_Q y) (rat_to_Q (w a)).
+          { by rewrite -(Qred_correct (D_to_Q y)) -(Qred_correct (rat_to_Q (w a))) H4. }
             by apply: rat_to_QK2. }
         rewrite -Hx.
         apply/ffunP => x; rewrite 2!ffunE /weights_distr.
@@ -1276,11 +1297,11 @@ Module MWUProof (T : OrderedFinType).
       apply: H12.
       apply: H13. }
     inversion 1.
-  Qed.
+  Admitted.
 
   Lemma findA_map1_Some1 a (l : list t) :
     a \in l ->
-    findA (MProps.F.eqb a) (List.map (pair^~ 1) l) = Some 1.
+    findA (MProps.F.eqb a) (List.map (pair^~ D1) l) = Some D1.
   Proof.
     elim: l a => // a l IH a1; case/orP.
     { move/eqP => ->.
@@ -1313,34 +1334,36 @@ Module MWUProof (T : OrderedFinType).
     move => a; rewrite /init_weights /init_costs /init_map.
     generalize (enumerateP t) => [][]H Huniq; move: (H a) => H2.
     move: (enumP (T:=t) a) => H3.
-    exists 1; rewrite MProps.of_list_1b.
+    exists D1; rewrite MProps.of_list_1b.
     { split.
       { apply: findA_map1_Some1; rewrite H2 mem_enum => //. }
       by rewrite ffunE. }
-    have H4: forall x y, M.eq_key (elt:=Q) ((pair^~ 1) x) ((pair^~ 1) y) -> A.eq x y.
+    have H4: forall x y,
+        M.eq_key (elt:=D) ((pair^~ D1) x) ((pair^~ D1) y) -> A.eq x y.
     { by []. }
-    apply: (@NoDupA_map _ _ _ (M.eq_key (elt:=Q)) _ _ H4).
+    apply: (@NoDupA_map _ _ _ (M.eq_key (elt:=D)) _ _ H4).
     by apply: uniq_NoDupA.
   Qed.
 
   Lemma match_states_init
-        eps eps_ok
+        (eps : D) eps_ok
         (init_oracle_st : oracle_T)
         (Hmatch_ora_states : match_oracle_states init_oracle_st init_oracle_cst)
     : match_states
         (@init_state
-           t oracle_T oracle_chanty eps eps_ok
+           t oracle_T oracle_chanty (Q_to_rat (D_to_Q eps)) eps_ok
            oracle_bogus_chan init_oracle_st)
-        (init_cstate init_oracle_cst (rat_to_Q eps)).
+        (init_cstate init_oracle_cst eps).
   Proof.
     constructor.
     { apply: match_maps_init. }
     { constructor. }
     { apply: match_maps_init. }
-    apply: rat_to_Q_red.
-    constructor.
+    { rewrite rat_to_Q_red rat_to_QK1.
+      admit. (*need Qred (Qred q) = Qred q*) }
+    { constructor. }
     apply: Hmatch_ora_states.
-  Qed.
+  Admitted.
 
   (*This is a technical lemma about the interpretation of the specific  *)
   (*     program [mult_weights t nx].*)
@@ -1349,7 +1372,7 @@ Module MWUProof (T : OrderedFinType).
         (init_oracle_st : oracle_cT)
     : (0 < nx)%N ->
       interp (mult_weights t nx)
-             (init_cstate init_oracle_st (rat_to_Q eps)) = Some tx ->
+             (init_cstate init_oracle_st eps) = Some tx ->
       (0 < size (SPrevCosts tx))%N.
   Proof.
     rewrite /init_cstate /=; case: (update_weights _ _) => //= a.
@@ -1372,16 +1395,16 @@ Module MWUProof (T : OrderedFinType).
   Require Import Reals.
   
   Lemma interp_mult_weights_epsilon_no_regret :
-    forall (nx : N) (t' : cstate) (eps : rat) (eps_ok : epsOk eps)
+    forall (nx : N) (t' : cstate) (eps : D) (eps_ok : epsOk (Q_to_rat (D_to_Q eps)))
            (init_oracle_st : oracle_T)
            (Hmatch_ora_states : match_oracle_states init_oracle_st init_oracle_cst),
+      let: epsR := rat_to_R (Q_to_rat (D_to_Q eps)) in
       (0 < nx)%N ->
-      interp (mult_weights t nx) (init_cstate init_oracle_cst (rat_to_Q eps)) = Some t' ->
+      interp (mult_weights t nx) (init_cstate init_oracle_cst eps) = Some t' ->
       exists s',
         match_states s' t' /\
         ((state_expCost1 (all_costs0 s') s' - OPTR a0 s') / Tx nx <=
-         rat_to_R eps +
-         Rpower.ln (rat_to_R #|t|%:R) / (rat_to_R eps * Tx nx))%R.
+         epsR + Rpower.ln (rat_to_R #|t|%:R) / (epsR * Tx nx))%R.
   Proof.
     move => nx t' eps epsOk init_oracle_st Hmatch_ora_st Hnx H.
     case: (interp_step_plus H (match_states_init epsOk Hmatch_ora_st)) => c' []s'.
@@ -1412,6 +1435,8 @@ Axiom ax_st_ty : Type.
 Extract Constant ax_st_ty => "unit".
 Axiom empty_ax_st : ax_st_ty.
 Extract Constant empty_ax_st => "()".
+
+(* HERE HERE HERE *) 
 
 Axiom rand : ax_st_ty -> (Q * ax_st_ty). (*in range [0,1]*)
 Extract Constant rand =>

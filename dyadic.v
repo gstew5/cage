@@ -18,6 +18,21 @@ Qed.
 Definition D_to_Q (d : D) :=
   Qmake (num d) (shift_pos (den d) 1).
 
+Definition D0 : D := Dmake 0 1.
+Definition D1 : D := Dmake 2 1.
+
+Lemma D_to_Q0' : D_to_Q D0 = 0 # 2.
+Proof. auto. Qed.
+
+Lemma D_to_Q0 : D_to_Q D0 == 0.
+Proof. rewrite D_to_Q0'; unfold Qeq; simpl; auto. Qed.
+
+Lemma D_to_Q1' : D_to_Q D1 = 2 # 2.
+Proof. auto. Qed.
+
+Lemma D_to_Q1 : D_to_Q D1 == 1.
+Proof. rewrite D_to_Q1'; unfold Qeq; simpl; auto. Qed.
+
 Definition Dadd (d1 d2 : D) : D :=
   match d1, d2 with
   | Dmake x1 y1, Dmake x2 y2 =>
@@ -404,4 +419,64 @@ Proof.
   rewrite Dadd_ok.
   rewrite Dopp_ok.
   unfold Qminus; apply Qeq_refl.
+Qed.
+
+Definition Dle (d1 d2 : D) : Prop :=
+  Qle (D_to_Q d1) (D_to_Q d2).  
+
+(*TODO: There's probably a more efficient way to implement the following:*)
+Definition Dle_bool (d1 d2 : D) : bool :=
+  Qle_bool (D_to_Q d1) (D_to_Q d2).
+
+Lemma Dle_bool_iff d1 d2 : (Dle_bool d1 d2 = true) <-> Dle d1 d2.
+Proof.
+  unfold Dle_bool, Dle.
+  apply Qle_bool_iff.
+Qed.
+
+Definition Dlt (d1 d2 : D) : Prop :=
+  Qlt (D_to_Q d1) (D_to_Q d2).  
+
+Definition Dlt_bool (d1 d2 : D) : bool :=
+  match D_to_Q d1 ?= D_to_Q d2 with
+  | Lt => true
+  | _ => false
+  end.
+
+Lemma Dlt_bool_iff d1 d2 : (Dlt_bool d1 d2 = true) <-> Dlt d1 d2.
+Proof.
+  unfold Dlt_bool; split.
+  destruct (Qcompare_spec (D_to_Q d1) (D_to_Q d2));
+    try solve[inversion 1|auto].
+  unfold Dlt; rewrite Qlt_alt; intros ->; auto.
 Qed.  
+
+Lemma Deq_dec (d1 d2 : D) : {d1=d2} + {d1<>d2}.
+Proof.
+  destruct d1, d2.
+  destruct (Z_eq_dec num0 num1).
+  { destruct (positive_eq_dec den0 den1).
+    left; subst; f_equal.
+    right; inversion 1; subst; apply n; auto. }
+  right; inversion 1; subst; auto.
+Qed.  
+
+(*(* MICROBENCHMARK *)
+Fixpoint f (n : nat) (d : D) : D :=
+  match n with
+  | O => d
+  | S n' => Dadd d (f n' d)
+  end.
+
+Time Compute f 5000 (Dmake 3 2).
+(*Finished transaction in 0.012 secs (0.012u,0.s) (successful)*)
+
+Fixpoint g (n : nat) (q : Q) : Q :=
+  match n with
+  | O => q
+  | S n' => Qplus q (g n' q)
+  end.
+
+Time Compute g 5000 (Qmake 3 2).
+(*Finished transaction in 0.847 secs (0.848u,0.s) (successful)*)
+(*Speedup on this microbenchmark: 70x*)*)
