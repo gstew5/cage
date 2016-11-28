@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith String.
+Require Import NArith QArith String.
 Require Import ProofIrrelevance.
 
 (*Avoid clash with Ssreflect*)
@@ -36,63 +36,22 @@ Qed.
 Instance resourceRefineTypeInstance
   : @RefineTypeClass [finType of resource] _ _.
 
-Definition ctraffic (N : nat) (m : M.t resource) : Qcoq :=
-  M.fold (fun i r acc =>
-            if (i < N)%N
-              then match r with
-                   | RYes => (acc + 1)%coq_Qscope
-                   | RNo => acc
+Definition ctraffic (N : nat) (m : M.t resource) : N.t :=
+  (M.fold (fun i r acc =>
+             if (i < N)%N
+             then match r with
+                  | RYes => acc + 1
+                  | RNo => acc
                    end
-              else acc)
-         m 0%coq_Qscope.
-
-Definition ctraffic' N (m : M.t resource) : Qcoq :=
-  big_sumQ (M.elements m)
-    (fun p =>
-      match p with (k, e) =>
-        if (k < N)%N
-          then match e with
-               | RYes => 1%coq_Qscope
-               | RNo => 0%coq_Qscope
-               end
-          else 0%coq_Qscope
-      end).
-
-Lemma Qplus_leib_comm x y:
-  (x + y)%coq_Qscope = (y + x)%coq_Qscope.
-Proof.
-  case: x => x1 x2.
-  case: y => y1 y2.
-  rewrite /Qplus /Qnum /Qden => //.
-  f_equal. ring. apply Pmult_comm.
-Qed.
-
-Lemma Qplus_leib_assoc x y z:
-  (x + (y + z))%coq_Qscope = ((x + y) + z)%coq_Qscope.
-Proof.
-  case x => x1 x2.
-  case y => y1 y2.
-  case z => z1 z2.
-  rewrite !/Qplus !/Qnum !/Qden => //.
-  f_equal. ring_simplify.
-  rewrite Pos.mul_comm [(x2 * y2)%positive] Pos.mul_comm.
-  rewrite !Pos2Z.inj_mul !Zmult_assoc //.
-  apply Pmult_assoc.
-Qed.
-
-Lemma Qplus_leib_0_l x : (0 + x)%coq_Qscope = x.
-Proof.
-  case: x => x1 x2.
-  rewrite /Qplus /Qnum /Qden.
-  f_equal. ring.
-Qed.
+             else acc)
+          m 0)%num.
 
 Lemma ctraffic_sub0 N (l : seq (M.key * resource)) n :
-  List.fold_left
+  (List.fold_left
     (fun acc p => 
         if ((nat_of_bin p.1) < N)%N
           then match p.2 with
-               | RYes => (acc + 1)%coq_Qscope
+               | RYes => acc + 1
                | RNo => acc
                end
           else acc)
@@ -102,31 +61,29 @@ Lemma ctraffic_sub0 N (l : seq (M.key * resource)) n :
     (fun acc p => 
         if ( (nat_of_bin p.1) < N)%N
           then match p.2 with
-               | RYes => (acc + 1)%coq_Qscope
+               | RYes => acc + 1
                | RNo => acc
                end
           else acc)
-    l 0%coq_Qscope + n)%coq_Qscope.
+    l 0 + n))%num.
 Proof.
   move: n.
   induction l => //=.
-  move => n0. rewrite Qplus_leib_0_l => //.
   move => n.
   case: (a.1 < N)%N => //.
-  case: a.2;
-  rewrite IHl => //=.
-  rewrite Qplus_leib_0_l.
-  rewrite (IHl 1%coq_Qscope).
-  rewrite -Qplus_leib_assoc.
-  f_equal. apply Qplus_leib_comm.
+  case: a.2; rewrite IHl => //=.
+  rewrite (IHl 1%num).
+  rewrite -N.add_assoc.
+  f_equal.
+  apply N.add_comm.
 Qed.
 
 Lemma ctraffic_subP N l n :
-  List.fold_left
+  (List.fold_left
     (fun acc p => 
         if (nat_of_bin p.1 < N)%N
           then match p.2 with
-               | RYes => (acc + 1)%coq_Qscope
+               | RYes => acc + 1
                | RNo => acc
                end
           else acc)
@@ -136,26 +93,26 @@ Lemma ctraffic_subP N l n :
     (fun acc p => 
         if (nat_of_bin p.1 < N)%N
           then match p.2 with
-               | RYes => (acc + 1)%coq_Qscope
+               | RYes => acc + 1
                | RNo => acc
                end
           else acc)
-    (List.rev l) n.
+    (List.rev l) n)%num.
 Proof.
   rewrite -List.fold_left_rev_right.
   induction (List.rev l) => //=.
   rewrite IHl0.
   case: (a.1 < N)%N => //.
   case: (a.2) => //.
-  rewrite (ctraffic_sub0 _ _ (n+1)%coq_Qscope) ctraffic_sub0.
-  rewrite Qplus_leib_assoc => //.
+  rewrite (ctraffic_sub0 _ _ (n+1)%num) ctraffic_sub0.
+  by rewrite N.add_assoc.
 Qed.
 
 Lemma ctraffic_filter_sub0 (l : seq (M.key * resource)) n :
-  List.fold_left
+  (List.fold_left
     (fun acc p => 
       match p.2 with
-      | RYes => (acc + 1)%coq_Qscope
+      | RYes => acc + 1
       | RNo => acc
       end)
     l n
@@ -163,33 +120,25 @@ Lemma ctraffic_filter_sub0 (l : seq (M.key * resource)) n :
   (List.fold_left
     (fun acc p => 
       match p.2 with
-      | RYes => (acc + 1)%coq_Qscope
+      | RYes => acc + 1
       | RNo => acc
       end)
-    l 0%coq_Qscope + n)%coq_Qscope.
+    l 0 + n))%num.
 Proof.
-  move: n.
-  induction l.
-  {
-    move => n => /=.
-    rewrite Qplus_leib_0_l => //.
-  }
-  {
-    move => n => /=.
-    rewrite IHl.
-    case: a.2 => //.
-    rewrite (IHl (0+1)%coq_Qscope) Qplus_leib_0_l -Qplus_leib_assoc.
-    f_equal.
-    apply Qplus_leib_comm.
-  }
+  move: n; induction l => //.
+  move => n => /=.
+  rewrite IHl.
+  case: a.2 => //.
+  rewrite (IHl (0+1)%num) N.add_0_l.
+  rewrite (N.add_comm n 1) N.add_assoc //.
 Qed.
 
 Lemma ctraffic_subF N l n :
-  List.fold_left
+  (List.fold_left
     (fun acc p => 
         if (nat_of_bin p.1 < N)%N
           then match p.2 with
-               | RYes => (acc + 1)%coq_Qscope
+               | RYes => acc + 1
                | RNo => acc
                end
           else acc)
@@ -198,24 +147,24 @@ Lemma ctraffic_subF N l n :
   List.fold_left
     (fun acc p => 
       match p.2 with
-      | RYes => (acc + 1)%coq_Qscope
+      | RYes => acc + 1
       | RNo => acc
       end)
-    (List.filter (fun p => (nat_of_bin p.1 < N)%N) l) n.
+    (List.filter (fun p => (nat_of_bin p.1 < N)%N) l) n)%num.
 Proof.
   move: n.
   set f := 
-   (fun (acc : Q) (p : BinNums.N * resource) =>
+   (fun (acc : N.t) (p : BinNums.N * resource) =>
     if (p.1 < N)%N
     then match p.2 with
-        | RYes => (acc + 1)%Q
+        | RYes => (acc + 1)%num
         | RNo => acc
         end
     else acc).
   set f' :=
-   (fun (acc : Q) (p : BinNums.N * resource) =>
+   (fun (acc : N.t) (p : BinNums.N * resource) =>
    match p.2 with
-   | RYes => (acc + 1)%Q
+   | RYes => (acc + 1)%num
    | RNo => acc
    end). 
   induction l => //=.
@@ -224,7 +173,7 @@ Proof.
   rewrite /f {2}/f'.
   case: (a.1 < N)%N => //=.
   case: a.2.
-  rewrite (ctraffic_filter_sub0 _ (n+1)%coq_Qscope) => //.
+  rewrite (ctraffic_filter_sub0 _ (n+1)%num) => //.
   rewrite -/f'. symmetry. 
   apply ctraffic_filter_sub0.
   rewrite -ctraffic_filter_sub0 => //.
@@ -287,40 +236,65 @@ Proof.
   }
 Qed.
 
+Lemma Qplus_leib_comm x y:
+  (x + y)%coq_Qscope = (y + x)%coq_Qscope.
+Proof.
+  case: x => x1 x2.
+  case: y => y1 y2.
+  rewrite /Qplus /Qnum /Qden => //.
+  f_equal. ring. apply Pmult_comm.
+Qed.
+
+Lemma Qplus_leib_assoc x y z:
+  (x + (y + z))%coq_Qscope = ((x + y) + z)%coq_Qscope.
+Proof.
+  case x => x1 x2.
+  case y => y1 y2.
+  case z => z1 z2.
+  rewrite !/Qplus !/Qnum !/Qden => //.
+  f_equal. ring_simplify.
+  rewrite Pos.mul_comm [(x2 * y2)%positive] Pos.mul_comm.
+  rewrite !Pos2Z.inj_mul !Zmult_assoc //.
+  apply Pmult_assoc.
+Qed.
+
+Lemma Qplus_leib_0_l x : (0 + x)%coq_Qscope = x.
+Proof.
+  case: x => x1 x2.
+  rewrite /Qplus /Qnum /Qden.
+  f_equal. ring.
+Qed.
+
 Lemma ctraffic_sub_subP (l : seq (M.key*resource)):
   let f :=
     (fun acc p => 
       match p.2 with
-      | RYes => (acc + 1)%coq_Qscope
+      | RYes => (acc + 1)%num
       | RNo => acc
       end) in
-  List.fold_left f l 0%coq_Qscope
+  N_to_Q (List.fold_left f l 0)%num
     =
   rat_to_Q
     ((count
       (fun p => p.2  == RYes)
       l)%:R).
 Proof.
-  induction l => //.
-  simpl.
-  case: a.2 => /=;
-  rewrite ctraffic_filter_sub0 IHl => /=;
-  first rewrite Qplus_leib_0_l.
-  rewrite Qplus_leib_comm => //.
-  have H : rat_to_Q 1 = 1%coq_Qscope
-    by rewrite /rat_to_Q => //.
-  rewrite -H rat_to_Q_s_add => //.
-  f_equal. rewrite natrD //.
-  have H1: (0%:R <= (count (fun p : M.key * resource => p.2 == RYes) l)%:R).
-  { move => t. by rewrite ler_nat. }
-  apply H1.
-  rewrite addnC addn0.
-  rewrite Qplus_leib_comm Qplus_leib_0_l => //.
+  induction l => //=.
+  have H : rat_to_Q 1 = 1%coq_Qscope by rewrite /rat_to_Q => //.
+  have Hx : N_to_Q 1 = 1%coq_Qscope by [].
+  have Hy : N_to_Q 0 = 0%coq_Qscope by [].  
+  case: a.2; rewrite ctraffic_filter_sub0 /= N_to_Q_plus IHl; set Y := count _ _.
+  { rewrite Hx natrD -rat_to_Q_s_add.
+    by rewrite Qplus_leib_comm H.
+    have H1: (0%:R <= (count (fun p : M.key * resource => p.2 == RYes) l)%:R).
+    { move => t. by rewrite ler_nat. }
+    by apply: H1. }
+  by rewrite Hy addnC addn0 Qplus_leib_comm Qplus_leib_0_l.
 Qed.
 
 Definition resource_ccost N (i : OrdNat.t) (m : M.t resource) : Qcoq :=
   match M.find i m with
-  | Some RYes => ctraffic N m
+  | Some RYes => N_to_Q (ctraffic N m)
   | Some RNo => 0%coq_Qscope
   | None => 0%coq_Qscope (*won't occur when i < N*)
   end.
@@ -567,7 +541,6 @@ Qed.
 Instance resource_cgame N
   : cgame (N:=N) (T:=[finType of resource]) _ _ _
       (resourceGame N).
-
 
 (** [NOTE Enumerable instances]
     ~~~~~~~~~~~~~~~~~~~~~~

@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith Reals Rpower Ranalysis Fourier.
+Require Import NArith QArith Reals Rpower Ranalysis Fourier.
 
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.

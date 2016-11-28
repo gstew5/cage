@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith Qreals Reals Fourier.
+Require Import NArith QArith Qreals Reals Fourier.
 
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
@@ -1459,3 +1459,19 @@ Section rat_to_Q_lemmas_cont.
     apply: Qred_complete; rewrite rat_to_Q_mul //.
   Qed.
 End rat_to_Q_lemmas_cont.
+
+Definition N_to_Q (n : N.t) : Q := NtoZ n # 1.
+
+Lemma N_to_Q_plus n1 n2 :
+  N_to_Q (n1 + n2) = Qplus (N_to_Q n1) (N_to_Q n2).
+Proof.
+  rewrite /N_to_Q /NtoZ /Nplus.
+  case: n1; case: n2 => //.
+  { unfold Qplus; simpl.
+    by move => p; rewrite Pos.mul_1_r. }
+  { unfold Qplus; simpl.
+    by move => p; rewrite Pos.mul_1_r. }
+  move => p q.
+  by rewrite Pos2Z.inj_add /Qplus /= !Pos.mul_1_r.
+Qed.
+
