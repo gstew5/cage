@@ -216,3 +216,25 @@ Class cgame N (T : finType)
       `(@game T N rat_realFieldType costClass costAxiomClass
               costMaxClass costMaxAxiomClass)
 : Type := {}.
+
+(** "Boolable" and "Eq_dec" Types *)
+
+Class Boolable (A : Type) : Type :=
+  boolify : A -> bool.
+
+Class BoolableUnit (A : Type) (boolable : Boolable A) : Type :=
+  boolUnit : A.
+
+Class BoolableUnitAxiom
+  (A : Type) (boolable : Boolable A)
+  (boolableUnit : @BoolableUnit A boolable) : Type :=
+    isUnit : boolable (boolableUnit) = false. 
+
+(* We bundle up equality here to make it
+    visible to the affine cost functions *)
+  (** really this needn't be equality is probably better to rename it to relation *)
+Class Eq (A : Type) : Type :=
+  decEq : A -> A -> Prop.
+
+Class Eq_Dec (A : Type) (eq : Eq A) : Type :=
+  isDec : forall x y : A,  {eq x y} + {~ eq x y}.
