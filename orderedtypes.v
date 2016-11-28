@@ -8,7 +8,7 @@ Require Import QArith.
 Require Import Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
-Require Import strings compile combinators.
+Require Import strings compile combinators ccombinators.
 
 Module Type MyOrderedType.
   Parameter t : Type.

@@ -98,6 +98,7 @@ VFILES:=axioms.v\
   bigops.v\
   christodoulou.v\
   combinators.v\
+  ccombinators.v\
   compile.v\
   dist.v\
   dynamics.v\
