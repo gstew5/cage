@@ -1436,30 +1436,24 @@ Extract Constant ax_st_ty => "unit".
 Axiom empty_ax_st : ax_st_ty.
 Extract Constant empty_ax_st => "()".
 
-(* HERE HERE HERE *) 
-
-Axiom rand : ax_st_ty -> (Q * ax_st_ty). (*in range [0,1]*)
+Axiom rand : ax_st_ty -> (D*ax_st_ty). (*in range [0,1]*)
 Extract Constant rand =>
  "fun _ -> 
-  let rec q_of_ocamlint i =
-    let qzero = { qnum = Z0; qden = XH } in
-    let qone = { qnum = Zpos XH; qden = XH } in
-    let qtwo = { qnum = Zpos (XO XH); qden = XH } in
-    if i = 0 then qzero
-    else if i mod 2 = 0 then qmult qtwo (q_of_ocamlint (i/2))
-    else qplus (qmult qtwo (q_of_ocamlint (i/2))) qone
+  let rec z_of_ocamlint i =
+    let zzero = Z0 in
+    let zone = Zpos XH in
+    let ztwo = Zpos (XO XH) in
+    if i = 0 then zzero
+    else if i mod 2 = 0 then Z.mul ztwo (z_of_ocamlint (i/2))
+    else Z.add (Z.mul ztwo (z_of_ocamlint (i/2))) zone
   in  
-  let _ = Random.self_init () in    
-  let r = Random.float 1.0 in
-  let _ = if r < 0. || r > 1. then failwith ""error in rand"" else () in
-  let s = string_of_float r in
-  let sd = String.sub s 2 2 in (*2 digits of precision*)
-  let d = int_of_string sd in
-  let qn = q_of_ocamlint d in 
-  let qonehund = XO (XO (XI (XO (XO (XI XH))))) in
-  let q = qmult qn { qnum = Zpos XH; qden = qonehund } 
+  let _ = Random.self_init () in
+  let d = Random.int 256 in
+  let zn = z_of_ocamlint d in 
+  let peight = XO (XO (XO XH)) in
+  let q = { num = zn; den = peight } 
   in
-  Printf.eprintf ""Generated random r = %f"" r; prerr_newline ();
+  Printf.eprintf ""Generated random r = %d"" d; prerr_newline ();
   Pair (q, ())".
 
 (** A channel *)
@@ -1484,7 +1478,7 @@ Extract Constant send =>
    Printf.eprintf ""Sent value...""; prerr_newline ();
    Pair (sd, ())".
 
-Axiom recv : forall A : Type, ax_st_ty -> ax_chan -> (list (A*Q) * ax_st_ty).
+Axiom recv : forall A : Type, ax_st_ty -> ax_chan -> (list (A*D) * ax_st_ty).
 Extract Constant recv =>
 (* Read cost vector from socket, close the socket *)
 "fun _ sd ->
@@ -1499,7 +1493,7 @@ Axiom recv_ok :
   forall A (a : A) st ch,
   exists q,
     [/\ In (a, q) (recv _ st ch).1
-     & 0 <= q <= 1].
+      , Dle D0 q & Dle q D1].
 Axiom recv_nodup :
   forall (A : Type) st ch, NoDupA (fun p q => p.1 = q.1) (recv A st ch).1.
 

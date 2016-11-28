@@ -133,6 +133,8 @@ Proof.
     by f_equal; rewrite rat_to_R_plus rat_to_R_opp rat_to_R_mul.
 Qed.    
 
+(*TODO: All these bigops should really be consolidated at some point...sigh*)
+
 (** Q bigops *)
 
 Delimit Scope Q_scope with Q.
@@ -158,3 +160,21 @@ Proof.
   elim: cs=> /=. rewrite Qmult_0_r. apply Qeq_refl.
     by move => a l IH; rewrite IH Qmult_plus_distr_r.
 Qed.
+
+(** N bigops *)
+
+Fixpoint big_sumN (T : Type) (cs : seq T) (f : T -> N) : N :=
+  if cs is [:: c & cs'] then (f c + big_sumN cs' f)%num
+  else 0%num.
+
+Lemma big_sumN_ext T (cs cs' : seq T) f f' :
+  cs = cs' -> f =1 f' -> big_sumN cs f = big_sumN cs' f'.
+Proof. by move=> <- H; elim: cs=> //= a l ->; f_equal; apply: H. Qed.
+
+Lemma big_sumN_scalar T (cs : seq T) r f :
+  eq (big_sumN cs (fun c => r * f c))%num (r * big_sumN cs (fun c => f c))%num.
+Proof.
+  elim: cs=> /=. rewrite N.mul_0_r. apply N.eq_refl.
+  by move => a l IH; rewrite IH Nmult_plus_distr_l.
+Qed.
+
