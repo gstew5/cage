@@ -9,6 +9,8 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
+Require Import dyadic.
+
 (** This file defines conversions between Ssreflect/MathComp and
     Coq Standard Library implementations of various numeric types, 
     such as: 
@@ -1100,7 +1102,7 @@ Section Q_to_rat_lemmas.
     rewrite invr_gt0.
       by rewrite -ltz_nat -(ltr_int rat_realFieldType) in H2.
   Qed.
-
+  
   Lemma Q_to_rat_opp r :
     Q_to_rat (Qopp r) = (- (Q_to_rat r))%R.
   Proof.
@@ -1475,3 +1477,25 @@ Proof.
   by rewrite Pos2Z.inj_add /Qplus /= !Pos.mul_1_r.
 Qed.
 
+Definition N_to_D (n : N.t) : D := Dmake (2*NtoZ n) 1.
+
+Lemma N_to_D_plus n1 n2 :
+  (N_to_D (n1 + n2) = N_to_D n1 + N_to_D n2)%D.
+Proof.
+  rewrite /N_to_D /NtoZ /Nplus.
+  case: n1; case: n2 => //.
+Qed.
+
+Lemma N_to_D_to_Q n : Qeq (D_to_Q (N_to_D n)) (N_to_Q n).
+Proof.
+  rewrite /D_to_Q /N_to_D /N_to_Q /=.
+  case H: (NtoZ n) => [|p|p].
+  { by rewrite /Qeq. }
+  { rewrite /Qeq /=.
+    rewrite Pos.mul_1_r.
+    rewrite Pos2Z.inj_xO /Zmult.
+    by rewrite Pos.mul_comm. }
+  by rewrite /Qeq /= Pos.mul_1_r Pos2Z.neg_xO /Zmult Pos.mul_comm.
+Qed.  
+    
+              

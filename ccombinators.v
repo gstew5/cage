@@ -15,7 +15,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import strings.
-Require Import extrema dist numerics bigops.
+Require Import extrema dist numerics bigops dyadic.
 Require Import games compile smooth christodoulou combinators.
 
 Local Open Scope ring_scope.
@@ -292,11 +292,11 @@ Proof.
   by rewrite Hy addnC addn0 Qplus_leib_comm Qplus_leib_0_l.
 Qed.
 
-Definition resource_ccost N (i : OrdNat.t) (m : M.t resource) : Qcoq :=
+Definition resource_ccost N (i : OrdNat.t) (m : M.t resource) : D :=
   match M.find i m with
-  | Some RYes => N_to_Q (ctraffic N m)
-  | Some RNo => 0%coq_Qscope
-  | None => 0%coq_Qscope (*won't occur when i < N*)
+  | Some RYes => N_to_D (ctraffic N m)
+  | Some RNo => D0
+  | None => D0 (*won't occur when i < N*)
   end.
 
 Global Instance resourceCCostInstance N : CCostClass N resource
@@ -393,6 +393,10 @@ Proof.
   }
 Qed.
 
+(*FIXME: MOVE*)
+Lemma eq_Qeq q r : q=r -> Qeq q r.
+Proof. by move => ->; apply: Qeq_refl. Qed.                     
+
 Program Instance resourceRefineCostAxiomInstance N
   : @RefineCostAxiomClass N [finType of resource] _ _.
 Next Obligation.  
@@ -402,9 +406,12 @@ Next Obligation.
   case H2: (s _) => //.
   rewrite /ctraffic M.fold_1 trafficP /traffic' ctraffic_subF.
   move: (M.elements_3w m) => H1.
+  rewrite N_to_D_to_Q.
   rewrite ctraffic_sub_subP.
+  apply: eq_Qeq.
   f_equal.
-  rewrite sum1_count. rewrite -list_trafficP.
+  rewrite sum1_count.
+  rewrite -list_trafficP.
   f_equal.
   apply /perm_eqP.
   apply uniq_perm_eq.
@@ -527,15 +534,18 @@ Qed.
 Instance resourceRefineCostInstance N
   : @RefineCostClass N [finType of resource] _ _ _.
 
-Global Instance resourceCCostMaxInstance N
+Instance resourceCCostMaxInstance N
   : @CCostMaxClass N [finType of resource] :=
-      (rat_to_Q (N%:R)).
+  N_to_D (N.of_nat N).
 
 Instance resourceRefineCostMaxInstance N
   : @RefineCostMaxClass N _ (resourceCostMaxInstance _) (resourceCCostMaxInstance _).
 Proof.
-  rewrite /RefineCostMaxClass /resourceCCostMaxInstance.
-  apply Qle_lteq. right => //.
+  rewrite /RefineCostMaxClass /resourceCCostMaxInstance /resourceCostMaxInstance.
+  apply Qle_lteq.
+  right => //.
+  rewrite N_to_D_to_Q /=.
+  admit. (* HERE HERE HERE *)
 Qed.
 
 Instance resource_cgame N

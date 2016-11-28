@@ -480,3 +480,18 @@ Fixpoint g (n : nat) (q : Q) : Q :=
 Time Compute g 5000 (Qmake 3 2).
 (*Finished transaction in 0.847 secs (0.848u,0.s) (successful)*)
 (*Speedup on this microbenchmark: 70x*)*)
+
+Delimit Scope D_scope with D.
+Bind Scope D_scope with D.
+Arguments Dmake _%Z _%positive.
+
+Infix "<" := Dlt : D_scope.
+Infix "<=" := Dle : D_scope.
+Notation "x > y" := (Dlt y x)(only parsing) : D_scope.
+Notation "x >= y" := (Dle y x)(only parsing) : D_scope.
+Notation "x <= y <= z" := (x<=y/\y<=z) : D_scope.
+
+Infix "+" := Dadd : D_scope.
+Notation "- x" := (Dopp x) : D_scope.
+Infix "-" := Dsub : D_scope.
+Infix "*" := Dmult : D_scope.
