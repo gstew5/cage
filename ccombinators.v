@@ -544,8 +544,7 @@ Proof.
   rewrite /RefineCostMaxClass /resourceCCostMaxInstance /resourceCostMaxInstance.
   apply Qle_lteq.
   right => //.
-  rewrite N_to_D_to_Q /=.
-  admit. (* HERE HERE HERE *)
+  by rewrite N_to_D_to_Q /= rat_to_Q_N_to_Q.
 Qed.
 
 Instance resource_cgame N
@@ -583,18 +582,17 @@ Extraction resources'.
 Global Instance singCCostInstance (A : Type) `(Boolable A) N
   : CCostClass N (singleton A)
   :=      
-    fun (i : OrdNat.t) (m : M.t (singleton A)) =>
-      (match M.find i m with
-            | Some t => if (boolify t) then 1%coq_Qscope else 0%coq_Qscope
-            | _ => 0%coq_Qscope
-            end).
+    (fun (i : OrdNat.t) (m : M.t (singleton A)) =>
+      match M.find i m with
+      | Some t => if boolify t then 1 else 0
+      | _ => 0
+      end)%D.
 
 Instance singCTypeInstance (A : Type) (EnumA : Enumerable A)
     : Enumerable (singleton A) := map (@Wrap Singleton A) (enumerate A).
 
 Instance singCCostMaxInstance (N : nat) (A : Type)
-    : @CCostMaxClass N (singleton A) := 1%Q.
-
+    : @CCostMaxClass N (singleton A) := 1%D.
 
 Section singletonCompilable.
   Context {A : finType} {N: nat} `{RefineTypeAxiomClass A} `{Boolable A}.
@@ -665,7 +663,7 @@ Module SingletonCGameTest. Section singletonCGameTest.
   Variable i' : OrdNat.t.
   Variable t' : M.t (singletonType A).
   Check ccost_fun (N:=N) i' t'.
-End singletonCGameTest.  End SingletonCGameTest.  
+End singletonCGameTest. End SingletonCGameTest.  
 
 (**********************************************
   Sigma games are compilable 
@@ -970,12 +968,13 @@ Instance prodCCostInstance
        `(ccostB : CCostClass N bT)
   : CCostClass N (aT*bT)
   :=
-    fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
-      Qred (match M.find i m with
-            | Some (a, b) => (ccost i (map_split m).1 +
-                              ccost i (map_split m).2)%coq_Qscope
-            | _ => 0%coq_Qscope
-            end).
+    (fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
+       match M.find i m with
+       | Some (a, b) =>
+         ccost i (map_split m).1 +
+         ccost i (map_split m).2
+       | _ => 0
+       end)%D.
 
 Program Instance prodRefineCostAxiomInstance
         (N : nat) (aT bT : finType)
@@ -1000,19 +999,19 @@ Next Obligation.
              (s (Ordinal (n:=N) (m:=i) pf)).2)).
   { by case: (s (Ordinal (n:=N) (m:=i) pf)). }
   move => H.
-  have H2: ((ccost) i (map_split m).1 =
+  have H2: (D_to_Q ((ccost) i (map_split m).1) ==
             rat_to_Q
-              ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1])).
-  { apply refineA. move => j pf'.
+              ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1]))%coq_Qscope.
+  { apply: refineA => j pf'.
     rewrite ffunE.
     specialize (H j pf').
     move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
     apply map_split_spec in H.
     case: H => H0 H1.
     apply H0. }
-  have H3: ((ccost) i (map_split m).2 =
+  have H3: (D_to_Q ((ccost) i (map_split m).2) ==
             rat_to_Q
-              ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2])).
+              ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2]))%Q.
   { apply refineB. move => j pf'.
     rewrite ffunE.
     specialize (H j pf').
@@ -1021,8 +1020,9 @@ Next Obligation.
     case: H => H0 H1.
     apply H1. }
   rewrite /ccost_fun in H2, H3.
+  rewrite Dadd_ok.
   rewrite H2 H3 [rat_to_Q (_ + _)] rat_to_Q_red.
-  apply Qred_complete, Qeq_sym, rat_to_Q_plus.
+  by apply Qeq_sym; rewrite -rat_to_Q_red rat_to_Q_plus.
 Qed.
 
 Instance prodRefineCostInstance (N : nat) (aT bT : finType)
@@ -1037,7 +1037,7 @@ Instance prodRefineCostInstance (N : nat) (aT bT : finType)
 Instance prodCCostMaxInstance (N : nat) (aT bT : Type)
          (ccostMaxA : CCostMaxClass N aT)
          (ccostMaxB : CCostMaxClass N bT)
-  : CCostMaxClass N (aT*bT) := (ccostMaxA + ccostMaxB)%Q. 
+  : CCostMaxClass N (aT*bT) := (ccostMaxA + ccostMaxB)%D. 
 
 Instance prodRefineMaxCostInstance (N : nat) (aT bT : finType)
          (costMaxA   : CostMaxClass N _ aT)
@@ -1051,7 +1051,8 @@ Instance prodRefineMaxCostInstance (N : nat) (aT bT : finType)
       (prodCCostMaxInstance ccostMaxA ccostMaxB).
 Proof.
   rewrite /RefineCostMaxClass /prodCostMaxInstance /prodCCostMaxInstance
-          rat_to_Q_plus. apply Qplus_le_compat => //.
+          rat_to_Q_plus Dadd_ok.
+  by apply: Qplus_le_compat.
 Qed.
 
 Instance prod_cgame (N : nat) (aT bT : finType)
@@ -1095,11 +1096,14 @@ End prodCGameTest. End ProdCGameTest.
  *******************************************)
 
 Instance scalarEnumerableInstance
-         (A : Type) `(Enumerable A)
-         (q : rat)
+         (A : Type) (rty : realFieldType)
+         `(Enumerable A)
+         (q : rty)
   : Enumerable (scalar q A) := map (@Wrap (Scalar q) A) (enumerate A).
 
-Definition unwrapScalarTree A (q : rat) : M.t (scalar q A) -> M.t A :=
+Definition unwrapScalarTree
+           A (rty : realFieldType)
+           (q : rty) : M.t (scalar q A) -> M.t A :=
   fun m : (M.t (scalar q A)) =>
     M.fold (fun i r acc =>
               M.add i (unwrap r) acc)
@@ -1107,22 +1111,25 @@ Definition unwrapScalarTree A (q : rat) : M.t (scalar q A) -> M.t A :=
 
 Instance scalarCCostInstance
          N (A : Type)
-         `(Enumerable A) `(CCostClass N A)
-         (q : rat)
-  : CCostClass N (scalar q A)
+         `(Enumerable A)
+         `(CCostClass N A)
+         (q : DRat)
+  : CCostClass N (scalar (projT1 q) A)
   :=
-    fun (i : OrdNat.t) (m : M.t (scalar q A)) =>
-      Qred(Qmult (rat_to_Q q) (ccost i (unwrapScalarTree m))).
+    fun (i : OrdNat.t) (m : M.t (@scalar _ (projT1 q) A)) =>
+      (q * ccost i (unwrapScalarTree m))%D.
 
 Instance scalarCCostMaxInstance
-         N (A : Type) `(cmax : CCostMaxClass N A) (q : rat)
-  : @CCostMaxClass N (scalar q A) := (rat_to_Q q * cmax)%Q.
+         N (A : Type)
+         `(cmax : CCostMaxClass N A)
+         (q : DRat)
+  : @CCostMaxClass N (scalar (projT1 q) A) := (q * cmax)%D.
 
 Section scalarCompilable.
-  Context {A N} {q : rat} `{cgame N A}.
+  Context {A N} {q : DRat} `{cgame N A}.
 
   Global Program Instance scalarRefineTypeAxiomInstance
-    : @RefineTypeAxiomClass (scalarType q A) _.
+    : @RefineTypeAxiomClass (scalarType (projT1 q) A) _.
   Next Obligation.
     clear H1 H2 refineCostAxiomClass H0 refineCostClass ccostClass
           costAxiomClass costMaxAxiomClass costClass.
@@ -1137,9 +1144,13 @@ Section scalarCompilable.
     rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance.
     move => r.
     apply /mapP.
-    case_eq (in_mem r (mem (enum_mem (T:=scalarType (rty:=rat_realFieldType) q A)
-              (mem (sort_of_simpl_pred (pred_of_argType
-                (Wrapper (Scalar (rty:=rat_realFieldType) q) A))))))) => H3; rewrite H3.
+    case_eq (in_mem
+               r (mem
+                  (enum_mem
+                     (T:=scalarType (rty:=rat_realFieldType) (projT1 q) A)
+                     (mem (sort_of_simpl_pred (pred_of_argType
+              (Wrapper (Scalar (rty:=rat_realFieldType) (projT1 q)) A)))))))
+      => H3; rewrite H3.
     {
       move: H3.
       case: r => x H3.
@@ -1158,11 +1169,11 @@ Section scalarCompilable.
   Qed.
 
   Global Instance scalarRefineTypeInstance
-    : @RefineTypeClass (scalarType q A)  _ _.
+    : @RefineTypeClass (scalarType (projT1 q) A)  _ _.
 
-  Lemma unwrapScalarTree_spec i (t : scalarType q A) m:
+  Lemma unwrapScalarTree_spec i (t : scalarType (projT1 q) A) m:
     M.find i m = Some t ->
-      M.find i (unwrapScalarTree m) = Some (unwrap t).
+    M.find i (unwrapScalarTree m) = Some (unwrap t).
   Proof.
     clear H H0 H1 H2 refineCostAxiomClass refineCostClass
           ccostClass costAxiomClass costMaxAxiomClass costClass.
@@ -1192,19 +1203,26 @@ Section scalarCompilable.
   Qed.
 
   Global Program Instance scalarRefineCostAxiomInstance
-    : @RefineCostAxiomClass N (scalarType q A)
-        (@scalarCostInstance _ _ _ costClass q) _. 
+    : @RefineCostAxiomClass
+        N (scalarType (projT1 q) A)
+        (@scalarCostInstance _ _ _ costClass (projT1 q))
+        _. 
   Next Obligation.
     clear H H0 H1 H2
           refineCostClass costAxiomClass.
     rewrite /cost_fun /scalarCostInstance /cost_fun.
     rewrite /(ccost) /scalarCCostInstance /(ccost).
     rewrite [rat_to_Q (_ * _)] rat_to_Q_red.
-    apply Qred_complete.
-    rewrite rat_to_Q_mul /scalar_val.
+    rewrite -rat_to_Q_red /scalar_val.
+    rewrite rat_to_Q_mul Dmult_ok.
     move: (Qeq_dec (rat_to_Q q) 0%Q).
-    case => H0;
-      first by rewrite H0 !Qmult_0_l => //.
+    case => H0.
+    { rewrite H0 !Qmult_0_l => //.
+      have ->: (D_to_Q q == 0)%Q.
+      { admit. }
+      by rewrite Qmult_0_l. }
+    have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
+    { admit. }
     apply Qmult_inj_l => //.
     move: refineCostAxiomClass; clear refineCostAxiomClass.
     rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass.
@@ -1215,29 +1233,42 @@ Section scalarCompilable.
     apply unwrapScalarTree_spec in H3.
     rewrite H3. f_equal.
     rewrite /unwrap_ffun. rewrite ffunE => //.
-  Qed.
+  Admitted.
 
   Global Instance scalarRefineCostInstance
-    : @RefineCostClass N (scalarType q A)
+    : @RefineCostClass N (scalarType (projT1 q) A)
         (@scalarCostInstance N _ A costClass _) _ _.
 
-  Global Instance scalarRefineCostMaxInstance `(scalarAxiomInstance : @ScalarAxiomClass _ q)
-    : @RefineCostMaxClass N (scalarType q A)
-        (scalarCostMaxInstance costMaxClass q) (scalarCCostMaxInstance ccostMaxClass q).
+  Global Instance scalarRefineCostMaxInstance
+         `(scalarAxiomInstance : @ScalarAxiomClass _ (projT1 q))
+    : @RefineCostMaxClass
+        N (scalarType (projT1 q) A)
+        (scalarCostMaxInstance costMaxClass q)
+        (scalarCCostMaxInstance ccostMaxClass q).
   Proof.
-    rewrite /RefineCostMaxClass /scalarCostMaxInstance /scalarCCostMaxInstance 
-            rat_to_Q_mul. apply Qmult_le_l => //.
+    rewrite /RefineCostMaxClass /scalarCostMaxInstance /scalarCCostMaxInstance.
+    rewrite rat_to_Q_mul Dmult_ok.
+    rewrite /scalar_val.
+    have ->: (rat_to_Q q == D_to_Q q)%Q.
+    { admit. }
+    apply Qmult_le_l => //.
     have H3 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
-    rewrite -H3. apply lt_rat_to_Q => //.
-  Qed.
+    rewrite -H3.
+    have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
+    { admit. }
+    apply lt_rat_to_Q => //.
+  Admitted.
 
-  Global Instance scalar_cgame `{scalarA : @ScalarAxiomClass rat_realFieldType q}
-    : @cgame N (scalarType q A) _ _ _ _ _ _ _ _ _ _ _ _
+  Global Instance scalar_cgame
+         `{scalarA : @ScalarAxiomClass rat_realFieldType q}
+    : @cgame
+        N (scalarType (projT1 q) A)
+        _ _ _ _ _ _ _ _ _ _ _ _
         (scalarGameInstance _ _ _ _ _).
 End scalarCompilable.
 
 Module ScalarCGameTest. Section scalarCGameTest.
-  Context {A : finType} {N : nat} `{cgame N A} {q : rat_realFieldType}
+  Context {A : finType} {N : nat} `{cgame N A} {q : DRat}
           `{scalarA : @ScalarAxiomClass rat_realFieldType q}.
   Variable i' : OrdNat.t.
   Variable t' : M.t (@scalarType rat_realFieldType q A).
@@ -1257,25 +1288,25 @@ Definition unwrapBiasTree A (q : rat) : M.t (bias q A) -> M.t A :=
 Global Instance biasCCostInstance
          N (A : Type)
          `(Enumerable A) `(CCostClass N A)
-         (q : rat)
-  : CCostClass N (bias q A)
+         (q : DRat)
+  : CCostClass N (bias (projT1 q) A)
   :=
-    fun (i : OrdNat.t) (m : M.t (bias q A)) =>
-      Qred(Qplus (rat_to_Q q) (ccost i (unwrapBiasTree m))).
+    fun (i : OrdNat.t) (m : M.t (bias (projT1 q) A)) =>
+      (q + ccost i (unwrapBiasTree m))%D.
   
-Instance biasCCostMaxInstance N (A : Type) `(cmax : CCostMaxClass N A) (q : rat)
-  : @CCostMaxClass N (bias q A) := ((rat_to_Q q) + cmax)%Q.
+Instance biasCCostMaxInstance N (A : Type) `(cmax : CCostMaxClass N A) (q : DRat)
+  : @CCostMaxClass N (bias (projT1 q) A) := (q + cmax)%D.
 
-Instance biasCTypeInstance A (q : rat)
+Instance biasCTypeInstance A (q : DRat)
          `(Enumerable A)
-  : Enumerable (bias q A) :=
-  map (@Wrap (Bias q) A) (enumerate A).
+  : Enumerable (bias (projT1 q) A) :=
+  map (@Wrap (Bias (projT1 q)) A) (enumerate A).
 
 Section biasCompilable.
-  Context {A N} {q : rat} `{cgame N A}.
+  Context {A N} {q : DRat} `{cgame N A}.
 
   Global Program Instance biasRefineTypeAxiomInstance
-    : @RefineTypeAxiomClass (biasType q A) _.
+    : @RefineTypeAxiomClass (biasType (projT1 q) A) _.
   Next Obligation.
     clear H1 H2 refineCostAxiomClass  H0 refineCostClass
           ccostClass costAxiomClass costMaxAxiomClass costClass.
@@ -1311,9 +1342,9 @@ Section biasCompilable.
   Qed.
 
   Global Instance biasRefineTypeInstance
-    : @RefineTypeClass (biasType q A)  _ _.
+    : @RefineTypeClass (biasType (projT1 q) A)  _ _.
 
-  Lemma unwrapBiasTree_spec i (t : biasType q A) m:
+  Lemma unwrapBiasTree_spec i (t : biasType (projT1 q) A) m:
     M.find i m = Some t ->
       M.find i (unwrapBiasTree m) = Some (unwrap t).
   Proof.
@@ -1345,48 +1376,56 @@ Section biasCompilable.
   Qed.
 
   Global Program Instance biasRefineCostAxiomInstance
-    : @RefineCostAxiomClass _ (biasType q A) (biasCostInstance costClass) _.
+    : @RefineCostAxiomClass _ (biasType (projT1 q) A) (biasCostInstance costClass) _.
   Next Obligation.
     clear H H0 H1 H2
           refineCostClass costAxiomClass.
     rewrite /cost_fun /biasCostInstance /cost_fun.
     rewrite /(ccost) /biasCCostInstance /ccost_fun /(ccost).
     rewrite [rat_to_Q (_ + _)] rat_to_Q_red.
-    apply Qred_complete.
+    rewrite Dadd_ok.
+    rewrite -rat_to_Q_red.
     rewrite rat_to_Q_plus /scalar_val.
+    rewrite /bias_val.
+    have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
+    { admit. }
     move: (Qeq_dec (rat_to_Q q) 0%Q).
     move: refineCostAxiomClass; clear refineCostAxiomClass.
     rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass.
-    specialize (refineCostAxiomClass pf).
-    rewrite -(@refineCostAxiomClass(unwrapBiasTree m)) => //.
+    specialize (refineCostAxiomClass pf) => H.
+    rewrite ->(@refineCostAxiomClass(unwrapBiasTree m)) => //.
     move => j pf'. 
     specialize (H3 j pf').
     apply unwrapBiasTree_spec in H3.
     rewrite H3. f_equal.
     rewrite /unwrap_ffun. rewrite ffunE => //.
-  Qed.
+  Admitted.
 
   Global Instance biasRefineCostInstance
-    : @RefineCostClass N (biasType q A) (biasCostInstance costClass) _ _.
+    : @RefineCostClass N (biasType (projT1 q) A) (biasCostInstance costClass) _ _.
 
-  Global Instance biasRefineCostMaxInstance `(biasAxiomInstance : @BiasAxiomClass _ q)
-    : @RefineCostMaxClass N (biasType q A)
+  Global Instance biasRefineCostMaxInstance
+         `(biasAxiomInstance : @BiasAxiomClass _ (projT1 q))
+    : @RefineCostMaxClass N (biasType (projT1 q) A)
         (biasCostMaxInstance _ _ _ costMaxClass biasAxiomInstance)
         (biasCCostMaxInstance _ _).
   Proof.
     rewrite /RefineCostMaxClass /biasCostMaxInstance /biasCCostMaxInstance
-            rat_to_Q_plus. apply Qplus_le_compat => //.
+            rat_to_Q_plus Dadd_ok /bias_val.
+    have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
+    { admit. }
+    apply Qplus_le_compat => //.    
     apply Qle_refl.
-  Qed.
+  Admitted.
 
   Global Instance bias_cgame `{@BiasAxiomClass rat_realFieldType q}
-    : @cgame N (biasType q A) _ _ _ _ _ _
+    : @cgame N (biasType (projT1 q) A) _ _ _ _ _ _
              (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
              _ _ _ _ _(biasGameInstance _ _ _ _ _).
 End biasCompilable.
 
 Module BiasCGameTest. Section biasCGameTest.
-  Context {A : finType} {N : nat} `{cgame N A} {q : rat_realFieldType}
+  Context {A : finType} {N : nat} `{cgame N A} {q : DRat}
           `{biasA : @BiasAxiomClass rat_realFieldType q}.
   Variable i' : OrdNat.t.
   Variable t' : M.t (@biasType rat_realFieldType q A).
@@ -1410,28 +1449,30 @@ Section unitCompilable.
   Global Instance unitRefineTypeInstance
     : @RefineTypeClass [finType of Unit]  _ _.
 
-  Definition unit_ccost (i : OrdNat.t) (m : M.t Unit) : Qcoq :=
-    0%coq_Qscope.
+  Definition unit_ccost (i : OrdNat.t) (m : M.t Unit) : D := 0.
 
   Global Instance unitCCostInstance
     : CCostClass N [finType of Unit] := unit_ccost.
 
   Global Program Instance unitRefineCostAxiomInstance
     : @RefineCostAxiomClass N [finType of Unit] _ _.
-
+  Next Obligation.
+    rewrite /(ccost) /(cost) /unitCostInstance /unitCCostInstance /unit_ccost.
+    by rewrite D_to_Q0 rat_to_Q0.
+  Qed.
+    
   Global Instance unitRefineCostInstance
     : @RefineCostClass N [finType of Unit] _ _ _.
 
   Global Instance unitCCostMaxInstance
-    : @CCostMaxClass N [finType of Unit] := 0%Q. 
+    : @CCostMaxClass N [finType of Unit] := 0%D.
 
   Global Instance unitrefineCostMaxInstance
-    : @RefineCostMaxClass _ _ (unitCostMaxInstance N _) unitCCostMaxInstance.
+    : @RefineCostMaxClass _ _ (@unitCostMaxInstance N _) unitCCostMaxInstance.
   Proof.
     rewrite /RefineCostMaxClass /unitCostMaxInstance /unitCCostMaxInstance.
     rewrite /rat_to_Q => //.
   Qed.
 
-  Global Instance unit_cgame 
-    : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _.
+  Global Instance unit_cgame : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _.
 End unitCompilable.

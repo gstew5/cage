@@ -1477,6 +1477,14 @@ Proof.
   by rewrite Pos2Z.inj_add /Qplus /= !Pos.mul_1_r.
 Qed.
 
+Lemma N_to_Q_succ n :
+  N_to_Q (N.succ n) = Qplus 1 (N_to_Q n).
+Proof.
+  have ->: N.succ n = N.add 1 n.
+  { by elim: n => // p; rewrite /N.add /Pos.add; case: p. }
+  rewrite N_to_Q_plus; f_equal.
+Qed.  
+
 Definition N_to_D (n : N.t) : D := Dmake (2*NtoZ n) 1.
 
 Lemma N_to_D_plus n1 n2 :
@@ -1497,5 +1505,50 @@ Proof.
     by rewrite Pos.mul_comm. }
   by rewrite /Qeq /= Pos.mul_1_r Pos2Z.neg_xO /Zmult Pos.mul_comm.
 Qed.  
-    
-              
+
+Lemma rat_to_Q_N_to_Q n : Qeq (rat_to_Q n%:R) (N_to_Q (N.of_nat n)).
+Proof.
+  elim: n => // n IH.
+  rewrite Nat2N.inj_succ N_to_Q_succ.
+  have ->: (n.+1 = 1 + n)%N.
+  { move {IH}; elim: n => //. }
+  rewrite natrD rat_to_Q_plus IH //.
+Qed.
+
+(** Dyadic real field values *)
+
+Class Iso (A B : Type) : Type :=
+  mkIso {
+      from : A -> B;
+      to : B -> A;
+      to_from : forall a, to (from a) = a;
+      from_to : forall b, from (to b) = b
+    }.
+
+Class Dyadic (rty : realFieldType) (iso : Iso rty D).
+
+Definition dyadic_rat : Type :=
+  {r : rat & {d : D & Q_to_rat (D_to_Q d) = r}}.
+Notation "'DRat'" := dyadic_rat.
+
+Definition dyadic_rat_to_rat (d : dyadic_rat) : rat := projT1 d.
+Coercion dyadic_rat_to_rat : dyadic_rat >-> rat.
+
+Definition dyadic_rat_to_D (d : dyadic_rat) : D := projT1 (projT2 d).
+Coercion dyadic_rat_to_D : dyadic_rat >-> D.
+
+Definition D_to_dyadic_rat (d : D) : dyadic_rat :=
+  existT _ (Q_to_rat (D_to_Q d)) (existT _ d erefl).
+
+Program Instance dyadic_rat_Iso : Iso dyadic_rat D :=
+  @mkIso _ _
+    dyadic_rat_to_D
+    D_to_dyadic_rat
+    _ _.
+Next Obligation.
+  rewrite /D_to_dyadic_rat; case: a => //= x; case => y /= p.
+  move: (erefl (Q_to_rat (D_to_Q y))) => pf.
+  subst; f_equal.
+  f_equal.
+  apply: proof_irrelevance.
+Qed.  

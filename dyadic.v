@@ -1,4 +1,4 @@
-Require Import ZArith PArith QArith.
+Require Import ZArith PArith QArith ProofIrrelevance.
 
 Record D : Set :=
   Dmake { num : Z;
@@ -495,3 +495,6 @@ Infix "+" := Dadd : D_scope.
 Notation "- x" := (Dopp x) : D_scope.
 Infix "-" := Dsub : D_scope.
 Infix "*" := Dmult : D_scope.
+
+Notation "'0'" := D0 : D_scope.
+Notation "'1'" := D1 : D_scope.

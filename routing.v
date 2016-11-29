@@ -12,7 +12,7 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics combinators games compile orderedtypes.
+Require Import numerics dyadic combinators games compile orderedtypes.
 Require Import weightsextract server.
 
 Local Open Scope ring_scope.
@@ -144,7 +144,7 @@ End generalTopology.
 
 (*MOVE:*)
 Instance UnitCCostMaxClass (N : nat) 
-  : CCostMaxClass N Unit := Qmake 0 1.
+  : CCostMaxClass N Unit := 0%D.
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
 Instance UnitEq : Eq Unit := fun x y => True.
@@ -197,32 +197,32 @@ Module R <: MyOrderedType := OrderedResource.
 
 Module R5Values <: OrderedAffineType.
   Include R.                    
-  Definition scal := Q_to_rat (Qmake 50 1).
-  Definition offset := Q_to_rat (Qmake 0 1).
+  Definition scal := D_to_dyadic_rat (Dmake 100 1).
+  Definition offset := D_to_dyadic_rat 0%D.
   Definition a0 := RNo.
 End R5Values.
 Module R5 := OrderedAffine R5Values.
 
 Module R4Values <: OrderedAffineType.
   Include R.                    
-  Definition scal := Q_to_rat (Qmake 30 1).
-  Definition offset := Q_to_rat (Qmake 0 1).
+  Definition scal := D_to_dyadic_rat (Dmake 60 1).
+  Definition offset := D_to_dyadic_rat 0%D.
   Definition a0 := RNo.
 End R4Values.
 Module R4 := OrderedAffine R4Values.
 
 Module R2Values <: OrderedAffineType.
   Include R.                    
-  Definition scal := Q_to_rat (Qmake 1 1).
-  Definition offset := Q_to_rat (Qmake 100 1).
+  Definition scal := D_to_dyadic_rat 1%D.
+  Definition offset := D_to_dyadic_rat (Dmake 100 1).
   Definition a0 := RNo.
 End R2Values.
 Module R2 := OrderedAffine R2Values.
 
 Module RValues <: OrderedAffineType.
   Include R.                    
-  Definition scal := Q_to_rat (Qmake 1 1).
-  Definition offset := Q_to_rat (Qmake 0 1).
+  Definition scal := D_to_dyadic_rat 1%D.
+  Definition offset := D_to_dyadic_rat 0%D.
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
@@ -379,11 +379,24 @@ End T.
 
 Definition num_players : nat := 10.
 
+Definition Zupper_bound (max : D) : Z :=
+  match max with
+  | Dmake n d => Z.log2_up (Z.div n (2 ^ Zpos d))
+  end.
+
+Definition Dupper_bound (max : D) : D :=
+  match Zupper_bound max with
+  | Z0 => 0 (* can't happen *)
+  | Zpos p => Dmake 1 p
+  | Zneg p => 0 (* can't happen *)
+  end.
+
 Module P8Scalar <: OrderedScalarType.
   Include P8.
   Definition scal :=
-    Q_to_rat
-      (Qdiv 1 (@ccostmax_fun num_players P8.t (P8.cost_max num_players))).
+    D_to_dyadic_rat
+      (Dupper_bound
+         (@ccostmax_fun num_players P8.t (P8.cost_max num_players))).
 End P8Scalar.
 
 Module P8Scaled <: MyOrderedType := OrderedScalar P8Scalar.
@@ -420,14 +433,14 @@ Module MWU := MWU P8Scaled'.
 
 (*Why doesn' Coq discover this instance in the following definition?*)
 Existing Instance P8Scaled'.enumerable.
-Definition mwu0 (eps : Q) (nx : N.t)
+Definition mwu0 (eps : D) (nx : N.t)
            {T chanty : Type} {oracle : ClientOracle T chanty}
            (init_oracle_st : T) :=
   MWU.interp
     (weightslang.mult_weights P8Scaled'.t nx)
     (@MWU.init_cstate T chanty oracle init_oracle_st _ eps).
 
-Definition mwu := mwu0 (Qmake 1 4) 40 empty_ax_st.
+Definition mwu := mwu0 (Dmake 1 2) 40 empty_ax_st.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.

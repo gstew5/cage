@@ -8,7 +8,7 @@ Require Import QArith.
 Require Import Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
-Require Import strings compile combinators ccombinators.
+Require Import strings compile combinators ccombinators numerics dyadic.
 
 Module Type MyOrderedType.
   Parameter t : Type.
@@ -412,19 +412,19 @@ End OrderedFinSigma.
 
 Module Type OrderedScalarType.
   Include MyOrderedType.
-  Parameter scal : rat.
+  Parameter scal : DRat.
 End OrderedScalarType.
 
 Module Type BoolableOrderedScalarType.
   Include BoolableMyOrderedType.
-  Parameter scal : rat.
+  Parameter scal : DRat.
 End BoolableOrderedScalarType.
                       
 Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
-  Definition t := scalar T.scal T.t.
+  Definition t := scalar (projT1 T.scal) T.t.
   Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) T.scal) T.t0.
   Definition enumerable : Enumerable t :=
-    scalarEnumerableInstance T.enumerable T.scal.
+    scalarEnumerableInstance T.enumerable (projT1 T.scal).
   Definition cost_instance (N : nat) :=
     scalarCCostInstance T.enumerable (T.cost_instance N) (q:=T.scal).
   Definition cost_max (N : nat) :=
@@ -475,11 +475,11 @@ End OrderedOffsetSingletonComponent.
   
 Module Type OrderedBiasType.
   Include MyOrderedType.
-  Parameter bias : rat.
+  Parameter bias : DRat.
 End OrderedBiasType.
                       
 Module OrderedBias (T : OrderedBiasType) <: MyOrderedType.
-  Definition t := bias T.bias T.t.
+  Definition t := bias (projT1 T.bias) T.t.
   Definition t0 := Wrap (Bias (rty:=rat_realFieldType) T.bias) T.t0.
   Definition enumerable : Enumerable t :=
     biasCTypeInstance T.bias T.enumerable.
@@ -520,8 +520,8 @@ End OrderedBias.
 
 Module Type OrderedAffineType.
   Include BoolableMyOrderedType.
-  Parameter scal : rat.
-  Parameter offset : rat.
+  Parameter scal : DRat.
+  Parameter offset : DRat.
   (* why the a0? *)
   Parameter a0 : t.
 End OrderedAffineType.

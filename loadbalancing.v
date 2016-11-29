@@ -12,7 +12,7 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics combinators games compile orderedtypes.
+Require Import numerics combinators games compile orderedtypes dyadic.
 Require Import weightsextract server.
 
 Local Open Scope ring_scope.
@@ -48,7 +48,7 @@ Set Strict Implicit.
 
 (*MOVE:*)
 Instance UnitCCostMaxClass (N : nat) 
-  : CCostMaxClass N Unit := Qmake 0 1.
+  : CCostMaxClass N Unit := Dmake 0 1.
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
 Instance UnitEq : Eq Unit := fun x y => True.
@@ -67,16 +67,16 @@ Module R <: BoolableMyOrderedType := OrderedResource.
 
 Module RValues <: OrderedAffineType.
   Include R.                    
-  Definition scal := Q_to_rat (Qmake 1 1).
-  Definition offset := Q_to_rat (Qmake 0 1).
+  Definition scal := D_to_dyadic_rat 1.
+  Definition offset := D_to_dyadic_rat 0.
   Definition a0 := RYes.
 End RValues.
 Module RAffine := OrderedAffine RValues.
 
 Module RExpensive <: OrderedAffineType.
   Include R.                    
-  Definition scal := Q_to_rat (Qmake 20 1).
-  Definition offset := Q_to_rat (Qmake 0 1).
+  Definition scal := D_to_dyadic_rat (Dmake 40 1).
+  Definition offset := D_to_dyadic_rat (Dmake 0 1).
   Definition a0 := RYes.
 End RExpensive.
 Module RAffineExpensive := OrderedAffine RExpensive.
@@ -165,14 +165,27 @@ Definition num_flows_per_player : nat := 2.
 Definition num_players' : nat :=
   num_players * num_flows_per_player.
 Definition num_iters : N.t := 60.
-Definition eps : Q := Qmake 1 4.
+Definition eps : D := Dmake 1 2. (*eps = 1/4*)
+
+Definition Zupper_bound (max : D) : Z :=
+  match max with
+  | Dmake n d => Z.log2_up (Z.div n (2 ^ Zpos d))
+  end.
+
+Definition Dupper_bound (max : D) : D :=
+  match Zupper_bound max with
+  | Z0 => 0 (* can't happen *)
+  | Zpos p => Dmake 1 p
+  | Zneg p => 0 (* can't happen *)
+  end.
 
 Module RAffine3Scalar <: OrderedScalarType.
   Include RAffine3.
   Definition scal :=
-    Q_to_rat
-      (Qdiv 1 (@ccostmax_fun num_players' RAffine3.t
-                             (RAffine3.cost_max num_players'))).
+    D_to_dyadic_rat
+      (Dupper_bound
+         (@ccostmax_fun num_players' RAffine3.t
+                        (RAffine3.cost_max num_players'))).
 End RAffine3Scalar.
 
 (** Normalized game *)
@@ -213,7 +226,7 @@ Module MWU := MWU RAffine3ScaledSigma.
 Existing Instance RAffine3ScaledSigma.enumerable.
 
 (*Why doesn' Coq discover this instance in the following definition?*)
-Definition mwu0 (eps : Q) (nx : N.t)
+Definition mwu0 (eps : D) (nx : N.t)
            {T chanty : Type} {oracle : ClientOracle T chanty}
            (init_oracle_st : T) :=
   MWU.interp
