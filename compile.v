@@ -227,34 +227,3 @@ Class Eq (A : Type) : Type :=
 
 Class Eq_Dec (A : Type) (eq : Eq A) : Type :=
   isDec : forall x y : A,  {eq x y} + {~ eq x y}.
-
-(** Dyadic real field values *)
-
-Class Iso (A B : Type) : Type :=
-  mkIso {
-      from : A -> B;
-      to : B -> A;
-      to_from : forall a, to (from a) = a;
-      from_to : forall b, from (to b) = b
-    }.
-
-Class Dyadic (rty : realFieldType) (iso : Iso rty D).
-
-Definition dyadic_rat : Type :=
-  {r : rat & {d : D & Q_to_rat (D_to_Q d) = r}}.
-
-Definition D_to_dyadic_rat (d : D) : dyadic_rat :=
-  existT _ (Q_to_rat (D_to_Q d)) (existT _ d erefl).
-
-Program Instance dyadic_rat_Iso : Iso dyadic_rat D :=
-  @mkIso _ _
-    (fun r => projT1 (projT2 r))
-    D_to_dyadic_rat
-    _ _.
-Next Obligation.
-  rewrite /D_to_dyadic_rat; case: a => //= x; case => y /= p.
-  move: (erefl (Q_to_rat (D_to_Q y))) => pf.
-  subst; f_equal.
-  f_equal.
-  apply: proof_irrelevance.
-Qed.  

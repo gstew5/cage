@@ -1219,10 +1219,10 @@ Section scalarCompilable.
     case => H0.
     { rewrite H0 !Qmult_0_l => //.
       have ->: (D_to_Q q == 0)%Q.
-      { admit. }
+      { by rewrite dyadic_rat_to_Q H0. }
       by rewrite Qmult_0_l. }
     have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
-    { admit. }
+    { apply: dyadic_rat_to_Q. }
     apply Qmult_inj_l => //.
     move: refineCostAxiomClass; clear refineCostAxiomClass.
     rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass.
@@ -1233,7 +1233,7 @@ Section scalarCompilable.
     apply unwrapScalarTree_spec in H3.
     rewrite H3. f_equal.
     rewrite /unwrap_ffun. rewrite ffunE => //.
-  Admitted.
+  Qed.
 
   Global Instance scalarRefineCostInstance
     : @RefineCostClass N (scalarType (projT1 q) A)
@@ -1250,14 +1250,14 @@ Section scalarCompilable.
     rewrite rat_to_Q_mul Dmult_ok.
     rewrite /scalar_val.
     have ->: (rat_to_Q q == D_to_Q q)%Q.
-    { admit. }
+    { by rewrite dyadic_rat_to_Q. }
     apply Qmult_le_l => //.
     have H3 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
     rewrite -H3.
     have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
-    { admit. }
+    { by apply: dyadic_rat_to_Q. }
     apply lt_rat_to_Q => //.
-  Admitted.
+  Qed.
 
   Global Instance scalar_cgame
          `{scalarA : @ScalarAxiomClass rat_realFieldType q}
@@ -1388,7 +1388,7 @@ Section biasCompilable.
     rewrite rat_to_Q_plus /scalar_val.
     rewrite /bias_val.
     have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
-    { admit. }
+    { by apply: dyadic_rat_to_Q. }
     move: (Qeq_dec (rat_to_Q q) 0%Q).
     move: refineCostAxiomClass; clear refineCostAxiomClass.
     rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass.
@@ -1399,7 +1399,7 @@ Section biasCompilable.
     apply unwrapBiasTree_spec in H3.
     rewrite H3. f_equal.
     rewrite /unwrap_ffun. rewrite ffunE => //.
-  Admitted.
+  Qed.
 
   Global Instance biasRefineCostInstance
     : @RefineCostClass N (biasType (projT1 q) A) (biasCostInstance costClass) _ _.
@@ -1413,10 +1413,10 @@ Section biasCompilable.
     rewrite /RefineCostMaxClass /biasCostMaxInstance /biasCCostMaxInstance
             rat_to_Q_plus Dadd_ok /bias_val.
     have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
-    { admit. }
+    { by apply: dyadic_rat_to_Q. }
     apply Qplus_le_compat => //.    
     apply Qle_refl.
-  Admitted.
+  Qed.
 
   Global Instance bias_cgame `{@BiasAxiomClass rat_realFieldType q}
     : @cgame N (biasType (projT1 q) A) _ _ _ _ _ _

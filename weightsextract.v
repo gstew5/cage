@@ -588,10 +588,10 @@ Module MWUProof (T : OrderedFinType).
         rewrite (rat_to_QK2 (r:=s a)) => //.
         by rewrite -(Qred_correct (D_to_Q q)) H2. }
       rewrite rat_to_Q_plus 2!rat_to_QK1.
-      admit. }
+      by rewrite 2!Qred_correct. }
     move => ax qx H2.
     by apply: (H _ _ (or_intror H2)).
-  Admitted.
+  Qed.
 
   Lemma InA_notin a (l : seq t) : ~InA A.eq a l -> a \notin l.
   Proof.
@@ -991,8 +991,9 @@ Module MWUProof (T : OrderedFinType).
     exists q; split => //.
     apply: Hmatch => //.
     rewrite /Dlt in H5.
-    admit.
-  Admitted.
+    clear - H5. move: H5.
+    by rewrite D_to_Q0.
+  Qed.
   
   Lemma match_maps_update_weights (f : t -> expr t) r s m :
     match_states r s ->
@@ -1067,11 +1068,15 @@ Module MWUProof (T : OrderedFinType).
         { rewrite -Q_to_rat0; apply: Q_to_rat_le.
           have H4: (Qeq (Qred (D_to_Q q))) (D_to_Q q) by apply: Qred_correct.
           rewrite H4.
-          admit.
+          clear - H; move: H.
+          rewrite /Dle_bool D_to_Q0 => H.
+          by apply: (Qle_bool_imp_le _ _ H).
         }
         rewrite -Q_to_rat1; apply: Q_to_rat_le.
         move: (Qred_correct (D_to_Q q)) ->.
-        admit. }
+        clear - H3; move: H3.
+        rewrite /Dle_bool D_to_Q1 => H3.
+        by apply: (Qle_bool_imp_le _ _ H3). }
       exists CSkip.
       have Hora: match_oracle_states (weightslang.SOracleSt s) (SOracleSt tx).
       { by case: H2. }
@@ -1297,7 +1302,7 @@ Module MWUProof (T : OrderedFinType).
       apply: H12.
       apply: H13. }
     inversion 1.
-  Admitted.
+  Qed.
 
   Lemma findA_map1_Some1 a (l : list t) :
     a \in l ->
@@ -1360,10 +1365,10 @@ Module MWUProof (T : OrderedFinType).
     { constructor. }
     { apply: match_maps_init. }
     { rewrite rat_to_Q_red rat_to_QK1.
-      admit. (*need Qred (Qred q) = Qred q*) }
+      by rewrite Qred_idem. }
     { constructor. }
     apply: Hmatch_ora_states.
-  Admitted.
+  Qed.
 
   (*This is a technical lemma about the interpretation of the specific  *)
   (*     program [mult_weights t nx].*)

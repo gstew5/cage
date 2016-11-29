@@ -158,7 +158,6 @@ Module OrderedSingleton (A : BoolableMyOrderedType) <: BoolableMyOrderedType.
   Definition t0 := Wrap Singleton A.t0.
   Definition enumerable := (singCTypeInstance A.enumerable).
   Definition cost_instance N := singCCostInstance (A.boolable) N.
-  Print singCCostMaxInstance.
   Definition cost_max N := @singCCostMaxInstance N A.t.
   Definition show_sing (sA : singleton (A.t)) : string := 
       append "Singleton" (to_string (unwrap sA)).
@@ -412,12 +411,12 @@ End OrderedFinSigma.
 
 Module Type OrderedScalarType.
   Include MyOrderedType.
-  Parameter scal : DRat.
+  Parameter scal : dyadic_rat.
 End OrderedScalarType.
 
 Module Type BoolableOrderedScalarType.
   Include BoolableMyOrderedType.
-  Parameter scal : DRat.
+  Parameter scal : dyadic_rat.
 End BoolableOrderedScalarType.
                       
 Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
@@ -475,7 +474,7 @@ End OrderedOffsetSingletonComponent.
   
 Module Type OrderedBiasType.
   Include MyOrderedType.
-  Parameter bias : DRat.
+  Parameter bias : dyadic_rat.
 End OrderedBiasType.
                       
 Module OrderedBias (T : OrderedBiasType) <: MyOrderedType.
@@ -520,8 +519,8 @@ End OrderedBias.
 
 Module Type OrderedAffineType.
   Include BoolableMyOrderedType.
-  Parameter scal : DRat.
-  Parameter offset : DRat.
+  Parameter scal : dyadic_rat.
+  Parameter offset : dyadic_rat.
   (* why the a0? *)
   Parameter a0 : t.
 End OrderedAffineType.

@@ -1515,21 +1515,17 @@ Proof.
   rewrite natrD rat_to_Q_plus IH //.
 Qed.
 
+Lemma Qred_idem (q : Q) : Qred (Qred q) = Qred q.
+Proof.
+  apply: Qred_complete.
+  by rewrite Qred_correct.
+Qed.  
+
 (** Dyadic real field values *)
 
-Class Iso (A B : Type) : Type :=
-  mkIso {
-      from : A -> B;
-      to : B -> A;
-      to_from : forall a, to (from a) = a;
-      from_to : forall b, from (to b) = b
-    }.
-
-Class Dyadic (rty : realFieldType) (iso : Iso rty D).
-
 Definition dyadic_rat : Type :=
-  {r : rat & {d : D & Q_to_rat (D_to_Q d) = r}}.
-Notation "'DRat'" := dyadic_rat.
+  {r : rat & {d : D & Qeq (D_to_Q d) (rat_to_Q r)}}.
+Notation "'DRat'" := (dyadic_rat) (only parsing).
 
 Definition dyadic_rat_to_rat (d : dyadic_rat) : rat := projT1 d.
 Coercion dyadic_rat_to_rat : dyadic_rat >-> rat.
@@ -1537,18 +1533,13 @@ Coercion dyadic_rat_to_rat : dyadic_rat >-> rat.
 Definition dyadic_rat_to_D (d : dyadic_rat) : D := projT1 (projT2 d).
 Coercion dyadic_rat_to_D : dyadic_rat >-> D.
 
-Definition D_to_dyadic_rat (d : D) : dyadic_rat :=
-  existT _ (Q_to_rat (D_to_Q d)) (existT _ d erefl).
-
-Program Instance dyadic_rat_Iso : Iso dyadic_rat D :=
-  @mkIso _ _
-    dyadic_rat_to_D
-    D_to_dyadic_rat
-    _ _.
+Program Definition D_to_dyadic_rat (d : D) : DRat :=
+  existT _ (Q_to_rat (D_to_Q d)) _.
 Next Obligation.
-  rewrite /D_to_dyadic_rat; case: a => //= x; case => y /= p.
-  move: (erefl (Q_to_rat (D_to_Q y))) => pf.
-  subst; f_equal.
-  f_equal.
-  apply: proof_irrelevance.
-Qed.  
+  exists d.
+  rewrite rat_to_QK1.
+  by rewrite Qred_correct.
+Defined.
+
+Lemma dyadic_rat_to_Q (d : DRat) : Qeq (D_to_Q d) (rat_to_Q d).
+Proof. apply: (projT2 (projT2 d)). Qed.
