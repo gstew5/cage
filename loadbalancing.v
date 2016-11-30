@@ -167,23 +167,11 @@ Definition num_players' : nat :=
 Definition num_iters : N.t := 60.
 Definition eps : D := Dmake 1 2. (*eps = 1/4*)
 
-Definition Zupper_bound (max : D) : Z :=
-  match max with
-  | Dmake n d => Z.log2_up (Z.div n (2 ^ Zpos d))
-  end.
-
-Definition Dupper_bound (max : D) : D :=
-  match Zupper_bound max with
-  | Z0 => 0 (* can't happen *)
-  | Zpos p => Dmake 1 p
-  | Zneg p => 0 (* can't happen *)
-  end.
-
 Module RAffine3Scalar <: OrderedScalarType.
   Include RAffine3.
   Definition scal :=
     D_to_dyadic_rat
-      (Dupper_bound
+      (Dlub
          (@ccostmax_fun num_players' RAffine3.t
                         (RAffine3.cost_max num_players'))).
 End RAffine3Scalar.

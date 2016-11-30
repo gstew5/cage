@@ -379,23 +379,11 @@ End T.
 
 Definition num_players : nat := 10.
 
-Definition Zupper_bound (max : D) : Z :=
-  match max with
-  | Dmake n d => Z.log2_up (Z.div n (2 ^ Zpos d))
-  end.
-
-Definition Dupper_bound (max : D) : D :=
-  match Zupper_bound max with
-  | Z0 => 0 (* can't happen *)
-  | Zpos p => Dmake 1 p
-  | Zneg p => 0 (* can't happen *)
-  end.
-
 Module P8Scalar <: OrderedScalarType.
   Include P8.
   Definition scal :=
     D_to_dyadic_rat
-      (Dupper_bound
+      (Dlub
          (@ccostmax_fun num_players P8.t (P8.cost_max num_players))).
 End P8Scalar.
 

@@ -379,23 +379,11 @@ Definition num_players : nat := 15.
 Definition num_iters : N.t := 100.
 Definition eps : D := Dmake 1 3. (*eps = 1/8*)
 
-Definition Zupper_bound (max : D) : Z :=
-  match max with
-  | Dmake n d => Z.log2_up (Z.div n (2 ^ Zpos d))
-  end.
-
-Definition Dupper_bound (max : D) : D :=
-  match Zupper_bound max with
-  | Z0 => 0 (* can't happen *)
-  | Zpos p => Dmake 1 p
-  | Zneg p => 0 (* can't happen *)
-  end.
-
 Module P3Scalar <: OrderedScalarType.
   Include P3.
   Definition scal :=
     D_to_dyadic_rat
-      (Dupper_bound (@ccostmax_fun num_players P3.t (P3.cost_max num_players))).
+      (Dlub (@ccostmax_fun num_players P3.t (P3.cost_max num_players))).
 End P3Scalar.
 
 Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
