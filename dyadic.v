@@ -511,10 +511,6 @@ Definition Zsize (z : Z) : positive :=
 Definition Plub_aux (x : Z) (y : positive) : positive :=
   Zsize x - Pos.size y.
 
-Lemma Plub_aux_ok x y : x # y <= Zpos (2^(Plub_aux x y)) # 1.
-Proof.
-Admitted.  
-
 Definition Dlub (max : D) : D :=
   match max with
   | Dmake x y => Dmake 1 (Plub_aux x y)
@@ -522,30 +518,130 @@ Definition Dlub (max : D) : D :=
 
 Lemma Zpos_2_mult (x : Z) (y : positive) :
   (x <= 'y)%Z -> (x * 2 <= 'y~0)%Z.
-Admitted.                   
+Proof.
+  intros H.
+  rewrite Zmult_comm.
+  rewrite (Pos2Z.inj_xO y).
+  apply Zmult_le_compat_l; auto.
+  omega.
+Qed.
 
-Lemma Dlub_mult_le1 d : (d * Dlub d <= 1)%D.
+Lemma two_power_pos_le x y :
+  (x <= y)%positive -> (two_power_pos x <= two_power_pos y)%Z.
+Proof.
+  intros H.
+  rewrite !two_power_pos_nat.
+  rewrite Pos2Nat.inj_le in H.
+  unfold two_power_nat, shift_nat.
+  revert H.
+  generalize (Pos.to_nat x) as x'; intro.
+  generalize (Pos.to_nat y) as y'; intro.
+  revert y'.
+  induction x'; simpl.
+  { intros y' _; induction y'; simpl; try solve[intros; omega].
+    rewrite Pos2Z.inj_xO.
+    assert ((1=1*1)%Z) as -> by (rewrite Zmult_1_r; auto).
+    apply Zmult_le_compat; try omega. }
+  induction y'; try solve[intros; omega].
+  simpl; intros H.
+  rewrite Pos2Z.inj_xO.
+  rewrite
+    (Pos2Z.inj_xO
+       (nat_rect (fun _ : nat => positive) 1%positive 
+                 (fun _ : nat => xO) y')).  
+  apply Zmult_le_compat; try omega.
+  { apply IHx'; omega. }
+  clear - x'.
+  induction x'; try (simpl; omega).
+  simpl; rewrite Pos2Z.inj_xO.
+  assert ((0=0*0)%Z) as -> by (rewrite Zmult_0_r; auto).
+  apply Zmult_le_compat; try omega.
+Qed.  
+
+Lemma Zpow_pos_size_le x : (x <= Z.pow_pos 2 (Zsize x))%Z.
+Proof.
+  destruct x; simpl.
+  { rewrite <-two_power_pos_correct.
+    unfold two_power_pos; rewrite shift_pos_equiv; simpl; omega. }
+  { generalize (Pos.lt_le_incl _ _ (Pos.size_gt p)).
+    rewrite <-Pos2Z.inj_pow_pos; auto. }
+  rewrite <-Pos2Z.inj_pow_pos.
+  apply Zle_neg_pos.
+Qed.  
+
+Lemma Psize_minus_succ p y : 
+  (Pos.size p <= y + (Pos.size p - Pos.size y))%positive ->
+  (Pos.succ (Pos.size p) <= y + (Pos.succ (Pos.size p) - Pos.size y))%positive.
+Proof.
+  generalize (Pos.size p) as x; intro; clear p.
+  generalize (Pos.size_le y); intros H H2.
+  assert (H3: (Pos.div2 (2 ^ (Pos.size y)) <= y)%positive).
+  { revert H; destruct (2 ^ Pos.size y)%positive; simpl.
+    { admit. }
+    { admit. }
+    intros _; apply Pos.le_1_l. }
+  destruct (Pos.compare (Pos.succ x) (Pos.size y)) eqn:H4.
+  { (*eq*)
+    apply Pos.compare_eq in H4.
+    rewrite H4.
+    admit. }
+  { (*lt*)
+    admit. }
+  (*gt*)
+  rewrite Pcompare_eq_Gt in H4.
+  admit. 
+Admitted. (*TODO*)
+
+Lemma Psize_minus p y :
+  (Pos.size p <= y + (Pos.size p - Pos.size y))%positive.
+Proof.
+  induction p; simpl; try solve[apply Psize_minus_succ; auto].
+  apply Pos.le_1_l.
+Qed.
+  
+Lemma Zsize_minus x y : 
+  (Zsize x <= y + (Zsize x - Pos.size y))%positive.
+Proof.
+  destruct x; simpl; try solve[apply Psize_minus; auto].
+  apply Pos.le_1_l.
+Qed.  
+
+Local Open Scope D_scope.
+
+Lemma Dlub_mult_le1 d : d * Dlub d <= 1.
 Proof.
   unfold Dle; rewrite Dmult_ok.
   unfold D_to_Q, Qle; destruct d as [x y]; simpl.
-  rewrite Zmult_1_r.
-  assert (H: (x <= ' shift_pos (Plub_aux x y) 1)%Z).
-  { admit. }
-  eapply Zle_trans.
-Admitted.  
-
-Definition d := Dmake 1232312 2.
-Compute (d * Dlub d)%D.
-
-Local Open Scope D_scope.
+  rewrite Zmult_1_r; apply Zpos_2_mult.
+  rewrite Pos2Z.inj_mul, !shift_pos_correct, !Zmult_1_r.
+  rewrite <-Zpower_pos_is_exp.
+  unfold Plub_aux.
+  assert (H : (x <= Z.pow_pos 2 (Zsize x))%Z).
+  { apply Zpow_pos_size_le. }
+  eapply Zle_trans; [apply H|].
+  rewrite <-!two_power_pos_correct.
+  assert (H2: (Zsize x <= y + (Zsize x - Pos.size y))%positive).
+  { apply Zsize_minus. }
+  apply two_power_pos_le; auto.
+Qed.
 
 Lemma Dlub_nonneg (d : D) :
   0 <= d -> 0 <= Dlub d.
 Proof.
-Admitted.
+  destruct d; simpl; intros H.
+  unfold Dle; rewrite D_to_Q0; unfold D_to_Q; simpl.
+  unfold Qle; simpl; omega.
+Qed.
 
 Lemma Dlub_ok (d : D) :
   0 <= d -> 
   Dle 0 (d * Dlub d) /\ Dle (d * Dlub d) 1.
 Proof.
-Admitted. (* TODO: Not yet used *) 
+  intros H.
+  split.
+  { unfold Dle; rewrite Dmult_ok.
+    rewrite D_to_Q0; apply Qmult_le_0_compat.
+    { rewrite <-D_to_Q0; auto. }
+    rewrite <-D_to_Q0; apply Dlub_nonneg; auto. }
+  apply Dlub_mult_le1.
+Qed.
