@@ -501,47 +501,51 @@ Notation "'1'" := D1 : D_scope.
 
 (** The smallest power of 2 greater than a given rational *)
 
-Definition Zlub (max : D) : Z :=
-  match max with
-  | Dmake n d => Z.log2_up (Z.div n (2 ^ Zpos d))
+Definition Zsize (z : Z) : positive :=
+  match z with
+  | Z0 => 1
+  | Zpos p => Pos.size p
+  | Zneg p => Pos.size p
   end.
 
+Definition Plub_aux (x : Z) (y : positive) : positive :=
+  Zsize x - Pos.size y.
+
+Lemma Plub_aux_ok x y : x # y <= Zpos (2^(Plub_aux x y)) # 1.
+Proof.
+Admitted.  
+
 Definition Dlub (max : D) : D :=
-  match Zlub max with
-  | Z0 => 1
-  | Zpos p => Dmake 1 p
-  | Zneg p => 0 (* can't happen *)
+  match max with
+  | Dmake x y => Dmake 1 (Plub_aux x y)
   end.
+
+Lemma Zpos_2_mult (x : Z) (y : positive) :
+  (x <= 'y)%Z -> (x * 2 <= 'y~0)%Z.
+Admitted.                   
+
+Lemma Dlub_mult_le1 d : (d * Dlub d <= 1)%D.
+Proof.
+  unfold Dle; rewrite Dmult_ok.
+  unfold D_to_Q, Qle; destruct d as [x y]; simpl.
+  rewrite Zmult_1_r.
+  assert (H: (x <= ' shift_pos (Plub_aux x y) 1)%Z).
+  { admit. }
+  eapply Zle_trans.
+Admitted.  
+
+Definition d := Dmake 1232312 2.
+Compute (d * Dlub d)%D.
 
 Local Open Scope D_scope.
 
 Lemma Dlub_nonneg (d : D) :
   0 <= d -> 0 <= Dlub d.
 Proof.
-  unfold Dlub, Dle; intros H.
-  destruct (Zlub _).
-  { unfold Qle; simpl; unfold Zle; simpl; inversion 1. }
-  { unfold Qle; simpl; unfold Zle; simpl; inversion 1. }
-  apply Qle_refl.
-Qed.  
+Admitted.
 
 Lemma Dlub_ok (d : D) :
   0 <= d -> 
   Dle 0 (d * Dlub d) /\ Dle (d * Dlub d) 1.
 Proof.
-  unfold Dle; intros H; split.
-  { rewrite D_to_Q0, Dmult_ok.
-    apply Qmult_le_0_compat; auto.
-    rewrite D_to_Q0 in H; auto.
-    rewrite <-D_to_Q0.
-    apply (Dlub_nonneg _ H). }
-  rewrite Dmult_ok.
-  unfold Dlub, D_to_Q, Qmult; simpl.
-  assert (H0 : exists p, Zlub d = Zpos p).
-  { admit. } (* TODO: Not yet used *) 
-  destruct H0 as [p H0]; rewrite H0; simpl.
-  rewrite Zmult_1_r.
-  rewrite !shift_pos_nat, !shift_nat1_mult.
-  destruct d as [x y]; simpl in *.
-  admit. (* TODO: Not yet used *) 
 Admitted. (* TODO: Not yet used *) 
