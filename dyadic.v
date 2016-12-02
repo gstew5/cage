@@ -569,34 +569,160 @@ Proof.
   apply Zle_neg_pos.
 Qed.  
 
-Lemma Psize_minus_succ p y : 
-  (Pos.size p <= y + (Pos.size p - Pos.size y))%positive ->
-  (Pos.succ (Pos.size p) <= y + (Pos.succ (Pos.size p) - Pos.size y))%positive.
+Lemma Pos_succ_sub_1 p : (Pos.succ p - 1 = p)%positive.
 Proof.
-  generalize (Pos.size p) as x; intro; clear p.
-  generalize (Pos.size_le y); intros H H2.
-  assert (H3: (Pos.div2 (2 ^ (Pos.size y)) <= y)%positive).
-  { revert H; destruct (2 ^ Pos.size y)%positive; simpl.
-    { admit. }
-    { admit. }
-    intros _; apply Pos.le_1_l. }
-  destruct (Pos.compare (Pos.succ x) (Pos.size y)) eqn:H4.
-  { (*eq*)
-    apply Pos.compare_eq in H4.
-    rewrite H4.
+  set (P := fun p => (Pos.succ p - 1)%positive = p).
+  change (P p); apply Pos.peano_ind; try reflexivity.
+  intros r; unfold P; intros <-.
+  rewrite <-Pos2Nat.inj_iff.
+  rewrite nat_of_P_minus_morphism.
+  { rewrite !Pos2Nat.inj_succ; auto. }
+  apply nat_of_P_gt_Gt_compare_complement_morphism.
+  rewrite !Pos2Nat.inj_succ.
+  rewrite Pos2Nat.inj_1.
+  omega.
+Qed.  
+
+Lemma Pos_le_1_add_sub x : (x <= 1 + (x - 1))%positive.
+Proof.
+  set (P := fun x => (x <= 1 + (x - 1))%positive).
+  change (P x).
+  apply Pos.peano_ind.
+  { unfold P; simpl. apply Pos.le_1_l. }
+  intros p; unfold P; intros H.
+  rewrite Pos_succ_sub_1.
+  rewrite <-Pos.add_1_l.
+  apply Pos.le_refl.
+Qed.
+
+Lemma Pos_succ_lt_2_false p : (Pos.succ p < 2)%positive -> False.
+Proof.
+  rewrite Pos2Nat.inj_lt.
+  rewrite Pos2Nat.inj_succ.
+  unfold Pos.to_nat; simpl.
+  intros H.
+  assert (H2: (2 < 2)%nat).
+  { apply Nat.le_lt_trans with (m := S (Pos.iter_op Init.Nat.add p 1%nat)); auto.
+    assert (H3: (1 <= Pos.iter_op Init.Nat.add p 1)%nat) by apply le_Pmult_nat.
+    apply Peano.le_n_S; auto. }
+  omega.
+Qed.  
+  
+Lemma Pos_succ_sub_2 p : (Pos.succ p - 2 <= Pos.succ (p - 1))%positive. (*Not needed?*)
+Proof.
+  rewrite Pos2Nat.inj_le.
+  rewrite Pos2Nat.inj_succ.
+  destruct (Pos.ltb_spec0 (Pos.succ p) 2).
+  { elimtype False.
+    eapply Pos_succ_lt_2_false; eauto. }
+  assert (H: Pos.compare_cont Eq (Pos.succ p) 2 = Gt).
+  { rewrite <-Pos.compare_ngt_iff in n.
+    unfold Pos.compare in n.
     admit. }
-  { (*lt*)
+  rewrite nat_of_P_minus_morphism; auto.
+  rewrite Pos2Nat.inj_succ; simpl.
+  assert (H2: Pos.compare_cont Eq p 1 = Gt).
+  { apply nat_of_P_gt_Gt_compare_complement_morphism.
+    apply nat_of_P_gt_Gt_compare_morphism in H.
+    rewrite Pos2Nat.inj_succ in H.
+    assert (H1: Pos.to_nat 2 = 2%nat) by auto.
+    rewrite H1 in H.
+    assert (Pos.to_nat 1 = 1%nat) as -> by auto.
+    omega. }
+  rewrite nat_of_P_minus_morphism; auto.
+Admitted.  
+
+Lemma Pos_le_2_add_sub x : 
+  (1 + (x - 1) <= 2 + (x - 2))%positive.
+Proof.
+  rewrite Pos2Nat.inj_le.
+  rewrite !Pos2Nat.inj_add.
+  assert (Pos.to_nat 1 = 1%nat) as -> by auto.
+  assert (Pos.to_nat 2 = 2%nat) as -> by auto.
+  destruct (Pos.ltb_spec x 1).
+  { elimtype False.
     admit. }
-  (*gt*)
-  rewrite Pcompare_eq_Gt in H4.
-  admit. 
-Admitted. (*TODO*)
+  assert (H2: Pos.compare_cont Eq x 1 = Gt).
+  { admit. }
+  rewrite nat_of_P_minus_morphism; auto.
+  destruct (Pos.ltb_spec x 2).
+  { (*x=1*)
+    assert (x = 1)%positive as ->.
+    { admit. }
+    simpl.
+    assert (Pos.to_nat (1 - 2) = 1)%nat as ->.
+    { admit. }
+    omega. }
+  assert (H3: Pos.compare_cont Eq x 2 = Gt).
+  { admit. }
+  rewrite nat_of_P_minus_morphism; auto.
+  simpl.
+  assert (Pos.to_nat 1 = 1%nat) as -> by auto.
+  assert (Pos.to_nat 2 = 2%nat) as -> by auto.
+  apply Peano.le_n_S.
+  generalize (Pos.to_nat x) as n; intro.
+  induction n; try solve[omega].
+Admitted.
+
+Lemma Psize_minus_aux (x y : positive) : (x <= Pos.div2 (2^y) + (x - y))%positive.
+Proof.
+  revert y.
+  apply Pos.peano_ind.
+  { unfold Pos.pow, Pos.mul, Pos.iter, Pos.div2.
+    apply Pos_le_1_add_sub. }
+  intros p H.
+  rewrite Pos.pow_succ_r; simpl.
+  eapply Pos.le_trans; [apply H|].
+  clear H.
+  set (P := fun p =>
+       forall x, (Pos.div2 (2 ^ p) + (x - p) <= 2 ^ p + (x - Pos.succ p))%positive).
+  revert x.
+  change (P p).
+  apply Pos.peano_ind.
+  { unfold P.
+    intros x.
+    unfold Pos.pow, Pos.mul, Pos.iter, Pos.div2.
+    apply Pos_le_2_add_sub. }
+  intros r; unfold P; simpl; intros IH x.
+  rewrite Pos.pow_succ_r.
+  unfold Pos.div2, Pos.mul.
+  generalize (2^r)%positive as y; intro.
+  generalize (Pos.succ r) as z; intro.
+  assert (H: (x - z <= Pos.succ (x - Pos.succ z))%positive).
+  { admit. }
+  generalize H.
+  generalize (x - Pos.succ z)%positive as q; intro.
+  clear IH H; intros H.
+  set (Q := fun y => (y + (x - z) <= y~0 + q)%positive).
+  change (Q y).
+  apply Pos.peano_ind.
+  { unfold Q.
+    admit. }
+  intros t; unfold Q; intros IH.
+  rewrite Pplus_one_succ_l.
+  rewrite <-Pos.add_assoc.
+  rewrite Pos.add_xO.
+  rewrite <-Pos.add_assoc.  
+  apply Pos.add_le_mono; auto.
+  apply Pos.le_1_l.
+Admitted.  
+
+Lemma Psize_exp_div y : (Pos.div2 (2 ^ (Pos.size y)) <= y)%positive.
+Proof.
+  generalize (Pos.size_le y).
+  destruct (2 ^ Pos.size y)%positive; simpl.
+  { admit. }
+  { admit. }
+  intros _; apply Pos.le_1_l.
+Admitted.
 
 Lemma Psize_minus p y :
   (Pos.size p <= y + (Pos.size p - Pos.size y))%positive.
 Proof.
-  induction p; simpl; try solve[apply Psize_minus_succ; auto].
-  apply Pos.le_1_l.
+  generalize (Pos.size p) as x; intro.
+  apply Pos.le_trans with (m := (Pos.div2 (2^(Pos.size y)) + (x - Pos.size y))%positive).
+  { apply Psize_minus_aux. }
+  apply Pos.add_le_mono_r; apply Psize_exp_div.
 Qed.
   
 Lemma Zsize_minus x y : 
