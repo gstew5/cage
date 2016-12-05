@@ -607,30 +607,9 @@ Proof.
     apply Peano.le_n_S; auto. }
   omega.
 Qed.  
-  
-Lemma Pos_succ_sub_2 p : (Pos.succ p - 2 <= Pos.succ (p - 1))%positive. (*Not needed?*)
-Proof.
-  rewrite Pos2Nat.inj_le.
-  rewrite Pos2Nat.inj_succ.
-  destruct (Pos.ltb_spec0 (Pos.succ p) 2).
-  { elimtype False.
-    eapply Pos_succ_lt_2_false; eauto. }
-  assert (H: Pos.compare_cont Eq (Pos.succ p) 2 = Gt).
-  { rewrite <-Pos.compare_ngt_iff in n.
-    unfold Pos.compare in n.
-    admit. }
-  rewrite nat_of_P_minus_morphism; auto.
-  rewrite Pos2Nat.inj_succ; simpl.
-  assert (H2: Pos.compare_cont Eq p 1 = Gt).
-  { apply nat_of_P_gt_Gt_compare_complement_morphism.
-    apply nat_of_P_gt_Gt_compare_morphism in H.
-    rewrite Pos2Nat.inj_succ in H.
-    assert (H1: Pos.to_nat 2 = 2%nat) by auto.
-    rewrite H1 in H.
-    assert (Pos.to_nat 1 = 1%nat) as -> by auto.
-    omega. }
-  rewrite nat_of_P_minus_morphism; auto.
-Admitted.  
+
+Lemma Pos2Nat_inj_2 : Pos.to_nat 2 = 2.
+Proof. unfold Pos.to_nat; simpl; auto. Qed.
 
 Lemma Pos_le_2_add_sub x : 
   (1 + (x - 1) <= 2 + (x - 2))%positive.
@@ -641,28 +620,55 @@ Proof.
   assert (Pos.to_nat 2 = 2%nat) as -> by auto.
   destruct (Pos.ltb_spec x 1).
   { elimtype False.
-    admit. }
+    apply (Pos.nlt_1_r _ H). }
+  destruct (Pos.eqb_spec x 1).
+  { subst x.
+    simpl.
+    rewrite Pos.sub_le; auto. }
   assert (H2: Pos.compare_cont Eq x 1 = Gt).
-  { admit. }
+  { rewrite Pos.compare_cont_spec.
+    rewrite Pos.compare_antisym.
+    rewrite <-Pos.leb_le in H.
+    rewrite Pos.leb_compare in H.
+    generalize H; clear H.
+    destruct (Pos.compare 1 x) eqn:H; simpl; auto.
+    { rewrite Pos.compare_eq_iff in H; subst x; elimtype False; auto. }
+    inversion 1. }
   rewrite nat_of_P_minus_morphism; auto.
   destruct (Pos.ltb_spec x 2).
   { (*x=1*)
-    assert (x = 1)%positive as ->.
-    { admit. }
+    elimtype False; apply n.
+    rewrite Pos.le_lteq in H.
+    destruct H; auto.
+    rewrite Pos2Nat.inj_lt in H, H0.
+    rewrite <-Pos2Nat.inj_iff.
+    clear - H H0.
+    rewrite Pos2Nat.inj_1 in H|-*.
+    rewrite Pos2Nat_inj_2 in H0.
+    omega. }
+  destruct (Pos.eqb_spec x 2).
+  { (*x=2*)
+    subst x.
     simpl.
-    assert (Pos.to_nat (1 - 2) = 1)%nat as ->.
-    { admit. }
     omega. }
   assert (H3: Pos.compare_cont Eq x 2 = Gt).
-  { admit. }
+  { apply nat_of_P_gt_Gt_compare_complement_morphism.
+    rewrite Pos2Nat.inj_le in H, H0.
+    rewrite Pos2Nat.inj_1 in H.
+    rewrite Pos2Nat_inj_2 in H0|-*.
+    assert (H1: Pos.to_nat x <> 2).
+    { intros Hx.
+      rewrite <-Pos2Nat.inj_iff, Hx in n0.
+      auto. }
+    omega. }
   rewrite nat_of_P_minus_morphism; auto.
   simpl.
   assert (Pos.to_nat 1 = 1%nat) as -> by auto.
   assert (Pos.to_nat 2 = 2%nat) as -> by auto.
   apply Peano.le_n_S.
-  generalize (Pos.to_nat x) as n; intro.
-  induction n; try solve[omega].
-Admitted.
+  generalize (Pos.to_nat x) as m; intro.
+  induction m; try solve[omega].
+Qed.
 
 Lemma Psize_minus_aux (x y : positive) : (x <= Pos.div2 (2^y) + (x - y))%positive.
 Proof.
@@ -689,7 +695,12 @@ Proof.
   generalize (2^r)%positive as y; intro.
   generalize (Pos.succ r) as z; intro.
   assert (H: (x - z <= Pos.succ (x - Pos.succ z))%positive).
-  { admit. }
+  { rewrite Pos.sub_succ_r.
+    destruct (Pos.eqb_spec (x-z) 1).
+    { rewrite e; simpl.
+      rewrite Pos2Nat.inj_le, Pos2Nat.inj_1, Pos2Nat_inj_2; omega. }
+    rewrite Pos.succ_pred; auto.
+    apply Pos.le_refl. }
   generalize H.
   generalize (x - Pos.succ z)%positive as q; intro.
   clear IH H; intros H.
@@ -697,7 +708,9 @@ Proof.
   change (Q y).
   apply Pos.peano_ind.
   { unfold Q.
-    admit. }
+    assert (2 + q = 1 + Pos.succ q)%positive as ->.
+    { rewrite <-Pos.add_1_l, Pos.add_assoc; auto. }
+    apply Pos.add_le_mono_l; auto. }
   intros t; unfold Q; intros IH.
   rewrite Pplus_one_succ_l.
   rewrite <-Pos.add_assoc.
@@ -705,16 +718,23 @@ Proof.
   rewrite <-Pos.add_assoc.  
   apply Pos.add_le_mono; auto.
   apply Pos.le_1_l.
-Admitted.  
+Qed.
 
 Lemma Psize_exp_div y : (Pos.div2 (2 ^ (Pos.size y)) <= y)%positive.
 Proof.
   generalize (Pos.size_le y).
   destruct (2 ^ Pos.size y)%positive; simpl.
-  { admit. }
-  { admit. }
+  { unfold Pos.le, Pos.compare; simpl.
+    intros H H2.
+    apply nat_of_P_gt_Gt_compare_morphism in H2.
+    apply H.
+    rewrite Pos.compare_cont_Gt_Gt.
+    rewrite Pos2Nat.inj_ge; omega. }
+  { unfold Pos.le, Pos.compare; simpl.
+    intros H H2.
+    apply H; auto. }
   intros _; apply Pos.le_1_l.
-Admitted.
+Qed.
 
 Lemma Psize_minus p y :
   (Pos.size p <= y + (Pos.size p - Pos.size y))%positive.
