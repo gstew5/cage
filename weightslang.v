@@ -1570,8 +1570,8 @@ Section mult_weights_refinement.
     rewrite /mult_weights1_init.
     have Hx: [ffun => Q_to_rat (D_to_Q D1)] = [ffun => 1%:R].
     { move => t; rewrite /D1 /D_to_Q /Q_to_rat /= fracqE /=.
-      apply/ffunP => x; rewrite ffunE.
-      admit. }
+      apply/ffunP => x; rewrite !ffunE.
+      by rewrite GRing.divff. }
     move: (init_weights_gt0 (A:=A)) pf0 H0 H3 H6 H.
     rewrite Hx => pfx pf0 H0 H3 H6 H.
     f_equal.
@@ -1579,7 +1579,7 @@ Section mult_weights_refinement.
     f_equal.
     f_equal.
     apply: proof_irrelevance.
-  Admitted.
+  Qed.
   
   Lemma stepN_mult_weights_refines_mult_weights1 :
     forall n nx (s s' : state A) l pf,
