@@ -1,21 +1,21 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
+Require Import ProofIrrelevance.
+Require Import QArith.
+
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import extrema numerics games.
+Require Import extrema numerics games dyadic.
 
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
 Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
-
-(*The computable cost function computes Q rather than rty.*)
-Require Import QArith.
 
 Module OrdNat
   <: OrderedType.OrderedType.
@@ -67,10 +67,10 @@ Class RefineTypeClass (T : finType)
 
 (** An operational type class for "compiled" cost functions, 
     from positive player indices and maps (positive -> strategy) 
-    to Q-valued costs *)
+    to D-valued costs *)
 
 Class CCostClass (N : nat) (T : Type) :=
-  ccost_fun : OrdNat.t -> M.t T -> Q.
+  ccost_fun : OrdNat.t -> M.t T -> D.
 Notation "'ccost'" := (@ccost_fun _ _) (at level 30).
 
 Class RefineCostAxiomClass N (T : finType)
@@ -82,7 +82,7 @@ Class RefineCostAxiomClass N (T : finType)
       (forall j (pf' : (nat_of_bin j < N)%nat),
           let: j' := Ordinal pf' in
           M.find j m = Some (s j')) ->
-      ccost i m = rat_to_Q (cost i' s).
+      Qeq (D_to_Q (ccost i m)) (rat_to_Q (cost i' s)).
 
 Class RefineCostClass N (T : finType)
       (costClass : CostClass N rat_realFieldType T)
@@ -90,13 +90,12 @@ Class RefineCostClass N (T : finType)
       `(@RefineCostAxiomClass N T costClass ccostClass).
 
 Class CCostMaxClass (N : nat) (T : Type) :=
-  ccostmax_fun : Q.
+  ccostmax_fun : D.
 
 Class RefineCostMaxClass (N : nat) (T : finType)
         (costMaxClass : CostMaxClass N rat_realFieldType T)
         (ccostMaxClass : CCostMaxClass N T)
-  :=
-    refineCostMax_fun : (rat_to_Q costMaxClass) <= ccostMaxClass.
+  := refineCostMax_fun : rat_to_Q costMaxClass <= D_to_Q ccostMaxClass.
 
 Lemma CCostMaxIsMax (N : nat) (T : finType)
         (costClass : CostClass N rat_realFieldType T)
@@ -112,10 +111,10 @@ Lemma CCostMaxIsMax (N : nat) (T : finType)
       (forall j (pf' : (nat_of_bin j < N)%nat),
           let: j' := Ordinal pf' in
           M.find j m = Some (s j')) ->
-          (ccost i m) <= (ccostMaxClass).
+          (ccost i m <= ccostMaxClass)%D.
 Proof.
   move => i pf m s H.
-  rewrite (refineCostAxiomClass i pf m s) => //.
+  rewrite /Dle (refineCostAxiomClass i pf m s) => //.
   apply Qle_trans with (y := rat_to_Q costMaxClass) => //.
   apply le_rat_to_Q => //.
 Qed.
@@ -135,11 +134,11 @@ Lemma CCostFinalBounds (N : nat) (T : finType)
       (forall j (pf' : (nat_of_bin j < N)%nat),
           let: j' := Ordinal pf' in
           M.find j m = Some (s j')) ->
-    0 <= (ccost i m / ccostMaxClass) <= 1.
+    0 <= (D_to_Q (ccost i m) / D_to_Q (ccostMaxClass)) <= 1.
 Proof.
   move => i pf m s H. split.
-  { have H' : 0 <= ccostMaxClass.
-    apply Qle_trans with (y := ccost i m);
+  { have H' : 0 <= D_to_Q ccostMaxClass.
+    apply Qle_trans with (y := D_to_Q (ccost i m));
       last by apply CCostMaxIsMax
         with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
     rewrite (refineCostAxiomClass i pf m s) => //.
@@ -166,8 +165,8 @@ Proof.
     }
   }
   {
-    have H' : 0 <= ccostMaxClass.
-    apply Qle_trans with (y := ccost i m);
+    have H' : 0 <= D_to_Q ccostMaxClass.
+    apply Qle_trans with (y := D_to_Q (ccost i m));
       last by apply CCostMaxIsMax
         with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
     rewrite (refineCostAxiomClass i pf m s) => //.
@@ -181,17 +180,7 @@ Proof.
       apply CCostMaxIsMax
         with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
     }
-    {
-      rewrite -H0.
-      have H1: ccost i m == 0. apply Qle_antisym.
-      rewrite H0.
-      apply CCostMaxIsMax
-        with (costClass := costClass) (costMaxClass := costMaxClass) (s := s) => //.
-      rewrite (refineCostAxiomClass i pf m s) => //.
-      have H' : 0 = rat_to_Q 0%R. rewrite /rat_to_Q => //.
-      rewrite H'. apply le_rat_to_Q => //.
-      rewrite H1 /Qdiv /Qmult => //.
-    }
+    rewrite -H0 /Qdiv /Qinv /= Qmult_0_r //.
   }
 Qed.
 

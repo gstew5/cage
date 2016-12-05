@@ -9,6 +9,8 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
+Require Import dyadic.
+
 (** This file defines conversions between Ssreflect/MathComp and
     Coq Standard Library implementations of various numeric types, 
     such as: 
@@ -1100,7 +1102,7 @@ Section Q_to_rat_lemmas.
     rewrite invr_gt0.
       by rewrite -ltz_nat -(ltr_int rat_realFieldType) in H2.
   Qed.
-
+  
   Lemma Q_to_rat_opp r :
     Q_to_rat (Qopp r) = (- (Q_to_rat r))%R.
   Proof.
@@ -1475,3 +1477,69 @@ Proof.
   by rewrite Pos2Z.inj_add /Qplus /= !Pos.mul_1_r.
 Qed.
 
+Lemma N_to_Q_succ n :
+  N_to_Q (N.succ n) = Qplus 1 (N_to_Q n).
+Proof.
+  have ->: N.succ n = N.add 1 n.
+  { by elim: n => // p; rewrite /N.add /Pos.add; case: p. }
+  rewrite N_to_Q_plus; f_equal.
+Qed.  
+
+Definition N_to_D (n : N.t) : D := Dmake (2*NtoZ n) 1.
+
+Lemma N_to_D_plus n1 n2 :
+  (N_to_D (n1 + n2) = N_to_D n1 + N_to_D n2)%D.
+Proof.
+  rewrite /N_to_D /NtoZ /Nplus.
+  case: n1; case: n2 => //.
+Qed.
+
+Lemma N_to_D_to_Q n : Qeq (D_to_Q (N_to_D n)) (N_to_Q n).
+Proof.
+  rewrite /D_to_Q /N_to_D /N_to_Q /=.
+  case H: (NtoZ n) => [|p|p].
+  { by rewrite /Qeq. }
+  { rewrite /Qeq /=.
+    rewrite Pos.mul_1_r.
+    rewrite Pos2Z.inj_xO /Zmult.
+    by rewrite Pos.mul_comm. }
+  by rewrite /Qeq /= Pos.mul_1_r Pos2Z.neg_xO /Zmult Pos.mul_comm.
+Qed.  
+
+Lemma rat_to_Q_N_to_Q n : Qeq (rat_to_Q n%:R) (N_to_Q (N.of_nat n)).
+Proof.
+  elim: n => // n IH.
+  rewrite Nat2N.inj_succ N_to_Q_succ.
+  have ->: (n.+1 = 1 + n)%N.
+  { move {IH}; elim: n => //. }
+  rewrite natrD rat_to_Q_plus IH //.
+Qed.
+
+Lemma Qred_idem (q : Q) : Qred (Qred q) = Qred q.
+Proof.
+  apply: Qred_complete.
+  by rewrite Qred_correct.
+Qed.  
+
+(** Dyadic real field values *)
+
+Definition dyadic_rat : Type :=
+  {r : rat & {d : D & Qeq (D_to_Q d) (rat_to_Q r)}}.
+Notation "'DRat'" := (dyadic_rat) (only parsing).
+
+Definition dyadic_rat_to_rat (d : dyadic_rat) : rat := projT1 d.
+Coercion dyadic_rat_to_rat : dyadic_rat >-> rat.
+
+Definition dyadic_rat_to_D (d : dyadic_rat) : D := projT1 (projT2 d).
+Coercion dyadic_rat_to_D : dyadic_rat >-> D.
+
+Program Definition D_to_dyadic_rat (d : D) : DRat :=
+  existT _ (Q_to_rat (D_to_Q d)) _.
+Next Obligation.
+  exists d.
+  rewrite rat_to_QK1.
+  by rewrite Qred_correct.
+Defined.
+
+Lemma dyadic_rat_to_Q (d : DRat) : Qeq (D_to_Q d) (rat_to_Q d).
+Proof. apply: (projT2 (projT2 d)). Qed.

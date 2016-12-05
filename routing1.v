@@ -12,7 +12,7 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics combinators games compile orderedtypes.
+Require Import numerics combinators games compile orderedtypes dyadic.
 Require Import weightsextract server.
 
 Local Open Scope ring_scope.
@@ -147,7 +147,7 @@ Unset Strict Implicit.
   
 (*MOVE:*)
 Instance UnitCCostMaxClass (N : nat) 
-  : CCostMaxClass N Unit := Qmake 0 1.
+  : CCostMaxClass N Unit := 0%D.
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
 Instance UnitEq : Eq Unit := fun x y => True.
@@ -200,16 +200,16 @@ Module R <: BoolableMyOrderedType := OrderedResource.
 
 Module R10Values <: OrderedAffineType.
   Include R.                    
-  Definition scal := Q_to_rat (Qmake 10 1).
-  Definition offset := Q_to_rat (Qmake 0 1).
+  Definition scal := D_to_dyadic_rat (Dmake 20 1).
+  Definition offset := D_to_dyadic_rat 0.
   Definition a0 := RNo.
 End R10Values.
 Module R10 := OrderedAffine R10Values.
 
 Module RValues <: OrderedAffineType.
   Include R.                    
-  Definition scal := Q_to_rat (Qmake 1 1).
-  Definition offset := Q_to_rat (Qmake 0 1).
+  Definition scal := D_to_dyadic_rat 1.
+  Definition offset := D_to_dyadic_rat 0.
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
@@ -376,14 +376,14 @@ end.
 End T.
   
 Definition num_players : nat := 15.
-Definition num_iters : N.t := 30.
-Definition eps : Q := Qmake 1 2.
+Definition num_iters : N.t := 100.
+Definition eps : D := Dmake 1 3. (*eps = 1/8*)
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.
   Definition scal :=
-    Q_to_rat
-      (Qdiv 1 (@ccostmax_fun num_players P3.t (P3.cost_max num_players))).
+    D_to_dyadic_rat
+      (Dlub (@ccostmax_fun num_players P3.t (P3.cost_max num_players))).
 End P3Scalar.
 
 Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
@@ -419,7 +419,7 @@ Module MWU := MWU P3Scaled'.
 Existing Instance P3Scaled'.enumerable.
 
 (*Why doesn' Coq discover this instance in the following definition?*)
-Definition mwu0 (eps : Q) (nx : N.t)
+Definition mwu0 (eps : D) (nx : N.t)
            {T chanty : Type} {oracle : ClientOracle T chanty}
            (init_oracle_st : T) :=
   MWU.interp

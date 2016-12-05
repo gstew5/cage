@@ -1362,29 +1362,29 @@ Definition unitType := [finType of unitTy].
 End UnitType.
 
 Instance unitCostInstance
-         (N : nat) (rty : realFieldType)
+         (N : nat) {rty : realFieldType}
   : CostClass N rty [finType of Unit] :=
   fun (i : 'I_N) (f : {ffun 'I_N -> [finType of Unit]}) => 0.
 
 Program Instance  unitCostAxiomInstance
-        (N : nat) (rty : realFieldType)
+        (N : nat) {rty : realFieldType}
   : @CostAxiomClass N rty [finType of Unit] (@unitCostInstance N rty).
 
-Instance unitCostMaxInstance ( N : nat) (rty : realFieldType)
+Instance unitCostMaxInstance ( N : nat) {rty : realFieldType}
   : CostMaxClass N rty [finType of Unit] :=
   0.
 
 Program Instance unitCostMaxAxiomInstance
-        (N : nat) (rty : realFieldType)
+        (N : nat) {rty : realFieldType}
   : CostMaxAxiomClass (@unitCostInstance N rty)
-                      (unitCostMaxInstance _ _).
+                      (@unitCostMaxInstance N rty).
 
 Program Instance unitGameInstance
-        (N : nat) (rty : realFieldType) 
+        (N : nat) {rty : realFieldType}
   : @game [finType of Unit] N rty 
           (@unitCostInstance N rty)
           (@unitCostAxiomInstance N rty) _
-          (unitCostMaxAxiomInstance _ _).
+          (@unitCostMaxAxiomInstance _ _).
 
 Module UnitGameTest. Section unitGameTest.
   Context {N rty} `{gameA : game unitType N rty}.

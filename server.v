@@ -8,7 +8,7 @@ Require Import QArith String Ascii.
 Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
-Require Import strings compile orderedtypes.
+Require Import strings compile orderedtypes dyadic numerics.
 
 Module Type ServerConfig.
   Parameter num_players : nat.
@@ -22,7 +22,7 @@ Class ServerOracle T oracle_chanty :=
            ; oracle_send : forall A : Type,
                T -> option oracle_chanty ->
                nat (*player index*) ->
-               list (A * Q) -> T
+               list (A * D) -> T
            }.
 
 Module Server (C : ServerConfig) (A : MyOrderedType).  
@@ -48,13 +48,13 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
             nil
             st.
 
-  Definition cost_vector (s : state) (player : N) : list (A.t * Q) :=
+  Definition cost_vector (s : state) (player : N) : list (A.t * D) :=
     List.fold_left
       (fun l a => (a, ccost player (M.add player a (actions_received s))) :: l)
       (enumerate A.t)
       nil.
 
-  Fixpoint compute_social_cost (s : state) (player : nat) : Q :=
+  Fixpoint compute_social_cost (s : state) (player : nat) : D :=
   match player with
   | O => ccost (N.of_nat player) (actions_received s)
   | S n' => ccost (N.of_nat player) (actions_received s) +
@@ -63,7 +63,7 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
 
   Definition print_social_cost (s : state) : state :=
     let s' := eprint_string "Social cost: " s in
-    let s'' := eprint_Q (compute_social_cost s (C.num_players)) s' in
+    let s'' := eprint_Q (D_to_Q (compute_social_cost s (C.num_players))) s' in
     eprint_newline s''.
 
   Fixpoint send (s : state) (player : nat) : state :=
@@ -156,7 +156,7 @@ Extract Constant server_recv =>
 
 (* Server send *)
 Axiom server_send :
-  forall A : Type, result -> option chan -> nat (*player index*) -> list (A * Q) -> result.
+  forall A : Type, result -> option chan -> nat (*player index*) -> list (A * D) -> result.
 Extract Constant server_send =>
 (* Here it is taking service_socket as an argument which is assumed to *)
 (*    be the socket created in recv that corresponds to player i *)

@@ -8,13 +8,13 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import dist weights numerics bigops.
+Require Import dist weights numerics dyadic bigops.
 
 (** An extremely simple probabilistic programming language, 
     used to implement multiplicative weights update (weights.v) *)
 
 Inductive val : Type :=
-| QVal : Q -> val.
+| QVal : D -> val.
 
 Inductive binop : Type := BPlus | BMinus | BMult.
 
@@ -49,14 +49,7 @@ Arguments CIter [A] _ _.
 Lemma val_eq_dec (v1 v2 : val) : {v1=v2}+{v1<>v2}.
 Proof.
   decide equality.
-  case: q; case: q0 => x y x' y'.
-  case: (positive_eq_dec y y').
-  { move => ->.
-    case: (Z_eq_dec x x').
-    { move => ->.
-      by left. }
-    move => H; right => H2; inversion H2; subst => //. }
-  by move => H; right; inversion 1; subst.
+  apply Deq_dec.
 Qed.    
 
 Lemma eqType_eq_dec (A : eqType) (a s : A) : {a=s}+{a<>s}.
@@ -96,13 +89,13 @@ Definition mult_weights_body (A : Type) : com A :=
                       (EBinop BMult
                               (EWeight a)
                               (EBinop BMinus
-                                      (EVal (QVal 1))
+                                      (EVal (QVal D1))
                                       (EBinop BMult EEps (ECost a))))))
           CSend).
 
 Definition mult_weights_init (A : Type) : com A :=
   CSeq
-    (CUpdate (fun a : A => EVal (QVal 1)))
+    (CUpdate (fun a : A => EVal (QVal D1)))
     CSend.
 
 Definition mult_weights (A : Type) (n : N.t) : com A :=
@@ -159,7 +152,7 @@ Section semantics.
     match e with
     | EVal v =>
       match v with
-      | QVal q => Q_to_rat q
+      | QVal q => Q_to_rat (D_to_Q q)
       end
     | EOpp e' => let: v := eval e' s in - v
     | EWeight a => SWeights s a
@@ -1573,8 +1566,15 @@ Section mult_weights_refinement.
     inversion H6; subst.
     inversion H3; subst.
     simpl in *.
-    exists ch, t'.    
-    rewrite /mult_weights1_init; f_equal.
+    exists ch, t'.
+    rewrite /mult_weights1_init.
+    have Hx: [ffun => Q_to_rat (D_to_Q D1)] = [ffun => 1%:R].
+    { move => t; rewrite /D1 /D_to_Q /Q_to_rat /= fracqE /=.
+      apply/ffunP => x; rewrite !ffunE.
+      by rewrite GRing.divff. }
+    move: (init_weights_gt0 (A:=A)) pf0 H0 H3 H6 H.
+    rewrite Hx => pfx pf0 H0 H3 H6 H.
+    f_equal.
     apply: proof_irrelevance.
     f_equal.
     f_equal.
