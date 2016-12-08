@@ -22,127 +22,280 @@ Definition upd {A : finType} {T : Type}
     - sampling 
     - weight update *)
 
-Record array_map (A : Type) : Type :=
-  mkWeightMap {
-      wsize : N.t;
-      wmap :> M.t A;
+Module AM.
+Record t (A : Type) : Type :=
+  mk {
+      size : N.t;
+      map :> M.t A;
             (* [wmap]: a map from positive indices in range 
                        [0, wsize) to values [a] *)
     }.
 
-Section array_map_functions.
+Section functions.
   Variable A : Type.
-
-  Definition array_map_ok
-             (w : array_map A)
-             (f : {ffun 'I_(N.to_nat (wsize w)) -> A}) :=
-    forall (i : N.t) (pf : (N.to_nat i < N.to_nat (wsize w))%nat),
-      M.find i (wmap w) = Some (f (Ordinal pf)).
   
-  Definition am_lookup
+  Definition ok
+             (w : t A)
+             (f : {ffun 'I_(N.to_nat (size w)) -> A}) :=
+    forall (i : N.t) (pf : (N.to_nat i < N.to_nat (size w))%nat),
+      M.find i (map w) = Some (f (Ordinal pf)).
+  
+  Definition empty : t A := mk 0 (M.empty _).
+             
+  Definition lookup
              (i : N.t)
-             (w : array_map A)
-    : option A := M.find i (wmap w).
+             (w : t A)
+    : option A := M.find i (map w).
 
-  Lemma am_lookup_ok i w f 
-    (pf : (N.to_nat i < N.to_nat (wsize w))%nat) :  
-    @array_map_ok w f ->
-    am_lookup i w = Some (f (Ordinal pf)).
+  Lemma lookup_ok i w f 
+    (pf : (N.to_nat i < N.to_nat (size w))%nat) :  
+    @ok w f ->
+    lookup i w = Some (f (Ordinal pf)).
   Proof.
-    unfold array_map_ok, am_lookup. 
+    unfold ok, lookup. 
     intros H; apply (H i pf).
   Qed.                                     
+
+  Definition update
+             (i : N.t)
+             (a': A)
+             (w : t A)
+    : t A :=
+    mk
+      (size w)
+      (M.add i a' (map w)).
   
-  Definition am_swap
+  Definition swap
              (i j : N.t)
-             (w : array_map A)
-    : option (array_map A) :=
-    match am_lookup i w, am_lookup j w with
+             (w : t A)
+    : option (t A) :=
+    match lookup i w, lookup j w with
     | None, _ => None
     | _, None => None
     | Some a, Some a' => 
       Some
-        (mkWeightMap
-           (wsize w)
-           (M.add i a' (M.add j a (wmap w))))
+        (mk
+           (size w)
+           (M.add i a' (M.add j a (map w))))
     end.
 
-  (*Lemma am_swap_ok i j w w' f
-        (pfi : (N.to_nat i < N.to_nat (wsize w))%nat)
-        (pfj : (N.to_nat j < N.to_nat (wsize w))%nat) :
+  (*Lemma swap_ok i j w w' f
+        (pfi : (N.to_nat i < N.to_nat (size w))%nat)
+        (pfj : (N.to_nat j < N.to_nat (size w))%nat) :
     let i0 := Ordinal pfi in
     let j0 := Ordinal pfj in 
-    am_swap i j w = Some w' ->     
-    @array_map_ok w f ->
-    @array_map_ok w' (upd i0 (f j0) (upd j0 (f i0) f)).*)
+    swap i j w = Some w' ->     
+    @ok w f ->
+    @ok w' (upd i0 (f j0) (upd j0 (f i0) f)).*)
 
-  Definition am_remove
+  Definition remove
              (i : N.t)
-             (w : array_map A)
-    : option (array_map A) :=
-    let j := N.pred (wsize w) in
-    match am_swap i j w with
+             (w : t A)
+    : option (t A) :=
+    let j := N.pred (size w) in
+    match swap i j w with
     | None => None
     | Some w' =>
       Some
-        (mkWeightMap
-           (N.pred (wsize w'))
-           (M.remove j (wmap w')))
+        (mk
+           (N.pred (size w'))
+           (M.remove j (map w')))
     end.
 
-  (** Add a fresh weight pair (a,d) to w. *)
-  Definition am_add
+  (** PRECONDITION: a not in w *)
+  Definition add
              (a : A)
-             (w : array_map A)
-    : array_map A :=
-    mkWeightMap
-      (N.succ (wsize w))
-      (M.add (wsize w) a (wmap w)).
-End array_map_functions.
+             (w : t A)
+    : t A :=
+    mk
+      (N.succ (size w))
+      (M.add (size w) a (map w)).
 
-Record cdist (A : Type) : Type :=
-  mkCDist {
-      cmax_weight : D;
-      cpmf :> array_map (array_map A)
+  Definition fmap
+             (B : Type)
+             (f : A -> B)
+             (w : t A)
+    : t B :=
+    mk
+      (size w)
+      (M.map f (map w)).
+
+  Definition fold
+             (B : Type)
+             (f : N.t -> A -> B -> B)
+             (w : t A)
+             (acc : B)
+    : B := M.fold f (map w) acc.
+End functions.
+End AM.
+
+Module DIST.
+Record t (A : Type) : Type :=
+  mk {
+      cpmf :> AM.t (AM.t (A*D))
            (* [cpmf]: a map from 
                 - LEVEL 1: weight level i = [2^i, 2^{i+1})
                 - LEVEL 2: weight array containing weights (a,d)
                            in the range of weight level i *)
     }.
 
-Section cdist_functions.
+Section functions.
   Variable A : Type.
 
-  Definition level_of (d : D) :=
+  Definition empty : t A := mk (AM.empty _).
+  
+  Definition level_of (d : D) : N.t :=
     match d with
-    | Dmake x y => Plub_aux x y
+    | Dmake x y => N.pred (Npos (Plub_aux x y))
     end.
 
-  Compute level_of (Dmake 345 27).
-  Compute Zsize 345.
-  Compute Pos.size 3.
-  
+  (** PRECONDITION: a not in w[level_of(a)] *)
   Definition add_weight
-  
-  
+             (a : A)
+             (d : D)
+             (c : t A)
+    : option (t A) :=
+    let l := level_of d in 
+    let am :=
+        match AM.lookup l (cpmf c) with
+        | None => AM.empty _
+        | Some am0 => am0
+        end
+    in 
+    let am' := AM.add (a,d) am in
+    Some (mk (AM.update l am' (cpmf c))).
 
-Definition fun_of_cdist
+  (** Updates [w] according to [f], returning the new array map 
+      together with any pairs (a,d) that are now mis-leveled. *)
+  Definition update_level
+             (level : N.t)
+             (f : A -> D -> D)
+             (w : AM.t (A*D))
+    : (option (AM.t (A*D)) * list (N.t*A*D)) :=
+    let w' := AM.fmap (fun p : (A*D) => let (a,d) := p in (a, f a d)) w in
+    let must_removes := 
+        AM.fold
+          (fun i (p' : (A*D)) l0 =>
+             let (a,d') := p' in 
+             if N.eqb (level_of d') level then l0
+             else (i,a,d') :: l0)
+          w'
+          nil
+    in
+    ((*actually remove the "must_removes":*)
+      List.fold_left
+       (fun acc (p' : (N.t*A*D)) =>
+          match p' with
+          | (i, a, d') => 
+            match acc with
+            | None => None
+            | Some w0 => AM.remove i w0
+            end
+          end)
+       must_removes
+       (Some w'),
+     must_removes).
+
+  Fixpoint update_weights_aux
+           (num_levels : nat)
+           (f : A -> D -> D)
+           (acc : (option (AM.t (AM.t (A*D))) * list (N.t*A*D)))
+    : (option (AM.t (AM.t (A*D))) * list (N.t*A*D)) :=
+    match num_levels with
+    | O => acc
+    | S n' =>
+      let level := N.of_nat n' in
+      match acc with
+      | (None, l0) => (None, l0)
+      | (Some w, l0) => 
+        match AM.lookup level w with
+        | None => (None, l0)
+        | Some w2 =>       
+          match update_level level f w2 with
+          | (None, _) => (None, l0)
+          | (Some w3, removed) =>
+            update_weights_aux
+              n'
+              f
+              (Some (AM.update level w3 w), removed ++ l0)
+          end
+        end
+      end
+    end.
+        
+  Fixpoint add_weights_aux
+             (l : list (A*D))
+             (acc : option (t A))
+    : option (t A) :=
+    match l with
+    | nil => acc
+    | (a,d) :: l' =>
+      match acc with
+      | None => None
+      | Some w => add_weights_aux l' (add_weight a d w)
+      end
+    end.
+
+  Definition add_weights
+             (l : list (A*D))
+             (c : t A)
+    : option (t A) :=
+    add_weights_aux l (Some c).
+  
+  Definition update_weights
+             (f : A -> D -> D)
+             (c : t A)
+    : option (t A) :=
+    let num_levels := AM.size c in 
+    match update_weights_aux num_levels f (Some (cpmf c), nil) with
+    | (None, _) => None
+    | (Some w, removed) =>
+      let removed' :=
+          map (fun p => match p with (_,a,d) => (a,d) end)
+              removed
+      in
+      add_weights removed' (mk w)
+    end.
+End functions.
+End DIST.
+
+Definition d := AM.add 4 (AM.add 3 (AM.empty _)).
+Definition v1 := AM.lookup 0 d.
+Definition v2 := AM.lookup 1 d.
+Definition v3 := AM.lookup 2 d.
+
+Recursive Extraction v1 v2 v3.
+
+Definition r1 := 
+  match DIST.add_weight 1 (Dmake 3 2) (DIST.empty _) with
+  | None => None
+  | Some c => DIST.update_weights (fun _ d => Dmake 24 1) c
+  end.
+
+Definition r2 := 
+  DIST.add_weights (((1, Dmake 3 2) :: (2, Dmake 24 1) :: nil))%nat (DIST.empty _).
+
+Recursive Extraction r1 r2.
+               
+(** FIXME: In r1 and r2, why is size 0? *)  
+
+Definition fun_of_t
            (A : Type)
            (Aeq : A -> A -> bool)
-           (c : cdist A) : A -> Q :=
+           (c : t A) : A -> Q :=
   fun a =>
     match findA (Aeq a) c with 
     | None => 0
     | Some d => D_to_Q d
     end.
 
-Definition dist_cdist_match
+Definition dist_t_match
            (A : finType)
            (Aeq : A -> A -> bool)           
-           (c : cdist A)
+           (c : t A)
            (d : dist A rat_realFieldType)           
   : Prop :=
-  pmf d = finfun (fun a => Q_to_rat (fun_of_cdist Aeq c a)).
+  pmf d = finfun (fun a => Q_to_rat (fun_of_t Aeq c a)).
 
 Section sampling.
   Variable T : Type. (* randomness oracle state *)
@@ -161,7 +314,7 @@ Section sampling.
 
   Definition sample
              (A : Type) (a0 : A)
-             (c : cdist A)
+             (c : t A)
              (t : T)
     : (A*T) :=
     let sum :=
@@ -177,7 +330,7 @@ Section sampling.
            (A : Type) (a0 : A)           
            (acc : M.t A * T)
            (n : nat)
-           (p : nat -> cdist A)
+           (p : nat -> t A)
     : (M.t A * T) :=
     match n with
     | O => acc
@@ -189,7 +342,7 @@ Section sampling.
   Definition prod_sample
              (num_players : nat)
              (A : Type) (a0 : A)
-             (p : nat -> cdist A)
+             (p : nat -> t A)
              (t : T)
     : (M.t A * T) :=
     prod_sample_aux a0 (M.empty _, t) num_players p.
@@ -220,17 +373,17 @@ Extract Constant rand =>
   Printf.eprintf ""Generated random r = %d"" d; prerr_newline ();
   Pair (q, ())".
 
-Definition rsample A (a0 : A) (c : cdist A) : A :=
+Definition rsample A (a0 : A) (c : t A) : A :=
   fst (sample rand a0 c init_rand_state).
 
-Definition rprod_sample A (a0 : A) (num_players : nat) (p : nat -> cdist A) : M.t A :=
+Definition rprod_sample A (a0 : A) (num_players : nat) (p : nat -> t A) : M.t A :=
   fst (prod_sample rand num_players a0 p init_rand_state).
 
 Section rsample_cost.
   Context {A : Type} (a0 : A) {num_players : nat}.
   Context `{CCostInstance : CCostClass num_players A}.  
 
-  Definition rsample_ccost (i : N.t) (a : A) (p : nat -> cdist A) : D :=
+  Definition rsample_ccost (i : N.t) (a : A) (p : nat -> t A) : D :=
     let m := rprod_sample a0 num_players p in
     ccost i (M.add i a m).
 End rsample_cost.
@@ -241,7 +394,7 @@ Section expected_rsample_cost.
   Context (a0 : A) {num_players : nat}.
   Context `{CGameInstance : cgame num_players A}.    
 
-  Variable (p : nat -> cdist A).
+  Variable (p : nat -> t A).
   Variable (f : {ffun 'I_num_players -> dist A rat_realFieldType}).
   Hypothesis dists_match : forall i : 'I_num_players, dist_cdist_match Aeq (p i) (f i).
   
