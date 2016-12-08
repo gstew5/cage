@@ -509,7 +509,7 @@ Definition Zsize (z : Z) : positive :=
   end.
 
 Definition Plub_aux (x : Z) (y : positive) : positive :=
-  Zsize x - Pos.size y.
+  Zsize x - y.
 
 Definition Dlub (max : D) : D :=
   match max with
@@ -735,23 +735,7 @@ Proof.
     apply H; auto. }
   intros _; apply Pos.le_1_l.
 Qed.
-
-Lemma Psize_minus p y :
-  (Pos.size p <= y + (Pos.size p - Pos.size y))%positive.
-Proof.
-  generalize (Pos.size p) as x; intro.
-  apply Pos.le_trans with (m := (Pos.div2 (2^(Pos.size y)) + (x - Pos.size y))%positive).
-  { apply Psize_minus_aux. }
-  apply Pos.add_le_mono_r; apply Psize_exp_div.
-Qed.
   
-Lemma Zsize_minus x y : 
-  (Zsize x <= y + (Zsize x - Pos.size y))%positive.
-Proof.
-  destruct x; simpl; try solve[apply Psize_minus; auto].
-  apply Pos.le_1_l.
-Qed.  
-
 Local Open Scope D_scope.
 
 Lemma Dlub_mult_le1 d : d * Dlub d <= 1.
@@ -766,9 +750,18 @@ Proof.
   { apply Zpow_pos_size_le. }
   eapply Zle_trans; [apply H|].
   rewrite <-!two_power_pos_correct.
-  assert (H2: (Zsize x <= y + (Zsize x - Pos.size y))%positive).
-  { apply Zsize_minus. }
-  apply two_power_pos_le; auto.
+  apply two_power_pos_le.
+  rewrite Pos2Nat.inj_le; generalize (Zsize x) as z; intro.
+  clear H.
+  rewrite Pos2Nat.inj_add.
+  destruct (Pos.ltb_spec y z) as [H|H].
+  { rewrite Pos2Nat.inj_sub; auto.
+    omega. }
+  assert ((z - y = 1)%positive) as ->.
+  { apply Pos.sub_le; auto. }
+  revert H; rewrite Pos2Nat.inj_le.
+  rewrite Pos2Nat.inj_1.
+  omega.
 Qed.
 
 Lemma Dlub_nonneg (d : D) :
