@@ -37,16 +37,16 @@ pkill -f ./server.native
 # Calculate and record regret to $OUTFILE.
 # Run ./calcregret.py once per round, specialized in each
 # round to the last client (j=$CLIENTS).
-if [ -e $OUTFILE ]; then
-    rm $OUTFILE
-fi
+# if [ -e $OUTFILE ]; then
+#     rm $OUTFILE
+# fi
 
-for i in $(seq 1 $ROUNDS); do
-    ./calcregret.py "clientout$i$CLIENTS.txt" $OUTFILE $EPSILON
-done
+# for i in $(seq 1 $ROUNDS); do
+#     ./calcregret.py "clientout$i$CLIENTS.txt" $OUTFILE $EPSILON
+# done
 
-# plot regret
-./plotregret.py $OUTFILE
+# # plot regret
+# ./plotregret.py $OUTFILE
 
 
 

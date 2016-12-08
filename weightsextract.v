@@ -100,26 +100,13 @@ Definition zero : Q := 0.
 Definition one : Q := 1.
 Definition two : Q := Qmake 2 1.
 
-(** * Networking and Random-Number Generation *)
-Fixpoint sample_aux
-         (A : Type) (a0 : A)
-         (acc r : D) (l : list (A*D)) : A :=
-  match l with
-  | nil => a0 (*should never occur*)
-  | (a, w) :: l' =>
-    if Dle_bool acc r && Dle_bool r (Dadd acc w) then
-      eprint_string "Chose action " a
-    else sample_aux a0 (Dadd acc w) r l'
-  end.
-
 (* Client oracle *)
 Class ClientOracle T oracle_chanty :=
   mkOracle { oracle_bogus_chan : oracle_chanty
-           ; oracle_rand : T -> (D*T)
            ; oracle_recv : forall A : Type,
                T -> oracle_chanty -> (list (A*D) * T)
            ; oracle_send : forall A : Type,
-               T -> A -> (oracle_chanty * T)
+               T -> list (A*D) -> (oracle_chanty * T)
            ; oracle_recv_ok : forall A (a : A) st ch,
                exists d,
                  [/\ In (a,d) (oracle_recv _ st ch).1
@@ -146,41 +133,18 @@ Module MWU (A : MyOrderedType).
     Record cstate : Type :=
       mkCState
         { SCosts : M.t D (* the current cost vector *)
-          ; SPrevCosts : list (M.t D)
-          ; SWeights : M.t D
-          ; SEpsilon : D (* epsilon -- a parameter *)
-          (* the history of the generated distributions over actions *)                     
-          ; SOutputs : list (A.t -> Q)
-          ; SChan : oracle_chanty
-          ; SOracleSt : T }.
-
-    Definition sample (A : Type) (a0 : A)
-               (to_string : A -> string)
-               (l : list (A*D))
-               (oracle_st : T)
-      : A :=
-      let sum :=
-          List.fold_left
-            (fun acc1 (x:(A*D)) => let (a,q) := x in Dadd acc1 q)
-            l (Dmake 0 1)
-      in
-      let (r, _) := oracle_rand oracle_st in
-      let r' := Dmult r sum in
-      let l':= print_Qvector
-                 to_string
-                 (map (fun p =>
-                         let '(a, w) := p in
-                         (a, Qred (Qdiv (D_to_Q w) (D_to_Q sum))))
-                      l) l in
-      sample_aux a0 D0 r' l'.
+        ; SPrevCosts : list (M.t D)
+        ; SWeights : M.t D
+        ; SEpsilon : D (* epsilon -- a parameter *)
+        (* the history of the generated distributions over actions *)                     
+        ; SOutputs : list (A.t -> Q)
+        ; SChan : oracle_chanty
+        ; SOracleSt : T }.
 
     (** Draw from a distribution, communicating the resulting action 
       to the network. *)
     Definition mwu_send (m : M.t D) (oracle_st : T) : (oracle_chanty * T) :=
-      let a := sample A.t0 to_string (M.elements m) oracle_st in
-      let a' := eprint_showable a a in
-      let a'' := eprint_newline a' in
-      oracle_send oracle_st a''.
+      oracle_send oracle_st (M.elements m).
 
     (* Receive a cost vector (a map) from the network. *)
     Definition mwu_recv : oracle_chanty -> T -> (M.t D * T) :=
@@ -325,7 +289,6 @@ Module MWU (A : MyOrderedType).
     (* Context `{Enumerable A.t}. *)
     Definition mwu (eps : D) (nx : N.t) : option cstate :=
       interp (mult_weights A.t nx) (init_cstate eps).
-
   End mwu.
 End MWU.
   
@@ -457,7 +420,7 @@ Module MWUProof (T : OrderedFinType).
         pmf d = finfun (fun a => Q_to_rat (f a)) ->
         match_distrs l l' ->
         match_distrs [:: d & l] [:: f & l'].
-
+  
   (** The high-level oracle *)
   Context oracle_T  `{oracle: weightslang.ClientOracle t oracle_T oracle_chanty}.
   Notation "'state' t" := (@state t oracle_T oracle_chanty) (at level 50).
@@ -489,6 +452,7 @@ Module MWUProof (T : OrderedFinType).
           , match_oracle_states t' ct'
           & ch=ch' ]                                
     }.
+
   Context (Hmatch_ora : match_oracles).
   
   Inductive match_states : state t -> cstate -> Prop :=
@@ -1441,33 +1405,13 @@ Extract Constant ax_st_ty => "unit".
 Axiom empty_ax_st : ax_st_ty.
 Extract Constant empty_ax_st => "()".
 
-Axiom rand : ax_st_ty -> (D*ax_st_ty). (*in range [0,1]*)
-Extract Constant rand =>
- "fun _ -> 
-  let rec z_of_ocamlint i =
-    let zzero = Z0 in
-    let zone = Zpos XH in
-    let ztwo = Zpos (XO XH) in
-    if i = 0 then zzero
-    else if i mod 2 = 0 then Z.mul ztwo (z_of_ocamlint (i/2))
-    else Z.add (Z.mul ztwo (z_of_ocamlint (i/2))) zone
-  in  
-  let _ = Random.self_init () in
-  let d = Random.int 256 in
-  let zn = z_of_ocamlint d in 
-  let peight = XO (XO (XO XH)) in
-  let q = { num = zn; den = peight } 
-  in
-  Printf.eprintf ""Generated random r = %d"" d; prerr_newline ();
-  Pair (q, ())".
-
 (** A channel *)
 Axiom ax_chan : Type.
 Extract Constant ax_chan => "Unix.file_descr".
 Axiom ax_bogus_chan : ax_chan.
 Extract Constant ax_bogus_chan => "Unix.stderr".
 
-Axiom send : forall A : Type, ax_st_ty -> A -> (ax_chan * ax_st_ty).
+Axiom send : forall A : Type, ax_st_ty -> list (A*D) -> (ax_chan * ax_st_ty).
 Extract Constant send =>
 (* Create socket, connect to server, send action, return socket. *)
 (* Need to know IP address of the server, but it's also possible to do
@@ -1503,7 +1447,7 @@ Axiom recv_nodup :
   forall (A : Type) st ch, NoDupA (fun p q => p.1 = q.1) (recv A st ch).1.
 
 Instance client_ax_oracle : ClientOracle ax_st_ty ax_chan :=
-  mkOracle ax_bogus_chan rand send recv_ok recv_nodup.
+  mkOracle ax_bogus_chan send recv_ok recv_nodup.
 
 (** Test extraction: *)
 

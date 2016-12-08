@@ -8,7 +8,7 @@ Require Import QArith String Ascii.
 Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
-Require Import strings compile orderedtypes dyadic numerics.
+Require Import strings compile orderedtypes dyadic numerics cdist.
 
 Module Type ServerConfig.
   Parameter num_players : nat.
@@ -18,11 +18,11 @@ End ServerConfig.
 Class ServerOracle T oracle_chanty :=
   mkOracle { oracle_init : nat -> (oracle_chanty * T)
            ; oracle_recv : forall A : Type,
-               T -> oracle_chanty -> (A * oracle_chanty * T)
+               T -> oracle_chanty -> (list (A*D) * oracle_chanty * T)
            ; oracle_send : forall A : Type,
                T -> option oracle_chanty ->
                nat (*player index*) ->
-               list (A * D) -> T
+               list (A*D) -> T
            }.
 
 Module Server (C : ServerConfig) (A : MyOrderedType).  
@@ -33,7 +33,7 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
   Context T `{oracle : ServerOracle T}.
 
   Record state : Type :=
-    mkState { actions_received : M.t A.t
+    mkState { actions_received : M.t (list (A.t*D))
             ; listen_channel : oracle_chanty
             ; service_channels : list oracle_chanty
             ; oracle_st : T
@@ -43,28 +43,26 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
 
   Definition init_state : state :=
     let (ch, st) := init_chan C.num_players in
-    mkState (M.empty A.t)
+    mkState (M.empty _)
             ch
             nil
             st.
 
+  Definition fun_of_map
+             (m : M.t (list (A.t*D)))
+             (player : nat)
+    : cdist A.t :=
+    mkCDist
+      (match M.find (N.of_nat player) m with
+       | None => nil
+       | Some l => l
+       end).
+  
   Definition cost_vector (s : state) (player : N) : list (A.t * D) :=
     List.fold_left
-      (fun l a => (a, ccost player (M.add player a (actions_received s))) :: l)
+      (fun l a => (a, rsample_ccost A.t0 player a (fun_of_map (actions_received s))) :: l)
       (enumerate A.t)
       nil.
-
-  Fixpoint compute_social_cost (s : state) (player : nat) : D :=
-  match player with
-  | O => ccost (N.of_nat player) (actions_received s)
-  | S n' => ccost (N.of_nat player) (actions_received s) +
-           compute_social_cost s n'
-  end.
-
-  Definition print_social_cost (s : state) : state :=
-    let s' := eprint_string "Social cost: " s in
-    let s'' := eprint_Q (D_to_Q (compute_social_cost s (C.num_players))) s' in
-    eprint_newline s''.
 
   Fixpoint send (s : state) (player : nat) : state :=
     match player with
@@ -78,25 +76,17 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
                        st')
               player'
     end.
-  
+
   Fixpoint round (s : state) (player : nat) : state :=
     match player with
-    | O =>
-      (* let st' := mkState (actions_received s) *)
-      (*                    (listen_channel s) *)
-      (*                    (service_channels s) *)
-      (*                    (oracle_st s) in *)
-      let st' := print_social_cost s in
-      send st' C.num_players (*reset cur_player=num_players*)
+    | O => send s C.num_players (*reset cur_player=num_players*)
     | S player' =>
       let '(a, c, st') := oracle_recv _ (oracle_st s) (listen_channel s) in
-      let s' := eprint_showable a s in
-      let s'':= eprint_newline s' in
       round
         (mkState
-           (M.add (N.of_nat player') a (actions_received s''))
-           (listen_channel s'')
-           (service_channels s'' ++ c::nil)
+           (M.add (N.of_nat player') a (actions_received s))
+           (listen_channel s)
+           (service_channels s ++ c::nil)
            st')
         player'
     end.
@@ -109,9 +99,7 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
       rounds s' r'
     end.
   
-  Definition server (s : state) : state :=
-    let s1 := eprint_newline (eprint_nat C.num_players s) in
-    rounds s1 C.num_rounds.
+  Definition server (s : state) : state := rounds s C.num_rounds.
   End server.
 End Server.
 
@@ -144,7 +132,7 @@ Extract Constant server_init =>
    Pair (sd, ())".
 
 (* Blocking server receive *)
-Axiom server_recv : forall A : Type, result -> chan -> (A * chan * result).
+Axiom server_recv : forall A : Type, result -> chan -> (list (A*D) * chan * result).
 Extract Constant server_recv =>
 "fun _ sd ->
    let _ = Printf.eprintf ""Waiting...""; prerr_newline () in
@@ -156,7 +144,7 @@ Extract Constant server_recv =>
 
 (* Server send *)
 Axiom server_send :
-  forall A : Type, result -> option chan -> nat (*player index*) -> list (A * D) -> result.
+  forall A : Type, result -> option chan -> nat (*player index*) -> list (A*D) -> result.
 Extract Constant server_send =>
 (* Here it is taking service_socket as an argument which is assumed to *)
 (*    be the socket created in recv that corresponds to player i *)

@@ -101,6 +101,7 @@ VFILES:=axioms.v\
   ccombinators.v\
   compile.v\
   dist.v\
+  cdist.v\
   dynamics.v\
   extrema.v\
   games.v\
