@@ -14,10 +14,117 @@ From mathcomp Require Import all_algebra.
 
 Require Import strings compile orderedtypes dyadic numerics dist games.
 
+Definition upd {A : finType} {T : Type}
+           (a : A) (t : T) (s : {ffun A -> T}) :=
+  finfun (fun b => if a==b then t else s b).
+
+(** Unnormalized functional weight distributions efficiently supporting: 
+    - sampling 
+    - weight update *)
+
+Record array_map (A : Type) : Type :=
+  mkWeightMap {
+      wsize : N.t;
+      wmap :> M.t A;
+            (* [wmap]: a map from positive indices in range 
+                       [0, wsize) to values [a] *)
+    }.
+
+Section array_map_functions.
+  Variable A : Type.
+
+  Definition array_map_ok
+             (w : array_map A)
+             (f : {ffun 'I_(N.to_nat (wsize w)) -> A}) :=
+    forall (i : N.t) (pf : (N.to_nat i < N.to_nat (wsize w))%nat),
+      M.find i (wmap w) = Some (f (Ordinal pf)).
+  
+  Definition am_lookup
+             (i : N.t)
+             (w : array_map A)
+    : option A := M.find i (wmap w).
+
+  Lemma am_lookup_ok i w f 
+    (pf : (N.to_nat i < N.to_nat (wsize w))%nat) :  
+    @array_map_ok w f ->
+    am_lookup i w = Some (f (Ordinal pf)).
+  Proof.
+    unfold array_map_ok, am_lookup. 
+    intros H; apply (H i pf).
+  Qed.                                     
+  
+  Definition am_swap
+             (i j : N.t)
+             (w : array_map A)
+    : option (array_map A) :=
+    match am_lookup i w, am_lookup j w with
+    | None, _ => None
+    | _, None => None
+    | Some a, Some a' => 
+      Some
+        (mkWeightMap
+           (wsize w)
+           (M.add i a' (M.add j a (wmap w))))
+    end.
+
+  (*Lemma am_swap_ok i j w w' f
+        (pfi : (N.to_nat i < N.to_nat (wsize w))%nat)
+        (pfj : (N.to_nat j < N.to_nat (wsize w))%nat) :
+    let i0 := Ordinal pfi in
+    let j0 := Ordinal pfj in 
+    am_swap i j w = Some w' ->     
+    @array_map_ok w f ->
+    @array_map_ok w' (upd i0 (f j0) (upd j0 (f i0) f)).*)
+
+  Definition am_remove
+             (i : N.t)
+             (w : array_map A)
+    : option (array_map A) :=
+    let j := N.pred (wsize w) in
+    match am_swap i j w with
+    | None => None
+    | Some w' =>
+      Some
+        (mkWeightMap
+           (N.pred (wsize w'))
+           (M.remove j (wmap w')))
+    end.
+
+  (** Add a fresh weight pair (a,d) to w. *)
+  Definition am_add
+             (a : A)
+             (w : array_map A)
+    : array_map A :=
+    mkWeightMap
+      (N.succ (wsize w))
+      (M.add (wsize w) a (wmap w)).
+End array_map_functions.
+
 Record cdist (A : Type) : Type :=
   mkCDist {
-      cpmf :> list (A*D)
+      cmax_weight : D;
+      cpmf :> array_map (array_map A)
+           (* [cpmf]: a map from 
+                - LEVEL 1: weight level i = [2^i, 2^{i+1})
+                - LEVEL 2: weight array containing weights (a,d)
+                           in the range of weight level i *)
     }.
+
+Section cdist_functions.
+  Variable A : Type.
+
+  Definition level_of (d : D) :=
+    match d with
+    | Dmake x y => Plub_aux x y
+    end.
+
+  Compute level_of (Dmake 345 27).
+  Compute Zsize 345.
+  Compute Pos.size 3.
+  
+  Definition add_weight
+  
+  
 
 Definition fun_of_cdist
            (A : Type)
@@ -127,10 +234,6 @@ Section rsample_cost.
     let m := rprod_sample a0 num_players p in
     ccost i (M.add i a m).
 End rsample_cost.
-
-Definition upd {A : finType} {T : Type}
-           (a : A) (t : T) (s : {ffun A -> T}) :=
-  finfun (fun b => if a==b then t else s b).
 
 Section expected_rsample_cost.
   Context {A : finType} {Aeq : A -> A -> bool}.
