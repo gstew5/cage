@@ -18,6 +18,33 @@ Definition upd {A : finType} {T : Type}
            (a : A) (t : T) (s : {ffun A -> T}) :=
   finfun (fun b => if a==b then t else s b).
 
+Module Index.
+Section index.
+  Variable n : N.t.
+  Variable n_gt0 : (0 < N.to_nat n)%N.  
+  
+  Record t : Type :=
+    mk { val : N.t;
+         pf : (N.to_nat val < N.to_nat n)%N }.
+
+  Program Definition pred (i : t) : t :=
+    @mk (N.pred (val i)) _.
+  Next Obligation.
+    move: (pf i); rewrite N2Nat.inj_pred.
+    move: (N.to_nat (val i)) => n0 => H.
+    apply/leP; apply: le_lt_trans; first by apply/leP; apply: leq_pred.
+    by apply/leP.
+  Qed.
+
+  Program Definition max : t := @mk (N.pred n) _.
+  Next Obligation.
+    rewrite N2Nat.inj_pred; apply/ltP.
+    move: (ltP n_gt0) => H.
+    omega.
+  Qed.
+End index.
+End Index.
+
 (** Unnormalized functional weight distributions efficiently supporting: 
     - sampling 
     - weight update *)
@@ -26,107 +53,164 @@ Module AM.
 Record t (A : Type) : Type :=
   mk {
       size : N.t;
+      
       map :> M.t A;
             (* [wmap]: a map from positive indices in range 
                        [0, wsize) to values [a] *)
+      pf :
+        forall i : N.t,
+          (N.to_nat i < N.to_nat size)%nat ->
+          exists a, M.find i map = Some a
     }.
+
+Fixpoint Nlength (A : Type) (l : list A) : N.t :=
+  match l with
+  | nil => 0
+  | _ :: l' => N.succ (Nlength l')
+  end.
 
 Section functions.
   Variable A : Type.
-  
-  Definition ok
-             (w : t A)
-             (f : {ffun 'I_(N.to_nat (size w)) -> A}) :=
-    forall (i : N.t) (pf : (N.to_nat i < N.to_nat (size w))%nat),
-      M.find i (map w) = Some (f (Ordinal pf)).
-  
-  Definition empty : t A := mk 0 (M.empty _).
-             
-  Definition lookup
-             (i : N.t)
-             (w : t A)
-    : option A := M.find i (map w).
+  Variable w : t A.
 
-  Lemma lookup_ok i w f 
-    (pf : (N.to_nat i < N.to_nat (size w))%nat) :  
-    @ok w f ->
-    lookup i w = Some (f (Ordinal pf)).
-  Proof.
-    unfold ok, lookup. 
-    intros H; apply (H i pf).
-  Qed.                                     
+  Definition index : Type := Index.t (size w).
+  Definition index_key : index -> M.key := @Index.val (size w).
+  Definition index_nat : index -> nat := @Index.val (size w).  
 
-  Definition update
-             (i : N.t)
+  Definition ordinal_of_index (i : index) : 'I_(N.to_nat (size w)) :=
+    Ordinal (Index.pf i).
+  
+  Coercion index_key : index >-> M.key.
+  
+  Program Definition lookup (i : index) : A := 
+    match M.find i (map w) with
+    | None => _
+    | Some a => a
+    end.
+  Next Obligation.
+    move: (Index.pf i) => H.
+    move: (pf H) => H2.
+    elimtype False.
+    by case: H2 => x H3; rewrite H3 in Heq_anonymous.
+  Qed.
+
+  Program Definition update
+             (i : index)
              (a': A)
              (w : t A)
     : t A :=
-    mk
+    @mk
+      _ 
       (size w)
-      (M.add i a' (map w)).
+      (M.add i a' (map w))
+      _.
+  Next Obligation.
+    case (N.eqb_spec (index_key i) i0).
+    { move => H2; subst i0; exists a'.
+      rewrite MProps.F.add_eq_o => //. }
+    move => Hneq; rewrite MProps.F.add_neq_o => //.
+    by apply pf.
+  Qed.      
   
-  Definition swap
-             (i j : N.t)
-             (w : t A)
-    : option (t A) :=
-    match lookup i w, lookup j w with
-    | None, _ => None
-    | _, None => None
-    | Some a, Some a' => 
-      Some
-        (mk
-           (size w)
-           (M.add i a' (M.add j a (map w))))
+  Program Definition swap (i j : index) : t A :=
+    let a := lookup i in
+    let b := lookup j in 
+    @mk
+      _
+      (size w)
+      (M.add i b (M.add j a (map w)))
+      _.
+  Next Obligation.  
+    case: (N.eqb_spec (index_key i) i0).
+    { move => H2; subst i0; exists (lookup j).
+      rewrite MProps.F.add_eq_o => //. }
+    move => H2.
+    case: (N.eqb_spec (index_key j) i0).
+    { move => H3; subst i0; exists (lookup i).
+      rewrite MProps.F.add_neq_o => //.
+      rewrite MProps.F.add_eq_o => //. }
+    move => H3.
+    rewrite MProps.F.add_neq_o => //.
+    rewrite MProps.F.add_neq_o => //.
+    by apply pf.
+  Qed.      
+
+  Definition split_aux (f : M.key -> A -> bool) : ((N.t*M.t A) * (N.t*M.t A)) :=
+    M.fold 
+      (fun i a (p : (N.t*M.t A) * (N.t*M.t A)) =>
+         match p with
+         | ((x,trues), (y,falses)) => 
+           (if f i a then
+              ((N.succ x, M.add i a trues), (y, falses))
+            else
+              ((x, trues), (N.succ y, M.add i a falses)))
+         end)
+      (map w)
+      ((N0, M.empty _), (N0, M.empty _)).
+
+  Program Definition split (f : M.key -> A -> bool) : (t A * t A) :=
+    match split_aux f with
+      | ((x,trues), (y,falses)) => 
+        (@mk _ x trues _, @mk _ y falses _)
     end.
+  Next Obligation.
+  Admitted. (*TODO*)
+  Next Obligation.
+  Admitted. (*TODO*)    
 
-  (*Lemma swap_ok i j w w' f
-        (pfi : (N.to_nat i < N.to_nat (size w))%nat)
-        (pfj : (N.to_nat j < N.to_nat (size w))%nat) :
-    let i0 := Ordinal pfi in
-    let j0 := Ordinal pfj in 
-    swap i j w = Some w' ->     
-    @ok w f ->
-    @ok w' (upd i0 (f j0) (upd j0 (f i0) f)).*)
-
-  Definition remove
-             (i : N.t)
-             (w : t A)
-    : option (t A) :=
-    let j := N.pred (size w) in
-    match swap i j w with
-    | None => None
-    | Some w' =>
-      Some
-        (mk
-           (N.pred (size w'))
-           (M.remove j (map w')))
-    end.
-
-  (** PRECONDITION: a not in w *)
-  Definition add
-             (a : A)
-             (w : t A)
-    : t A :=
-    mk
-      (N.succ (size w))
-      (M.add (size w) a (map w)).
-
-  Definition fmap
+  Program Definition fmap
              (B : Type)
              (f : A -> B)
-             (w : t A)
     : t B :=
-    mk
+    @mk
+      _
       (size w)
-      (M.map f (map w)).
+      (M.map f (map w))
+      _.
+  Next Obligation.
+    rewrite MFacts.map_o.
+    case: (pf H) => x ->; exists (f x) => //.
+  Qed.                                 
 
   Definition fold
              (B : Type)
              (f : N.t -> A -> B -> B)
-             (w : t A)
              (acc : B)
     : B := M.fold f (map w) acc.
 End functions.
+
+Section functions2.
+  Variable A : Type.
+  
+  Program Definition init (a : A) : t A :=
+    @mk _ 1 (M.add N0 a (M.empty _)) _.
+  Next Obligation.
+    exists a.
+    rewrite Pos2Nat.inj_1 in H.
+    have H2: i = N0.
+    { case: i H => //.
+      move => p; rewrite positive_N_nat => H.
+      have H2: Pos.to_nat p = 0%nat.
+      { move: H; move: (Pos.to_nat p) => n.
+        elim: n => //. }
+      apply: N2Nat.inj.
+      rewrite positive_N_nat H2 //. }
+    rewrite {}H2 MProps.F.add_eq_o //.
+  Qed.    
+
+  Fixpoint map_from_list (i : M.key) (acc : M.t A) (l : list A) : M.t A :=
+    match l with
+    | nil => acc
+    | a :: l' => map_from_list (N.succ i) (M.add i a acc) l'
+    end.
+  
+  Program Definition from_list (l : list A) : t A :=
+    @mk _ (Nlength l) (map_from_list N0 (M.empty _) l) _.
+  Next Obligation.
+  Admitted. (*TODO*)
+
+  Definition empty : t A := from_list nil.
+End functions2.
 End AM.
 
 Module DIST.
