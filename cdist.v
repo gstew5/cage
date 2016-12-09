@@ -56,7 +56,7 @@ Record t (A : Type) : Type :=
       
       map :> M.t A;
             (* [wmap]: a map from positive indices in range 
-                       [0, wsize) to values [a] *)
+                       [0, size) to values [a] *)
       pf :
         forall i : N.t,
           (N.to_nat i < N.to_nat size)%nat ->
@@ -93,11 +93,10 @@ Section functions.
     elimtype False.
     by case: H2 => x H3; rewrite H3 in Heq_anonymous.
   Qed.
-
+  
   Program Definition update
-             (i : index)
-             (a': A)
-             (w : t A)
+          (i : index)
+          (a': A)
     : t A :=
     @mk
       _ 
@@ -111,6 +110,47 @@ Section functions.
     move => Hneq; rewrite MProps.F.add_neq_o => //.
     by apply pf.
   Qed.      
+
+  Program Definition bump (n : N.t) : Index.t (N.succ n) :=
+    @Index.mk _ n _.
+  Next Obligation.
+    rewrite N2Nat.inj_succ; apply/ltP; omega.
+  Qed.    
+  
+  (* Append [a] at the end of array map [w]. *)
+  Program Definition add (a : A) : t A :=
+    @mk
+      A
+      (N.succ (size w))
+      (M.add (Index.val (bump (size w))) a (map w))
+      _.
+  Next Obligation.
+    case: (N.eqb_spec (size w) i).
+    { move => H2; subst i.
+      exists a; rewrite MProps.F.add_eq_o //. }
+    move => H2; rewrite MProps.F.add_neq_o => //.
+    apply pf.
+    have H3: N.to_nat (size w) <> N.to_nat i.
+    { by rewrite N2Nat.inj_iff. }
+    rewrite N2Nat.inj_succ in H.
+    move: H H3; move: (N.to_nat (size w)) => x; move: (N.to_nat i) => y.
+    move/ltP => H H3; apply/ltP; omega.
+  Qed.    
+
+  (** Add [a] at level [i], regardless whether [i] is already 
+      present in the array map. If [i >= size], then this operation 
+      may require the addition of a new array cell at index [size]. *)
+
+  Program Definition update_add (i : N.t) (a : A) : t A :=
+    (match N.ltb i (size w) as o return _ = o -> _ with
+     | true => fun pf => update (@Index.mk _ i _) a
+     | false => fun _ => add a
+     end) erefl.
+  Next Obligation.
+    move: pf0; rewrite N.ltb_lt => H.
+    apply/ltP; rewrite /N.lt N2Nat.inj_compare in H.
+    by rewrite nat_compare_lt.
+  Qed.
   
   Program Definition swap (i j : index) : t A :=
     let a := lookup i in
@@ -148,35 +188,63 @@ Section functions.
       (map w)
       ((N0, M.empty _), (N0, M.empty _)).
 
+  Lemma split_aux_true x trues y falses f (i : N.t) : 
+    (x, trues, (y, falses)) = split_aux f -> 
+    (N.to_nat i < N.to_nat x)%N -> 
+    exists a : A, M.find (elt:=A) i trues = Some a.
+  Proof.
+    rewrite /split_aux.
+    set (P := fun (w : t A) w' =>
+                forall x trues (y : N.t) (falses : M.t A), 
+                (x, trues, (y, falses)) = w' ->
+                (N.to_nat i < N.to_nat x)%N ->
+                exists a : A, M.find (elt:=A) i trues = Some a).
+    set (g := fun _ _ _ => _).
+    revert x trues y falses.
+    change (P w (M.fold g w ((N0, M.empty _), (N0, M.empty _)))).
+    apply MProps.fold_rec.
+    { move => m H; rewrite /P; inversion 1; subst => H2.
+      admit. (*by H2*) }
+    move => k e a m' m'' H H2 H3; rewrite /P => H4 x trues y falses H5 H6.
+    admit.
+  Admitted. (*TODO*)
+
   Program Definition split (f : M.key -> A -> bool) : (t A * t A) :=
     match split_aux f with
       | ((x,trues), (y,falses)) => 
         (@mk _ x trues _, @mk _ y falses _)
     end.
-  Next Obligation.
-  Admitted. (*TODO*)
+  Next Obligation. eapply split_aux_true; eauto. Qed.
   Next Obligation.
   Admitted. (*TODO*)    
 
-  Program Definition fmap
+  Program Definition fmapi
              (B : Type)
-             (f : A -> B)
+             (f : M.key -> A -> B)
+             (f_pf : forall (x y : M.key) (e : A), N.eq x y -> f x e = f y e)             
     : t B :=
     @mk
       _
       (size w)
-      (M.map f (map w))
+      (M.mapi f (map w))
       _.
   Next Obligation.
-    rewrite MFacts.map_o.
-    case: (pf H) => x ->; exists (f x) => //.
+    rewrite MFacts.mapi_o => //.
+    case: (pf H) => x ->; exists (f i x) => //.
   Qed.                                 
 
+  Program Definition fmap
+             (B : Type)
+             (f : A -> B)
+    : t B := @fmapi _ (fun (_ : M.key) (a : A) => f a) _.
+  
   Definition fold
              (B : Type)
              (f : N.t -> A -> B -> B)
              (acc : B)
     : B := M.fold f (map w) acc.
+
+  Definition to_list : list (M.key * A) := M.elements (map w).
 End functions.
 
 Section functions2.
@@ -203,7 +271,7 @@ Section functions2.
     | nil => acc
     | a :: l' => map_from_list (N.succ i) (M.add i a acc) l'
     end.
-  
+
   Program Definition from_list (l : list A) : t A :=
     @mk _ (Nlength l) (map_from_list N0 (M.empty _) l) _.
   Next Obligation.
@@ -216,152 +284,93 @@ End AM.
 Module DIST.
 Record t (A : Type) : Type :=
   mk {
-      cpmf :> AM.t (AM.t (A*D))
+      cpmf :> M.t (D * AM.t (A*D));
            (* [cpmf]: a map from 
                 - LEVEL 1: weight level i = [2^i, 2^{i+1})
                 - LEVEL 2: weight array containing weights (a,d)
-                           in the range of weight level i *)
+                           in the range of weight level i, along 
+                           with the total probability mass for that level *)
     }.
 
 Section functions.
   Variable A : Type.
-
-  Definition empty : t A := mk (AM.empty _).
+  
+  Definition empty : t A := mk (M.empty _).
+  
+  (** We assume all weights are between 0 and 1. *)
   
   Definition level_of (d : D) : N.t :=
     match d with
-    | Dmake x y => N.pred (Npos (Plub_aux x y))
+    | Dmake (Zpos x) y => N.sub (N.pos y) (N.log2 (N.pos x))
+    | Dmake 0 _ => 0
+    | Dmake (Zneg _) _ => 0
     end.
 
-  (** PRECONDITION: a not in w[level_of(a)] *)
-  Definition add_weight
-             (a : A)
-             (d : D)
-             (c : t A)
-    : option (t A) :=
-    let l := level_of d in 
-    let am :=
-        match AM.lookup l (cpmf c) with
-        | None => AM.empty _
-        | Some am0 => am0
-        end
-    in 
-    let am' := AM.add (a,d) am in
-    Some (mk (AM.update l am' (cpmf c))).
+  Compute level_of (Dmake 1 1). (*=1*)
+  Compute level_of (Dmake 1 2). (*=2*)  
+  (* level_of spec: forall d, 2^{-(level_of d)} <= d < 2^{-(level_of d) - 1}*)
 
-  (** Updates [w] according to [f], returning the new array map 
-      together with any pairs (a,d) that are now mis-leveled. *)
-  Definition update_level
-             (level : N.t)
-             (f : A -> D -> D)
-             (w : AM.t (A*D))
-    : (option (AM.t (A*D)) * list (N.t*A*D)) :=
-    let w' := AM.fmap (fun p : (A*D) => let (a,d) := p in (a, f a d)) w in
-    let must_removes := 
-        AM.fold
-          (fun i (p' : (A*D)) l0 =>
-             let (a,d') := p' in 
-             if N.eqb (level_of d') level then l0
-             else (i,a,d') :: l0)
-          w'
-          nil
-    in
-    ((*actually remove the "must_removes":*)
-      List.fold_left
-       (fun acc (p' : (N.t*A*D)) =>
-          match p' with
-          | (i, a, d') => 
-            match acc with
-            | None => None
-            | Some w0 => AM.remove i w0
-            end
-          end)
-       must_removes
-       (Some w'),
-     must_removes).
-
-  Fixpoint update_weights_aux
-           (num_levels : nat)
-           (f : A -> D -> D)
-           (acc : (option (AM.t (AM.t (A*D))) * list (N.t*A*D)))
-    : (option (AM.t (AM.t (A*D))) * list (N.t*A*D)) :=
-    match num_levels with
-    | O => acc
-    | S n' =>
-      let level := N.of_nat n' in
-      match acc with
-      | (None, l0) => (None, l0)
-      | (Some w, l0) => 
-        match AM.lookup level w with
-        | None => (None, l0)
-        | Some w2 =>       
-          match update_level level f w2 with
-          | (None, _) => (None, l0)
-          | (Some w3, removed) =>
-            update_weights_aux
-              n'
-              f
-              (Some (AM.update level w3 w), removed ++ l0)
-          end
+  Program Definition add_weight (a : A) (d : D) (w : t A) : t A :=
+    let (weight_tot, m) := 
+        match M.find (level_of d) w with
+        | None => (0%D, AM.empty _)
+        | Some m => m
         end
-      end
-    end.
-        
-  Fixpoint add_weights_aux
+    in mk (M.add (level_of d) (Dadd weight_tot d, AM.add m (a,d)) (cpmf w)).
+  
+  Fixpoint add_weights
              (l : list (A*D))
-             (acc : option (t A))
-    : option (t A) :=
+             (w : t A)
+    : t A :=
     match l with
-    | nil => acc
-    | (a,d) :: l' =>
-      match acc with
-      | None => None
-      | Some w => add_weights_aux l' (add_weight a d w)
-      end
+    | nil => w
+    | (a,d) :: l' => add_weights l' (add_weight a d w)
     end.
 
-  Definition add_weights
-             (l : list (A*D))
-             (c : t A)
-    : option (t A) :=
-    add_weights_aux l (Some c).
+  Definition sum_weights (m : AM.t (A*D)) : D :=
+    AM.fold m
+      (fun _ (p : (A*D)) acc => let (a,d') := p in Dadd acc d')
+      0%D.
+  
+  (** Updates [w] according to [f], returning the new array map 
+      together with any pairs (a,d) that are now mis-leveled (stored 
+      in the proj2 array map). *)
+  Definition update_level
+             (f : A -> D -> D)
+             (level : N.t)             
+             (m : (D * AM.t (A*D)))             
+    : ((D * AM.t (A*D)) * AM.t (A*D)) :=
+    (* w': the updated weights *)
+    let w' := AM.fmap (snd m) (fun p : (A*D) => let (a,d) := p in (a, f a d)) in
+    (* split the entries that are now mis-leveled *)
+    let g := fun i (p : (A*D)) => let (a,d') := p in N.eqb (level_of d') level in
+    let (stay, go) := AM.split w' g in
+    ((sum_weights stay, stay), go).
+
+  Lemma update_level_pf f (x y : M.key) w :
+    N.eq x y -> update_level f x w = update_level f y w.
+  Proof. by move => ->. Qed.
   
   Definition update_weights
              (f : A -> D -> D)
-             (c : t A)
-    : option (t A) :=
-    let num_levels := AM.size c in 
-    match update_weights_aux num_levels f (Some (cpmf c), nil) with
-    | (None, _) => None
-    | (Some w, removed) =>
-      let removed' :=
-          map (fun p => match p with (_,a,d) => (a,d) end)
-              removed
-      in
-      add_weights removed' (mk w)
-    end.
+             (w : M.t (D * AM.t (A*D)))
+    : t A :=
+    let w'':= M.mapi (update_level f) w in
+    let w' := M.map fst w'' in
+    let removed := M.fold (fun i p l0 => AM.to_list (snd p) ++ l0) w'' nil in
+    add_weights
+      (List.map snd removed) (mk w').
 End functions.
 End DIST.
 
-Definition d := AM.add 4 (AM.add 3 (AM.empty _)).
-Definition v1 := AM.lookup 0 d.
-Definition v2 := AM.lookup 1 d.
-Definition v3 := AM.lookup 2 d.
+Definition d := DIST.empty nat.
+Definition d1 := DIST.add_weight 1%nat (Dmake 3 1) d.
+Definition d2 := DIST.add_weight 5%nat (Dmake 2 23) d1.
 
-Recursive Extraction v1 v2 v3.
+Compute DIST.level_of (Dmake 3 1).
+Compute DIST.level_of (Dmake 2 23).
 
-Definition r1 := 
-  match DIST.add_weight 1 (Dmake 3 2) (DIST.empty _) with
-  | None => None
-  | Some c => DIST.update_weights (fun _ d => Dmake 24 1) c
-  end.
-
-Definition r2 := 
-  DIST.add_weights (((1, Dmake 3 2) :: (2, Dmake 24 1) :: nil))%nat (DIST.empty _).
-
-Recursive Extraction r1 r2.
-               
-(** FIXME: In r1 and r2, why is size 0? *)  
+Recursive Extraction d d1 d2.
 
 Definition fun_of_t
            (A : Type)
