@@ -51,12 +51,11 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
   Definition fun_of_map
              (m : M.t (list (A.t*D)))
              (player : nat)
-    : cdist A.t :=
-    mkCDist
-      (match M.find (N.of_nat player) m with
-       | None => nil
-       | Some l => l
-       end).
+    : DIST.t A.t :=
+      match M.find (N.of_nat player) m with
+       | None => DIST.empty _
+       | Some l => DIST.add_weights l (DIST.empty _)
+      end.
   
   Definition cost_vector (s : state) (player : N) : list (A.t * D) :=
     List.fold_left

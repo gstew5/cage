@@ -386,10 +386,10 @@ Section sampling.
   Variable T : Type. (* randomness oracle state *)
   Variable rand : T -> D*T.
   Variable rand_range : T -> N.t -> N.t*T. (* generate a random integer in range *)
-  Hypothesis rand_range_ok :
+  (*Hypothesis rand_range_ok :
     forall t n,
       let (n', t') := rand_range t n in 
-      (N.to_nat n' < N.to_nat n)%N.
+      (N.to_nat n' < N.to_nat n)%N.*)
   
   Fixpoint cdf_sample_aux
            (A : Type) (a0 : A)
@@ -475,7 +475,7 @@ Section sampling.
            (A : Type) (a0 : A)           
            (acc : M.t A * T)
            (n : nat)
-           (p : nat -> t A)
+           (p : nat -> DIST.t A)
     : (M.t A * T) :=
     match n with
     | O => acc
@@ -487,7 +487,7 @@ Section sampling.
   Definition prod_sample
              (num_players : nat)
              (A : Type) (a0 : A)
-             (p : nat -> t A)
+             (p : nat -> DIST.t A)
              (t : T)
     : (M.t A * T) :=
     prod_sample_aux a0 (M.empty _, t) num_players p.
@@ -515,20 +515,49 @@ Extract Constant rand =>
   let peight = XO (XO (XO XH)) in
   let q = { num = zn; den = peight } 
   in
-  Printf.eprintf ""Generated random r = %d"" d; prerr_newline ();
+  Printf.eprintf ""Generated random r = %d\n"" d; prerr_newline ();
   Pair (q, ())".
 
-Definition rsample A (a0 : A) (c : t A) : A :=
-  fst (sample rand a0 c init_rand_state).
+(** PRECONDITION: [rand_range t n]: n is Npos p for some p *)
+Axiom rand_range : rand_state -> N.t -> (N.t*rand_state). (*in range [0,size-1]*)
+Extract Constant rand_range => (*FIXME*)
+ "fun _ size -> 
+  let rec ocamlint_of_pos p =
+    (match p with 
+       | XH -> 1
+       | XO p' -> 2 * ocamlint_of_pos p'
+       | XI p' -> 2 * ocamlint_of_pos p' + 1)
+  in 
+  let rec n_of_ocamlint i =
+    let nzero = N0 in
+    let none = Npos XH in
+    let ntwo = Npos (XO XH) in
+    if i = 0 then N0
+    else if i mod 2 = 0 then N.mul ntwo (n_of_ocamlint (i/2))
+    else N.add (N.mul ntwo (n_of_ocamlint (i/2))) none
+  in
+  let ocamlint_of_n n = 
+    (match n with 
+       | N0 -> 0
+       | Npos p -> ocamlint_of_pos p)
+  in 
+  let _ = Random.self_init () in
+  let d = Random.int (ocamlint_of_n size) 
+  in
+  Printf.eprintf ""Generated random i = %d\n"" d; prerr_newline ();
+  Pair (n_of_ocamlint d, ())".
 
-Definition rprod_sample A (a0 : A) (num_players : nat) (p : nat -> t A) : M.t A :=
-  fst (prod_sample rand num_players a0 p init_rand_state).
+Definition rsample A (a0 : A) (c : DIST.t A) : A :=
+  fst (sample rand rand_range a0 c init_rand_state).
+
+Definition rprod_sample A (a0 : A) (num_players : nat) (p : nat -> DIST.t A) : M.t A :=
+  fst (prod_sample rand rand_range num_players a0 p init_rand_state).
 
 Section rsample_cost.
   Context {A : Type} (a0 : A) {num_players : nat}.
   Context `{CCostInstance : CCostClass num_players A}.  
 
-  Definition rsample_ccost (i : N.t) (a : A) (p : nat -> t A) : D :=
+  Definition rsample_ccost (i : N.t) (a : A) (p : nat -> DIST.t A) : D :=
     let m := rprod_sample a0 num_players p in
     ccost i (M.add i a m).
 End rsample_cost.
@@ -539,41 +568,32 @@ Section expected_rsample_cost.
   Context (a0 : A) {num_players : nat}.
   Context `{CGameInstance : cgame num_players A}.    
 
-  Variable (p : nat -> t A).
+  Variable (p : nat -> DIST.t A).
   Variable (f : {ffun 'I_num_players -> dist A rat_realFieldType}).
+  (* TO BE UPDATED:
   Hypothesis dists_match : forall i : 'I_num_players, dist_cdist_match Aeq (p i) (f i).
   
   Axiom rsample_ccost_expected :
     forall (i : 'I_num_players) (a : A),
       D_to_Q (rsample_ccost a0 (N.of_nat i) a p) =
-      rat_to_Q (expectedValue (prod_dist f) (fun x => cost i (upd i a x))).
+      rat_to_Q (expectedValue (prod_dist f) (fun x => cost i (upd i a x))).*)
 End expected_rsample_cost.
 
-  
-  
+(* Definition fun_of_t *)
+(*            (A : Type) *)
+(*            (Aeq : A -> A -> bool) *)
+(*            (c : t A) : A -> Q := *)
+(*   fun a => *)
+(*     match findA (Aeq a) c with  *)
+(*     | None => 0 *)
+(*     | Some d => D_to_Q d *)
+(*     end. *)
 
-
-
-
-  
-  
-
-
-Definition fun_of_t
-           (A : Type)
-           (Aeq : A -> A -> bool)
-           (c : t A) : A -> Q :=
-  fun a =>
-    match findA (Aeq a) c with 
-    | None => 0
-    | Some d => D_to_Q d
-    end.
-
-Definition dist_t_match
-           (A : finType)
-           (Aeq : A -> A -> bool)           
-           (c : t A)
-           (d : dist A rat_realFieldType)           
-  : Prop :=
-  pmf d = finfun (fun a => Q_to_rat (fun_of_t Aeq c a)).
+(* Definition dist_t_match *)
+(*            (A : finType) *)
+(*            (Aeq : A -> A -> bool)            *)
+(*            (c : t A) *)
+(*            (d : dist A rat_realFieldType)            *)
+(*   : Prop := *)
+(*   pmf d = finfun (fun a => Q_to_rat (fun_of_t Aeq c a)). *)
       
