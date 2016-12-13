@@ -499,6 +499,11 @@ Infix "*" := Dmult : D_scope.
 Notation "'0'" := D0 : D_scope.
 Notation "'1'" := D1 : D_scope.
 
+(** Dmax *)
+
+Definition Dmax (d1 d2 : D) : D :=
+  if Dlt_bool d1 d2 then d2 else d1.
+
 (** The smallest power of 2 greater than a given rational *)
 
 Definition Zsize (z : Z) : positive :=

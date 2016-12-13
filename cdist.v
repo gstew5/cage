@@ -282,9 +282,14 @@ End functions2.
 End AM.
 
 Module DIST.
+Record row (A : Type) : Type :=
+  mkRow { row_weight : D;
+          row_max : D;
+          row_arraymap : AM.t (A*D) }.
+  
 Record t (A : Type) : Type :=
   mk {
-      cpmf :> M.t (D * AM.t (A*D));
+      cpmf :> M.t (row A)
            (* [cpmf]: a map from 
                 - LEVEL 1: weight level i = [2^i, 2^{i+1})
                 - LEVEL 2: weight array containing weights (a,d)
@@ -311,12 +316,17 @@ Section functions.
   (* level_of spec: forall d, 2^{-(level_of d)} <= d < 2^{-(level_of d) - 1}*)
 
   Program Definition add_weight (a : A) (d : D) (w : t A) : t A :=
-    let (weight_tot, m) := 
+    let r := 
         match M.find (level_of d) w with
-        | None => (0%D, AM.empty _)
+        | None => mkRow 0%D 0%D (AM.empty _)
         | Some m => m
         end
-    in mk (M.add (level_of d) (Dadd weight_tot d, AM.add m (a,d)) (cpmf w)).
+    in
+    let r' :=
+        mkRow (Dadd d r.(row_weight))
+              (Dmax d r.(row_max))
+              (AM.add r.(row_arraymap) (a,d))
+    in mk (M.add (level_of d) r' (cpmf w)).
   
   Fixpoint add_weights
              (l : list (A*D))
@@ -329,23 +339,28 @@ Section functions.
 
   Definition sum_weights (m : AM.t (A*D)) : D :=
     AM.fold m
-      (fun _ (p : (A*D)) acc => let (a,d') := p in Dadd acc d')
+      (fun _ (p : A*D) acc => let (a,d') := p in Dadd acc d')
       0%D.
-  
+
+  Definition max_weight (m : AM.t (A*D)) : D :=
+    AM.fold m
+      (fun _ (p : A*D) acc => let (a,d') := p in Dmax acc d')
+      0%D.
+      
   (** Updates [w] according to [f], returning the new array map 
       together with any pairs (a,d) that are now mis-leveled (stored 
       in the proj2 array map). *)
   Definition update_level
              (f : A -> D -> D)
              (level : N.t)             
-             (m : (D * AM.t (A*D)))             
-    : ((D * AM.t (A*D)) * AM.t (A*D)) :=
+             (m : row A)             
+    : (row A * AM.t (A*D)) :=
     (* w': the updated weights *)
-    let w' := AM.fmap (snd m) (fun p : (A*D) => let (a,d) := p in (a, f a d)) in
+    let w' := AM.fmap m.(row_arraymap) (fun p : (A*D) => let (a,d) := p in (a, f a d)) in
     (* split the entries that are now mis-leveled *)
     let g := fun i (p : (A*D)) => let (a,d') := p in N.eqb (level_of d') level in
     let (stay, go) := AM.split w' g in
-    ((sum_weights stay, stay), go).
+    (mkRow (sum_weights stay) (max_weight stay) stay, go).
 
   Lemma update_level_pf f (x y : M.key) w :
     N.eq x y -> update_level f x w = update_level f y w.
@@ -353,72 +368,109 @@ Section functions.
   
   Definition update_weights
              (f : A -> D -> D)
-             (w : M.t (D * AM.t (A*D)))
+             (w : M.t (row A))
     : t A :=
     let w'':= M.mapi (update_level f) w in
     let w' := M.map fst w'' in
     let removed := M.fold (fun i p l0 => AM.to_list (snd p) ++ l0) w'' nil in
     add_weights
       (List.map snd removed) (mk w').
+
+  (** The distribution's total weight *)
+  Definition weight (w : t A) : D :=
+    M.fold (fun i r d0 => Dadd r.(row_weight) d0) w D0.
 End functions.
 End DIST.
-
-Definition d := DIST.empty nat.
-Definition d1 := DIST.add_weight 1%nat (Dmake 3 1) d.
-Definition d2 := DIST.add_weight 5%nat (Dmake 2 23) d1.
-
-Compute DIST.level_of (Dmake 3 1).
-Compute DIST.level_of (Dmake 2 23).
-
-Recursive Extraction d d1 d2.
-
-Definition fun_of_t
-           (A : Type)
-           (Aeq : A -> A -> bool)
-           (c : t A) : A -> Q :=
-  fun a =>
-    match findA (Aeq a) c with 
-    | None => 0
-    | Some d => D_to_Q d
-    end.
-
-Definition dist_t_match
-           (A : finType)
-           (Aeq : A -> A -> bool)           
-           (c : t A)
-           (d : dist A rat_realFieldType)           
-  : Prop :=
-  pmf d = finfun (fun a => Q_to_rat (fun_of_t Aeq c a)).
 
 Section sampling.
   Variable T : Type. (* randomness oracle state *)
   Variable rand : T -> D*T.
+  Variable rand_range : T -> N.t -> N.t*T. (* generate a random integer in range *)
+  Hypothesis rand_range_ok :
+    forall t n,
+      let (n', t') := rand_range t n in 
+      (N.to_nat n' < N.to_nat n)%N.
   
-  Fixpoint sample_aux
-         (A : Type) (a0 : A)
-         (acc r : D) (l : list (A*D)) : A :=
+  Fixpoint cdf_sample_aux
+           (A : Type) (a0 : A)
+           (acc r : D) (l : list (D*A))
+    : (D * A) :=
     match l with
-    | nil => a0 (*should never occur*)
-    | (a, w) :: l' =>
+    | nil => (D0, a0) (*should never occur*)
+    | (w, a) :: l' =>
       if Dle_bool acc r && Dle_bool r (Dadd acc w) then
-        eprint_string "Chose action " a
-      else sample_aux a0 (Dadd acc w) r l'
+        (w, eprint_string "Chose action " a)
+      else cdf_sample_aux a0 (Dadd acc w) r l'
     end.
-
-  Definition sample
-             (A : Type) (a0 : A)
-             (c : t A)
+  
+  (** Use inverse transform sampling to select row. *)
+  Definition cdf_sample_row
+             (A : Type)
+             (w : DIST.t A)
              (t : T)
-    : (A*T) :=
-    let sum :=
-        List.fold_left
-          (fun acc1 (x:(A*D)) => let (a,q) := x in Dadd acc1 q)
-          c (Dmake 0 1)
-    in
+    : (DIST.row A * T) :=
+    let sum := DIST.weight w in  
     let (r, t') := rand t in
     let r' := Dmult r sum in
-    (sample_aux a0 D0 r' c, t').
+    let w := cdf_sample_aux
+               (DIST.mkRow D0 D0 (AM.empty _))
+               D0
+               r'
+               (map (fun (p : M.key * DIST.row A) =>
+                       let (_, r) := p in
+                       (r.(DIST.row_weight), r))
+                    (M.elements (DIST.cpmf w))) in
+    (snd w, t').
 
+  (** Sample a value in range [0..size-1] *)
+  Program Definition sample_index
+             (t : T)
+             (size : N.t)
+    : (Index.t size * T) :=
+    let (i, t') := rand_range t size in
+    (@Index.mk size i _, t').
+  Next Obligation.
+  Admitted. (* by rand_range_ok *)
+
+  (** Rejection-sample within row. *)  
+  Fixpoint rejection_sample_row_aux
+             (A : Type)
+             (a0 : A)
+             (r : DIST.row A)
+             (t : T)
+             (n : nat)
+    : (A * T) :=
+    let w_max := r.(DIST.row_max) in
+    let w := r.(DIST.row_arraymap) in 
+    let size := w.(AM.size) in 
+    match n with
+    | O => (a0, t)
+    | S n' =>
+      let (i, t2) := sample_index t size in
+      let (a, d) := AM.lookup i in 
+      let (u, t') := rand t2 in      
+      if Dle_bool (Dmult u w_max) d then (a, t')
+      else rejection_sample_row_aux a0 r t' n'
+    end.
+
+  Definition rejection_sample_row 
+             (A : Type)
+             (a0 : A)
+             (r : DIST.row A)
+             (t : T)
+    : (A * T) :=
+    rejection_sample_row_aux a0 r t 1000.
+
+  (** The overall sampling procedure. *)
+  Definition sample
+             (A : Type)
+             (a0 : A)
+             (w : DIST.t A)
+             (t : T)
+    : (A * T) :=
+    let (r, t2) := cdf_sample_row w t in
+    rejection_sample_row a0 r t2.
+  
   Fixpoint prod_sample_aux
            (A : Type) (a0 : A)           
            (acc : M.t A * T)
@@ -506,4 +558,22 @@ End expected_rsample_cost.
   
   
 
+
+Definition fun_of_t
+           (A : Type)
+           (Aeq : A -> A -> bool)
+           (c : t A) : A -> Q :=
+  fun a =>
+    match findA (Aeq a) c with 
+    | None => 0
+    | Some d => D_to_Q d
+    end.
+
+Definition dist_t_match
+           (A : finType)
+           (Aeq : A -> A -> bool)           
+           (c : t A)
+           (d : dist A rat_realFieldType)           
+  : Prop :=
+  pmf d = finfun (fun a => Q_to_rat (fun_of_t Aeq c a)).
       
