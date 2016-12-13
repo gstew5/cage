@@ -57,28 +57,32 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
        | Some l => DIST.add_weights l (DIST.empty _)
       end.
   
-  Definition cost_vector (s : state) (player : N) : list (A.t * D) :=
+  Definition cost_vector (p : M.t A.t) (player : N) : list (A.t * D) :=
     List.fold_left
-      (fun l a => (a, rsample_ccost A.t0 player a (fun_of_map (actions_received s))) :: l)
+      (fun l a => (a, ccost player (M.add player a p)) :: l)
       (enumerate A.t)
       nil.
 
-  Fixpoint send (s : state) (player : nat) : state :=
+  Fixpoint send (s : state) (p : M.t A.t) (player : nat) : state :=
     match player with
     | O => s
     | S player' =>
-      let v := cost_vector s (N.of_nat player') in
+      let v := cost_vector p (N.of_nat player') in
       let st' := oracle_send (oracle_st s) (hd_error (service_channels s)) player' v
       in send (mkState (actions_received s)
                        (listen_channel s)
                        (tl (service_channels s))
                        st')
+              p
               player'
     end.
 
   Fixpoint round (s : state) (player : nat) : state :=
     match player with
-    | O => send s C.num_players (*reset cur_player=num_players*)
+    | O =>
+      let ds := fun_of_map (actions_received s) in 
+      let p := rprod_sample A.t0 C.num_players ds in 
+      send s p C.num_players (*reset cur_player=num_players*)
     | S player' =>
       let '(a, c, st') := oracle_recv _ (oracle_st s) (listen_channel s) in
       round
