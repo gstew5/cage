@@ -45,6 +45,26 @@ Section index.
 End index.
 End Index.
 
+(** MOVE ELSEWHERE *)
+
+Lemma nat_of_bin_succ n : nat_of_bin (N.succ n) = (nat_of_bin n).+1.
+Proof.
+  elim: n => //= p.
+  by rewrite nat_of_succ_gt0.
+Qed.
+
+Lemma nat_of_bin_inj n1 n2 : nat_of_bin n1 = nat_of_bin n2 -> n1=n2.
+Proof.
+Admitted. (*TODO*)
+
+Lemma N2Nat_lt n m :
+  (N.to_nat n < N.to_nat m)%N -> 
+  (n < m)%N.
+Proof.
+Admitted. (*TODO*)
+
+(** END *)
+
 (** Unnormalized functional weight distributions efficiently supporting: 
     - sampling 
     - weight update *)
@@ -68,6 +88,76 @@ Fixpoint Nlength (A : Type) (l : list A) : N.t :=
   | nil => 0
   | _ :: l' => N.succ (Nlength l')
   end.
+
+Section functions0.
+  Variable A : Type.
+  
+  Program Definition init (a : A) : t A :=
+    @mk _ 1 (M.add N0 a (M.empty _)) _.
+  Next Obligation.
+    exists a.
+    rewrite Pos2Nat.inj_1 in H.
+    have H2: i = N0.
+    { case: i H => //.
+      move => p; rewrite positive_N_nat => H.
+      have H2: Pos.to_nat p = 0%nat.
+      { move: H; move: (Pos.to_nat p) => n.
+        elim: n => //. }
+      apply: N2Nat.inj.
+      rewrite positive_N_nat H2 //. }
+    rewrite {}H2 MProps.F.add_eq_o //.
+  Qed.    
+
+  Fixpoint map_from_list (l : list A) : N.t * M.t A :=
+    List.fold_left
+      (fun acc a =>
+         let (i, m) := (acc : N.t * M.t A) in
+         (N.succ i, M.add i a m))
+      l
+      (N0, M.empty _).
+
+  Lemma map_from_list_fold_right l :
+    map_from_list l =
+    List.fold_right
+      (fun a acc =>
+         let (i, m) := (acc : N.t * M.t A) in
+         (N.succ i, M.add i a m))
+      (N0, M.empty _)
+      (List.rev l).      
+  Proof.
+    rewrite fold_left_rev_right.
+    rewrite /map_from_list.
+    elim: l => //.
+  Qed.    
+
+  Lemma map_from_list_domain l (i : N.t) :
+    (i < fst (map_from_list l))%nat ->
+    exists a, M.find i (snd (map_from_list l)) = Some a.
+  Proof.
+    rewrite map_from_list_fold_right; elim: (List.rev l) i => // a l' IH i /= H.
+    move: H IH; case: (fold_right _ (0%num, M.empty A) l') => a0 b /= H IH.
+    case H2: (N.eq_dec a0 i) => [Hx|Hx].
+    { subst i; move {H2 H}.
+      by rewrite MProps.F.add_eq_o => //; exists a. }
+    have H3: (i < a0)%N.
+    { rewrite nat_of_bin_succ in H.
+      apply/ltP; move: (ltP H) => H3. clear - H3 Hx.
+      have H4: nat_of_bin a0 <> nat_of_bin i.
+      { by move => H4; apply: Hx; apply: nat_of_bin_inj. }
+      omega. }
+    case: (IH _ H3) => x H4; exists x.
+    rewrite MProps.F.add_neq_o => //.
+  Qed.
+  
+  Program Definition from_list (l : list A) : t A :=
+    @mk _ (fst (map_from_list l)) (snd (map_from_list l)) _.
+  Next Obligation.
+    apply: map_from_list_domain.
+    by apply: N2Nat_lt.
+  Qed.
+
+  Definition empty : t A := from_list nil.
+End functions0.
 
 Section functions.
   Variable A : Type.
@@ -174,49 +264,22 @@ Section functions.
     rewrite MProps.F.add_neq_o => //.
     by apply pf.
   Qed.      
-
-  Definition split_aux (f : M.key -> A -> bool) : ((N.t*M.t A) * (N.t*M.t A)) :=
+  
+  Definition split_aux
+             (f : M.key -> A -> bool) : list A * list A :=
     M.fold 
-      (fun i a (p : (N.t*M.t A) * (N.t*M.t A)) =>
+      (fun i a (p : list A * list A) => 
          match p with
-         | ((x,trues), (y,falses)) => 
-           (if f i a then
-              ((N.succ x, M.add i a trues), (y, falses))
-            else
-              ((x, trues), (N.succ y, M.add i a falses)))
+         | (trues, falses) => 
+           if f i a then (a :: trues, falses)
+           else (trues, a :: falses)
          end)
       (map w)
-      ((N0, M.empty _), (N0, M.empty _)).
+      (nil, nil).
 
-  Lemma split_aux_true x trues y falses f (i : N.t) : 
-    (x, trues, (y, falses)) = split_aux f -> 
-    (N.to_nat i < N.to_nat x)%N -> 
-    exists a : A, M.find (elt:=A) i trues = Some a.
-  Proof.
-    rewrite /split_aux.
-    set (P := fun (w : t A) w' =>
-                forall x trues (y : N.t) (falses : M.t A), 
-                (x, trues, (y, falses)) = w' ->
-                (N.to_nat i < N.to_nat x)%N ->
-                exists a : A, M.find (elt:=A) i trues = Some a).
-    set (g := fun _ _ _ => _).
-    revert x trues y falses.
-    change (P w (M.fold g w ((N0, M.empty _), (N0, M.empty _)))).
-    apply MProps.fold_rec.
-    { move => m H; rewrite /P; inversion 1; subst => H2.
-      admit. (*by H2*) }
-    move => k e a m' m'' H H2 H3; rewrite /P => H4 x trues y falses H5 H6.
-    admit.
-  Admitted. (*TODO*)
-
-  Program Definition split (f : M.key -> A -> bool) : (t A * t A) :=
-    match split_aux f with
-      | ((x,trues), (y,falses)) => 
-        (@mk _ x trues _, @mk _ y falses _)
-    end.
-  Next Obligation. eapply split_aux_true; eauto. Qed.
-  Next Obligation.
-  Admitted. (*TODO*)    
+  Definition split (f : M.key -> A -> bool) : (t A * t A) :=
+    let (trues, falses) := split_aux f in
+    (from_list trues, from_list falses).
 
   Program Definition fmapi
              (B : Type)
@@ -246,39 +309,6 @@ Section functions.
 
   Definition to_list : list (M.key * A) := M.elements (map w).
 End functions.
-
-Section functions2.
-  Variable A : Type.
-  
-  Program Definition init (a : A) : t A :=
-    @mk _ 1 (M.add N0 a (M.empty _)) _.
-  Next Obligation.
-    exists a.
-    rewrite Pos2Nat.inj_1 in H.
-    have H2: i = N0.
-    { case: i H => //.
-      move => p; rewrite positive_N_nat => H.
-      have H2: Pos.to_nat p = 0%nat.
-      { move: H; move: (Pos.to_nat p) => n.
-        elim: n => //. }
-      apply: N2Nat.inj.
-      rewrite positive_N_nat H2 //. }
-    rewrite {}H2 MProps.F.add_eq_o //.
-  Qed.    
-
-  Fixpoint map_from_list (i : M.key) (acc : M.t A) (l : list A) : M.t A :=
-    match l with
-    | nil => acc
-    | a :: l' => map_from_list (N.succ i) (M.add i a acc) l'
-    end.
-
-  Program Definition from_list (l : list A) : t A :=
-    @mk _ (Nlength l) (map_from_list N0 (M.empty _) l) _.
-  Next Obligation.
-  Admitted. (*TODO*)
-
-  Definition empty : t A := from_list nil.
-End functions2.
 End AM.
 
 Module DIST.
@@ -386,10 +416,10 @@ Section sampling.
   Variable T : Type. (* randomness oracle state *)
   Variable rand : T -> D*T.
   Variable rand_range : T -> N.t -> N.t*T. (* generate a random integer in range *)
-  (*Hypothesis rand_range_ok :
+  Hypothesis rand_range_ok :
     forall t n,
       let (n', t') := rand_range t n in 
-      (N.to_nat n' < N.to_nat n)%N.*)
+      (N.to_nat n' < N.to_nat n)%N.
   
   Fixpoint cdf_sample_aux
            (A : Type) (a0 : A)
@@ -427,10 +457,11 @@ Section sampling.
              (t : T)
              (size : N.t)
     : (Index.t size * T) :=
-    let (i, t') := rand_range t size in
-    (@Index.mk size i _, t').
+    (@Index.mk size (fst (rand_range t size)) _, snd (rand_range t size)).
   Next Obligation.
-  Admitted. (* by rand_range_ok *)
+    move: (rand_range_ok t size).
+    case: (rand_range t size) => //.
+  Qed.    
 
   (** Rejection-sample within row. *)  
   Fixpoint rejection_sample_row_aux
@@ -520,7 +551,7 @@ Extract Constant rand =>
 
 (** PRECONDITION: [rand_range t n]: n is Npos p for some p *)
 Axiom rand_range : rand_state -> N.t -> (N.t*rand_state). (*in range [0,size-1]*)
-Extract Constant rand_range => (*FIXME*)
+Extract Constant rand_range =>
  "fun _ size -> 
   let rec ocamlint_of_pos p =
     (match p with 
@@ -546,12 +577,16 @@ Extract Constant rand_range => (*FIXME*)
   in
   Printf.eprintf ""Generated random i = %d\n"" d; prerr_newline ();
   Pair (n_of_ocamlint d, ())".
+Axiom rand_range_ok :
+  forall t n,
+    let (n', t') := rand_range t n in 
+    (N.to_nat n' < N.to_nat n)%N.
 
 Definition rsample A (a0 : A) (c : DIST.t A) : A :=
-  fst (sample rand rand_range a0 c init_rand_state).
+  fst (sample rand rand_range_ok a0 c init_rand_state).
 
 Definition rprod_sample A (a0 : A) (num_players : nat) (p : nat -> DIST.t A) : M.t A :=
-  fst (prod_sample rand rand_range num_players a0 p init_rand_state).
+  fst (prod_sample rand rand_range_ok num_players a0 p init_rand_state).
 
 Section rsample_cost.
   Context {A : Type} (a0 : A) {num_players : nat}.
