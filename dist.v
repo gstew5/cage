@@ -59,7 +59,16 @@ Section bind.
   Definition bind : {ffun U -> rty} :=
     finfun (fun u : U => \sum_(t : T) (d t) * (f t u)).
 End bind.
-  
+
+Section prob.
+  Variable T : finType.
+  Variable rty : numDomainType.
+  Variable d : dist T rty.
+
+  Definition probOf (p : pred T) :=
+    \sum_(t : T | p t) d t.
+End prob.
+
 Section expectedValue.
   Variable T : finType.
   Variable rty : numDomainType.
@@ -147,7 +156,7 @@ Section cdf.
 
   Definition inverse_cdf (p : rty) : option T :=
     inverse_cdf_aux p 0 None (enum T).
-End cdf.  
+End cdf.
 
 (** Product distributions *)
 
