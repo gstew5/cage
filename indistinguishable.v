@@ -22,9 +22,7 @@ Section samplerClasses.
     Variable d : dist T rty.
     Variable sampler : SamplerClass d.
     Variable init_st : st_ty.
-    Variable n : nat.
-    (* I think this is probably necessary for the dist_axiom *)
-    Variable pf : (0 < n)%N.
+    Variable N : nat.
 
     Fixpoint build_hist_aux hist st n :=
       match n with
@@ -38,13 +36,13 @@ Section samplerClasses.
     (* Generate a histogram of type T^n (mapping outcomes to their # of *)
     (* occurrences observed by sampling *)
     Definition build_hist :=
-      build_hist_aux [ffun x => 0%N] init_st n.
+      build_hist_aux [ffun x => 0%N] init_st (S N).
 
-    Lemma hist_pos x : (0 <= build_hist x)%N. Proof. by case n. Qed.
+    Lemma hist_pos x : (0 <= build_hist x)%N. Proof. by case N. Qed.
 
     (* Convert a histogram to a dist (divide each # of occurrences by n) *)
     Lemma hist_dist_ax :
-      @dist_axiom T rty [ffun x => (build_hist x)%:R / n%:R].
+      @dist_axiom T rty [ffun x => (build_hist x)%:R / (S N)%:R].
     Admitted.
 
     (* Generate a histogram from n samples and create a dist based on it *)
@@ -57,45 +55,135 @@ Section samplerClasses.
   Definition true_dist_ensemble (d : dist T rty) : prob_ensemble :=
     fun _ => d.
 
-  (* Axiom hist_ensemble : prob_ensemble. *)
   Definition hist_ensemble `(sampler : SamplerClass)
-             (init_st : st_ty) (n : nat) (pf : (0 < n)%N)
-    : prob_ensemble :=
-    fun i => hist_dist sampler init_st pf.
+             (init_st : st_ty) : prob_ensemble :=
+    fun n => hist_dist sampler init_st n.
 
-  Definition statistical_difference (A B : dist T rty) adv :=
+  Definition stat_difference (A B : dist T rty) adv :=
     `|probOf A adv - probOf B adv|.
 
-  Definition statistically_indistinguishable (A B : prob_ensemble) :=
-    exists N, forall adv n, (N < n)%N ->
-      statistical_difference (A n) (B n) adv <= 1/n%:R.
+  (* Definition stat_indistinguishable (A B : prob_ensemble) := *)
+  (*   exists N, forall adv n, (N < n)%N -> *)
+  (*     stat_difference (A n) (B n) adv <= 1/n%:R. *)
+
+  Definition stat_indistinguishable (A B : prob_ensemble) :=
+    forall adv eps, exists N, forall n, (N < n)%N -> 0 < eps n ->
+      stat_difference (A n) (B n) adv <= eps n.
 
   Lemma lt_n_0 n n' :
     (n < n' -> 0 < n')%N.
   Proof. move => H. induction n => //. apply IHn. auto. Qed.
 
-  (* This one uses separate existential variables for the lower bound on
-     the ensemble indices and the number of samples. *)
-  (* Class SamplerAxiomClass (d : dist T rty) *)
-  (*       (sampler : SamplerClass d) := *)
-  (*   samplerAxiom_fun : *)
-  (*     exists init_st N, forall n (H : (N < n)%N), *)
-  (*       statistically_indistinguishable *)
-  (*         (hist_ensemble sampler init_st (lt_n_0 H)) (true_dist_ensemble d). *)
-
-  (* This one doesn't use [statistically_indistinguishable] and uses
-     the same N for the lower bound on ensemble indices as well as the
-     number of samples. *)
   Class SamplerAxiomClass (d : dist T rty)
-        (sampler : SamplerClass d) :=
+        (sampler : SamplerClass d)
+        (init_st : st_ty) :=
     samplerAxiom_fun :
-      exists init_st N, forall n (H : (N < n)%N) adv,
-        statistical_difference
-          ((hist_ensemble sampler init_st (lt_n_0 H)) n)
-          (true_dist_ensemble d n) adv <= 1/n%:R.
+      stat_indistinguishable
+        (hist_ensemble sampler init_st) (true_dist_ensemble d).
 
   (* A class that combines a sampler with its proof of correctness wrt.
      the dist it samples from *)
   Class GoodSampler `(samplerAxiom : SamplerAxiomClass)
     : Type := {}.
 End samplerClasses.
+
+Notation "a '~' b" := (stat_indistinguishable a b) (at level 50).
+
+(* Statistical indistinguishability is reflexive. *)
+Lemma stat_indist_refl (T : finType) (rty : numDomainType)
+      (A : prob_ensemble T rty) :
+  A ~ A.
+Proof.
+  rewrite /stat_indistinguishable /stat_difference.
+  move => adv eps. exists O => n Hn Heps.
+  by rewrite subrr normr0; auto.
+Qed.
+
+(* Statistical indistinguishability is symmetric. *)
+Lemma stat_indist_symm (T : finType) (rty : numDomainType)
+      (A B : prob_ensemble T rty) :
+  A ~ B <-> B ~ A.
+Proof.
+  rewrite /stat_indistinguishable /stat_difference.
+  split => H adv eps; specialize (H adv eps);
+  destruct H as [N H]; exists N => n Hn;
+  by specialize (H n Hn); rewrite distrC.
+Qed.
+
+(* Statistical indistinguishability satisfies the triangle inequality. *)
+Lemma stat_indist_triangle (T : finType) (rty : numDomainType)
+      (A B C : prob_ensemble T rty) :
+  forall adv n, stat_difference (A n) (C n) adv <=
+           stat_difference (A n) (B n) adv +
+           stat_difference (B n) (C n) adv.
+Proof. by move => adv n; apply ler_dist_add. Qed.
+
+Lemma div2_sum (rty : numDomainType) (a : rty) :
+  a = a / 2%:R + a / 2%:R.
+Admitted.
+
+Lemma ler_sum_div2 (rty : numDomainType) (a b c : rty) :
+  a <= c/2%:R ->
+  b <= c/2%:R ->
+  a + b <= c.
+Proof.
+  by move => H0 H1; rewrite [c]div2_sum; apply ler_add.
+Qed.
+
+Lemma le_0_div2 (rty : numDomainType) (x : nat) (f : nat -> rty) :
+  0 < f x -> 0 < f x / 2%:R.
+Proof.
+  move => H. apply divr_gt0 => //.
+  have ->: (2%:R = 1 + 1) by [].
+  by apply addr_gt0; apply ltr01.
+Qed.
+
+(* Statistical indistinguishability is transitive. *)
+Lemma stat_indist_trans (T : finType) (rty : numDomainType)
+      (A B C : prob_ensemble T rty) :
+  A ~ B -> B ~ C -> A ~ C.
+Proof.
+  rewrite /stat_indistinguishable.
+  move=> Hab Hbc adv eps.
+  specialize (Hab adv (fun x => eps x / 2%:R)).
+  specialize (Hbc adv (fun x => eps x / 2%:R)).
+  destruct Hab as [Nab Hab]. destruct Hbc as [Nbc Hbc].
+  destruct ((Nab <= Nbc)%N) eqn:HN.
+  exists Nbc => n Hn Heps.
+  specialize (Hbc n Hn (le_0_div2 Heps)).
+  specialize (Hab n (leq_ltn_trans HN Hn) (le_0_div2 Heps)).
+  move: (ler_sum_div2 Hab Hbc) => H0.
+  apply ler_trans with (stat_difference (A n) (B n) adv +
+                        stat_difference (B n) (C n) adv) => //.
+  apply stat_indist_triangle.
+  exists Nab => n Hn Heps.
+  specialize (Hab n Hn (le_0_div2 Heps)).
+  move: HN => /leP HN. apply Compare_dec.not_le in HN.
+  move: HN => /leP HN.
+  specialize (Hbc n (ltn_trans HN Hn) (le_0_div2 Heps)).
+  move: (ler_sum_div2 Hab Hbc) => H0.
+  apply ler_trans with (stat_difference (A n) (B n) adv +
+                        stat_difference (B n) (C n) adv) => //.
+  apply stat_indist_triangle.
+Qed.
+
+(* Not 100% sure that this is true. *)
+Lemma probOf_diff_f_equal (T : finType) (rty : numDomainType)
+      (A B : prob_ensemble T rty)
+      (f : prob_ensemble T rty -> prob_ensemble T rty) :
+  forall adv n, probOf (A n) adv - probOf (B n) adv =
+           probOf (f A n) adv - probOf (f B n) adv.
+Proof.
+  move => adv n. rewrite /probOf.
+Admitted.
+
+Lemma stat_indist_f_equal (T : finType) (rty : numDomainType)
+      (A B : prob_ensemble T rty)
+      (f : prob_ensemble T rty -> prob_ensemble T rty) :
+  A ~ B -> f A ~ f B.
+Proof.
+  rewrite /stat_indistinguishable /stat_difference => H adv eps.
+  specialize (H adv eps). destruct H as [N H].
+  exists N => n Hn Heps. specialize (H n Hn Heps).
+  by rewrite -probOf_diff_f_equal.
+Qed.
