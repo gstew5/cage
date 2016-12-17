@@ -110,7 +110,7 @@ Proof.
   by specialize (H n Hn); rewrite distrC.
 Qed.
 
-(* Statistical indistinguishability satisfies the triangle inequality. *)
+(* Statistical difference satisfies the triangle inequality. *)
 Lemma stat_indist_triangle (T : finType) (rty : numDomainType)
       (A B C : prob_ensemble T rty) :
   forall adv n, stat_difference (A n) (C n) adv <=
@@ -118,11 +118,24 @@ Lemma stat_indist_triangle (T : finType) (rty : numDomainType)
            stat_difference (B n) (C n) adv.
 Proof. by move => adv n; apply ler_dist_add. Qed.
 
-Lemma div2_sum (rty : numDomainType) (a : rty) :
-  a = a / 2%:R + a / 2%:R.
+Lemma mul2r (rty : numFieldType) (a : rty) :
+  a + a = 2%:R * a.
+Proof.
+  (* mulr2n *)
+  have sdf: (forall i, 2%:Z * i = i + i).
+  { apply mul2z. }
 Admitted.
 
-Lemma ler_sum_div2 (rty : numDomainType) (a b c : rty) :
+Lemma div2_sum (rty : numFieldType) (a : rty) :
+  a = a / 2%:R + a / 2%:R.
+Proof.
+  rewrite mul2r [a*_]mulrC mulrA GRing.divff.
+  rewrite mul1r => //. apply lt0r_neq0.
+  have ->: (2%:R = 1 + 1) by [].
+  by apply addr_gt0; apply: ltr01.
+Qed.
+
+Lemma ler_sum_div2 (rty : numFieldType) (a b c : rty) :
   a <= c/2%:R ->
   b <= c/2%:R ->
   a + b <= c.
@@ -130,16 +143,16 @@ Proof.
   by move => H0 H1; rewrite [c]div2_sum; apply ler_add.
 Qed.
 
-Lemma le_0_div2 (rty : numDomainType) (x : nat) (f : nat -> rty) :
+Lemma le_0_div2 (rty : numFieldType) (x : nat) (f : nat -> rty) :
   0 < f x -> 0 < f x / 2%:R.
 Proof.
   move => H. apply divr_gt0 => //.
   have ->: (2%:R = 1 + 1) by [].
-  by apply addr_gt0; apply ltr01.
+  apply addr_gt0. apply: ltr01. apply: ltr01.
 Qed.
 
 (* Statistical indistinguishability is transitive. *)
-Lemma stat_indist_trans (T : finType) (rty : numDomainType)
+Lemma stat_indist_trans (T : finType) (rty : numFieldType)
       (A B C : prob_ensemble T rty) :
   A ~ B -> B ~ C -> A ~ C.
 Proof.
@@ -167,23 +180,26 @@ Proof.
   apply stat_indist_triangle.
 Qed.
 
-(* Not 100% sure that this is true. *)
-Lemma probOf_diff_f_equal (T : finType) (rty : numDomainType)
-      (A B : prob_ensemble T rty)
-      (f : prob_ensemble T rty -> prob_ensemble T rty) :
-  forall adv n, probOf (A n) adv - probOf (B n) adv =
-           probOf (f A n) adv - probOf (f B n) adv.
-Proof.
-  move => adv n. rewrite /probOf.
-Admitted.
-
-Lemma stat_indist_f_equal (T : finType) (rty : numDomainType)
+Lemma stat_indist_f_equiv (T : finType) (rty : numDomainType)
       (A B : prob_ensemble T rty)
       (f : prob_ensemble T rty -> prob_ensemble T rty) :
   A ~ B -> f A ~ f B.
 Proof.
   rewrite /stat_indistinguishable /stat_difference => H adv eps.
+  (* Probably use to use a different eps *)
   specialize (H adv eps). destruct H as [N H].
-  exists N => n Hn Heps. specialize (H n Hn Heps).
-  by rewrite -probOf_diff_f_equal.
-Qed.
+  exists N => n Hn Heps.
+
+  rewrite /probOf.
+  have ->: (\sum_(t | adv t) (f A n) t - \sum_(t | adv t) (f B n) t =
+            \sum_(t | adv t) ((f A n) t - (f B n) t)).
+  { admit. }
+
+  rewrite /probOf in H.
+  have H0: (\sum_(t | adv t) (A n) t - \sum_(t | adv t) (B n) t =
+           \sum_(t | adv t) ((A n) t - (B n) t)).
+  { admit. }
+  
+  specialize (H n Hn Heps). rewrite H0 in H.
+
+Admitted.
