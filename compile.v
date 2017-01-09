@@ -51,6 +51,45 @@ Module M := Make OrdNat. (* The type of shared states *)
 Module MFacts := Facts M.
 Module MProps := Properties M.
 
+Module OrdNatDep
+<: OrderedType.OrderedType.
+      Record t' : Type :=
+        mk { val :> N.t;
+             n : nat;
+             pf : (N.to_nat val < n)%nat }.
+      Definition t := t'.
+      Definition eq (x y : t) := N.eq (val x) (val y).
+      Definition lt (x y : t) := N.lt (val x) (val y).
+      Lemma eq_refl : forall x : t, eq x x.
+      Proof. case => x n pf; apply: N.eq_refl. Qed.
+      Lemma eq_sym : forall x y : t, eq x y -> eq y x.
+      Proof. case => x n pf; case => y n' pf'; apply: N.eq_sym. Qed.   
+      Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
+      Proof. case => x n pf; case => y n' pf'; case => z n'' pf''; apply: N.eq_trans. Qed.  
+      Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
+      Proof. case => x n pf; case => y n' pf'; case => z n'' pf''; apply: N.lt_trans. Qed.        
+      Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
+      Proof. case => x n pf; case => y n' pf' H H2; rewrite /eq /N.eq in H2.
+             rewrite /lt H2 in H; apply: (N.lt_irrefl _ H). Qed.
+      Lemma compare : forall x y : t, OrderedType.Compare lt eq x y.
+      Proof.
+        case => x n pf; case => y n' pf'; case H: (N.eq_dec x y).
+        { by subst x; apply: OrderedType.EQ. }
+        case H2: (N.ltb x y).
+        { by apply: OrderedType.LT; rewrite /lt -N.ltb_lt. }
+        apply: OrderedType.GT.
+        have H3: N.le y x.
+        { by rewrite -N.ltb_ge H2. }
+        move: H3; rewrite N.lt_eq_cases; case => //.
+        by move => H3; subst y; elimtype False. Qed.
+      Lemma eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
+      Proof. case => x pf; case => y pf'; apply: N.eq_dec. Qed.
+End OrdNatDep.
+
+Module MDep := Make OrdNatDep.
+Module MDepFacts := Facts MDep.
+Module MDepProps := Properties MDep.
+
 Class Enumerable (T : Type) :=
   enumerable_fun : list T.
 Notation "'enumerate' T" := (@enumerable_fun T _) (at level 30).

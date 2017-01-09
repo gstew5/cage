@@ -104,6 +104,7 @@ VFILES:=axioms.v\
   cdist.v\
   dynamics.v\
   extrema.v\
+  depfinfun.v\
   games.v\
   neps_exp_le.v\
   numerics.v\

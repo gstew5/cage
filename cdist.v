@@ -45,85 +45,6 @@ Section index.
 End index.
 End Index.
 
-(** MOVE ELSEWHERE *)
-
-Lemma nat_of_bin_succ n : nat_of_bin (N.succ n) = (nat_of_bin n).+1.
-Proof.
-  elim: n => //= p.
-  by rewrite nat_of_succ_gt0.
-Qed.
-
-Lemma nat_of_bin0 : nat_of_bin 0 = 0%nat.
-Proof. by []. Qed.
-
-Lemma nat_of_pos_s p : exists n, nat_of_pos p = S n.
-Proof.
-  set (P p := exists n, nat_of_pos p = n.+1).
-  change (P p).
-  apply: Pos.peano_ind.
-  { by exists O. }
-  move => p'; rewrite /P => [][]n IH.
-  exists n.+1.
-  by rewrite nat_of_succ_gt0 IH.
-Qed.    
-
-Lemma nat_of_pos_inj p1 p2 : nat_of_pos p1 = nat_of_pos p2 -> p1=p2.
-Proof.
-  move: p1 p2.
-  set (P := forall p1 p2 : positive, nat_of_pos p1 = nat_of_pos p2 -> p1 = p2).
-  change P.
-  apply: Pos.peano_ind.
-  { simpl => p2.
-    set (Q p2 := (1%nat = nat_of_pos p2 -> 1%positive = p2)).
-    change (Q p2).
-    apply: Pos.peano_ind => //.
-    move => p'; rewrite /Q => IH.
-    rewrite nat_of_succ_gt0 => //.
-    case: (nat_of_pos_s p') => x -> //. }
-  move => p1 IH p2.
-  rewrite nat_of_succ_gt0.
-  set (Q p2 := (nat_of_pos p1).+1 = nat_of_pos p2 -> Pos.succ p1 = p2).
-  change (Q p2).
-  apply: Pos.peano_ind.
-  { rewrite /Q.
-    case: (nat_of_pos_s p1) => x -> //. }
-  move => p; rewrite /Q => IH2.
-  rewrite nat_of_succ_gt0; case => H.
-  by rewrite (IH _ H).
-Qed.
-
-Lemma nat_of_bin_inj n1 n2 : nat_of_bin n1 = nat_of_bin n2 -> n1=n2.
-Proof.
-  elim: n1 n2.
-  { rewrite nat_of_bin0; case.
-    { by rewrite nat_of_bin0. }
-    move => p; inversion 1.
-    by case: (nat_of_pos_s p) => n; rewrite -H1. }
-  move => p; case.
-  { rewrite nat_of_bin0.
-    case: (nat_of_pos_s p) => n /= -> //. }
-  by simpl => p' H; move: (nat_of_pos_inj H) => ->.
-Qed.
-
-Lemma N2Nat_lt n m :
-  (N.to_nat n < N.to_nat m)%N -> 
-  (n < m)%N.
-Proof.
-  move: n m; apply: N.peano_ind.
-  { apply: N.peano_ind => //= n _ _.
-    by rewrite nat_of_bin_succ. }
-  move => n /= IH m; rewrite nat_of_bin_succ N2Nat.inj_succ.
-  move: m; apply: N.peano_ind => // m _.
-  rewrite nat_of_bin_succ N2Nat.inj_succ => H.
-  have H2: (N.to_nat n < N.to_nat m)%N.
-  { move: H; move: (N.to_nat n); move: (N.to_nat m) => x y.
-    move/ltP => H; apply/ltP; omega. }
-  suff: (n < m)%N => //.
-  by apply: (IH _ H2).
-Qed.    
-
-(** END *)
-
 (** Unnormalized functional weight distributions efficiently supporting: 
     - sampling 
     - weight update *)
@@ -175,6 +96,12 @@ Section functions0.
       l
       (N0, M.empty _).
 
+  Fixpoint map_from_keylist (l : list (M.key * A)) : M.t A :=
+    match l with
+    | nil => M.empty _
+    | (i, a) :: l' => M.add i a (map_from_keylist l')
+    end.
+
   Lemma map_from_list_fold_right l :
     map_from_list l =
     List.fold_right
@@ -189,6 +116,109 @@ Section functions0.
     elim: l => //.
   Qed.    
 
+  Fixpoint seq_upto (n : nat) : list N.t :=
+    match n with
+    | O => nil
+    | S n' => rcons (seq_upto n') (N.of_nat n') 
+    end.
+
+  Lemma seq_upto_length n : seq.size (seq_upto n) = n.
+  Proof. by elim: n => // n /=; rewrite size_rcons => ->. Qed.
+  
+  Lemma seq_upto_nth (n m : nat) :
+    (m < n)%nat -> 
+    nth N0 (seq_upto n) m = N.of_nat m.
+  Proof.
+    elim: n m => // n IH m H /=; rewrite nth_rcons.
+    case H2: (m < seq.size (seq_upto n))%N.
+    { rewrite IH => //.
+      by rewrite seq_upto_length in H2. }
+    case H3: (_ == _).
+    { move: (eqP H3) => ->.
+      by rewrite seq_upto_length. }
+    rewrite seq_upto_length in H2, H3.
+    elimtype False.
+    move: {H}(ltP H); move/lt_n_Sm_le/le_lt_or_eq; case.
+    { by move/ltP; rewrite H2. }
+    by move => H4; subst m; rewrite eq_refl in H3.
+  Qed.
+
+  (** WORK-IN-PROGRESS: 
+  Lemma map_from_list_keylist l i :
+    M.find i (snd (map_from_list l)) =
+    M.find i (map_from_keylist (zip (seq_upto (seq.size l)) l)).
+  Proof.
+    rewrite map_from_list_fold_right.
+    rewrite /map_from_keylist.
+    move: (M.empty A) i 0%num.
+    elim: l => // a l IH m i n /=.
+    rewrite fold_right_app /= IH /=.
+    (** NoDupA !!! *)
+  Admitted.
+    
+  Lemma map_from_list_index_gt l (n n' : N.t) m m' :
+    List.fold_right
+      (fun a acc =>
+         let (i, m) := (acc : N.t * M.t A) in
+         (N.succ i, M.add i a m))
+      (n, m)
+      l = (n', m') ->
+  
+  Lemma map_from_list_fold_right'_aux l (n : N.t) m :
+    List.fold_right
+      (fun a acc =>
+         let (i, m) := (acc : N.t * M.t A) in
+         (N.succ i, M.add i a m))
+      (n, m)
+      (List.rev l) =
+    List.fold_right
+      (fun a acc =>
+         let (i, m) := (acc : N.t * M.t A) in
+         (N.pred i, M.add i a m))
+      (n + Nlength l, m)%num
+      l.
+  Proof.
+    elim: l n m => /=.
+    { by move => n m; rewrite N.add_0_r. }
+    move => a l IH n m; rewrite fold_right_app /= IH.
+    have ->: (N.succ n + Nlength l = n + N.succ (Nlength l))%num.
+    { rewrite N.add_succ_l; symmetry; rewrite [(n + _)%num]N.add_comm N.add_succ_l.
+      by rewrite [(Nlength l + _)%num]N.add_comm. }
+    
+    case: (fold_right
+     (fun (a0 : A) (acc : N.t * M.t A) =>
+      let (i, m0) := acc in (N.pred i, M.add i a0 m0))
+     ((n + N.succ (Nlength l))%num, M.add n a m) l) => //.
+
+    
+    rewrite IH.
+    
+    rewrite fold_left_rev_right.
+    rewrite /map_from_list.
+    elim: l => //.
+  Qed.    
+
+  Lemma map_from_list_domain_default l (i : N.t) (a : A) :
+    (i < fst (map_from_list l))%nat ->
+    M.find i (snd (map_from_list l)) = Some (List.nth (N.to_nat i) l a).
+  Proof.
+    rewrite map_from_list_fold_right.
+    elim: (List.rev l) i => // ax l' IH i /= H.
+    move: H IH; case: (fold_right _ (0%num, M.empty A) l') => a0 b /= H IH.
+    
+    case H2: (N.eq_dec a0 i) => [Hx|Hx].
+    { subst i; move {H2 H}.
+      rewrite MProps.F.add_eq_o => //.
+    have H3: (i < a0)%N.
+    { rewrite nat_of_bin_succ in H.
+      apply/ltP; move: (ltP H) => H3. clear - H3 Hx.
+      have H4: nat_of_bin a0 <> nat_of_bin i.
+      { by move => H4; apply: Hx; apply: nat_of_bin_inj. }
+      omega. }
+    case: (IH _ H3) => x H4; exists x.
+    rewrite MProps.F.add_neq_o => //.
+  Qed.
+  *)
   Lemma map_from_list_domain l (i : N.t) :
     (i < fst (map_from_list l))%nat ->
     exists a, M.find i (snd (map_from_list l)) = Some a.
@@ -368,6 +398,24 @@ Section functions.
 
   Definition to_list : list (M.key * A) := M.elements (map w).
 End functions.
+
+(** Representation invariant wrt. functions of type {ffun 'I_size -> A} *)
+
+Section rep.
+  Variable A : Type.
+  
+  Definition rep (w : t A) (f : {ffun 'I_(N.to_nat (size w)) -> A}) : Prop :=
+    forall (i : index w), lookup i = f (ordinal_of_index i).
+
+  Variable w : t A.
+  Variable f : {ffun 'I_(N.to_nat (size w)) -> A}.
+  Hypothesis w_rep : rep f.
+
+  Lemma lookup_ok : forall i : index w, lookup i = f (ordinal_of_index i).
+  Proof. apply: w_rep. Qed.
+
+  (** WIP Lemma empty_ok : *)
+End rep.    
 End AM.
 
 Module DIST.

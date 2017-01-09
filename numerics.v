@@ -1543,3 +1543,82 @@ Defined.
 
 Lemma dyadic_rat_to_Q (d : DRat) : Qeq (D_to_Q d) (rat_to_Q d).
 Proof. apply: (projT2 (projT2 d)). Qed.
+
+(** Some random lemmas on nat_of_bin, etc. *)
+
+Lemma nat_of_bin_succ n : nat_of_bin (N.succ n) = (nat_of_bin n).+1.
+Proof.
+  elim: n => //= p.
+  by rewrite nat_of_succ_gt0.
+Qed.
+
+Lemma nat_of_bin0 : nat_of_bin 0 = 0%nat.
+Proof. by []. Qed.
+
+Lemma nat_of_pos_s p : exists n, nat_of_pos p = S n.
+Proof.
+  set (P p := exists n, nat_of_pos p = n.+1).
+  change (P p).
+  apply: Pos.peano_ind.
+  { by exists O. }
+  move => p'; rewrite /P => [][]n IH.
+  exists n.+1.
+  by rewrite nat_of_succ_gt0 IH.
+Qed.    
+
+Lemma nat_of_pos_inj p1 p2 : nat_of_pos p1 = nat_of_pos p2 -> p1=p2.
+Proof.
+  move: p1 p2.
+  set (P := forall p1 p2 : positive, nat_of_pos p1 = nat_of_pos p2 -> p1 = p2).
+  change P.
+  apply: Pos.peano_ind.
+  { simpl => p2.
+    set (Q p2 := (1%nat = nat_of_pos p2 -> 1%positive = p2)).
+    change (Q p2).
+    apply: Pos.peano_ind => //.
+    move => p'; rewrite /Q => IH.
+    rewrite nat_of_succ_gt0 => //.
+    case: (nat_of_pos_s p') => x -> //. }
+  move => p1 IH p2.
+  rewrite nat_of_succ_gt0.
+  set (Q p2 := (nat_of_pos p1).+1 = nat_of_pos p2 -> Pos.succ p1 = p2).
+  change (Q p2).
+  apply: Pos.peano_ind.
+  { rewrite /Q.
+    case: (nat_of_pos_s p1) => x -> //. }
+  move => p; rewrite /Q => IH2.
+  rewrite nat_of_succ_gt0; case => H.
+  by rewrite (IH _ H).
+Qed.
+
+Lemma nat_of_bin_inj n1 n2 : nat_of_bin n1 = nat_of_bin n2 -> n1=n2.
+Proof.
+  elim: n1 n2.
+  { rewrite nat_of_bin0; case.
+    { by rewrite nat_of_bin0. }
+    move => p; inversion 1.
+    by case: (nat_of_pos_s p) => n; rewrite -H1. }
+  move => p; case.
+  { rewrite nat_of_bin0.
+    case: (nat_of_pos_s p) => n /= -> //. }
+  by simpl => p' H; move: (nat_of_pos_inj H) => ->.
+Qed.
+
+Lemma N2Nat_lt n m :
+  (N.to_nat n < N.to_nat m)%N -> 
+  (n < m)%N.
+Proof.
+  move: n m; apply: N.peano_ind.
+  { apply: N.peano_ind => //= n _ _.
+    by rewrite nat_of_bin_succ. }
+  move => n /= IH m; rewrite nat_of_bin_succ N2Nat.inj_succ.
+  move: m; apply: N.peano_ind => // m _.
+  rewrite nat_of_bin_succ N2Nat.inj_succ => H.
+  have H2: (N.to_nat n < N.to_nat m)%N.
+  { move: H; move: (N.to_nat n); move: (N.to_nat m) => x y.
+    move/ltP => H; apply/ltP; omega. }
+  suff: (n < m)%N => //.
+  by apply: (IH _ H2).
+Qed.    
+
+(** END random lemmas *)
