@@ -1109,7 +1109,7 @@ Definition unwrapScalarTree
               M.add i (unwrap r) acc)
       m (M.empty A).    
 
-Instance scalarCCostInstance
+Global Instance scalarCCostInstance
          N (A : Type)
          `(Enumerable A)
          `(CCostClass N A)
@@ -1476,3 +1476,25 @@ Section unitCompilable.
 
   Global Instance unit_cgame : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _.
 End unitCompilable.
+
+Section affineCompilable.
+  Context {A N} {q1 q2 : DRat} `{cgame N A}
+          `{Boolable A}
+          (eqA : Eq A) (eqDecA : Eq_Dec eqA).
+
+  Definition affine_preType :=
+    ((@scalarType rat_realFieldType q1 A) *
+    (@scalarType rat_realFieldType q2 (singletonType A)))%type.
+
+  Global Instance affineTypePredInstance :
+    PredClass (affine_preType) := affinePredInstance eqDecA.
+
+  Definition affineType := [finType of {x : affine_preType | the_pred x}].
+
+  Section affineGameTest.
+    Variable i' : OrdNat.t.
+    Variable t' : M.t (affine_preType).
+
+    Check ccost_fun (N:=N) i' t'.
+  End affineGameTest.
+End affineCompilable.

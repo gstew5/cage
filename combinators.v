@@ -1026,7 +1026,7 @@ Class ScalarAxiomClass (rty : realFieldType)
       `(ScalarClass rty)
   : Type := scalar_axiom : 0 < scalar_val.
 
-Instance scalarCostInstance
+Global Instance scalarCostInstance
          (N : nat) (rty : realFieldType) (A : finType)
          `(costA : CostClass N rty A)
          `(scalarA : ScalarClass rty)
@@ -1064,7 +1064,7 @@ Program Instance scalarCostMaxAxiomInstance
   : CostMaxAxiomClass (@scalarCostInstance N rty A _ _) (scalarCostMaxInstance costMaxInstance _).
 Next Obligation. by apply ler_pmul => //; apply ltrW => //. Qed.
 
-Instance scalarGameInstance
+Global Instance scalarGameInstance
         (N : nat) (rty : realFieldType) (A : finType)
         `(ScalarAxiomClass rty) 
         `(gameA : game A N rty)
@@ -1450,8 +1450,6 @@ Global Instance affinePredInstance
     | Wrap x, Wrap (Wrap y) => eqDecA x y
     end.
 
-(* At least in the case of the instances set up around resource games,
-    this holds. In order to generalize it, Eq_dec will need to be strengthened *)
 Global Instance affinePredPreservesBoolableResourceUnit
   : @PredClassPreservesBoolableUnit
       (affine_pre resource) _ (@affinePredInstance resource _ _) _.
@@ -1463,7 +1461,7 @@ Qed.
 
 Definition affine
              (A : Type) (eqA : Eq A) (eqDecA : Eq_Dec eqA)
-  := {x : affine_pre A | (affinePredInstance eqDecA) x}.
+  := {x : affine_pre A | the_pred x}.
 
 Global Instance affineBoolable
     (A : Type) (eqA : Eq A) (eqDecA : Eq_Dec eqA)
@@ -1478,16 +1476,6 @@ Global Instance affineBoolableResourceUnit
 Proof.
   apply (@BoolableUnitSigma _ _ _ _ _).
 Defined.
-
-Definition affine_preType (A : finType)
-  := [finType of (affine_pre A)].
-
-Program Definition affineType (A : finType) := [finType of (@affine A eq _ )].
-Next Obligation.
-  move => x y.
-  case: (eqVneq x y) => H; [left | right] => //.
-  apply/eqP => //.
-Defined.
 End AffineType.
 
 Section affineGameTest.
@@ -1495,32 +1483,13 @@ Context `(scalarA : ScalarClass rat_realFieldType) `(@ScalarAxiomClass _ scalarA
         `(scalarB : ScalarClass rat_realFieldType) `(@ScalarAxiomClass _ scalarB)
          (A : finType) (N : nat) `(Boolable A) `(cgame N A)
          (eqA : Eq A) (eqDecA : Eq_Dec eqA).
-(*
-  I think there's still issues with regression here, but it looks as though
-    the combinators themselves are individually okay :/
-*)
-Variable t : {ffun 'I_N -> affineType scalarA scalarB A}.
-Variable i : 'I_N.
-Check cost i t.
-Variable a : A.
-Check (boolify a).
-Check (boolify (a,a)).
-Definition aT : (@affine_pre _ scalarA scalarB A).
-  constructor. constructor. exact a. constructor. constructor. exact a.
-Defined.
-Definition aT' : (@affineType _ scalarA scalarB A). 
-exists aT. rewrite /affinePredInstance => //.
-rewrite /aT => /=.
-rewrite /affineType_obligation_1;
-destruct (@eqVneq (Finite.eqType A) a a) => //.
-generalize i0 =>i1. move/eqP: i0 => i0. apply False_rec.
-apply i0 => //.
-Qed.
-Check (boolify aT').
 
-Variable i' : OrdNat.t.
-Variable t'_pre : M.t (@affine_preType _ scalarA scalarB A).
-Variable t' : M.t (@affineType _ scalarA scalarB A).
-Check ccost_fun (N := N) i' t'_pre.
-Check ccost_fun (N:=N) i' t'.
+Instance affineInst : PredClass (affine_pre scalarA scalarB A):= affinePredInstance eqDecA.
+Variable t_pre: {ffun 'I_N -> affine_pre scalarA scalarB A}.
+Variable t : {ffun 'I_N -> affine scalarA scalarB eqDecA}.
+Variable i : 'I_N.
+
+Check cost i t_pre.
+Check cost i t.
+
 End affineGameTest.
