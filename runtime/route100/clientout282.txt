@@ -1,2011 +1,0 @@
-Generated random r = 0.401452
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.142857
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.142857
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.142857
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.142857
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.142857
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.142857
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.142857
-Chose action ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.344667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.416667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.088000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.160000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.432667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.504667
-Generated random r = 0.797236
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.160917
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.138159
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.132150
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.159582
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.153572
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.130815
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.124805
-Chose action ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.081333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.396000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.477333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.068000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.149333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.464000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.545333
-Generated random r = 0.612112
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.180915
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.129855
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.117909
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.180661
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.166539
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.117739
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.106383
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.077333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.418000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.495333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.086667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.164000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.504667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.582000
-Generated random r = 0.804211
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.203531
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.120204
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.103810
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.202258
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.178912
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.103018
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.088267
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.330000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.396667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.074667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.141333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.404667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.471333
-Generated random r = 0.306282
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.220828
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.112655
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.093407
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.218538
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.186619
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.092231
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.075723
-Chose action ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.080000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.286000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.366000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.070667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.150667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.356667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.436667
-Generated random r = 0.811754
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.234714
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.106892
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.084492
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.233410
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.191054
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.083905
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.065533
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.085333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.227333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.312667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.078667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.164000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.306000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.391333
-Generated random r = 0.586033
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.245810
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.103643
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.077980
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.245295
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.191865
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.077744
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.057663
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.078667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.286000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.364667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.081333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.160000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.367333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.446000
-Generated random r = 0.007183
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.259830
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.097732
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.070158
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.258926
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.194223
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.069832
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.049299
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.064000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.220000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.284000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.080000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.144000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.300000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.364000
-Generated random r = 0.666676
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.271268
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.093812
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.064923
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.268091
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.194394
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.064019
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.043493
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.183333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.256667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.073333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.146667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.256667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.330000
-Generated random r = 0.075521
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.279894
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.091269
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.060613
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.276615
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.192941
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.059769
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.038898
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.082667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.124667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.207333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.085333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.168000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.210000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.292667
-Generated random r = 0.819537
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.286525
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.091385
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.058014
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.282775
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.188721
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.057121
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.035458
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.080000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.176000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.256000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.070667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.150667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.246667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.326667
-Generated random r = 0.402876
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.293863
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.089039
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.054046
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.291427
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.186431
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.053499
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.031694
-Chose action ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.161333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.234667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.138667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.226667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.300000
-Generated random r = 0.060048
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.300379
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.086856
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.050618
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.299125
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.184103
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.050333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.028586
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.085333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.124667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.210000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.074667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.160000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.199333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.284667
-Generated random r = 0.789961
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.305439
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.086505
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.048120
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.305859
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.179903
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.048134
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.026041
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.078667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.146667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.225333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.074667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.153333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.221333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.300000
-Generated random r = 0.025732
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.311565
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.085117
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.045338
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.312643
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.176380
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.045453
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.023503
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.117333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.189333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.081333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.153333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.198667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.270667
-Generated random r = 0.385137
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.317639
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.084736
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.043409
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.317195
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.172233
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.043295
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.021492
-Chose action ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.080000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.139333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.219333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.146667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.206000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.286000
-Generated random r = 0.812048
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.322376
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.083342
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.040859
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.324161
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.168732
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.041057
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.019473
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.057333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.095333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.152667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.089333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.146667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.184667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.242000
-Generated random r = 0.722857
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.329384
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.083488
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.039699
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.325752
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.164472
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.039200
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.018005
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.088000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.160000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.082667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.154667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.170667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.242667
-Generated random r = 0.088873
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.334386
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.084053
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.038462
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.328869
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.159811
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.037759
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.016660
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.078667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.146667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.225333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.070667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.149333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.217333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.296000
-Generated random r = 0.560473
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.339489
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.082315
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.036068
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.335278
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.156282
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.035568
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.015001
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.074667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.117333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.192000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.069333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.144000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.186667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.261333
-Generated random r = 0.634505
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.343697
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.081489
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.034290
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.340374
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.152521
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.033914
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.013715
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.076000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.139333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.215333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.078667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.154667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.218000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.294000
-Generated random r = 0.767509
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.349261
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080082
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.032322
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.345405
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.148653
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.031920
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.012357
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.080000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.117333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.197333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.070667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.150667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.188000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.268000
-Generated random r = 0.758946
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.352906
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.079344
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.030663
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.350707
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.144677
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.030439
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.011264
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.081333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.139333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.220667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.146667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.204667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.286000
-Generated random r = 0.301092
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.356394
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.077706
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.028717
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.357126
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.141131
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.028764
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.010162
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.078667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.088000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.166667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.062667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.141333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.150667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.229333
-Generated random r = 0.637983
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.358256
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.077733
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.027545
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.361981
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.137241
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.027830
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.009414
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.117333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.190667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.062667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.136000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.180000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.253333
-Generated random r = 0.595939
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.361266
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.076596
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.026085
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.367044
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.133893
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.026510
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.008606
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.069333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.110000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.179333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.068000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.137333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.178000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.247333
-Generated random r = 0.877218
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.364859
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.075728
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.024844
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.370950
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.130462
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.025267
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.007890
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.154000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.064000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.137333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.144667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.218000
-Generated random r = 0.777443
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.366837
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.075849
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.023932
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.374768
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.126812
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.024464
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.007337
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.065333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.102667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.168000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.076000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.141333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.178667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.244000
-Generated random r = 0.950543
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.371252
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.075281
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.022935
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.377187
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.123297
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.023308
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.006740
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.056000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.132000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.188000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.084000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.140000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.216000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.272000
-Generated random r = 0.917125
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.378030
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073658
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.021768
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.378541
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.120123
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.021780
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.006100
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.124667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.198000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.138667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.190000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.263333
-Generated random r = 0.086583
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.380999
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.072259
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.020519
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.383099
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.116961
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.020622
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.005542
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.065333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.066000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.131333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.084000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.149333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.150000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.215333
-Generated random r = 0.469115
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.385171
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073025
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.020037
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.383557
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.113108
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.019935
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.005168
-Chose action ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.064000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.066000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.130000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.080000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.144000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.146000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.210000
-Generated random r = 0.907503
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.388997
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073674
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.019546
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.384166
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.109511
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.019280
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.004826
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.077333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.102667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.180000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.144000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.169333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.246667
-Generated random r = 0.633963
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.390963
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073071
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.018595
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.388249
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.106248
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.018451
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.004423
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.078667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.130000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.069333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.148000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.120667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.199333
-Generated random r = 0.752804
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.391780
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.074265
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.018137
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.390951
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.102628
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.018085
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.004154
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.069333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.110000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.179333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.136000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.176667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.246000
-Generated random r = 0.839320
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.394537
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073212
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.017224
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.394245
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.099782
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.017200
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.003801
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.074667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.088000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.162667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.069333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.144000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.157333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.232000
-Generated random r = 0.183745
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.396458
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073059
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.016516
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.397262
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.096657
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.016541
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.003507
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.074667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.133333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.141333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.125333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.200000
-Generated random r = 0.462176
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.397354
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073833
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.016049
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.399815
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.093521
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.016143
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.003286
-Chose action ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.062667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.088000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.150667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.070667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.133333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.158667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.221333
-Generated random r = 0.520915
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.400488
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073442
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.015441
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.401304
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.090820
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.015464
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.003041
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.077333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.088000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.165333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.060000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.137333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.148000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.225333
-Generated random r = 0.572877
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.400942
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073118
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.014751
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.405381
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.088086
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.014912
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.002810
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.078667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.036667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.115333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.145333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.103333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.182000
-Generated random r = 0.048579
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.400762
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.074682
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.014463
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.407730
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.084991
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.014714
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.002658
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.054667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.110000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.164667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.074667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.184667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.239333
-Generated random r = 0.935893
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.405479
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073412
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.013806
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.408287
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.082691
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.013892
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.002434
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.069333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.036667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.106000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.076000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.145333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.112667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.182000
-Generated random r = 0.308688
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.407164
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.074964
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.013600
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.408568
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.079766
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.013637
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.002301
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.070667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.144000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.072000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.142667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.145333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.216000
-Generated random r = 0.710805
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.409037
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.075205
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.013143
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.410165
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.077142
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.013170
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.002138
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.061333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.117333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.178667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.062667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.180000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.241333
-Generated random r = 0.118392
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.411816
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073529
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.012432
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.412667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.075156
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.012447
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001952
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.140000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.068000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.134667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.141333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.208000
-Generated random r = 0.903236
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.413585
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073590
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.012011
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.414154
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.072824
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.012018
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001817
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.061333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.102667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.164000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.072000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.133333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.174667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.236000
-Generated random r = 0.691987
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.416943
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.072606
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.011468
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.415220
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.070689
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.011407
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001667
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.068000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.102667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.170667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.134667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.169333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.237333
-Generated random r = 0.825658
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.418958
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.071648
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.010911
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.417514
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.068579
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.010861
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001528
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.076000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.102667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.178667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.054667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.157333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.233333
-Generated random r = 0.394333
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.418740
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.070618
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.010323
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.421923
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.066596
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.010397
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001403
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.069333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.102667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.172000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.058667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.128000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.161333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.230667
-Generated random r = 0.132991
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.419610
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.069543
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.009795
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.425136
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.064707
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.009922
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001288
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.137333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.196000
-Generated random r = 0.779625
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.419984
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.070086
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.009505
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.426986
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.062570
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.009663
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001206
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.145333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.058667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.132000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.204000
-Generated random r = 0.751306
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.419876
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.070020
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.009141
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.429829
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.060650
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.009360
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001123
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.054667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.124667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.179333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.060000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.114667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.184667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.239333
-Generated random r = 0.134801
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.422788
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.067968
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.008615
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.431623
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.059187
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.008795
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.001024
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.060000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.132000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.118667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.190667
-Generated random r = 0.349381
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.422460
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.068385
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.008346
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.433972
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.057301
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.008575
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000960
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.137333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.196000
-Generated random r = 0.576279
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.422678
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.068894
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.008096
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.435698
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.055388
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.008348
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000899
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.069333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.150000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.064000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.133333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.144667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.214000
-Generated random r = 0.655339
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.423426
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.068611
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.007772
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.437675
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.053646
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.008037
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000833
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.082667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.141333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.052000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.134667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.110667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.193333
-Generated random r = 0.612950
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.420901
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.069055
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.007489
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.442023
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.051880
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.007872
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000780
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.125333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.072000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.138667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.130667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.197333
-Generated random r = 0.538279
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.422339
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.069578
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.007287
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.442310
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.050119
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.007638
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000730
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.118000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.064000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.115333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.182000
-Generated random r = 0.678983
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.422731
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.070195
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.007100
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.443331
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.048505
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.007452
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000687
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.088000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.154667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.133333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.154667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.221333
-Generated random r = 0.319152
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.424073
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.069641
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.006798
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.444738
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.046981
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.007136
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000634
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.069333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.120667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.134667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.116667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.186000
-Generated random r = 0.488178
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.424248
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.070319
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.006620
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.445844
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.045410
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.006964
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000596
-Chose action ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.065333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.124000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.132000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.125333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.190667
-Generated random r = 0.877887
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.425135
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.070709
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.006433
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.446468
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.043936
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.006762
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000559
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.068000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.110000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.178000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.057333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.125333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.167333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.235333
-Generated random r = 0.208724
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.425619
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.069250
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.006073
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.449444
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.042681
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.006421
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000511
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.065333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.124000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.189333
-Generated random r = 0.746067
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.426307
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.069601
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.005899
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.450171
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.041307
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.006237
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000479
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.068000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.044000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.112000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.069333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.137333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.113333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.181333
-Generated random r = 0.000517
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.426835
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.070553
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.005771
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.450417
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.039874
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.006098
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000451
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.053333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.104667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.074667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.128000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.126000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.179333
-Generated random r = 0.142730
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.429759
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.071109
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.005658
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.448532
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.038607
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.005911
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000425
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.070667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.014667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.085333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.068000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.138667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.082667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.153333
-Generated random r = 0.079903
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.429233
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073084
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.005608
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.448603
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.037200
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.005867
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000406
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.069333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.044000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.113333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.134667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.109333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.178667
-Generated random r = 0.310849
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.429079
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.074016
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.005478
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.449371
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.035929
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.005743
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000383
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.076000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.044000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.120000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.054667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.098667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.174667
-Generated random r = 0.383843
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.426953
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.074874
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.005326
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.452102
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.034735
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.005647
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000362
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.068000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.095333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.163333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.056000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.151333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.219333
-Generated random r = 0.797703
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.426865
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073800
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.005062
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.454816
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.033721
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.005403
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000333
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.070667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.036667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.107333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.060000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.096667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.167333
-Generated random r = 0.067611
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.425766
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.074907
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.004953
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.456154
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.032588
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.005316
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000316
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.118000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.133333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.118000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.184667
-Generated random r = 0.384119
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.426116
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.075563
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.004826
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.456529
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.031490
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.005179
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000297
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.130667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.057333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.116000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.188000
-Generated random r = 0.128846
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.424936
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.075875
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.004666
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.458728
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.030469
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.005047
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000278
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.064000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.044000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.108000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.109333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.173333
-Generated random r = 0.043622
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.425277
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.076720
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.004564
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.458779
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.029465
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.004933
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000263
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.052000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.044000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.096000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.077333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.121333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.173333
-Generated random r = 0.635869
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.428324
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.077588
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.004493
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.456058
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.028498
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.004791
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000248
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.070667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.061333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.132000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.120000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.190667
-Generated random r = 0.275550
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.427679
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.077953
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.004349
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.457574
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.027550
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.004662
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000232
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.118000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.068000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.134667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.119333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.186000
-Generated random r = 0.816723
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.428075
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078643
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.004238
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.457681
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.026606
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.004539
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000218
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.065333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.146000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.061333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.126667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.142000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.207333
-Generated random r = 0.117220
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.428457
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078090
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.004065
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.459038
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.025785
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.004363
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000202
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.049333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.095333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.144667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.074667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.170000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.219333
-Generated random r = 0.054892
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.432469
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.076962
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003902
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.457318
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.025031
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.004131
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000186
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.057333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.116000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.069333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.126667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.128000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.185333
-Generated random r = 0.228223
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.434228
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.077222
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003800
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.456342
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.024236
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003997
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000175
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.110000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.070667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.122000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.180667
-Generated random r = 0.890054
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.435820
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.077798
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003713
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.455184
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.023439
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003881
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000164
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.065333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.066000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.131333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.060000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.125333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.126000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.191333
-Generated random r = 0.579453
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.435715
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.077753
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003585
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.456329
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.022707
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003758
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000154
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.061333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.088000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.149333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.062667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.150667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.212000
-Generated random r = 0.183980
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.436792
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.076873
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003431
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.457142
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.022027
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003594
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000142
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.057333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.108667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.072000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.123333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.180667
-Generated random r = 0.978930
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.438657
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.077439
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003355
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.455628
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.021301
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003487
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000134
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.052000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.036667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.088667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.077333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.114000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.166000
-Generated random r = 0.362584
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.441457
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078547
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003313
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.452573
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.020586
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003397
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000127
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.064000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.066000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.130000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.064000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.128000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.130000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.194000
-Generated random r = 0.011202
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.441898
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078544
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003203
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.453026
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.019925
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003285
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000118
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.064000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.137333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.058667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.122667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.132000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.196000
-Generated random r = 0.424109
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.441889
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078164
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003081
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.454264
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.019321
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003169
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000110
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.036667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.108667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.061333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.133333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.098000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.170000
-Generated random r = 0.344796
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.440469
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.079341
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.003013
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.455310
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.018646
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003117
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000104
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.070667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.044000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.114667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.057333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.128000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.101333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.172000
-Generated random r = 0.309338
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.438904
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080152
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002934
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.456827
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.018028
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.003056
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000098
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.064000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.044000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.108000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.073333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.137333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.117333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.181333
-Generated random r = 0.266807
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.439878
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.081159
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002874
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.455634
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.017384
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002979
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000093
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.118000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.133333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.118000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.184667
-Generated random r = 0.381050
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.439930
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.081813
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002798
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.455687
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.016786
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002900
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000087
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.061333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.073333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.134667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.126667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.138667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.200000
-Generated random r = 0.322786
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.440917
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.081489
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002698
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.455768
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.016257
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002790
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000081
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.069333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.150000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.056000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.125333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.136667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.206000
-Generated random r = 0.733925
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.440045
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080850
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002580
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.458008
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.015754
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002688
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000075
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.053333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.095333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.148667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.068000
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.121333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.163333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.216667
-Generated random r = 0.421254
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.442715
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.079586
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002469
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.457314
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.015296
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002551
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000069
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.050667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.044000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.094667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.077333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.128000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.121333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.172000
-Generated random r = 0.736714
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.445720
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080400
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002429
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.454121
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.014789
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002475
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000065
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.066000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.124667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.065333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.131333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.190000
-Generated random r = 0.656787
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.446856
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.080300
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002353
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.453714
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.014328
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002389
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000061
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.054667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.110000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.164667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.061333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.116000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.171333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.226000
-Generated random r = 0.128744
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.448908
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078375
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002230
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.454236
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.013940
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002256
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000056
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.066667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.066000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.132667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.058667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.125333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.124667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.191333
-Generated random r = 0.954566
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.448309
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078297
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002151
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.455507
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.013499
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002185
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000052
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.072000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.051333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.123333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.057333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.129333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.108667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.180667
-Generated random r = 0.214522
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.446611
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078837
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002086
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.457234
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.013048
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002136
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000049
-Chose action ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.061333
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.066000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.127333
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.062667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.124000
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.128667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.190000
-Generated random r = 0.752104
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.447092
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078731
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.002017
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.457411
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.012639
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.002064
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000046
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
-Receiving...
-Received cost vector...
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.060000
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.058667
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.118667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.066667
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.126667
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.125333
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.185333
-Generated random r = 0.906635
-ScalarttScalarRNoBiasRNoScalarRNoBiasRNoScalarRYesBiasRYes, 0.448026
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRNoBiasRNo, 0.078950
-ScalarttScalarRNoBiasRNoScalarRYesBiasRYesScalarRYesBiasRYes, 0.001960
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo, 0.456792
-ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRYesBiasRYes, 0.012231
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRNoBiasRNo, 0.001998
-ScalarttScalarRYesBiasRYesScalarRYesBiasRYesScalarRYesBiasRYes, 0.000043
-Chose action ScalarttScalarRYesBiasRYesScalarRNoBiasRNoScalarRNoBiasRNo
-Sending...
-Sent value...
