@@ -94,33 +94,9 @@ endif
 #                    #
 ######################
 
-VFILES:=axioms.v\
-  bigops.v\
-  christodoulou.v\
-  combinators.v\
-  ccombinators.v\
-  compile.v\
-  dist.v\
-  cdist.v\
-  dynamics.v\
-  extrema.v\
-  depfinfun.v\
-  games.v\
-  neps_exp_le.v\
-  numerics.v\
-  dyadic.v\
-  potential.v\
-  routing.v\
-  routing1.v\
-  loadbalancing.v\
-  smooth.v\
-  weightsextract.v\
-  weightslang.v\
-  weights.v\
-  orderedtypes.v\
-  server.v\
-  strings.v\
-  machine.v
+VFILES:=dist.v\
+  statdiff.v\
+  inversetransform.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
