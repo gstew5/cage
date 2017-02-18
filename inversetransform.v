@@ -187,25 +187,14 @@ Section inverseTransform.
   Definition inverseTransformSamplerAxiomInstance :=
     mapSamplerAxiomInstance inverse_cdf'.
 
-  (* Definition inverseTransformCorrectSampler := *)
-  (*   mapCorrectSampler inverse_cdf'. *)
-
-  (* Every probability in the range of the pmf exists in the uniform
-     distribution domain. It should always be possible to choose an
-     interval for the uniform distribution (GCD of all probabilities
-     and 1) such that this is true. *)
-  (* Lemma probs_in_uniform_domain (t : T): *)
-  (*   exists u : uniform_finType (N:=N) pfN, sval u == cdf dT t. *)
-  (* Admitted. *)
-
   Lemma uniform_cdf_probOf (x : T) :
     probOf (standardUniform_dist pfN)
-           (fun u' : uniform_finType (N:=N) pfN =>
-              sval u' <= (cdf dT x)) =
+           (fun u' : uniform_finType (N:=N) pfN => sval u' <= (cdf dT x)) =
     cdf (standardUniform_dist pfN) (rat_to_uniform (cdf dT x)).
   Proof.
-    rewrite [cdf (standardUniform_dist _) _]cdf_probOf /=. rewrite /probOf /=.
-    have ->: (\sum_(t | (enum_rank t <= enum_rank (rat_to_uniform (cdf dT x)))%N)
+    rewrite [cdf (standardUniform_dist _) _]cdf_probOf /probOf /=.
+    have ->: (\sum_(t |
+                    (enum_rank t <= enum_rank (rat_to_uniform (cdf dT x)))%N)
                (uniform_dist (uniform_finType (N:=N) pfN)) t =
               \sum_(t : uniform_finType pfN |
                     proj1_sig t <= proj1_sig (rat_to_uniform (cdf dT x)))
@@ -217,10 +206,8 @@ Section inverseTransform.
   Lemma inverse_cdf'_cdf :
     forall x, inverse_cdf' (rat_to_uniform (cdf dT x)) = x.
   Proof.
-    move => x. rewrite /inverse_cdf'. rewrite ffunE.
-    rewrite /inverse_cdf. rewrite pf_rat_to_uniform. simpl.
-    move: (inverse_cdf_cdf dT) => H. rewrite /inverse_cdf in H.
-    simpl in H. apply H.
+    move=> x. rewrite /inverse_cdf' ffunE /inverse_cdf pf_rat_to_uniform /=.
+    move: (inverse_cdf_cdf dT) => H. rewrite /inverse_cdf in H. apply H.
   Qed.
 
   (* Not sure what to call this *)

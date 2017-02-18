@@ -73,12 +73,37 @@ Lemma sum_ffunE''
   \sum_(t | pred t) g t.
 Proof. by apply: eq_big=> // i _; rewrite ffunE. Qed.
 
-(* I think this is true.. but not sure what to call it.*)
-Lemma sum_lemma (A B : finType) (rty : numDomainType)
-      (f : {ffun A -> B}) (g : {ffun A -> rty}) :
+Lemma sum_exchange (A B : finType) (rty : numDomainType)
+      (f : {ffun A -> B}) (g : A -> rty) :
   \sum_b \sum_(a | f a == b) g a = \sum_(a : A) g a.
 Proof.
-Admitted.
+  have ->: (\sum_b \sum_(a | f a == b) g a =
+            \sum_b \sum_a if f a == b then g a else 0).
+  { by apply eq_big => // i _; rewrite big_mkcond. }
+  rewrite exchange_big /=.
+  have ->: (\sum_j \sum_i (if f j == i then g j else 0) = \sum_j g j).
+  { apply eq_big => // i _; rewrite -big_mkcond /=.
+    have ->: (\sum_(i0 | f i == i0) g i = \sum_(i0 | i0 == f i) g i).
+    { by apply eq_big. }
+    by rewrite big_pred1_eq. }
+  by [].
+Qed.
+
+(* Lemma sum_exchange_ffun (A B : finType) (rty : numDomainType) *)
+(*       (f : {ffun A -> B}) (g : {ffun A -> rty}) : *)
+(*   \sum_b \sum_(a | f a == b) g a = \sum_(a : A) g a. *)
+(* Proof. *)
+(*   have ->: (\sum_b \sum_(a | f a == b) g a = *)
+(*             \sum_b \sum_a if f a == b then g a else 0). *)
+(*   { by apply eq_big => // i _; rewrite big_mkcond. } *)
+(*   rewrite exchange_big /=. *)
+(*   have ->: (\sum_j \sum_i (if f j == i then g j else 0) = \sum_j g j). *)
+(*   { apply eq_big => // i _; rewrite -big_mkcond /=. *)
+(*     have ->: (\sum_(i0 | f i == i0) g i = \sum_(i0 | i0 == f i) g i). *)
+(*     { by apply eq_big. } *)
+(*     by rewrite big_pred1_eq. } *)
+(*   by []. *)
+(* Qed. *)
 
 Section mapDist.
   Variable U T : finType.
@@ -93,7 +118,7 @@ Section mapDist.
     rewrite /dist_axiom. apply /andP. split.
     { rewrite /map_pmf. destruct d => /=. rewrite /dist_axiom in dist_ax0.
       move: dist_ax0 => /andP [dist_ax0 dist_ax1].
-      by rewrite sum_ffunE' sum_lemma. }
+      by rewrite sum_ffunE' sum_exchange. }
     { rewrite /map_pmf. apply /forallP => x. rewrite ffunE.
       apply sumr_ge0 => u H. apply dist_positive. }
   Qed.
@@ -280,6 +305,7 @@ Section cdfLemmas.
   Proof.
     move => H x. specialize (H x).
     rewrite 2!cdf_probOf in H. rewrite /probOf in H.
+    
   Admitted.
 
   (* (* I think this is true. If we can show that it's possible to drive *)
