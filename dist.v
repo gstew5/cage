@@ -89,22 +89,6 @@ Proof.
   by [].
 Qed.
 
-(* Lemma sum_exchange_ffun (A B : finType) (rty : numDomainType) *)
-(*       (f : {ffun A -> B}) (g : {ffun A -> rty}) : *)
-(*   \sum_b \sum_(a | f a == b) g a = \sum_(a : A) g a. *)
-(* Proof. *)
-(*   have ->: (\sum_b \sum_(a | f a == b) g a = *)
-(*             \sum_b \sum_a if f a == b then g a else 0). *)
-(*   { by apply eq_big => // i _; rewrite big_mkcond. } *)
-(*   rewrite exchange_big /=. *)
-(*   have ->: (\sum_j \sum_i (if f j == i then g j else 0) = \sum_j g j). *)
-(*   { apply eq_big => // i _; rewrite -big_mkcond /=. *)
-(*     have ->: (\sum_(i0 | f i == i0) g i = \sum_(i0 | i0 == f i) g i). *)
-(*     { by apply eq_big. } *)
-(*     by rewrite big_pred1_eq. } *)
-(*   by []. *)
-(* Qed. *)
-
 Section mapDist.
   Variable U T : finType.
   Variable rty : numDomainType.
@@ -134,7 +118,7 @@ Section prob.
   Definition probOf (p : pred T) :=
     \sum_(t : T | p t) d t.
 
-  Lemma probOf_0_1 (p : pred T) :
+  Lemma probOf_range (p : pred T) :
     0 <= probOf p <= 1.
   Proof.
     move: d.(dist_ax). rewrite /dist_axiom => d_ax.
@@ -262,9 +246,9 @@ Section cdf.
     rewrite /probOf. rewrite /cdf. 
   Admitted.
 
-  Lemma cdf_0_1 x :
+  Lemma cdf_range x :
     0 <= cdf x <= 1.
-  Proof. rewrite cdf_probOf. apply probOf_0_1. Qed.
+  Proof. rewrite cdf_probOf. apply probOf_range. Qed.
 
   Lemma inverse_cdf_lt_i_n pred :
     (\max_(x : T | pred x) (#|T| - enum_rank x - 1) < #|T|)%N.
@@ -284,7 +268,7 @@ Section cdf.
   Admitted.
 
   Lemma inverse_cdf_cdf (x : T) :
-    inverse_cdf (@exist rty _ (cdf x) (cdf_0_1 x)) = x.
+    inverse_cdf (@exist rty _ (cdf x) (cdf_range x)) = x.
   Proof.
     rewrite /inverse_cdf /=.
   Admitted.
@@ -300,24 +284,24 @@ Section cdfLemmas.
   Variable T : finType.
   Variable rty : numDomainType.
 
+  (* Lemma sdf (a : T) (f : T -> rty) : *)
+  (*   \sum_(b | (enum_rank b <= enum_rank a)%N) f b = *)
+  (*   \sum_(i : 'I_#|T| | (i <= enum_rank a)%N) f (enum_val i). *)
+
   Lemma cdf_equiv_pmf (dA dB : dist T rty) :
     (forall x, cdf dA x = cdf dB x) -> (forall x, dA x = dB x).
   Proof.
     move => H x. specialize (H x).
     rewrite 2!cdf_probOf in H. rewrite /probOf in H.
     
+    (* I don't think this is working. *)
+    induction (nat_of_ord (enum_rank x)).
+    { move: H.
+      have H: (forall d, \sum_(t | (enum_rank t <= 0)%N) d t = d x).
+      { move => t d. rewrite big_mkcond /=. admit. }
+      by rewrite 2!H. }
+    { apply IHn. admit. }
   Admitted.
-
-  (* (* I think this is true. If we can show that it's possible to drive *)
-  (*    the cdf difference to below any epsilon, then it can be shown for *)
-  (*    the pmf difference as well, which implies the same for the *)
-  (*    "statistical difference" between the distributions. *) *)
-  (* Lemma cdf_equiv_eps (dA dB : dist T rty) x eps : *)
-  (*   cdf dA x - cdf dB x <= eps -> *)
-  (*   dA x - dB x <= 2%:R * eps. *)
-  (* Proof. *)
-  (*   move=> H. rewrite 2!cdf_probOf in H. rewrite /probOf in H. *)
-  (* Admitted. *)
 End cdfLemmas.
 
 (** Product distributions *)

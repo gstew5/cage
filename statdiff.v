@@ -115,7 +115,7 @@ Section mapDistSampler.
 
   (* This is basically the specification of build_hist (at least for
      the sake of inverse transform sampling). build_hist can be defined
-     another way as long as this is true. *)
+     any way as long as this is true. *)
   Lemma map_hist n t :
       build_hist mapSamplerInstance init_st n t =
       (\sum_(u | f u == t) build_hist sampler init_st n u)%N.
@@ -187,7 +187,7 @@ Section mapDistSampler.
                (d u - (build_hist sampler init_st n u)%:R / n.+1%:R)|
               <= \sum_t \sum_(u | f u == t)
                  `|(d u - (build_hist sampler init_st n u)%:R / n.+1%:R)|).
-    { apply ler_sum => i _. apply ler_norm_sum. }
+    { by apply ler_sum => i _; apply ler_norm_sum. }
     apply: ler_trans; first by apply H0.
     by rewrite sum_exchange.
   Qed.
