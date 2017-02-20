@@ -235,72 +235,56 @@ Section cdf.
   Variable rty : numDomainType.
   Variable d : dist T rty.
   
-  Definition cdf (x : T) :=
-    (* \sum_(y : T | (enum_rank y <= enum_rank x)%N) d y. *)
-    \sum_(i : 'I_#|T| | (nat_of_ord i <= enum_rank x)%N) d (enum_val i).
+  Definition cdf (x : T) : {r : rty | 0 <= r <= 1} :=
+    @exist _ _ (probOf d (fun y => (enum_rank y <= enum_rank x)%N))
+           (probOf_range d (fun y => (enum_rank y <= enum_rank x)%N)).
 
-  (* Maybe this should just be the definition of cdf. *)
-  Lemma cdf_probOf x :
-    cdf x = probOf d (fun y => (enum_rank y <= enum_rank x)%N).
+  (* T must be inhabited. Probably need another Variable. *)
+  Lemma card_T_pos :
+    (0 < #|T|)%N.
   Proof.
-    rewrite /probOf. rewrite /cdf. 
   Admitted.
-
-  Lemma cdf_range x :
-    0 <= cdf x <= 1.
-  Proof. rewrite cdf_probOf. apply probOf_range. Qed.
 
   Lemma inverse_cdf_lt_i_n pred :
     (\max_(x : T | pred x) (#|T| - enum_rank x - 1) < #|T|)%N.
-  Admitted.
+  Proof.
+    suff: ((\max_(x | pred x) (#|T| - enum_rank x - 1) <= #|T|.-1)%N).
+    { rewrite -ltnS -(Lt.S_pred _ 0) => //.
+        by apply /ltP; apply card_T_pos. }
+    apply /bigmax_leqP => i H0.
+    rewrite -subn1 -subnDA.
+    apply leq_sub => //. by rewrite addn1.
+  Qed.
 
   (* This is weird. Maybe the fixpoint is a better idea. *)
   Definition inverse_cdf (u : {r : rty | 0 <= r <= 1}) : T :=
-    (* (\max_(x | proj1_sig u <= cdf x) (1 - enum_rank x))%:R. *)
-    (* \max_(x | proj1_sig u <= cdf x) (#|T| - 1 - enum_rank x) *)
-    enum_val (Ordinal (inverse_cdf_lt_i_n (fun x => proj1_sig u <= cdf x))).
-
-  (* Definition inverse_cdf := *)
-  (*   finfun (fun u : [finType of {r : rty | 0 <= r <= 1}] => enum_val (Ordinal (inverse_cdf_lt_i_n (fun x => proj1_sig u <= cdf x)))). *)
+    enum_val (Ordinal (inverse_cdf_lt_i_n
+                         (fun x => proj1_sig u <= proj1_sig (cdf x)))).
 
   Lemma cdf_inverse_cdf u :
-    cdf (inverse_cdf u) = proj1_sig u.
-  Admitted.
-
-  Lemma inverse_cdf_cdf (x : T) :
-    inverse_cdf (@exist rty _ (cdf x) (cdf_range x)) = x.
+    proj1_sig (cdf (inverse_cdf u)) = proj1_sig u.
   Proof.
-    rewrite /inverse_cdf /=.
+    rewrite /cdf /inverse_cdf enum_valK /=.
   Admitted.
 
-  (* Lemma inverse_cdf_le_rank (x : T) : *)
-  (*   (enum_rank (inverse_cdf (exist (fun u => (0 <= u <= 1)%R) *)
-  (*                                  (cdf x) (cdf_0_1 x))) *)
-  (*    <= enum_rank x)%N. *)
-  (* Admitted. *)
+  (* Essential for the inverse transform proof. *)
+  Lemma inverse_cdf_cdf (x : T) :
+    inverse_cdf (cdf x) = x.
+  Proof.
+    rewrite /cdf /inverse_cdf /=.
+  Admitted.
 End cdf.
 
 Section cdfLemmas.
   Variable T : finType.
   Variable rty : numDomainType.
 
-  (* Lemma sdf (a : T) (f : T -> rty) : *)
-  (*   \sum_(b | (enum_rank b <= enum_rank a)%N) f b = *)
-  (*   \sum_(i : 'I_#|T| | (i <= enum_rank a)%N) f (enum_val i). *)
-
+  (* Essential for the inverse transform proof. *)
   Lemma cdf_equiv_pmf (dA dB : dist T rty) :
-    (forall x, cdf dA x = cdf dB x) -> (forall x, dA x = dB x).
+    (forall x, proj1_sig (cdf dA x) = proj1_sig (cdf dB x)) ->
+    (forall x, dA x = dB x).
   Proof.
-    move => H x. specialize (H x).
-    rewrite 2!cdf_probOf in H. rewrite /probOf in H.
-    
-    (* I don't think this is working. *)
-    induction (nat_of_ord (enum_rank x)).
-    { move: H.
-      have H: (forall d, \sum_(t | (enum_rank t <= 0)%N) d t = d x).
-      { move => t d. rewrite big_mkcond /=. admit. }
-      by rewrite 2!H. }
-    { apply IHn. admit. }
+    move => H x. specialize (H x). simpl in H.
   Admitted.
 End cdfLemmas.
 

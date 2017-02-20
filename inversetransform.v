@@ -21,6 +21,9 @@ Proof.
   by move: (ltr0_neq0 Hgt0); move/eqP.
 Qed.
 
+(* I think it actually won't work quite like this. Maybe it just needs
+   to be a distribution over nats along with a valuation function that
+   turns them into rationals in [0, 1] by dividing by N-1. *)
 Section standardUniform.
   Variable N : nat.
   Variable pf_N : (1 < N)%N.
@@ -89,8 +92,9 @@ Section standardUniform.
 
   Lemma uniform_enumP : Finite.axiom uniform_enum.
   Proof.
-    rewrite /uniform_enum. rewrite /Finite.axiom. move => x. destruct x.
-    induction x.
+    rewrite /uniform_enum. rewrite /Finite.axiom. move => x.
+    rewrite /count /=.
+    destruct x. simpl.
   Admitted.
   Definition uniform_finMixin := Eval hnf in FinMixin uniform_enumP.
   Canonical uniform_finType :=
@@ -116,7 +120,7 @@ Section standardUniformLemmas.
   Variable pfN : (1 < N)%N.
 
   Lemma uniform_cdf_identity :
-    forall u, cdf (standardUniform_dist pfN) u = (proj1_sig u).
+    forall u, cdf (standardUniform_dist pfN) u = u.
   Admitted.
   
   (* Lemma uniform_rank : *)
@@ -157,9 +161,9 @@ Section inverseTransform.
      distribution domain. It should always be possible to choose an
      interval for the uniform distribution (GCD of all probabilities
      and 1) such that this is true. *)
-  Variable rat_to_uniform : rat -> (uniform_finType pfN).
+  Variable rat_to_uniform : {r : rat | 0 <= r <= 1} -> (uniform_finType pfN).
   Variable pf_rat_to_uniform :
-    forall x, proj1_sig (rat_to_uniform (cdf dT x)) = cdf dT x.
+    forall x, rat_to_uniform (cdf dT x) = cdf dT x.
 
   (* Wrapper around the inverse_cdf of dT to be used as the map function
      for the map combinator. This is necessary because the domain of
@@ -189,10 +193,10 @@ Section inverseTransform.
 
   Lemma uniform_cdf_probOf (x : T) :
     probOf (standardUniform_dist pfN)
-           (fun u' : uniform_finType (N:=N) pfN => sval u' <= (cdf dT x)) =
-    cdf (standardUniform_dist pfN) (rat_to_uniform (cdf dT x)).
+           (fun u' : uniform_finType (N:=N) pfN => sval u' <= sval (cdf dT x)) =
+    sval (cdf (standardUniform_dist pfN) (rat_to_uniform (cdf dT x))).
   Proof.
-    rewrite [cdf (standardUniform_dist _) _]cdf_probOf /probOf /=.
+    rewrite /= /probOf /=.
     have ->: (\sum_(t |
                     (enum_rank t <= enum_rank (rat_to_uniform (cdf dT x)))%N)
                (uniform_dist (uniform_finType (N:=N) pfN)) t =
@@ -221,14 +225,15 @@ Section inverseTransform.
   Admitted.
 
   Lemma probOf_inverse_cdf u x :
-    (enum_rank (inverse_cdf dT u) <= enum_rank x)%N = (sval u <= cdf dT x).
+    (enum_rank (inverse_cdf dT u) <= enum_rank x)%N =
+    (sval u <= sval (cdf dT x)).
   Admitted.
 
   (* The inverse transform CDF is extensionally equal to the CDF of dT. *)
   Lemma map_cdf_equiv_target_cdf :
-    forall x, cdf inverseTransformDist x = cdf dT x.
+    forall x, proj1_sig (cdf inverseTransformDist x) = proj1_sig (cdf dT x).
   Proof.
-    move=> x. rewrite 2!cdf_probOf.
+    move=> x. rewrite /cdf /=.
     have ->: (probOf inverseTransformDist
                      (fun y : T => (enum_rank y <= enum_rank x)%N) =
               probOf uniformDist (fun u' => (enum_rank (inverse_cdf' u')
@@ -265,11 +270,11 @@ Section inverseTransform.
                         (enum_rank (inverse_cdf' u') <= enum_rank x)%N) =
               probOf uniformDist
                      (fun u' : uniform_finType (N:=N) pfN =>
-                        proj1_sig u' <= cdf dT x)).
+                        proj1_sig u' <= proj1_sig (cdf dT x))).
     { rewrite /inverse_cdf' /probOf /=. apply eq_big => // u.
       rewrite ffunE. apply probOf_inverse_cdf. }
     by rewrite uniform_cdf_probOf uniform_cdf_identity
-               pf_rat_to_uniform cdf_probOf.
+               pf_rat_to_uniform.
   Qed.
 
   (* The inverse transform pmf is extensionally equal to dT *)
