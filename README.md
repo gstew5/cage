@@ -8,7 +8,7 @@ Cage is a library and set of tools in Ssreflect-Coq for implementing and verifyi
 * MWU DSL [weightslang.v](https://github.com/gstew5/cage/blob/master/weightslang.v)
 * MWU DSL interpreter, along with correctness results [weightsextract.v](https://github.com/gstew5/cage/blob/master/weights.v)
 
-More detail on the research ideas underlying Cage is forthcoming. 
+An introduction to the research ideas underlying Cage (in the form of a technical paper) is forthcoming. 
 
 ## Prerequisites
 
