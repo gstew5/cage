@@ -117,6 +117,7 @@ VFILES:=axioms.v\
   weightsextract.v\
   weightslang.v\
   weights.v\
+  client.v\
   orderedtypes.v\
   server.v\
   strings.v\

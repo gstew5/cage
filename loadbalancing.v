@@ -13,7 +13,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import numerics combinators games compile orderedtypes dyadic.
-Require Import weightsextract server.
+Require Import weightsextract client server.
 
 Local Open Scope ring_scope.
 
