@@ -105,7 +105,7 @@ Class ClientOracle T oracle_chanty :=
   mkOracle { oracle_bogus_chan : oracle_chanty
            ; oracle_recv : forall A : Type,
                T -> oracle_chanty -> (list (A*D) * T)
-           ; oracle_send : forall A : Type,
+           ; oracle_send : forall (A : Type) (a0 : A),
                T -> list (A*D) -> (oracle_chanty * T)
            ; oracle_recv_ok : forall A (a : A) st ch,
                exists d,
@@ -144,7 +144,7 @@ Module MWU (A : MyOrderedType).
     (** Draw from a distribution, communicating the resulting action 
       to the network. *)
     Definition mwu_send (m : M.t D) (oracle_st : T) : (oracle_chanty * T) :=
-      oracle_send oracle_st (M.elements m).
+      oracle_send A.t0 oracle_st (M.elements m).
 
     (* Receive a cost vector (a map) from the network. *)
     Definition mwu_recv : oracle_chanty -> T -> (M.t D * T) :=
