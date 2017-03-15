@@ -536,7 +536,7 @@ Section sampling.
     | nil => (D0, a0) (*should never occur*)
     | (w, a) :: l' =>
       if Dle_bool acc r && Dle_bool r (Dadd acc w) then
-        (w, eprint_string "Chose action " a)
+        (w, a)
       else cdf_sample_aux a0 (Dadd acc w) r l'
     end.
   
@@ -587,7 +587,8 @@ Section sampling.
       let (i, t2) := sample_index t size in
       let (a, d) := AM.lookup i in 
       let (u, t') := rand t2 in      
-      if Dle_bool (Dmult u w_max) d then (a, t')
+      if Dle_bool (Dmult u w_max) d then
+        (a, t')
       else rejection_sample_row_aux a0 r t' n'
     end.
 
@@ -610,7 +611,8 @@ Section sampling.
     rejection_sample_row a0 r t2.
   
   Fixpoint prod_sample_aux
-           (A : Type) (a0 : A)           
+           (A : Type)
+           (a0 : A)
            (acc : M.t A * T)
            (n : nat)
            (p : nat -> DIST.t A)
@@ -624,7 +626,8 @@ Section sampling.
 
   Definition prod_sample
              (num_players : nat)
-             (A : Type) (a0 : A)
+             (A : Type)
+             (a0 : A)
              (p : nat -> DIST.t A)
              (t : T)
     : (M.t A * T) :=
@@ -653,7 +656,7 @@ Extract Constant rand =>
   let peight = XO (XO (XO XH)) in
   let q = { num = zn; den = peight } 
   in
-  Printf.eprintf ""Generated random r = %d\n"" d; prerr_newline ();
+  Printf.eprintf ""Generated random r = %d"" d; prerr_newline ();
   Pair (q, ())".
 
 (** PRECONDITION: [rand_range t n]: n is Npos p for some p *)
@@ -682,7 +685,7 @@ Extract Constant rand_range =>
   let _ = Random.self_init () in
   let d = Random.int (ocamlint_of_n size) 
   in
-  Printf.eprintf ""Generated random i = %d\n"" d; prerr_newline ();
+  Printf.eprintf ""Generated in-range random i = %d"" d; prerr_newline ();
   Pair (n_of_ocamlint d, ())".
 Axiom rand_range_ok :
   forall t n,

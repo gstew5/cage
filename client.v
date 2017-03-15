@@ -27,8 +27,8 @@ Extract Constant ax_chan => "Unix.file_descr".
 Axiom ax_bogus_chan : ax_chan.
 Extract Constant ax_bogus_chan => "Unix.stderr".
 
-Axiom send : forall A : Type, ax_st_ty -> list (A*D) -> (ax_chan * ax_st_ty).
-Extract Constant send =>
+Axiom ax_send : forall A : Type, ax_st_ty -> A -> (ax_chan * ax_st_ty).
+Extract Constant ax_send =>
 (* Create socket, connect to server, send action, return socket. *)
 (* Need to know IP address of the server, but it's also possible to do
    host name resolution. *)
@@ -42,6 +42,23 @@ Extract Constant send =>
    flush out_chan;
    Printf.eprintf ""Sent value...""; prerr_newline ();
    Pair (sd, ())".
+
+Axiom seq : forall (A B : Type) (a : A) (f : A -> B), B.
+Extract Constant seq =>
+"fun a b -> 
+   let x = a in 
+   b x".
+
+Definition send (A : Type) `{Showable A} (a0 : A) (st : ax_st_ty) (l : list (A*D))
+  : ax_chan * ax_st_ty :=
+  (*TODO: constructing this DIST.t each time is wasteful -- 
+    the DIST datastructure should eventually be factored into weightsextract.v*)
+  let: d := DIST.add_weights l (DIST.empty _) in  
+  seq (rsample a0 d)
+      (fun x => seq (eprint_string "Chose action " tt)
+                    (fun _ => seq (eprint_showable x tt)
+                                  (fun _ => seq (eprint_newline tt)
+                                                (fun _ => ax_send st x)))).
 
 Axiom recv : forall A : Type, ax_st_ty -> ax_chan -> (list (A*D) * ax_st_ty).
 Extract Constant recv =>

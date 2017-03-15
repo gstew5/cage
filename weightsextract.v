@@ -105,7 +105,7 @@ Class ClientOracle T oracle_chanty :=
   mkOracle { oracle_bogus_chan : oracle_chanty
            ; oracle_recv : forall A : Type,
                T -> oracle_chanty -> (list (A*D) * T)
-           ; oracle_send : forall (A : Type) (a0 : A),
+           ; oracle_send : forall (A : Type) `{Showable A} (a0 : A),
                T -> list (A*D) -> (oracle_chanty * T)
            ; oracle_recv_ok : forall A (a : A) st ch,
                exists d,

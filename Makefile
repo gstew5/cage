@@ -94,8 +94,7 @@ endif
 #                    #
 ######################
 
-VFILES:=axioms.v\
-  bigops.v\
+VFILES:=bigops.v\
   christodoulou.v\
   combinators.v\
   ccombinators.v\
@@ -119,6 +118,7 @@ VFILES:=axioms.v\
   weights.v\
   client.v\
   orderedtypes.v\
+  lightserver.v\
   server.v\
   strings.v\
   machine.v

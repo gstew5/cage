@@ -1,8 +1,8 @@
 
 
-EPSILON=0.25
+EPSILON=0.125
 OUTFILE=out.txt
-CLIENTS=5
+CLIENTS=15
 ROUNDS=10
 
 # kill ./server.native if it's currently running
@@ -15,7 +15,8 @@ pkill -f ./server.native
 PIDS=()
 for i in $(seq 1 $ROUNDS); do
     # spool up clients, making sure that they run concurrently
-    for j in $(seq 1 $CLIENTS); do 
+    for j in $(seq 1 $CLIENTS); do
+	echo "Spooling up client $j"
 	./mwu.native &> "clientout$i$j.txt" & PIDS[$j]=$!
     done
     # wait for clients
@@ -37,16 +38,16 @@ pkill -f ./server.native
 # Calculate and record regret to $OUTFILE.
 # Run ./calcregret.py once per round, specialized in each
 # round to the last client (j=$CLIENTS).
-# if [ -e $OUTFILE ]; then
-#     rm $OUTFILE
-# fi
+if [ -e $OUTFILE ]; then
+    rm $OUTFILE
+fi
 
-# for i in $(seq 1 $ROUNDS); do
-#     ./calcregret.py "clientout$i$CLIENTS.txt" $OUTFILE $EPSILON
-# done
+for i in $(seq 1 $ROUNDS); do
+    ./calcregret.py "clientout$i$CLIENTS.txt" $OUTFILE $EPSILON
+done
 
 # # plot regret
-# ./plotregret.py $OUTFILE
+./plotregret.py $OUTFILE
 
 
 
