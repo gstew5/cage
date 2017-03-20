@@ -10,7 +10,7 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import extrema numerics games dyadic.
+Require Import extrema numerics games dyadic strings.
 
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
@@ -266,3 +266,18 @@ Class Eq (A : Type) : Type :=
 
 Class Eq_Dec (A : Type) (eq : Eq A) : Type :=
   isDec : forall x y : A,  {eq x y} + {~ eq x y}.
+
+(** The game type package provided by MWU to the client network oracle *)
+
+Class GameType
+      (A : Type) num_players
+      `{ccost_instance : CCostClass num_players A}
+      `{enum_instance : Enumerable A}
+      `{show_instance : Showable A}
+  := mkGameType
+       { a0 : A
+       ; ccost_ok : 
+           forall (p : compile.M.t A) (player : N),
+             let: d := ccost player p in
+             [/\ Dle D0 d & Dle d D1]     
+       }.

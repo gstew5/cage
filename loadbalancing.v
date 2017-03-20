@@ -13,7 +13,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import numerics combinators games compile orderedtypes dyadic.
-Require Import weightsextract client lightserver.
+Require Import lightserver staging.
 
 Local Open Scope ring_scope.
 
@@ -208,41 +208,18 @@ End P.
 (** Game with predicated strategy space (choose exactly one resource) *)
 Module RAffine3ScaledSigma <: MyOrderedType := OrderedSigma P.
 
-(* The program *)
-Module MWU := MWU RAffine3ScaledSigma.
-
-Existing Instance RAffine3ScaledSigma.enumerable.
-Definition RAffine3ScaledSigma_cost_instance :=
-  RAffine3ScaledSigma.cost_instance num_players.
-Existing Instance RAffine3ScaledSigma_cost_instance.
-
-Axiom ccost_ok : (*TODO*)
-  forall (p : M.t RAffine3ScaledSigma.t) (player : N),
-    (0 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
-
-(*Why doesn' Coq discover this instance in the following definition?*)
-Definition mwu0 (eps : D) (nx : N.t)
-           {T chanty : Type} {oracle : ClientOracle T chanty}
-           (init_oracle_st : T) :=
-  MWU.interp
-    ccost_ok
-    (weightslang.mult_weights RAffine3ScaledSigma.t nx)
-    (@MWU.init_cstate T chanty oracle init_oracle_st _ eps).
-
-Definition mwu := mwu0 eps num_iters empty_ax_st.
+Module Conf : CONFIG.
+  Module A := RAffine3ScaledSigma.
+  Definition num_players := num_players'.
+  Definition num_rounds : N.t := num_iters.
+  Definition epsilon := eps.
+End Conf.  
+  
+Module Client := Client_of_CONFIG Conf.
+Module Server := Server_of_CONFIG Conf.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
 
-Extraction "runtime/mwu.ml" mwu.
-
-Module C : ServerConfig.
-  Definition num_players := num_players'.
-  Definition num_rounds := 5000%N.
-End C.
-
-Module Server := Server C RAffine3ScaledSigma.
-
-Definition run := Server.server (@Server.init_state result _ ax_oracle).
-
-Extraction "runtime/server.ml" run.
+Extraction "runtime/mwu.ml" Client.mwu.
+Extraction "runtime/server.ml" Server.run.

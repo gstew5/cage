@@ -13,7 +13,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import numerics combinators games compile orderedtypes dyadic.
-Require Import weightsextract client lightserver.
+Require Import lightserver staging.
 
 Local Open Scope ring_scope.
 
@@ -413,40 +413,18 @@ Module P <: OrderedPredType.
 End P.
 Module P3Scaled' <: MyOrderedType := OrderedSigma P.
 
-(* The program *)
-Module MWU := MWU P3Scaled'.
-
-Existing Instance P3Scaled'.enumerable.
-Definition P3Scaled'_cost_instance := P3Scaled'.cost_instance num_players.
-Existing Instance P3Scaled'_cost_instance.
-
-Axiom ccost_ok : (*TODO*)
-  forall (p : M.t P3Scaled'.t) (player : N),
-    (0 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
-
-(*Why doesn' Coq discover this instance in the following definition?*)
-Definition mwu0 (eps : D) (nx : N.t)
-           {T chanty : Type} {oracle : ClientOracle T chanty}
-           (init_oracle_st : T) :=
-  MWU.interp
-    ccost_ok 
-    (weightslang.mult_weights P3Scaled'.t nx)
-    (@MWU.init_cstate T chanty oracle init_oracle_st _ eps).
-
-Definition mwu := mwu0 eps num_iters empty_ax_st.
+Module Conf : CONFIG.
+  Module A := P3Scaled'.                
+  Definition num_players := num_players.
+  Definition num_rounds : N.t := 40.
+  Definition epsilon := eps.
+End Conf.  
+  
+Module Client := Client_of_CONFIG Conf.
+Module Server := Server_of_CONFIG Conf.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
 
-Extraction "runtime/mwu.ml" mwu.
-
-Module C : ServerConfig.
-  Definition num_players := num_players%N.             
-  Definition num_rounds := 5000%N.
-End C.
-
-Module Server := Server C P3Scaled'.
-
-Definition run := Server.server (@Server.init_state result _ ax_oracle).
-
-Extraction "runtime/server.ml" run.
+Extraction "runtime/mwu.ml" Client.mwu.
+Extraction "runtime/server.ml" Server.run.

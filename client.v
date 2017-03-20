@@ -51,17 +51,6 @@ Axiom seqP :
   forall A B (a : A) (f : A -> B),
     seq a f = f a.
 
-Definition send (A : Type) `{Showable A} (a0 : A) (st : ax_st_ty) (l : list (A*D))
-  : ax_chan * ax_st_ty :=
-  (*TODO: constructing this DIST.t each time is wasteful -- 
-    the DIST datastructure should eventually be factored into weightsextract.v*)
-  let: d := DIST.add_weights l (DIST.empty _) in  
-  seq (rsample a0 d)
-      (fun x => seq (eprint_string "Chose action " tt)
-                    (fun _ => seq (eprint_showable x tt)
-                                  (fun _ => seq (eprint_newline tt)
-                                                (fun _ => ax_send st x)))).
-
 Axiom ax_recv : forall A : Type, ax_st_ty -> ax_chan -> (N * M.t A * ax_st_ty).
 Extract Constant ax_recv =>
 (* Read the player actions from the socket; close the socket *)
@@ -75,13 +64,19 @@ Extract Constant ax_recv =>
 
 Section clientCostVectorShim.
   Variable A : Type.
-  Context `{GameTypeIsEnumerable : Enumerable A}.  
   Variable num_players : nat.
-  Context `{CCostInstance : CCostClass num_players A}.
-  Variable ccost_ok :
-    forall (p : M.t A) (player : N),
-      let: d := ccost player p in
-      [/\ Dle D0 d & Dle d D1].
+  Context `{GameTypeInstance : GameType A num_players}.
+
+  Definition send (st : ax_st_ty) (l : list (A*D))
+    : ax_chan * ax_st_ty :=
+    (*TODO: constructing this DIST.t each time is wasteful -- 
+      the DIST datastructure should eventually be factored into weightsextract.v*)
+    let: d := DIST.add_weights l (DIST.empty _) in  
+    seq (rsample a0 d)
+        (fun x => seq (eprint_string "Chose action " tt)
+                      (fun _ => seq (eprint_showable x tt)
+                                    (fun _ => seq (eprint_newline tt)
+                                                  (fun _ => ax_send st x)))).
   
   (** The cost vector for [player]. [p] is a map from player indices 
       to their sampled strategies. *)
@@ -104,7 +99,7 @@ Section clientCostVectorShim.
            (cost_vector p player, st')).
   
   Lemma recv_ok :
-    forall (a : A) st ch,
+    forall st ch a,
     exists d,
       [/\ In (a,d) (recv st ch).1
         , Dle D0 d & Dle d D1].
@@ -119,5 +114,14 @@ Section clientCostVectorShim.
   Qed.
 End clientCostVectorShim.
 
-Instance client_ax_oracle : ClientOracle ax_st_ty ax_chan :=
-  mkOracle ax_bogus_chan send recv_ok recv_nodup.
+Instance client_ax_oracle {A num_players} `{GameType A num_players}
+  : @ClientOracle A num_players _ _ _ _ :=
+  @mkOracle
+    A num_players _ _ _ _
+    ax_st_ty empty_ax_st
+    ax_chan ax_bogus_chan
+    (@recv A num_players _ _)
+    (@send A num_players _ _ _ _)
+    (@recv_ok A num_players _ _ _ _)
+    (@recv_nodup A num_players _ _ _ _).
+

@@ -10,10 +10,18 @@ Require Import Structures.Orders NArith.
 
 Require Import strings compile orderedtypes dyadic numerics cdist.
 
-Module Type ServerConfig.
+(* A CONFIGuration specifies 
+   - the ordered game type
+   - the number of players 
+   - the number of rounds 
+   - the epsilon *)
+
+Module Type CONFIG.
+  Declare Module A : MyOrderedType.
   Parameter num_players : nat.
-  Parameter num_rounds : nat.
-End ServerConfig.
+  Parameter num_rounds : N.t.
+  Parameter epsilon : D.
+End CONFIG.  
 
 Class ServerOracle T oracle_chanty :=
   mkOracle { oracle_init : nat -> (oracle_chanty * T)
@@ -25,7 +33,8 @@ Class ServerOracle T oracle_chanty :=
                T
            }.
 
-Module Server (C : ServerConfig) (A : MyOrderedType).  
+Module Server (C : CONFIG).
+  Module A := C.A.
   Section server.
   Context T `{oracle : ServerOracle T}.
 
@@ -81,7 +90,7 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
       rounds s' r'
     end.
   
-  Definition server (s : state) : state := rounds s C.num_rounds.
+  Definition server (s : state) : state := rounds s (S (N.to_nat C.num_rounds)).
   End server.
 End Server.
 

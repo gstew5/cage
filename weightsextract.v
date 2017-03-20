@@ -99,36 +99,21 @@ End PrintDvector.
 Definition zero : Q := 0.
 Definition one : Q := 1.
 Definition two : Q := Qmake 2 1.
-
-(* Client oracle *)
-Class ClientOracle T oracle_chanty :=
-  mkOracle { oracle_bogus_chan : oracle_chanty
-           ; ccost_ok (A : Type) (num_players : nat) `{CCostClass num_players A} := 
-               forall (p : compile.M.t A) (player : N),
-                 let: d := ccost player p in
-                 [/\ Dle D0 d & Dle d D1] 
-           ; oracle_recv : forall
-                {A : Type} `{Enumerable A}
-                {num_players : nat} `{CCost : CCostClass num_players A}
-                (pf : ccost_ok A num_players CCost),
-                T -> oracle_chanty -> (list (A*D) * T) 
-           ; oracle_send :
-               forall (A : Type) `{Showable A} (a0 : A),
-                 T -> list (A*D) -> (oracle_chanty * T)
-           ; oracle_recv_ok : forall
-                {A : Type} `{Enumerable A}
-                {num_players : nat} `{CCost : CCostClass num_players A}
-                (pf : ccost_ok A num_players CCost)
-                (a : A) st ch,
+    
+(* The package provided by the client network oracle to MWU *)
+Class ClientOracle {A} `{gametype_instance : GameType A} := 
+  mkOracle { T : Type (* oracle private state *)
+           ; oracle_init_state : T
+           ; oracle_chanty : Type
+           ; oracle_bogus_chan : oracle_chanty
+           ; oracle_recv : T -> oracle_chanty -> (list (A*D) * T) 
+           ; oracle_send : T -> list (A*D) -> (oracle_chanty * T)
+           ; oracle_recv_ok : forall st ch a,
                exists d,
-                 [/\ In (a,d) (oracle_recv pf st ch).1
+                 [/\ In (a,d) (oracle_recv st ch).1
                    , Dle D0 d & Dle d D1]
-           ; oracle_recv_nodup : forall
-               {A : Type} `{Enumerable A}
-                {num_players : nat} `{CCost : CCostClass num_players A}
-                (pf : ccost_ok A num_players CCost)
-                st ch,
-               NoDupA (fun p q => p.1 = q.1) (oracle_recv pf st ch).1
+           ; oracle_recv_nodup : forall st ch,
+               NoDupA (fun p q => p.1 = q.1) (oracle_recv st ch).1
            }.
 
 (** * Program *)
@@ -143,15 +128,11 @@ Module MWU (A : MyOrderedType).
     D_to_Q (M.fold (fun a q acc => Dadd q acc) weights (Dmake 0 1)).
 
   Section mwu.
-    Context {T oracle_chanty : Type} `{oracle: ClientOracle T oracle_chanty}
-            (init_oracle_st : T).
-    Context `{GameTypeIsEnumerable : Enumerable A.t}.
-    Variable num_players : nat.    
-    Context `{CCostInstance : CCostClass num_players A.t}.
-    Variable ccost_ok :
-      forall (p : compile.M.t A.t) (player : N),
-        let: d := ccost player p in
-        [/\ Dle D0 d & Dle d D1].
+    Variable num_players : nat.
+    (** Assume a game type as input to MWU *)
+    Context `{GameType A.t num_players}.
+    (** Assume an oracle over the provided GameType *)
+    Context `{oracle : ClientOracle A.t}.
 
     Record cstate : Type :=
       mkCState
@@ -167,12 +148,12 @@ Module MWU (A : MyOrderedType).
     (** Draw from a distribution, communicating the resulting action 
       to the network. *)
     Definition mwu_send (m : M.t D) (oracle_st : T) : (oracle_chanty * T) :=
-      oracle_send A.t0 oracle_st (M.elements m).
+      oracle_send oracle_st (M.elements m).
 
     (* Receive a cost vector (a map) from the network. *)
     Definition mwu_recv : oracle_chanty -> T -> (M.t D * T) :=
       fun ch => fun st =>
-        let (l, st') := oracle_recv ccost_ok st ch in
+        let (l, st') := oracle_recv st ch in
         let l':= print_Dvector to_string l l in
         (MProps.of_list l', st').
 
@@ -306,7 +287,7 @@ Module MWU (A : MyOrderedType).
           epsQ
           [::]
           oracle_bogus_chan
-          init_oracle_st.
+          oracle_init_state.
     End init.
 
     (* Context `{Enumerable A.t}. *)
@@ -357,39 +338,36 @@ Module MWUProof (T : OrderedFinType).
   Qed.
 
   Section mwuProof.
-    Context {oracle_chanty : Type}.
-    Context oracle_cT `{coracle: ClientOracle oracle_cT oracle_chanty}.
-
-    Context {GameTypeIsEnumerable : Enumerable t}.
-    Variable num_players : nat.    
-    Context {CCostInstance : CCostClass num_players A.t}.
-    Variable ccost_ok :
-      forall (p : compile.M.t A.t) (player : N),
-        let: d := ccost player p in
-        [/\ Dle D0 d & Dle d D1].
+    Variable num_players : nat.
+    (** Assume a game type as input to MWU *)
+    Context `{gametype_instance : GameType A.t num_players}.
+    (** Assume an oracle over the provided GameType *)
+    Context `{coracle : ClientOracle A.t}.
+    (** An alias used below: *)
+    Definition oracle_cT : Type := (T (ClientOracle := coracle)).
     
     Lemma recv_ok :
       forall a st ch,
       exists d,
-        [/\ M.find a (mwu_recv ccost_ok ch st).1 = Some d
+        [/\ M.find a (mwu_recv ch st).1 = Some d
           , Dle_bool D0 d & Dle_bool d D1].
     Proof.
      rewrite /mwu_recv.
       move => a0 st ch.
-      have H: NoDupA (M.eq_key (elt:=D)) (oracle_recv ccost_ok st ch).1.
-      { generalize (oracle_recv_nodup (ClientOracle:=coracle) ccost_ok st ch) => H.
+      have H: NoDupA (M.eq_key (elt:=D)) (oracle_recv st ch).1.
+      { generalize (oracle_recv_nodup (ClientOracle:=coracle) st ch) => H.
         rewrite NoDupA_ext; first by apply: H.
         rewrite /M.eq_key /M.Raw.Proofs.PX.eqk => a b.
           by rewrite -A.eqP. }
       move: a0 => a.
-      case: (oracle_recv_ok ccost_ok a st ch) => q []H2 H3.
+      case: (oracle_recv_ok st ch a) => q []H2 H3.
       exists q; split => //.
       Focus 2. by rewrite <-Dle_bool_iff in H3; rewrite H3.
       Focus 2. by rewrite <-Dle_bool_iff in p; rewrite p.
-      destruct (oracle_recv ccost_ok st ch).
+      destruct (oracle_recv st ch).
       rewrite MProps.of_list_1b => //.
       move: H H2 {H3 p}; rewrite print_Dvector_id;
-       generalize (oracle_recv (ClientOracle:=coracle) ccost_ok st ch) a q.
+       generalize (oracle_recv (ClientOracle:=coracle) st ch) a q.
       move=> _ /=. move: l.
       elim => // [][]a' q' l' IH a0 q0; inversion 1; subst; case.
       { case => -> -> /=.
@@ -465,7 +443,7 @@ Module MWUProof (T : OrderedFinType).
     mkMatchOracles {
       match_oracle_recv : forall (ct : oracle_cT) (t : oracle_T) ch s,
         match_oracle_states t ct -> 
-        let: (m, ct') := mwu_recv ccost_ok ch ct in
+        let: (m, ct') := mwu_recv ch ct in
         exists t',
         [/\ weightslang.oracle_recv t ch s t'
           , match_maps s m
@@ -499,7 +477,7 @@ Module MWUProof (T : OrderedFinType).
         match_oracle_states oracle_st coracle_st ->
         match_states
           (@mkState _ _ _ s s_ok ss w w_ok eps eps_ok outs ch oracle_st)
-          (@mkCState _ _ m mm wc epsc outs' ch coracle_st).
+          (@mkCState _ _ _ _ _ _ m mm wc epsc outs' ch coracle_st).
 
   Definition eval_binopc (b : binop) (v1 v2 : D) :=
     match b with
@@ -522,8 +500,7 @@ Module MWUProof (T : OrderedFinType).
     | EWeight a => M.find a (SWeights s)
     | ECost a => M.find a (SCosts s)
     | EEps => Some (SEpsilon
-                      (T:=oracle_cT)
-                      (oracle_chanty:=oracle_chanty)
+                      (oracle:=coracle)
                       s)
     | EBinop b e1 e2 =>
       let: v1 := evalc e1 s in
@@ -1013,7 +990,7 @@ Module MWUProof (T : OrderedFinType).
   
   Lemma interp_step_plus :
     forall (s : state t) (tx tx' : cstate) (c : com t),
-      interp ccost_ok c tx = Some tx' ->
+      interp c tx = Some tx' ->
       match_states s tx ->
       exists c' s',
         final_com c' /\
@@ -1049,7 +1026,7 @@ Module MWUProof (T : OrderedFinType).
       by case: H5x => H5x H6 a; move: (H6 a); rewrite ffunE. }
     { intros s tx t'; inversion 1; subst. clear H.
       intros H2.
-      set c := mwu_recv ccost_ok (SChan tx) (SOracleSt tx).
+      set c := mwu_recv (SChan tx) (SOracleSt tx).
       set f :=
         finfun
           (fun a : t =>
@@ -1182,7 +1159,7 @@ Module MWUProof (T : OrderedFinType).
       constructor; auto.
       constructor; auto. }
     { move => s t t'.
-      case H: (interp ccost_ok c1 t) => [t''|].
+      case H: (interp c1 t) => [t''|].
       { move => H2 H3.
         case: (IHc1 _ _ _ H H3) => cx []tx []H4 []H5 H6.
         case: (IHc2 _ _ _ H2 H6) => cy []ty []H7 []H8 H9.
@@ -1260,7 +1237,7 @@ Module MWUProof (T : OrderedFinType).
     case H4: (Nat.iter (N.to_nat x)
                        (fun s0 : option cstate =>
                           match s0 with
-                          | Some s' => interp ccost_ok c s'
+                          | Some s' => interp c s'
                           | None => None
                           end) (Some t0)) => [tx|].
     { move => H5.
@@ -1324,9 +1301,7 @@ Module MWUProof (T : OrderedFinType).
   Qed.
   
   Section mwuproof.
-  Context
-    {EnumerationOK : RefineTypeAxiomClass GameTypeIsEnumerable}
-    (init_oracle_cst : oracle_cT).
+    Context {EnumerationOK : @RefineTypeAxiomClass t _}.
     
   Lemma match_maps_init
     : match_maps (init_weights t) init_map.
@@ -1348,12 +1323,12 @@ Module MWUProof (T : OrderedFinType).
   Lemma match_states_init
         (eps : D) eps_ok
         (init_oracle_st : oracle_T)
-        (Hmatch_ora_states : match_oracle_states init_oracle_st init_oracle_cst)
+        (Hmatch_ora_states : match_oracle_states init_oracle_st oracle_init_state)
     : match_states
         (@init_state
            t oracle_T oracle_chanty (Q_to_rat (D_to_Q eps)) eps_ok
            oracle_bogus_chan init_oracle_st)
-        (init_cstate init_oracle_cst eps).
+        (init_cstate eps).
   Proof.
     constructor.
     { apply: match_maps_init. }
@@ -1371,9 +1346,7 @@ Module MWUProof (T : OrderedFinType).
         (nx : N.t) eps tx
         (init_oracle_st : oracle_cT)
     : (0 < nx)%N ->
-      interp ccost_ok
-             (mult_weights t nx)
-             (init_cstate init_oracle_st eps) = Some tx ->
+      interp (mult_weights t nx) (init_cstate eps) = Some tx ->
       (0 < size (SPrevCosts tx))%N.
   Proof.
     rewrite /init_cstate /=; case: (update_weights _ _) => //= a.
@@ -1383,7 +1356,7 @@ Module MWUProof (T : OrderedFinType).
     { apply: Pos2Nat.is_succ. }
     simpl.
     case: (nat_rect _ _) => // [s1].
-    destruct (mwu_recv ccost_ok (SChan s1)) eqn:Hrecv => /=.
+    destruct (mwu_recv (SChan s1)) eqn:Hrecv => /=.
     case: (update_weights _ _) => //= a1.
     destruct (mwu_send a1) eqn:Hsenda1.
     inversion 1; subst => /=.
@@ -1398,10 +1371,10 @@ Module MWUProof (T : OrderedFinType).
   Lemma interp_mult_weights_epsilon_no_regret :
     forall (nx : N) (t' : cstate) (eps : D) (eps_ok : epsOk (Q_to_rat (D_to_Q eps)))
            (init_oracle_st : oracle_T)
-           (Hmatch_ora_states : match_oracle_states init_oracle_st init_oracle_cst),
+           (Hmatch_ora_states : match_oracle_states init_oracle_st oracle_init_state),
       let: epsR := rat_to_R (Q_to_rat (D_to_Q eps)) in
       (0 < nx)%N ->
-      interp ccost_ok (mult_weights t nx) (init_cstate init_oracle_cst eps) = Some t' ->
+      interp (mult_weights t nx) (init_cstate eps) = Some t' ->
       exists s',
         match_states s' t' /\
         ((state_expCost1 (all_costs0 s') s' - OPTR a0 s') / Tx nx <=
@@ -1411,7 +1384,7 @@ Module MWUProof (T : OrderedFinType).
     case: (interp_step_plus H (match_states_init epsOk Hmatch_ora_st)) => c' []s'.
     case => H2 [] []; first by case; inversion 1.
     move => H3 H4; exists s'; split => //.
-    move: (size_costs_interp_mult_weights Hnx H) => H5.
+    move: (size_costs_interp_mult_weights oracle_init_state Hnx H) => H5.
     have H6: size (SPrevCosts t') = size (all_costs' s').
     { inversion H4; subst; simpl in *. clear - H1.
       rewrite /all_costs' /all_costs0 /all_costs.
@@ -1425,7 +1398,7 @@ Module MWUProof (T : OrderedFinType).
     apply: mult_weights_epsilon_no_regret => //.
     apply: H3.
   Qed.
-  Print Assumptions interp_mult_weights_epsilon_no_regret.
   End mwuproof.
   End mwuProof.
+  Print Assumptions interp_mult_weights_epsilon_no_regret.
 End MWUProof.

@@ -1,13 +1,12 @@
 
 
-EPSILON=0.125
+EPSILON=0.25
 OUTFILE=out.txt
-CLIENTS=15
-ROUNDS=10
+CLIENTS=6
+ROUNDS=15
 
 # kill ./server.native if it's currently running
 pkill -f ./server.native
-
 # fire up server, sending eoutput to serverout.txt
 ./server.native &> serverout.txt &
 
@@ -25,15 +24,15 @@ for i in $(seq 1 $ROUNDS); do
     done 
     if [ $? -eq 0 ]; then
 	echo "Round $i successful"
+	# kill server (so it releases socket)
+	pkill -f ./server.native
+	# fire up server, sending eoutput to serverout.txt
+	./server.native &> serverout.txt &
     else
 	echo "Round $i failed"
 	exit 1
     fi
 done
-
-
-# kill server (so it releases socket)
-pkill -f ./server.native
 
 # Calculate and record regret to $OUTFILE.
 # Run ./calcregret.py once per round, specialized in each

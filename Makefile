@@ -121,7 +121,8 @@ VFILES:=bigops.v\
   lightserver.v\
   server.v\
   strings.v\
-  machine.v
+  machine.v\
+  staging.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
