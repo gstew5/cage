@@ -212,12 +212,20 @@ Module RAffine3ScaledSigma <: MyOrderedType := OrderedSigma P.
 Module MWU := MWU RAffine3ScaledSigma.
 
 Existing Instance RAffine3ScaledSigma.enumerable.
+Definition RAffine3ScaledSigma_cost_instance :=
+  RAffine3ScaledSigma.cost_instance num_players.
+Existing Instance RAffine3ScaledSigma_cost_instance.
+
+Axiom ccost_ok : (*TODO*)
+  forall (p : M.t RAffine3ScaledSigma.t) (player : N),
+    (0 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
 
 (*Why doesn' Coq discover this instance in the following definition?*)
 Definition mwu0 (eps : D) (nx : N.t)
            {T chanty : Type} {oracle : ClientOracle T chanty}
            (init_oracle_st : T) :=
   MWU.interp
+    ccost_ok
     (weightslang.mult_weights RAffine3ScaledSigma.t nx)
     (@MWU.init_cstate T chanty oracle init_oracle_st _ eps).
 
@@ -235,8 +243,6 @@ End C.
 
 Module Server := Server C RAffine3ScaledSigma.
 
-Existing Instance RAffine3ScaledSigma.cost_instance.
-(*Why doesn' Coq discover this instance in the following definition?*)
 Definition run := Server.server (@Server.init_state result _ ax_oracle).
 
 Extraction "runtime/server.ml" run.

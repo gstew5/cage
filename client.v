@@ -15,12 +15,11 @@ From mathcomp Require Import all_algebra.
 Require Import strings compile orderedtypes dyadic numerics cdist weightsextract.
 
 (** Axiomatized client oracle *)
-
 Axiom ax_st_ty : Type.
 Extract Constant ax_st_ty => "unit".
 Axiom empty_ax_st : ax_st_ty.
 Extract Constant empty_ax_st => "()".
-
+  
 (** A channel *)
 Axiom ax_chan : Type.
 Extract Constant ax_chan => "Unix.file_descr".
@@ -48,6 +47,9 @@ Extract Constant seq =>
 "fun a b -> 
    let x = a in 
    b x".
+Axiom seqP :
+  forall A B (a : A) (f : A -> B),
+    seq a f = f a.
 
 Definition send (A : Type) `{Showable A} (a0 : A) (st : ax_st_ty) (l : list (A*D))
   : ax_chan * ax_st_ty :=
@@ -60,9 +62,9 @@ Definition send (A : Type) `{Showable A} (a0 : A) (st : ax_st_ty) (l : list (A*D
                                   (fun _ => seq (eprint_newline tt)
                                                 (fun _ => ax_send st x)))).
 
-Axiom recv : forall A : Type, ax_st_ty -> ax_chan -> (list (A*D) * ax_st_ty).
-Extract Constant recv =>
-(* Read cost vector from socket, close the socket *)
+Axiom ax_recv : forall A : Type, ax_st_ty -> ax_chan -> (N * M.t A * ax_st_ty).
+Extract Constant ax_recv =>
+(* Read the player actions from the socket; close the socket *)
 "fun _ sd ->
    let _ = Printf.eprintf ""Receiving...""; prerr_newline () in
    let in_chan = Unix.in_channel_of_descr sd in
@@ -71,17 +73,51 @@ Extract Constant recv =>
    Printf.eprintf ""Received cost vector...""; prerr_newline ();
    Pair (cost_vector, ())".
 
-Axiom recv_ok :
-  forall A (a : A) st ch,
-  exists q,
-    [/\ In (a, q) (recv _ st ch).1
-      , Dle D0 q & Dle q D1].
-Axiom recv_nodup :
-  forall (A : Type) st ch, NoDupA (fun p q => p.1 = q.1) (recv A st ch).1.
+Section clientCostVectorShim.
+  Variable A : Type.
+  Context `{GameTypeIsEnumerable : Enumerable A}.  
+  Variable num_players : nat.
+  Context `{CCostInstance : CCostClass num_players A}.
+  Variable ccost_ok :
+    forall (p : M.t A) (player : N),
+      let: d := ccost player p in
+      [/\ Dle D0 d & Dle d D1].
+  
+  (** The cost vector for [player]. [p] is a map from player indices 
+      to their sampled strategies. *)
+  Definition cost_vector (p : M.t A) (player : N) : list (A * D) :=
+    List.fold_left
+    (fun l a => (a, ccost player (M.add player a p)) :: l)
+      (enumerate A)
+      nil.
+
+  Lemma cost_vector_nodup p player :
+    NoDupA (fun p q => p.1 = q.1) (cost_vector p player).
+  Proof.
+    rewrite /cost_vector -fold_left_rev_right.
+  Admitted. (*TODO*)
+
+  Definition recv (st : ax_st_ty) (ch : ax_chan) : list (A*D) * ax_st_ty :=
+    seq (ax_recv _ st ch)
+        (fun pst' =>
+           let: (player, p, st') := pst' in
+           (cost_vector p player, st')).
+  
+  Lemma recv_ok :
+    forall (a : A) st ch,
+    exists d,
+      [/\ In (a,d) (recv st ch).1
+        , Dle D0 d & Dle d D1].
+  Proof. Admitted. (*TODO*)
+
+  Lemma recv_nodup :
+    forall st ch, NoDupA (fun p q => p.1 = q.1) (recv st ch).1.
+  Proof.
+    move => st ch; rewrite /recv seqP.
+    case E: (ax_recv A st ch) => [[x y] z] /=.
+    apply: cost_vector_nodup.
+  Qed.
+End clientCostVectorShim.
 
 Instance client_ax_oracle : ClientOracle ax_st_ty ax_chan :=
   mkOracle ax_bogus_chan send recv_ok recv_nodup.
-
-(** Test extraction: *)
-
-Extraction "interp" MWU.

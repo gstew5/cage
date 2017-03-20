@@ -21,15 +21,12 @@ Class ServerOracle T oracle_chanty :=
                T -> oracle_chanty -> (A * oracle_chanty * T)
            ; oracle_send : forall A : Type,
                T -> option oracle_chanty ->
-               nat (*player index*) ->
-               list (A*D) -> T
+               (N (*player index*) * M.t A) -> 
+               T
            }.
 
 Module Server (C : ServerConfig) (A : MyOrderedType).  
   Section server.
-  Context `{GameTypeIsEnumerable : Enumerable A.t}.
-  Context `{CCostInstance : CCostClass C.num_players A.t}.
-  Context `{ShowableInstance : Showable A.t}.
   Context T `{oracle : ServerOracle T}.
 
   Record state : Type :=
@@ -47,19 +44,12 @@ Module Server (C : ServerConfig) (A : MyOrderedType).
             ch
             nil
             st.
-  
-  Definition cost_vector (p : M.t A.t) (player : N) : list (A.t * D) :=
-    List.fold_left
-      (fun l a => (a, ccost player (M.add player a p)) :: l)
-      (enumerate A.t)
-      nil.
 
   Fixpoint send (s : state) (p : M.t A.t) (player : nat) : state :=
     match player with
     | O => s
     | S player' =>
-      let v := cost_vector p (N.of_nat player') in
-      let st' := oracle_send (oracle_st s) (hd_error (service_channels s)) player' v
+      let st' := oracle_send (oracle_st s) (hd_error (service_channels s)) (N.of_nat player', p) 
       in send (mkState (actions_received s)
                        (listen_channel s)
                        (tl (service_channels s))
@@ -136,11 +126,11 @@ Extract Constant server_recv =>
 
 (* Server send *)
 Axiom server_send :
-  forall A : Type, result -> option chan -> nat (*player index*) -> list (A*D) -> result.
+  forall A : Type, result -> option chan -> (N * M.t A) -> result.
 Extract Constant server_send =>
 (* Here it is taking service_socket as an argument which is assumed to *)
 (*    be the socket created in recv that corresponds to player i *)
-"fun _ service_socket i cost_vector ->
+"fun _ service_socket cost_vector ->
    let _ = Printf.eprintf ""Sending...""; prerr_newline () in
    match service_socket with
    | Some sock ->
