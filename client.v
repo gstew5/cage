@@ -12,7 +12,7 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import strings compile orderedtypes dyadic numerics cdist weightsextract.
+Require Import strings compile orderedtypes dyadic numerics cdist weightsextract lightserver.
 
 (** Axiomatized client oracle *)
 Axiom ax_st_ty : Type.
@@ -25,8 +25,8 @@ Axiom ax_chan : Type.
 Extract Constant ax_chan => "Unix.file_descr".
 Axiom ax_bogus_chan : ax_chan.
 Extract Constant ax_bogus_chan => "Unix.stderr".
-
-Axiom ax_send : forall A : Type, ax_st_ty -> A -> (ax_chan * ax_st_ty).
+  
+Axiom ax_send : forall OUT : Type, ax_st_ty -> OUT -> (ax_chan * ax_st_ty).
 Extract Constant ax_send =>
 (* Create socket, connect to server, send action, return socket. *)
 (* Need to know IP address of the server, but it's also possible to do
@@ -42,16 +42,7 @@ Extract Constant ax_send =>
    Printf.eprintf ""Sent value...""; prerr_newline ();
    Pair (sd, ())".
 
-Axiom seq : forall (A B : Type) (a : A) (f : A -> B), B.
-Extract Constant seq =>
-"fun a b -> 
-   let x = a in 
-   b x".
-Axiom seqP :
-  forall A B (a : A) (f : A -> B),
-    seq a f = f a.
-
-Axiom ax_recv : forall A : Type, ax_st_ty -> ax_chan -> (N * M.t A * ax_st_ty).
+Axiom ax_recv : forall IN : Type, ax_st_ty -> ax_chan -> (IN * ax_st_ty).
 Extract Constant ax_recv =>
 (* Read the player actions from the socket; close the socket *)
 "fun _ sd ->
@@ -62,12 +53,27 @@ Extract Constant ax_recv =>
    Printf.eprintf ""Received cost vector...""; prerr_newline ();
    Pair (cost_vector, ())".
 
-Section clientCostVectorShim.
-  Variable A : Type.
-  Variable num_players : nat.
-  Context `{GameTypeInstance : GameType A num_players}.
+(*MOVE*)
+Axiom seq : forall (A B : Type) (a : A) (f : A -> B), B.
+Extract Constant seq =>
+"fun a b -> 
+ let x = a in 
+ b x".
+Axiom seqP :
+  forall A B (a : A) (f : A -> B),
+    seq a f = f a.
+(*END MOVE*)  
 
-  Definition send (st : ax_st_ty) (l : list (A*D))
+Module AxClientOracle (C : CONFIG).
+  Module Wire := WireFormat_of_CONFIG C.
+  Definition OUT := Wire.CLIENT_TO_SERVER.
+  Definition IN := Wire.SERVER_TO_CLIENT.  
+  
+  Section clientCostVectorShim.
+  Variable num_players : nat.
+  Context `{GameTypeInstance : GameType C.A.t num_players}.
+
+  Definition send (st : ax_st_ty) (l : list (C.A.t*D))
     : ax_chan * ax_st_ty :=
     (*TODO: constructing this DIST.t each time is wasteful -- 
       the DIST datastructure should eventually be factored into weightsextract.v*)
@@ -80,10 +86,10 @@ Section clientCostVectorShim.
   
   (** The cost vector for [player]. [p] is a map from player indices 
       to their sampled strategies. *)
-  Definition cost_vector (p : M.t A) (player : N) : list (A * D) :=
+  Definition cost_vector (p : M.t C.A.t) (player : N) : list (C.A.t * D) :=
     List.fold_left
     (fun l a => (a, ccost player (M.add player a p)) :: l)
-      (enumerate A)
+      (enumerate C.A.t)
       nil.
 
   Lemma cost_vector_nodup p player :
@@ -92,7 +98,7 @@ Section clientCostVectorShim.
     rewrite /cost_vector -fold_left_rev_right.
   Admitted. (*TODO*)
 
-  Definition recv (st : ax_st_ty) (ch : ax_chan) : list (A*D) * ax_st_ty :=
+  Definition recv (st : ax_st_ty) (ch : ax_chan) : list (C.A.t*D) * ax_st_ty :=
     seq (ax_recv _ st ch)
         (fun pst' =>
            let: (player, p, st') := pst' in
@@ -109,19 +115,18 @@ Section clientCostVectorShim.
     forall st ch, NoDupA (fun p q => p.1 = q.1) (recv st ch).1.
   Proof.
     move => st ch; rewrite /recv seqP.
-    case E: (ax_recv A st ch) => [[x y] z] /=.
+    case E: (ax_recv _ st ch) => [[x y] z] /=.
     apply: cost_vector_nodup.
   Qed.
-End clientCostVectorShim.
+  End clientCostVectorShim.
 
-Instance client_ax_oracle {A num_players} `{GameType A num_players}
-  : @ClientOracle A num_players _ _ _ _ :=
-  @mkOracle
-    A num_players _ _ _ _
-    ax_st_ty empty_ax_st
-    ax_chan ax_bogus_chan
-    (@recv A num_players _ _)
-    (@send A num_players _ _ _ _)
-    (@recv_ok A num_players _ _ _ _)
-    (@recv_nodup A num_players _ _ _ _).
-
+  Instance client_ax_oracle {num_players} `{GameType C.A.t num_players}
+    : @ClientOracle C.A.t num_players _ _ _ _ :=
+    @mkOracle _ _ _ _ _ _
+      ax_st_ty empty_ax_st
+      ax_chan ax_bogus_chan
+      (@recv num_players _ _)
+      (@send num_players _ _ _ _)
+      (@recv_ok num_players _ _ _ _)
+      (@recv_nodup num_players _ _ _ _).
+End AxClientOracle.

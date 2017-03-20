@@ -43,6 +43,8 @@ Module Client_of_CONFIG (C : CONFIG).
   Existing Instance C.A.enumerable.
   Definition A_cost_instance := C.A.cost_instance C.num_players.
   Existing Instance A_cost_instance.
+  Module ClientOracle := AxClientOracle C.
+  Existing Instance ClientOracle.client_ax_oracle.
   Definition mwu0 (eps : D) (nx : N.t) :=
     MWU.interp (weightslang.mult_weights C.A.t nx) (MWU.init_cstate eps).
   Definition mwu := mwu0 C.epsilon C.num_rounds.
@@ -52,5 +54,7 @@ End Client_of_CONFIG.
   
 Module Server_of_CONFIG (C : CONFIG).
   Module Server := Server C.
-  Definition run := Server.server (@Server.init_state result _ ax_oracle).
+  Module ServerOracle := AxServerOracle C.
+  Existing Instance ServerOracle.ax_oracle.
+  Definition run := Server.server (@Server.init_state result _ _).
 End Server_of_CONFIG.
