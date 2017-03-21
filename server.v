@@ -137,9 +137,7 @@ Extract Constant server_init =>
         | S n' -> 1 + int_of_nat n') in
    let sd = Unix.socket Unix.PF_INET Unix.SOCK_STREAM 0 in
    Unix.setsockopt sd Unix.SO_REUSEADDR true;
-   Unix.bind sd
-     (Unix.ADDR_INET
-      (Unix.inet_addr_of_string ""127.0.0.1"", 13337));
+   Unix.bind sd (Unix.ADDR_INET (Unix.inet_addr_any, 13337));
    Unix.listen sd (int_of_nat num_players);
    Pair (sd, ())".
 
