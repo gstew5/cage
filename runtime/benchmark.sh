@@ -1,9 +1,11 @@
 
 
-EPSILON=0.25
+EPSILON=0.03125
 OUTFILE=out.txt
-CLIENTS=6
-ROUNDS=15
+CLIENTS=10
+ROUNDS=20
+CONFIDENCE=0.99
+# settings above for routing1.v
 
 # kill ./server.native if it's currently running
 pkill -f ./server.native
@@ -46,7 +48,7 @@ for i in $(seq 1 $ROUNDS); do
 done
 
 # # plot regret
-./plotregret.py $OUTFILE
+./plotregret.py $OUTFILE $ROUNDS $CONFIDENCE
 
 
 

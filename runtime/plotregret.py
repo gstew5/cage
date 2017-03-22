@@ -6,13 +6,16 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fmr
 from matplotlib.ticker import ScalarFormatter
 import numpy as np
+import scipy.stats as ss
 
 # Given the output of [./calcregret.py infile datafile epsilon],
 # plot the data in datafile.
 #
-# USAGE: ./plotregret.py [datafile]
+# USAGE: ./plotregret.py [datafile] [sample-size] [confidence-level]
 
 datafile = sys.argv[1]
+samplesize = int(sys.argv[2])
+confidencelevel = float(sys.argv[3])
 opt = {}     # optimal cost
 opt_mean = {}
 opt_std = {}
@@ -96,10 +99,19 @@ plt.minorticks_off()
 plt.xlim([-1,regret_mean.keys()[len(regret_mean.keys())-1]+1])
 plt.plot(range(len(bound_mean)), bound_mean.values(), '--', color=tableau20[0], linewidth=4)
 plt.plot(range(len(cost_mean)), cost_mean.values(), '-', color=tableau20[1], linewidth=4)
+
+degrees_freedom = np.full(len(regret_std), samplesize)
+errorbars = ss.t.ppf(confidencelevel, degrees_freedom)*regret_std.values()
+
 (_, caps, _) = plt.errorbar(
-    range(len(regret_mean)), regret_mean.values(),
-    yerr=regret_std.values(), fmt='D', capsize=4, elinewidth=2,
+    range(len(regret_mean)),
+    regret_mean.values(),
+    yerr=errorbars,
+    fmt='D',
+    capsize=4,
+    elinewidth=2,
     color=tableau20[6])
+    
 plt.plot(range(len(opt_mean)), opt_mean.values(), '-', color=tableau20[4], linewidth=4)
 plt.tick_params(axis='both', which='major', labelsize=20)
 plt.xlabel('#Iterations', size=24)

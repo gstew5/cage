@@ -375,9 +375,9 @@ match n with
 end.
 End T.
   
-Definition num_players : nat := 15.
-Definition num_iters : N.t := 100.
-Definition eps : D := Dmake 1 3. (*eps = 1/8*)
+Definition num_players : nat := 10.
+Definition num_iters : N.t := 40.
+Definition eps : D := Dmake 1 5. (*eps = 1/32*)
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.
@@ -416,7 +416,7 @@ Module P3Scaled' <: MyOrderedType := OrderedSigma P.
 Module Conf : CONFIG.
   Module A := P3Scaled'.                
   Definition num_players := num_players.
-  Definition num_rounds : N.t := 40.
+  Definition num_rounds : N.t := num_iters.
   Definition epsilon := eps.
 End Conf.  
   
