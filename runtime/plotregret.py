@@ -28,6 +28,9 @@ regret_std = {}
 bound = {}   # analytical regret bound
 bound_mean = {}
 bound_std = {}
+bestbound = {}   # best analytical regret bound, assuming right epsilon
+bestbound_mean = {}
+bestbound_std = {}
 
 with open(datafile, 'r') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
@@ -46,11 +49,15 @@ with open(datafile, 'r') as csvfile:
         bound[int(row[0])] = []
         bound_mean[int(row[0])] = 0
         bound_std[int(row[0])] = 0
+        bestbound[int(row[0])] = []
+        bestbound_mean[int(row[0])] = 0
+        bestbound_std[int(row[0])] = 0
     for row in l:
         opt[int(row[0])].append(float(row[1]))
         cost[int(row[0])].append(float(row[2]))
         regret[int(row[0])].append(float(row[3]))
-        bound[int(row[0])].append(float(row[4]))                        
+        bound[int(row[0])].append(float(row[4]))
+        bestbound[int(row[0])].append(float(row[5]))        
 
 for k in opt:
     opt_mean[k] = np.mean(opt[k])
@@ -64,6 +71,9 @@ for k in regret:
 for k in bound:
     bound_mean[k] = np.mean(bound[k])
     bound_std[k] = np.std(bound[k])
+for k in bestbound:
+    bestbound_mean[k] = np.mean(bestbound[k])
+    bestbound_std[k] = np.std(bestbound[k])
 
 fig = plt.figure(figsize=(8,8), dpi=120)
     
@@ -94,7 +104,7 @@ ax.get_yaxis().tick_left()
 ## END Randal Olson stuff
 
 plt.title('Routing', size=32)
-plt.yscale('symlog',linthreshy=0.1) #so we properly support negative values (error bars)
+plt.yscale('symlog',linthreshy=0.01) #so we properly support negative values (error bars)
 plt.minorticks_off()
 plt.xlim([-1,regret_mean.keys()[len(regret_mean.keys())-1]+1])
 plt.plot(range(len(bound_mean)), bound_mean.values(), '--', color=tableau20[0], linewidth=4)

@@ -201,7 +201,7 @@ Module R <: BoolableMyOrderedType := OrderedResource.
 Module R10Values <: OrderedAffineType.
   Include R.                    
   Definition scal := D_to_dyadic_rat (Dmake 20 1).
-  Definition offset := D_to_dyadic_rat 0.
+  Definition offset := D_to_dyadic_rat (Dmake 20 1).
   Definition a0 := RNo.
 End R10Values.
 Module R10 := OrderedAffine R10Values.
@@ -215,7 +215,7 @@ End RValues.
 Module R' := OrderedAffine RValues.
 
 Module PUnit <: MyOrderedType := OrderedUnit.
-Module P1 <: MyOrderedType := OrderedProd PUnit R'.
+Module P1 <: MyOrderedType := OrderedProd PUnit R10.
 Module P2 <: MyOrderedType := OrderedProd P1 R10.
 Module P3 <: MyOrderedType := OrderedProd P2 R'.
 
@@ -230,7 +230,7 @@ Section T. Local Open Scope nat_scope.
 Definition T (n : nat) : Type :=
   match n with
   | O => Unit
-  | 1 => R'.t           
+  | 1 => R10.t           
   | 2 => R10.t
   | 3 => R'.t
   | _ => Unit
@@ -314,7 +314,7 @@ Instance BoolableT n : Boolable (T n) :=
 Instance EqT n : Eq (T n) :=
   match n with 
   | O => _
-  | 1 => R'.eq
+  | 1 => R10.eq
   | 2 => R10.eq
   | 3 => R'.eq
   | _ => _
@@ -323,7 +323,7 @@ Instance EqT n : Eq (T n) :=
 Instance EqDecT n : @Eq_Dec _ (@EqT n) :=
 match n with
   | O => _
-  | 1 => R'.eq_dec
+  | 1 => R10.eq_dec
   | 2 => R10.eq_dec
   | 3 => R'.eq_dec
   | _ => _
@@ -333,7 +333,7 @@ Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
   match n with
   | O => _
   | 1 => @BoolableUnitSigma _
-            R'.Pred.boolable
+            R10.Pred.boolable
             (prodBoolableUnit _ _ 
                (BoolableUnitScalar _ _ boolableUnit_Resource)
                (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
@@ -375,9 +375,9 @@ match n with
 end.
 End T.
   
-Definition num_players : nat := 10.
-Definition num_iters : N.t := 40.
-Definition eps : D := Dmake 1 5. (*eps = 1/32*)
+Definition num_players : nat := 5.
+Definition num_iters : N.t := 60.
+Definition eps : D := Dmake 1 3. (*eps = 1/2^3 = 1/8 = 0.125*)
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.

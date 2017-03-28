@@ -72,17 +72,20 @@ Module AxClientOracle (C : CONFIG).
   Section clientCostVectorShim.
   Variable num_players : nat.
   Context `{GameTypeInstance : GameType C.A.t num_players}.
-
+  
   Definition send (st : ax_st_ty) (l : list (C.A.t*D))
     : ax_chan * ax_st_ty :=
     (*TODO: constructing this DIST.t each time is wasteful -- 
       the DIST datastructure should eventually be factored into weightsextract.v*)
-    let: d := DIST.add_weights l (DIST.empty _) in  
-    seq (rsample a0 d)
-        (fun x => seq (eprint_string "Chose action " tt)
-                      (fun _ => seq (eprint_showable x tt)
-                                    (fun _ => seq (eprint_newline tt)
-                                                  (fun _ => ax_send st x)))).
+    let: d := DIST.add_weights l (DIST.empty _) in
+    seq (seq (eprint_string "Weights table..." tt)
+             (fun _ => seq (eprint_newline tt)
+                           (fun _ => print_Dvector l tt)))
+        (fun _ => seq (rsample a0 d)
+                      (fun x => seq (eprint_string "Chose action " tt)
+                                    (fun _ => seq (eprint_showable x tt)
+                                                  (fun _ => seq (eprint_newline tt)
+                                                                (fun _ => ax_send st x))))).
   
   (** The cost vector for [player]. [p] is a map from player indices 
       to their sampled strategies. *)

@@ -59,43 +59,6 @@ Require Import strings weights weightslang compile dist numerics dyadic orderedt
     implemented in OCaml by discrete inverse transform.
  *)
 
-Section PrintQvector.
-  Variable A : Type.
-  Variable to_string : A -> string.
-
-  Fixpoint print_Qvector T (l : list (A*Q)) (t : T) : T :=
-    match l with
-    | nil => t
-    | (a, w) :: l' =>
-      let t1 := eprint_string (to_string a) t in
-      let t2 := eprint_string ", " t1 in
-      let t3 := eprint_Q w t2 in
-      let t4 := eprint_newline t3 in
-      print_Qvector l' t4
-    end.
-
-  Lemma print_Qvector_id T l (t : T) : print_Qvector l t = t.
-  Proof.
-    elim: l t => //=; case => a q l IH t; rewrite IH. 
-    rewrite /eprint_newline eprint_string_id.
-    by rewrite eprint_Q_id 2!eprint_ascii_id eprint_string_id.
-  Qed.    
-End PrintQvector.
-
-Section PrintDvector.
-  Variable A : Type.
-  Variable to_string : A -> string.
-
-  Definition print_Dvector T (l : list (A*D)) (t : T) : T :=
-    print_Qvector
-      to_string
-      (map (fun p => (p.1, D_to_Q p.2)) l)
-      t.
-
-  Lemma print_Dvector_id T l (t : T) : print_Dvector l t = t.
-  Proof. by rewrite /print_Dvector print_Qvector_id. Qed.
-End PrintDvector.
-
 Definition zero : Q := 0.
 Definition one : Q := 1.
 Definition two : Q := Qmake 2 1.
@@ -154,7 +117,7 @@ Module MWU (A : MyOrderedType).
     Definition mwu_recv : oracle_chanty -> T -> (M.t D * T) :=
       fun ch => fun st =>
         let (l, st') := oracle_recv st ch in
-        let l':= print_Dvector to_string l l in
+        let l':= print_Dvector l l in
         (MProps.of_list l', st').
 
     Definition eval_binopc (b : binop) (v1 v2 : D) : D :=
