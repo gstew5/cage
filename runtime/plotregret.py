@@ -124,9 +124,9 @@ errorbars = ss.t.ppf(confidencelevel, degrees_freedom)*regret_std.values()
     
 plt.plot(range(len(opt_mean)), opt_mean.values(), '-', color=tableau20[4], linewidth=4)
 plt.tick_params(axis='both', which='major', labelsize=20)
-plt.xlabel('#Iterations', size=24)
+plt.xlabel('Iterations', size=24)
 plt.ylabel('Regret, Cost', size=24)    
-plt.legend(['Regret Bound','MWU Cost','MWU Regret','Best Fixed Action'], fontsize=20)
+plt.legend(['Regret Bound','MWU Cost','MWU Regret','Best Fixed Action'], fontsize=20, loc='upper right')
 for axis in [ax.xaxis, ax.yaxis]:
     axis.set_major_formatter(ScalarFormatter())
 

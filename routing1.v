@@ -376,8 +376,8 @@ end.
 End T.
   
 Definition num_players : nat := 5.
-Definition num_iters : N.t := 60.
-Definition eps : D := Dmake 1 3. (*eps = 1/2^3 = 1/8 = 0.125*)
+Definition num_iters : N.t := 50.
+Definition eps : D := Dmake 69 9. (*eps ~ 0.135*)
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.

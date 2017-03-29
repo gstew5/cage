@@ -1,9 +1,9 @@
 
 
-EPSILON=0.125
+EPSILON=0.135
 OUTFILE=out.txt
 CLIENTS=5
-ROUNDS=50
+ROUNDS=10
 CONFIDENCE=0.95
 # settings above for routing1.v
 

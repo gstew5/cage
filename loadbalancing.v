@@ -112,43 +112,10 @@ Section T. Local Open Scope nat_scope.
     | 3 => _
     | _ => _
     end.
-  { simpl. apply (@BoolableUnitSigma _ RAffine.Pred.boolable _).
+  { simpl. admit. }
   { simpl. admit. }
   { simpl. admit. }  
   Admitted.
-    | 1 => @BoolableUnitSigma _
-            RAffine.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-            _ _
-    | 2 => @BoolableUnitSigma _
-            RAffineExpensive.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-    | 3 => @BoolableUnitSigma _
-            RAffine.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-    | _ => _
-    end.
-  {
-    cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-    rewrite -OrderedResource.eqP => //.
-  }
-  {
-    cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-    rewrite -OrderedResource.eqP => //.
-  }
-  {
-    cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-    rewrite -OrderedResource.eqP => //.
-  }
-  Defined.
 
   Instance BoolableUnitAxiomT n : @BoolableUnitAxiom (T n) _ _ :=
     match n with
@@ -158,15 +125,16 @@ Section T. Local Open Scope nat_scope.
     | 3 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)           
     | _ => _
     end.
+  Admitted.
 End T.
 
 (** Game parameters *)
-Definition num_players : nat := 3.
-Definition num_flows_per_player : nat := 2.
+Definition num_players : nat := 2.
+Definition num_flows_per_player : nat := 3.
 Definition num_players' : nat :=
   num_players * num_flows_per_player.
-Definition num_iters : N.t := 60.
-Definition eps : D := Dmake 1 2. (*eps = 1/4*)
+Definition num_iters : N.t := 50.
+Definition eps : D := Dmake 69 9. (*eps ~ 0.135 *)
 
 Module RAffine3Scalar <: OrderedScalarType.
   Include RAffine3.
