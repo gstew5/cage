@@ -25,6 +25,7 @@ cost_std = {}
 regret = {}  # client regret
 regret_mean = {}
 regret_std = {}
+regret_sem = {} # standard error of regret sample mean
 bound = {}   # analytical regret bound
 bound_mean = {}
 bound_std = {}
@@ -68,6 +69,7 @@ for k in cost:
 for k in regret:
     regret_mean[k] = np.mean(regret[k])
     regret_std[k] = np.std(regret[k])
+    regret_sem[k] = ss.sem(regret[k])    
 for k in bound:
     bound_mean[k] = np.mean(bound[k])
     bound_std[k] = np.std(bound[k])
@@ -110,8 +112,8 @@ plt.xlim([-1,regret_mean.keys()[len(regret_mean.keys())-1]+1])
 plt.plot(range(len(bound_mean)), bound_mean.values(), '--', color=tableau20[0], linewidth=4)
 plt.plot(range(len(cost_mean)), cost_mean.values(), '-', color=tableau20[1], linewidth=4)
 
-degrees_freedom = np.full(len(regret_std), samplesize-1)
-errorbars = ss.t.ppf((1+confidencelevel)/2., degrees_freedom)*regret_std.values()
+degrees_freedom = np.full(len(regret_sem), samplesize-1)
+errorbars = ss.t.ppf((1+confidencelevel)/2., degrees_freedom)*regret_sem.values()
 
 (_, caps, _) = plt.errorbar(
     range(len(regret_mean)),
