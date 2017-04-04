@@ -99,7 +99,22 @@ Module AxClientOracle (C : CONFIG).
     NoDupA (fun p q => p.1 = q.1) (cost_vector p player).
   Proof.
     rewrite /cost_vector -fold_left_rev_right.
-  Admitted. (*TODO*)
+    generalize enum_nodup; move: (enumerate C.A.t) => l H.
+    have H2: NoDupA (fun x : C.A.t => [eta eq x]) (List.rev l).
+    { apply NoDupA_rev => //.
+      by constructor => // => x y z -> <-. }
+    move {H}; move: H2; move: (List.rev l) => l0.
+    elim: l0 => //= a l0 IH H2; constructor.
+    { move => H3.
+      have H4: InA (fun x y => x=y) a l0.
+      { clear -H3; move: H3; elim: l0 => //=.
+        { inversion 1. }
+        move => a0 l IH H; inversion H; subst.
+        { by simpl in H1; subst a0; constructor. }
+        by apply: InA_cons_tl; apply: IH. }
+      by inversion H2; subst. }
+    by apply: IH; inversion H2; subst.
+  Qed.      
 
   Definition recv (st : ax_st_ty) (ch : ax_chan) : list (C.A.t*D) * ax_st_ty :=
     seq (ax_recv _ st ch)
@@ -112,7 +127,21 @@ Module AxClientOracle (C : CONFIG).
     exists d,
       [/\ In (a,d) (recv st ch).1
         , Dle D0 d & Dle d D1].
-  Proof. Admitted. (*TODO*)
+  Proof.
+    rewrite /recv /cost_vector => st ch a.
+    case: (ax_recv _ _ _) => [][]a0 b b0; rewrite seqP => /=.
+    generalize (enum_total); move/(_ a) => H.
+    exists ((ccost) a0 (M.add a0 a b)).
+    split => //.
+    { rewrite -fold_left_rev_right.
+      have H2: In a (List.rev (enumerate C.A.t)).
+      { by rewrite -in_rev. }
+      move: H2 {H}; elim: (List.rev (enumerate C.A.t)) => // a1 l IH.
+      inversion 1; subst; first by left.
+      by right; apply: IH. }
+    { by generalize (ccost_ok (M.add a0 a b) a0); case. }
+    by generalize (ccost_ok (M.add a0 a b) a0); case. 
+  Qed.    
 
   Lemma recv_nodup :
     forall st ch, NoDupA (fun p q => p.1 = q.1) (recv st ch).1.
