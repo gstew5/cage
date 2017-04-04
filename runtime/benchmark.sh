@@ -1,24 +1,21 @@
 
 
-EPSILON=0.03125
+EPSILON=0.135
 OUTFILE=out.txt
-CLIENTS=10
-ROUNDS=20
-CONFIDENCE=0.99
+CLIENTS=5
+ROUNDS=10
+CONFIDENCE=0.95
 # settings above for routing1.v
-
-# kill ./server.native if it's currently running
-pkill -f ./server.native
-# fire up server, sending eoutput to serverout.txt
-./server.native &> serverout.txt &
 
 # $ROUNDS rounds
 PIDS=()
 for i in $(seq 1 $ROUNDS); do
+    # fire up server, sending eoutput to serverout.txt
+    ./server.native &> serverout.txt &
     # spool up clients, making sure that they run concurrently
     for j in $(seq 1 $CLIENTS); do
 	echo "Spooling up client $j"
-	./mwu.native &> "clientout$i$j.txt" & PIDS[$j]=$!
+	./mwu.native &> "round${i}client${j}.txt" & PIDS[$j]=$!
     done
     # wait for clients
     for j in $(seq 1 $CLIENTS); do
@@ -26,14 +23,16 @@ for i in $(seq 1 $ROUNDS); do
     done 
     if [ $? -eq 0 ]; then
 	echo "Round $i successful"
-	# kill server (so it releases socket)
-	pkill -f ./server.native
 	# fire up server, sending eoutput to serverout.txt
 	./server.native &> serverout.txt &
     else
 	echo "Round $i failed"
 	exit 1
     fi
+    # kill server (so it releases socket)
+    pkill -f ./server.native
+    # kill all clients
+    pkill -f ./mwu.native
 done
 
 # Calculate and record regret to $OUTFILE.
@@ -44,7 +43,7 @@ if [ -e $OUTFILE ]; then
 fi
 
 for i in $(seq 1 $ROUNDS); do
-    ./calcregret.py "clientout$i$CLIENTS.txt" $OUTFILE $EPSILON
+    ./calcregret.py "round${i}client${CLIENTS}.txt" $OUTFILE $EPSILON
 done
 
 # # plot regret

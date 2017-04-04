@@ -25,9 +25,13 @@ cost_std = {}
 regret = {}  # client regret
 regret_mean = {}
 regret_std = {}
+regret_sem = {} # standard error of regret sample mean
 bound = {}   # analytical regret bound
 bound_mean = {}
 bound_std = {}
+bestbound = {}   # best analytical regret bound, assuming right epsilon
+bestbound_mean = {}
+bestbound_std = {}
 
 with open(datafile, 'r') as csvfile:
     reader = csv.reader(csvfile, delimiter=',')
@@ -46,11 +50,15 @@ with open(datafile, 'r') as csvfile:
         bound[int(row[0])] = []
         bound_mean[int(row[0])] = 0
         bound_std[int(row[0])] = 0
+        bestbound[int(row[0])] = []
+        bestbound_mean[int(row[0])] = 0
+        bestbound_std[int(row[0])] = 0
     for row in l:
         opt[int(row[0])].append(float(row[1]))
         cost[int(row[0])].append(float(row[2]))
         regret[int(row[0])].append(float(row[3]))
-        bound[int(row[0])].append(float(row[4]))                        
+        bound[int(row[0])].append(float(row[4]))
+        bestbound[int(row[0])].append(float(row[5]))        
 
 for k in opt:
     opt_mean[k] = np.mean(opt[k])
@@ -61,9 +69,13 @@ for k in cost:
 for k in regret:
     regret_mean[k] = np.mean(regret[k])
     regret_std[k] = np.std(regret[k])
+    regret_sem[k] = ss.sem(regret[k])    
 for k in bound:
     bound_mean[k] = np.mean(bound[k])
     bound_std[k] = np.std(bound[k])
+for k in bestbound:
+    bestbound_mean[k] = np.mean(bestbound[k])
+    bestbound_std[k] = np.std(bestbound[k])
 
 fig = plt.figure(figsize=(8,8), dpi=120)
     
@@ -93,15 +105,15 @@ ax.get_xaxis().tick_bottom()
 ax.get_yaxis().tick_left()
 ## END Randal Olson stuff
 
-plt.title('Routing', size=32)
-plt.yscale('symlog',linthreshy=0.1) #so we properly support negative values (error bars)
+plt.title('Load Balancing', size=32)
+plt.yscale('symlog',linthreshy=0.01) #so we properly support negative values (error bars)
 plt.minorticks_off()
 plt.xlim([-1,regret_mean.keys()[len(regret_mean.keys())-1]+1])
 plt.plot(range(len(bound_mean)), bound_mean.values(), '--', color=tableau20[0], linewidth=4)
 plt.plot(range(len(cost_mean)), cost_mean.values(), '-', color=tableau20[1], linewidth=4)
 
-degrees_freedom = np.full(len(regret_std), samplesize)
-errorbars = ss.t.ppf(confidencelevel, degrees_freedom)*regret_std.values()
+degrees_freedom = np.full(len(regret_sem), samplesize-1)
+errorbars = ss.t.ppf((1+confidencelevel)/2., degrees_freedom)*regret_sem.values()
 
 (_, caps, _) = plt.errorbar(
     range(len(regret_mean)),
@@ -114,9 +126,9 @@ errorbars = ss.t.ppf(confidencelevel, degrees_freedom)*regret_std.values()
     
 plt.plot(range(len(opt_mean)), opt_mean.values(), '-', color=tableau20[4], linewidth=4)
 plt.tick_params(axis='both', which='major', labelsize=20)
-plt.xlabel('#Iterations', size=24)
+plt.xlabel('Iterations', size=24)
 plt.ylabel('Regret, Cost', size=24)    
-plt.legend(['Regret Bound','MWU Cost','MWU Regret','Best Fixed Action'], fontsize=20)
+plt.legend(['Regret Bound','MWU Cost','MWU Regret','Best Fixed Action'], fontsize=20, loc='upper right')
 for axis in [ax.xaxis, ax.yaxis]:
     axis.set_major_formatter(ScalarFormatter())
 

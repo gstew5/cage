@@ -25,10 +25,17 @@ Require Import weightsextract client lightserver.
 Module GameType_of_CONFIG (C : CONFIG).
   Definition A_cost_instance := C.A.cost_instance C.num_players.
   Existing Instance A_cost_instance.
+  (* FIXME: Wrt. the axioms below, we need to propagate the following assumptions: 
+      1) There's a cgame associated with C.A, which should imply 
+      2) a refineCostClass instance for (ccost), and
+      3) a refineTypeClass instance for (enumerate). *)
   Axiom ccost_ok : forall (p : M.t C.A.t) (player : N), (*TODO: result of cgame*)
       (0 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
+  Axiom enum_nodup :
+    SetoidList.NoDupA (fun x : C.A.t => [eta eq x]) (enumerate C.A.t). (*TODO: result of cgame*)
+  Axiom enum_total : forall a : C.A.t, List.In a (enumerate C.A.t). (*TODO: result of cgame*)
   Definition gametype_instance : @GameType C.A.t C.num_players _ _ _ :=
-    @mkGameType C.A.t C.num_players _ _ _ C.A.t0 ccost_ok.
+    @mkGameType C.A.t C.num_players _ _ _ C.A.t0 ccost_ok enum_nodup enum_total.
 End GameType_of_CONFIG.
 
 (* 2. CONFIG -> Client *)
