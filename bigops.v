@@ -92,10 +92,17 @@ Proof.
   move=> a l IH H; rewrite ln_mult=> //; first by rewrite IH.
     by apply: big_product_gt0.
 Qed.    
-    
+
+Lemma big_product_exp_sum (T : eqType) (cs : seq T) (f : T -> R) :
+  big_product cs (fun x => exp (f x)) = exp (big_sum cs f).
+Proof.
+  elim: cs => //=; first by rewrite exp_0.
+  by move => a l IH; rewrite IH exp_plus.
+Qed.  
+
 Lemma big_product_le (T : eqType) (cs : seq T) (f : T -> R) g :
   (forall c, c \in cs -> 0 <= f c)%R ->
-  (forall c, c \in cs -> 0 <= g c)%R ->     
+  (forall c, c \in cs -> 0 <= g c)%R ->
   (forall c, c \in cs -> f c <= g c)%R -> 
   (big_product cs f <= big_product cs g)%R.
 Proof.

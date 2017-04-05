@@ -219,6 +219,7 @@ Section functions0.
     rewrite MProps.F.add_neq_o => //.
   Qed.
   *)
+
   Lemma map_from_list_domain l (i : N.t) :
     (i < fst (map_from_list l))%nat ->
     exists a, M.find i (snd (map_from_list l)) = Some a.

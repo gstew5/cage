@@ -112,7 +112,7 @@ auto.
 Qed.
 
 Lemma a2:forall x y:R, 
-0<x<1 -> 
+x<1 -> 
 0<y<1 -> 
 0< (Rpower (1-y) (1-x)) < 1.
 Proof.
@@ -123,12 +123,10 @@ apply exp_pos.
 unfold Rpower.
 assert (1-y < 1).
 destruct H0.
-destruct H.
 fourier.
 assert ((1-x) < 1).
 destruct H0.
-destruct H.
-fourier.
+admit.
 assert ((ln (1-y)) < 0).
 assert (ln 1 =0).
 apply ln_1.
@@ -139,7 +137,6 @@ fourier.
 exact H1.
 assert ((1-x)*(ln (1-y)) < 0).
 assert (1-x >0).
-destruct H.
 fourier.
 assert ((1-x)*0 = 0).
 field.
@@ -152,7 +149,7 @@ apply exp_0.
 rewrite <-H5 at 3.
 apply exp_increasing.
 auto.
-Qed.
+Admitted.
 
 Theorem derivable_pt_ln: forall x:R, 0<x -> derivable_pt ln x.
 Proof.
@@ -163,6 +160,7 @@ exists (/x).
 apply derivable_pt_lim_ln.
 auto.
 Defined. 
+
 Lemma derive_pt_ln :
   forall x:R, forall (h1: 0<x), derive_pt ln x (derivable_pt_ln x h1) =  /x.
 Proof.
@@ -172,7 +170,7 @@ Proof.
   auto.
 Qed.
 
-Theorem dir1: forall x y:R, 0<x<1 -> 0<y<=(1/2)-> (derivable_pt (GF x) y).
+Theorem dir1: forall x y:R, x<1 -> 0<y<=(1/2)-> (derivable_pt (GF x) y).
 Proof.
 intros.
 assert (0<1-y).
@@ -257,7 +255,7 @@ Qed.
    the derivative of GF x y (wrt y) is >0.
 *)
 
-Theorem ab2: forall x y:R, 0<x<1 -> 0<y<=1/2 -> 
+Theorem ab2: forall x y:R, x<1 -> 0<y<=1/2 -> 
 x < x*(/(Rpower (1-y) (1-x))).
 Proof.
 intros.
@@ -284,6 +282,9 @@ exact H2.
 assert (x*1 = x).
 field.
 rewrite <-H5 at 1.
+clear H5 H3.
+generalize H4.
+generalize (/ Rpower (1-y) (1-x)); intros r H5.
 apply Rmult_lt_compat_l.
 destruct H.
 auto.
@@ -296,7 +297,7 @@ intros.
 fourier.
 Qed.
 
-Theorem ab: forall x y:R, forall (h1:0<x<1) (h2:0<y<=(1/2)), 
+Theorem ab: forall x y:R, forall (h1:x<1) (h2:0<y<=(1/2)), 
   0<(derive_pt (GF x) y (dir1 x y h1 h2)).
 Proof.
 intros.
@@ -422,7 +423,7 @@ Defined.
 
 Theorem test1:
   forall x y:R,
-  forall (pr: 0<x<1) (pr:0<y<=1/2),
+  forall (pr: x<1) (pr:0<y<=1/2),
   forall c:R, 0<c<y->derivable_pt (GF x) c.
 Proof.
 intros.
@@ -445,7 +446,7 @@ rewrite <-H1.
 apply Rmult_lt_compat_r;auto.
 Qed.
 
-Theorem deriv_int: forall x y:R, 0<x<1 -> 0<y<=(1/2) ->
+Theorem deriv_int: forall x y:R, x<1 -> 0<y<=(1/2) ->
   (GF x) y - (GF x) 0 > 0.
 Proof.
 intros.
@@ -526,7 +527,7 @@ rewrite <-H0.
 auto.
 Qed.
 
-Theorem dir2: forall x y:R, 0<x<1 -> 0<y<=1/2 -> 0< (GF(x) y).
+Theorem dir2: forall x y:R, x<1 -> 0<y<=1/2 -> 0< (GF(x) y).
 Proof.
 intros.
 set (f:= fun y0 => GF x y0).
@@ -558,19 +559,18 @@ exact H2.
 Qed.
 
 Theorem neps_exp_le:
-  forall x y:R, 0<=x<=1-> 0<=y<=1/2 -> 
+  forall x y:R, x<=1-> 0<=y<=1/2 -> 
   (Rpower (1-y) x) <= 1-y*x.
 Proof.
 intros.
 apply (a1 x y).
 destruct H.
+{
 (* apply dir2 for all of the non boundary cases *)
 destruct H0.
-destruct H.
-destruct H1.
 destruct H0.
-left.
-apply dir2.
+  { left.
+    apply dir2; auto.
 auto.
 auto.
 right.

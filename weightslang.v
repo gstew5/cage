@@ -129,9 +129,9 @@ Section semantics.
   Record state : Type :=
     mkState
       { SCosts : {ffun A -> rat} (* the current cost vector *)
-      ; SCostsOk : forall a, 0 <= SCosts a <= 1
+      ; SCostsOk : forall a, 0 <= `|SCosts a| <= 1
         (* the history of cost vectors seen so far *)                   
-      ; SPrevCosts : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}
+      ; SPrevCosts : seq {c : {ffun A -> rat} & forall a, 0 <= `|c a| <= 1}
       ; SWeights : {ffun A -> rat} (* current weights *)
       ; SWeightsOk : forall a, 0 < SWeights a
       ; SEpsilon : rat (* epsilon -- a parameter *)
