@@ -1013,7 +1013,23 @@ Section weights.
     Notation expCostT := (expCost cT CMAX).
 
     (** R17.5 *)
-(*
+
+    Lemma gammaT_ge_1eps_OPT :
+      (big_product cs
+         (fun c : costs => 1 - rat_to_R eps * (rat_to_R (c astar))) <=
+       rat_to_R gammaT)%R.
+    Proof.          
+      have H: (Rle (big_product
+                     cs
+                     (fun c : costs => 1 - rat_to_R eps * (rat_to_R (c astar))))
+                   (rat_to_R (wT astar)))%R.
+      { rewrite wT_astar_eq rat_to_R1.
+        apply: Rle_refl. }
+      apply: Rle_trans; first by apply: H.
+      apply: rat_to_R_le.
+      apply: gammaT_ge_wT_astar => //.
+    Qed.      
+      
     Lemma gammaT_ge_1eps_OPT :
       (Rpower (1 - rat_to_R eps) (rat_to_R OPT) <= rat_to_R gammaT)%R.
     Proof.
