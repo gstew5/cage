@@ -47,6 +47,43 @@ Proof.
     by move=> a l IH; rewrite IH /=; rewrite Rmult_plus_distr_l.
 Qed.      
 
+Lemma big_sum_plus T (cs : seq T) f g :
+  (big_sum cs (fun c => f c + g c) =
+   big_sum cs (fun c => f c) + big_sum cs (fun c => g c))%R.
+Proof.
+  elim: cs=> /=; first by rewrite Rplus_0_r.
+  move=> a l IH; rewrite IH /=.
+  rewrite [((_ + big_sum l (fun c => f c) + _))%R]Rplus_assoc.
+  rewrite [(big_sum l (fun c => f c) + (_ + _))%R]Rplus_comm.
+  rewrite Rplus_assoc.
+  rewrite Rplus_assoc.  
+  f_equal.
+  f_equal.
+  by rewrite Rplus_comm.
+Qed.      
+
+Lemma rat_to_R_sum T (cs : seq T) (f : T -> rat) :
+  rat_to_R (\sum_(c <- cs) (f c)) =  
+  big_sum cs (fun c => (rat_to_R (f c)))%R.
+Proof.
+  elim: cs=> //=; first by rewrite big_nil rat_to_R0.
+  move=> a' l IH; rewrite big_cons.
+  rewrite rat_to_R_plus IH.
+    by f_equal; rewrite rat_to_R_plus rat_to_R_opp rat_to_R_mul.
+Qed.    
+
+Lemma big_sum_constant T (cs : seq T) n :
+  (big_sum cs (fun _ => n) = INR (size cs) * n)%R.
+Proof.
+  elim: cs => //=.
+  { by rewrite Rmult_0_l. }
+  move => t0 l ->.
+  case: (size l).
+  { by rewrite /INR Rmult_0_l Rmult_1_l Rplus_0_r. }
+  move => x.
+  field.
+Qed.
+  
 Fixpoint big_product (T : Type) (cs : seq T) (f : T -> R) : R :=
   if cs is [:: c & cs'] then (f c * big_product cs' f)%R
   else 1%R.
