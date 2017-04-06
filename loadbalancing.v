@@ -58,29 +58,29 @@ Program Instance UnitBoolableUnitAxiom : BoolableUnitAxiom UnitBoolableUnit.
 (* Because standard Coq FMaps are parameterized over modules, which 
    aren't first-class in Coq, the following construction has to be 
    done by hand for each game type. *)
-Module R <: BoolableMyOrderedType := OrderedResource.
+Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 
-Module RValues <: OrderedAffineType.
+Module RValues <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scal := D_to_dyadic_rat 1.
-  Definition offset := D_to_dyadic_rat 0.
+  Definition scalar := D_to_dyadic_rat 1.
+  Definition bias := D_to_dyadic_rat 0.
   Definition a0 := RYes.
 End RValues.
 Module RAffine := OrderedAffine RValues.
 
-Module RExpensive <: OrderedAffineType.
+Module RExpensive <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scal := D_to_dyadic_rat (Dmake 40 1).
-  Definition offset := D_to_dyadic_rat (Dmake 0 1).
+  Definition scalar := D_to_dyadic_rat (Dmake 40 1).
+  Definition bias := D_to_dyadic_rat (Dmake 0 1).
   Definition a0 := RYes.
 End RExpensive.
 Module RAffineExpensive := OrderedAffine RExpensive.
 
 (** R*R*R affine game *)
-Module RUnit <: BoolableMyOrderedType := OrderedUnit.
-Module RAffine1 <: BoolableMyOrderedType := BoolableOrderedProd RUnit RAffine.
-Module RAffine2 <: BoolableMyOrderedType := BoolableOrderedProd RAffine1 RAffineExpensive.
-Module RAffine3 <: BoolableMyOrderedType := BoolableOrderedProd RAffine2 RAffine.
+Module RUnit <: MyOrderedType := OrderedUnit.
+Module RAffine1 <: MyOrderedType := OrderedProd RUnit RAffine.
+Module RAffine2 <: MyOrderedType := OrderedProd RAffine1 RAffineExpensive.
+Module RAffine3 <: MyOrderedType := OrderedProd RAffine2 RAffine.
 
 Inductive Empty_type :=.
 Instance EmptyTypeBoolable : Boolable Empty_type := fun e => match e with end.
@@ -104,6 +104,9 @@ Section T. Local Open Scope nat_scope.
     | 3 => _             
     | _ => _
     end.
+
+  Existing Instances
+    RAffine.boolableUnit RAffineExpensive.boolableUnit RExpensive.boolableUnit.
   Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
     match n with
     | O => _
@@ -112,20 +115,6 @@ Section T. Local Open Scope nat_scope.
     | 3 => _
     | _ => _
     end.
-  { simpl. admit. }
-  { simpl. admit. }
-  { simpl. admit. }  
-  Admitted.
-
-  Instance BoolableUnitAxiomT n : @BoolableUnitAxiom (T n) _ _ :=
-    match n with
-    | O => _
-    | 1 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
-    | 2 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
-    | 3 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)           
-    | _ => _
-    end.
-  Admitted.
 End T.
 
 (** Game parameters *)
@@ -151,17 +140,18 @@ Module P <: OrderedPredType.
   Include RAffine3Scaled.
   Definition pred (p : RAffine3Scaled.t) : bool :=
     @exactly_one_true T BoolableT 3 (unwrap p).
-  Lemma RValues_eq_dec_refl x : RValues.eq_dec x x.
+  Lemma RValues_eq_dec_refl x : RValues.eq_dec' x x.
   Proof.
-    case H: (RValues.eq_dec x x) => [pf|pf] => //.
-    by elimtype False; move {H}; apply: pf; apply/RValues.eqP.
-  Qed.      
+    case H: (RValues.eq_dec' x x) => [pf|pf] => //.
+    elimtype False; move {H}; apply: pf; apply RValues.eq_refl'.
+  Qed.
+
   Definition a0 : RAffine3Scaled.t.
   Proof.
-    Ltac solve_r r :=
+   Ltac solve_r r :=
       try solve[
       exists (Wrap _ r, (Wrap _ (Wrap _ r)));
-        rewrite /RAffine.pred /RAffine.Pred.pred /RAffine.mypred /=;
+        rewrite /RAffine.t /RAffine.Pred.pred /=;
                 apply: RValues_eq_dec_refl].
     (* I think this should make one RYes and the rest RNo *)
     split; split; solve_r RYes. repeat (split; solve_r RNo).

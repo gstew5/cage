@@ -403,8 +403,12 @@ Proof.
   case:(eqVneq x y) => H;
   [left | right] => //.
   move/eqP: H => //.
-Defined.
+Qed.
 
+Instance eqReflResource : Eq_Refl eqResource.
+Proof.
+  rewrite /Eq_Refl /eqResource. move => x //.
+Qed.
 (******************************************
   Singleton Games A : Boolable, 
   c_i s =  if (boolify s_i) then 1 else 0
@@ -452,7 +456,14 @@ Program Instance eqDecSingleton
 Next Obligation.
   case: x => x; case: y => y.
   rewrite /eqSingleton => //.
-Defined.
+Qed.
+
+Program Instance eqReflSingleton
+                  (A : Type) (eqA : Eq A)
+                  (eqReflA : Eq_Refl eqA) : Eq_Refl (@eqSingleton A eqA).
+Next Obligation.
+  rewrite /Eq_Refl /eqSingleton. case: x => //.
+Qed.
 
 Instance singletonCostInstance
          (N : nat) (A : finType)
@@ -563,26 +574,26 @@ End singletonSmoothTest. End SingletonSmoothTest.
 Class PredClass (A : Type) := the_pred : A -> bool.
 
 Class PredClassPreservesBoolableUnit
-        (A : Type) `(Boolable A) (P : PredClass A)
+        (A : Type) `(Boolable A) `(P : PredClass A)
         (bA : @BoolableUnit A _)
   := unitPreserved : P bA = true.
 
 Instance SigmaBoolableInstance
          A (B : Boolable A) (P : PredClass A)
-  : Boolable {x : A | P x} :=
+  : Boolable {x : A | the_pred x} :=
   fun p => boolify (projT1 p).
 
 (* We need to ensure that our BoolableUnit surives P *)
 Instance BoolableUnitSigma
         A `(Boolable A) `(bA : @BoolableUnit A _)
-        `(P : PredClass A) `(pf : @PredClassPreservesBoolableUnit A _ P bA)
-  : BoolableUnit (@SigmaBoolableInstance A _ P) :=
+        `(P : PredClass A) `(pf : @PredClassPreservesBoolableUnit A _ _ bA)
+  : BoolableUnit (@SigmaBoolableInstance A _ _) :=
   (exist _ bA pf).
 
 Program Instance BoolableUnitSigmaAxiom 
         A `(Boolable A) `(bA : @BoolableUnit A _)
         `(@BoolableUnitAxiom _ _ bA) 
-        `(P : PredClass A) (pf : @PredClassPreservesBoolableUnit A _ P bA)
+        `(P : PredClass A) (pf : @PredClassPreservesBoolableUnit A _ _ bA)
   : @BoolableUnitAxiom _ _ (BoolableUnitSigma pf).
 
 Program Instance eqSigma (A : Type) (eqA : Eq A) (P : PredClass A)
@@ -595,6 +606,15 @@ Program Instance eqSigmaDec
                   (eqDecA : Eq_Dec eqA)
                   (P : PredClass A)
   : Eq_Dec (@eqSigma _ eqA P).
+Next Obligation.
+  rewrite /eqSigma => //.
+Qed.
+
+Program Instance eqSigmaRefl
+                  (A : Type) (eqA : Eq A)
+                  (eqReflA : Eq_Refl eqA)
+                  (P : PredClass A)
+  : Eq_Refl (@eqSigma _ eqA P).
 Next Obligation.
   rewrite /eqSigma => //.
 Qed.
@@ -722,7 +742,16 @@ Next Obligation.
   case: (eqDecB b0 b) => H0 H1;
   [left | right | right | right] => // => H;
   [apply H0 | apply H1 | apply H1]; apply H.
-Defined.
+Qed.
+
+Program Instance eqProdRefl
+      (A B : Type) (eqA : Eq A) (eqB : Eq B)
+      (eqReflA : Eq_Refl eqA) (eqReflB : Eq_Refl eqB)
+  : Eq_Refl (@eqProd _ _ eqA eqB).
+Next Obligation.
+  rewrite /eqProd; split.
+  apply eqReflA. apply eqReflB.
+Qed.
 
 Instance prodCostInstance
          (N : nat) (rty : realFieldType) (aT bT : finType)
@@ -1016,7 +1045,16 @@ Global Program Instance eqScalarDec
 Next Obligation.
   rewrite /eqScalar.
   case: x => x; case: y => y //.
-Defined.
+Qed.
+
+Global Program Instance eqScalarRefl
+      (c : rty) (A : Type) (eqA : Eq A)
+      (eqReflA : Eq_Refl eqA)
+  : Eq_Refl (@eqScalar c _  eqA).
+Next Obligation.
+  rewrite /eqScalar.
+  case: x => x  //.
+Qed.
 End ScalarType.
 
 Class ScalarClass (rty : realFieldType)
@@ -1179,14 +1217,23 @@ Global Instance eqBias
     fun a1 a2 =>
     (eqA (unwrap a1) (unwrap a2)). 
 
-Program Instance eqBiasDec
+Program Instance eqBiasDec 
       (c : rty) (A : Type) (eqA : Eq A)
       (eqDecA : Eq_Dec eqA)
   : Eq_Dec (@eqBias c _  eqA).
 Next Obligation.
   rewrite /eqBias.
   case: x => x; case: y => y //.
-Defined.
+Qed.
+
+Program Instance eqBiasRefl
+      (c : rty) (A : Type) (eqA : Eq A)
+      (eqReflA : Eq_Refl eqA)
+  : Eq_Refl (@eqBias c _  eqA).
+Next Obligation.
+  rewrite /eqBias.
+  case: x => x //.
+Qed.
 
 End BiasType.
 
@@ -1450,13 +1497,15 @@ Global Instance affinePredInstance
     | Wrap x, Wrap (Wrap y) => eqDecA x y
     end.
 
-Global Instance affinePredPreservesBoolableResourceUnit
-  : @PredClassPreservesBoolableUnit
-      (affine_pre resource) _ (@affinePredInstance resource _ _) _.
+Global Instance affinePredPreservesBoolableUnit
+  (A : Type)
+  (eqA : Eq A) (eqDecA : Eq_Dec eqA) (eqReflA : Eq_Refl eqA)
+  (boolableA : Boolable A) (boolableUnitA : BoolableUnit boolableA)
+  : @PredClassPreservesBoolableUnit 
+      (affine_pre A) _ _ _.
 Proof.
-  rewrite /PredClassPreservesBoolableUnit /affinePredInstance /=
-          /eqDecResource.
-  case (eqVneq) => H //.
+  rewrite /PredClassPreservesBoolableUnit /affinePredInstance  /=.
+  case: eqDecA => H //.
 Qed.
 
 Definition affine
@@ -1465,17 +1514,21 @@ Definition affine
 
 Global Instance affineBoolable
     (A : Type) (eqA : Eq A) (eqDecA : Eq_Dec eqA)
-    (bA : Boolable A) (a : BoolableUnit bA)
-  : Boolable (@affine A _ _).
-Proof.
-  apply (@SigmaBoolableInstance _ _ _).
-Defined.
+    `(bA : Boolable A) (a : BoolableUnit bA)
+  : Boolable (@affine A _ _) := _.
 
-Global Instance affineBoolableResourceUnit
-  : BoolableUnit (@affineBoolable resource _ _ _ _).
-Proof.
-  apply (@BoolableUnitSigma _ _ _ _ _).
-Defined.
+Global Instance affineBoolableUnit
+  (A : Type)
+  (eqA : Eq A) (eqDecA : Eq_Dec eqA) (eqReflA : Eq_Refl eqA)
+  (boolableA : Boolable A) (boolableUnitA : BoolableUnit boolableA)
+  : BoolableUnit (affineBoolable boolableUnitA) := _.
+
+Global Instance affineBoolableUnitAxiom
+  (A : Type)
+  (eqA : Eq A) (eqDecA : Eq_Dec eqA) (eqReflA : Eq_Refl eqA)
+  (boolableA : Boolable A) (boolableUnitA : BoolableUnit boolableA)
+  (bA : BoolableUnitAxiom boolableUnitA)
+  : @BoolableUnitAxiom (@affine A _ _) _ _ := _.
 End AffineType.
 
 Section affineGameTest.

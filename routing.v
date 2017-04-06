@@ -193,49 +193,49 @@ End topology.
 (* Because standard Coq FMaps are parameterized over modules, which 
    aren't first-class in Coq, the following construction has to be 
    done by hand for each game type. *)
-Module R <: MyOrderedType := OrderedResource.
+Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 
-Module R5Values <: OrderedAffineType.
+Module R5Values <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scal := D_to_dyadic_rat (Dmake 100 1).
-  Definition offset := D_to_dyadic_rat 0%D.
+  Definition scalar := D_to_dyadic_rat (Dmake 100 1).
+  Definition bias := D_to_dyadic_rat 0%D.
   Definition a0 := RNo.
 End R5Values.
 Module R5 := OrderedAffine R5Values.
 
-Module R4Values <: OrderedAffineType.
+Module R4Values <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scal := D_to_dyadic_rat (Dmake 60 1).
-  Definition offset := D_to_dyadic_rat 0%D.
+  Definition scalar := D_to_dyadic_rat (Dmake 60 1).
+  Definition bias := D_to_dyadic_rat 0%D.
   Definition a0 := RNo.
 End R4Values.
 Module R4 := OrderedAffine R4Values.
 
-Module R2Values <: OrderedAffineType.
+Module R2Values <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scal := D_to_dyadic_rat 1%D.
-  Definition offset := D_to_dyadic_rat (Dmake 100 1).
+  Definition scalar := D_to_dyadic_rat 1%D.
+  Definition bias := D_to_dyadic_rat (Dmake 100 1).
   Definition a0 := RNo.
 End R2Values.
 Module R2 := OrderedAffine R2Values.
 
-Module RValues <: OrderedAffineType.
+Module RValues <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scal := D_to_dyadic_rat 1%D.
-  Definition offset := D_to_dyadic_rat 0%D.
+  Definition scalar := D_to_dyadic_rat 1%D.
+  Definition bias := D_to_dyadic_rat 0%D.
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
 
-Module PUnit <: MyOrderedType := OrderedUnit.
-Module P1 <: MyOrderedType := OrderedProd PUnit R'.
-Module P2 <: MyOrderedType := OrderedProd P1 R2.
-Module P3 <: MyOrderedType := OrderedProd P2 R'.
-Module P4 <: MyOrderedType := OrderedProd P3 R4.
-Module P5 <: MyOrderedType := OrderedProd P4 R'.
-Module P6 <: MyOrderedType := OrderedProd P5 R'.
-Module P7 <: MyOrderedType := OrderedProd P6 R'.
-Module P8 <: MyOrderedType := OrderedProd P7 R'.
+Module PUnit <: BoolableMyOrderedType := BoolableOrderedUnit.
+Module P1 <: BoolableMyOrderedType := BoolableOrderedProd PUnit R'.
+Module P2 <: BoolableMyOrderedType := BoolableOrderedProd P1 R2.
+Module P3 <: BoolableMyOrderedType := BoolableOrderedProd P2 R'.
+Module P4 <: BoolableMyOrderedType := BoolableOrderedProd P3 R4.
+Module P5 <: BoolableMyOrderedType := BoolableOrderedProd P4 R'.
+Module P6 <: BoolableMyOrderedType := BoolableOrderedProd P5 R'.
+Module P7 <: BoolableMyOrderedType := BoolableOrderedProd P6 R'.
+Module P8 <: BoolableMyOrderedType := BoolableOrderedProd P7 R'.
 
 Inductive Empty_type :=.
 Instance EmptyTypeBoolable : Boolable Empty_type :=
@@ -270,111 +270,6 @@ Instance BoolableT n : Boolable (T n) :=
   | _ => _
   end.
 
-Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
-  match n with
-  | O => _
-  | 1 => @BoolableUnitSigma _
-            R'.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 2 => @BoolableUnitSigma _
-            R2.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 3 => @BoolableUnitSigma _
-            R'.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 4 => @BoolableUnitSigma _
-            R4.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 5 => @BoolableUnitSigma _
-            R'.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 6 => @BoolableUnitSigma _
-            R'.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 7 => @BoolableUnitSigma _
-            R'.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 8 => @BoolableUnitSigma _
-            R'.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _           
-  | _ => _
-  end.
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-Defined.
-
-(* Speeds things up in the next step *)
-Instance BoolableUnitAxiomT1 : @BoolableUnitAxiom (T 1) _ _ :=
-  (@BoolableUnitSigmaAxiom _ _ _ _ _ _).
-
-Instance BoolableUnitAxiomT n : @BoolableUnitAxiom (T n) _ _ :=
-match n with
-  | O => _
-  | 1 => BoolableUnitAxiomT1
-  | 2 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
-  | 3 => BoolableUnitAxiomT1
-  | 4 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
-  | 5 => BoolableUnitAxiomT1
-  | 6 => BoolableUnitAxiomT1
-  | 7 => BoolableUnitAxiomT1
-  | 8 => BoolableUnitAxiomT1         
-  | _ => _
-end.
 End T.
 
 Definition num_players : nat := 10.
@@ -393,17 +288,18 @@ Module P <: OrderedPredType.
   Include P8Scaled.
   Definition pred (p : P8Scaled.t) : bool :=
     @isSrcSnkPath 8 T BoolableT 0 4 top (unwrap p).
-  Lemma RValues_eq_dec_refl x : RValues.eq_dec x x.
+  Lemma RValues_eq_dec_refl x : RValues.eq_dec' x x.
   Proof.
-    case H: (RValues.eq_dec x x) => [pf|pf] => //.
-    by elimtype False; move {H}; apply: pf; apply/RValues.eqP.
-  Qed.      
+    case H: (RValues.eq_dec' x x) => [pf|pf] => //.
+    elimtype False; move {H}; apply: pf; apply RValues.eq_refl'.
+  Qed.
   Definition a0 : P8Scaled.t.
   Proof.
     Ltac solve_r r := 
       try solve[
       exists (Wrap _ r, (Wrap _ (Wrap _ r)));
-        rewrite /R'.pred /R'.Pred.pred /R'.mypred /=;
+        rewrite /R'.t /R'.SimplPred.pred /R'.Pred.pred
+                /affinePredInstance /=;
                 apply: RValues_eq_dec_refl].
     repeat split.
     solve_r RYes. solve_r RYes.

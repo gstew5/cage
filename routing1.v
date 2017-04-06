@@ -196,20 +196,20 @@ End topology.
 (* Because standard Coq FMaps are parameterized over modules, which 
    aren't first-class in Coq, the following construction has to be 
    done by hand for each game type. *)
-Module R <: BoolableMyOrderedType := OrderedResource.
+Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 
-Module R10Values <: OrderedAffineType.
+Module R10Values <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scal := D_to_dyadic_rat (Dmake 20 1).
-  Definition offset := D_to_dyadic_rat (Dmake 20 1).
+  Definition scalar := D_to_dyadic_rat (Dmake 20 1).
+  Definition bias := D_to_dyadic_rat (Dmake 20 1).
   Definition a0 := RNo.
 End R10Values.
 Module R10 := OrderedAffine R10Values.
 
-Module RValues <: OrderedAffineType.
+Module RValues <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scal := D_to_dyadic_rat 1.
-  Definition offset := D_to_dyadic_rat 0.
+  Definition scalar := D_to_dyadic_rat 1.
+  Definition bias := D_to_dyadic_rat 0.
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
@@ -235,72 +235,6 @@ Definition T (n : nat) : Type :=
   | 3 => R'.t
   | _ => Unit
   end.
-
-
-(* Boolification tests
-(* Variable q : rat.
-Definition P : resource_finType -> bool := fun r => r == RYes.
-Definition sing_test : singleton resource_finType := Wrap Singleton RYes.
-Definition scalar_test : scalar q resource_finType := Wrap (Scalar q) RYes.
-Definition bias_test : bias q resource_finType := Wrap (Bias q) RYes.
-Definition prod_test := (sing_test, scalar_test).
-Program Definition pred_test : {x : resource_finType | P x} :=
-  exist P RYes _.
-Definition affine_pre_test : affineType_pre q q resource_finType :=
-  (scalar_test, Wrap (Scalar q) sing_test).
-Program Definition affine_test : affineType q q resource_finType :=
-  exist _ affine_pre_test _.
-
-Check (boolify RYes).
-Check (boolify sing_test).
-Check (boolify scalar_test).
-Check (boolify bias_test). (* Failed *)
-Check (boolify prod_test).
-Check (boolify pred_test).
-Check (boolify affine_pre_test). (* Passes when P : A -> bool,
-                              but fails when P : Pred A *)
-Check (boolify affine_test).
-Print R'.
-Check (boolify R'.t).
-Check (boolify (scalar_test, (Wrap (Scalar q) sing_test))).
- *)
-Variable q : rat.
-Instance P' : PredClass resource := fun r => r == RYes.
-Definition P : resource -> bool := fun r => r == RYes.
-Definition sing_test : singleton resource := Wrap Singleton RYes.
-Definition scalar_test : scalar q resource := Wrap (Scalar q) RYes.
-Definition bias_test : bias q resource := Wrap (Bias q) RYes.
-Definition prod_test := (sing_test, scalar_test).
-Program Definition pred'_test : {x : resource | P' x} :=
-  exist _ RYes _.
-Program Definition pred_test : {x : resource | P x} :=
-  exist P RYes _.
-Definition affine_pre_test : affine_pre q q resource :=
-  (scalar_test, Wrap (Scalar q) sing_test).
-Program Definition affine_test : @affine q q resource eq _ :=
-  exist _ affine_pre_test _.
-Next Obligation.
-Proof.
-  destruct x; destruct y.
-  left; auto.
-  right; intros H; inversion H.
-  right; intros H; inversion H.
-  left; auto.
-Defined.  
-
-Check (boolify RYes).
-Check (boolify sing_test).
-Check (boolify scalar_test).
-Check (boolify bias_test). (* Failed *)
-Check (boolify prod_test).
-Check (boolify pred'_test).
-Check (boolify pred_test). (* Failed, but okay. Need to set up preds as instances *)
-Check (boolify affine_pre_test).
-Check (boolify affine_test).
-Variable x : R'.t.
-Check (boolify x).
-*)
-
 Existing Instances R'.boolable R10.boolable R'.Pred.boolable R10.Pred.boolable.
 Instance BoolableT n : Boolable (T n) :=
   match n with 
@@ -314,65 +248,31 @@ Instance BoolableT n : Boolable (T n) :=
 Instance EqT n : Eq (T n) :=
   match n with 
   | O => _
-  | 1 => R10.eq
-  | 2 => R10.eq
-  | 3 => R'.eq
+  | 1 => _
+  | 2 => _
+  | 3 => _
   | _ => _
   end.
 
 Instance EqDecT n : @Eq_Dec _ (@EqT n) :=
 match n with
   | O => _
-  | 1 => R10.eq_dec
-  | 2 => R10.eq_dec
-  | 3 => R'.eq_dec
+  | 1 => _
+  | 2 => _
+  | 3 => _
   | _ => _
   end.
 
-Instance BoolableUnitT n : @BoolableUnit (T n) (@BoolableT n) :=
+Existing Instances R'.boolableUnit R10.boolableUnit.
+Instance BoolableUnitT n : BoolableUnit (@BoolableT n) :=
   match n with
   | O => _
-  | 1 => @BoolableUnitSigma _
-            R10.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 2 => @BoolableUnitSigma _
-            R10.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
-  | 3 => @BoolableUnitSigma _
-            R'.Pred.boolable
-            (prodBoolableUnit _ _ 
-               (BoolableUnitScalar _ _ boolableUnit_Resource)
-               (BoolableUnitScalar _ _ (BoolableUnitSingleton _ boolableUnit_Resource)))
-             _ _
+  | 1 => _
+  | 2 => _
+  | 3 => _
   | _ => _
   end.
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-{
-  cbv => /=. case: OrderedResource.eq_dec => H => //. apply False_rec. apply H.
-  rewrite -OrderedResource.eqP => //.
-}
-Defined.
-Instance BoolableUnitAxiomT n : @BoolableUnitAxiom (T n) _ _ :=
-match n with
-  | O => _
-  | 1 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
-  | 2 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
-  | 3 => (@BoolableUnitSigmaAxiom _ _ _ _ _ _)
-  | _ => _
-end.
+
 End T.
   
 Definition num_players : nat := 5.
@@ -392,20 +292,21 @@ Module P <: OrderedPredType.
   Include P3Scaled.
   Definition pred (p : P3Scaled.t) : bool :=
     @isValidPath 3 T BoolableT BoolableUnitT 0 1 top (unwrap p).
-  Lemma RValues_eq_dec_refl x : RValues.eq_dec x x.
+  Lemma RValues_eq_dec_refl x : RValues.eq_dec' x x.
   Proof.
-    case H: (RValues.eq_dec x x) => [pf|pf] => //.
-    by elimtype False; move {H}; apply: pf; apply/RValues.eqP.
-  Qed.      
-  Definition a0 : P3Scaled.t.
-     
+    case H: (RValues.eq_dec' x x) => [pf|pf] => //.
+    elimtype False; move {H}; apply: pf; apply RValues.eq_refl'.
+  Qed.
+
+  Definition a0 : P3Scaled.t.     
   Proof.
-    Ltac solve_r r := 
+   Ltac solve_r r := 
       try solve[
-      exists (Wrap _ r, Wrap _ (Wrap _ r));
-        rewrite /R'.pred /R'.Pred.pred /R'.mypred /=;
+      exists (Wrap _ r, (Wrap _ (Wrap _ r)));
+        rewrite /R'.t /R'.SimplPred.pred /R'.Pred.pred
+                /affinePredInstance /=;
                 apply: RValues_eq_dec_refl].
-    split. split. split. split => //.
+    repeat split.
     solve_r RYes. solve_r RNo. solve_r RNo. 
   Defined.    
   Lemma a0_pred : pred a0.

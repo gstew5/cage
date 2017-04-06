@@ -9,10 +9,23 @@ Require Import Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
 Require Import strings compile combinators ccombinators numerics dyadic.
+(* Boolability is important to our construction of affine games,
+      however, it is non-essential and problematic for more advanced
+      games (e.g. the routing games shown in routing.v)
 
+  It's not hard to preserve boolability with certain combinators,
+  however, it is hard to regain it.
+
+  To work around this we have two layers of modules here:
+    1.) MyOrderedType, used to preserve Boolablity through particular combinators.
+    2.) SimpleMyOrderedType, used to strip away Boolability
+          and its associated requirements
+*)
+
+(* Define the basic extension of OrderedType: MyOrderedType *)
 Module Type MyOrderedType.
   Parameter t : Type.
-  Parameter t0 : t. (*The type is inhabited.*)
+  Parameter t0 : t.
   Parameter enumerable : Enumerable t.
   Parameter cost_instance : forall N, CCostClass N t.
   Parameter cost_max : forall N, CCostMaxClass N t.
@@ -25,6 +38,23 @@ Module Type MyOrderedType.
   Parameter eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
   Parameter eqP : forall x y, x = y <-> eq x y.
 End MyOrderedType.
+
+(* We extend MyOrderedType with boolability
+    which is preserved under some relation EQ
+    for the construction of affine games *)
+Module Type BoolableMyOrderedType.
+  Include MyOrderedType.
+  Declare Instance boolable : Boolable t.
+  Declare Instance boolableUnit : BoolableUnit boolable.
+  Declare Instance eq' : Eq t.
+  Declare Instance eq_dec' : Eq_Dec eq'.
+  Declare Instance eq_refl' : Eq_Refl eq'.
+End BoolableMyOrderedType.
+
+(* SimplifyBoolable strips boolability *)
+Module SimplifyBoolable (A : BoolableMyOrderedType) <: MyOrderedType.
+  Include A.
+End SimplifyBoolable.
 
 Module OrderedType_of_MyOrderedType (A : MyOrderedType)
   <: OrderedType.OrderedType.
@@ -43,16 +73,6 @@ Module OrderedType_of_MyOrderedType (A : MyOrderedType)
       Definition eq_dec := A.eq_dec.
 End OrderedType_of_MyOrderedType.
 
-Module Type BoolableMyOrderedType.
-  Include MyOrderedType.
-  Parameter boolable : Boolable t.
-End BoolableMyOrderedType.
-
-Module MyOrderedType_of_BoolableMyOrderedType
-        (A : BoolableMyOrderedType) <: MyOrderedType.
-  Include A.
-End MyOrderedType_of_BoolableMyOrderedType.
-
 Module Type OrderedFinType.
   Include MyOrderedType.
   Parameter eq_mixin : Equality.mixin_of t.
@@ -65,12 +85,16 @@ Module MyOrderedType_of_OrderedFinType
   Include A.                                
 End MyOrderedType_of_OrderedFinType.
 
-Module OrderedUnit <: BoolableMyOrderedType.
+(**
+  The following provides OrderedType instances for the basic types 
+    Unit and Resource
+**)
+Module OrderedUnit <: MyOrderedType.
   Definition t := Unit.
   Definition t0 := mkUnit.
-  Definition enumerable := unit_enum.
-  Definition cost_instance := unitCCostInstance.
-  Definition cost_max := unitCCostMaxInstance.
+  Definition enumerable  : Enumerable t := _.
+  Definition cost_instance : forall N, CCostClass N t := _.
+  Definition cost_max : forall N, CCostMaxClass N t := _.
   Definition showable := unitShowable.
   Definition eq u1 u2 := Unit_eq u1 u2 = true.
   Definition lt (u1 u2 : Unit) := False.
@@ -81,22 +105,37 @@ Module OrderedUnit <: BoolableMyOrderedType.
   Lemma lt_not_eq : forall x y, lt x y -> ~ eq x y. by []. Qed.
   Lemma compare : forall x y, Compare lt eq x y.
     move => x y; by apply EQ => //. Qed.
-  Lemma eq_dec : forall x y, {eq x y} + {~ eq x y}. by left => //. Qed.
+  Definition eq_dec : forall x y, {eq x y} + {~ eq x y}. by left => //. Qed.
   Lemma eqP : forall x y, x = y <-> eq x y.
   Proof.
     move => x y. split; first by [].
     case: x => H. case y => //.
   Qed.
-  Definition boolable : Boolable t := fun _ => false.
 End OrderedUnit.
 
-Module OrderedResource <: BoolableMyOrderedType.
+Module BoolableOrderedUnit <: BoolableMyOrderedType.
+  Include OrderedUnit.
+    (* It looks like these aspects are missing from unit games
+      in compile.v.
+     (** ToDo: update unit games to match the construction
+          of the other combinators/games **)
+  *)
+  Definition boolable : Boolable t := fun _ => false.
+  Definition boolableUnit : BoolableUnit boolable := mkUnit.
+  Definition eq' : Eq t := fun x y => True.
+  Lemma eq_refl' : Eq_Refl eq'.
+    Proof. rewrite /Eq_Refl => x //. Qed.
+  Lemma eq_dec' : Eq_Dec eq'.
+    Proof. rewrite /Eq_Dec /eq'=> x y. left. by []. Qed.
+End BoolableOrderedUnit.
+
+Module OrderedResource <: MyOrderedType.
   Definition t := resource.
   Definition t0 := RYes.
-  Definition enumerable := resourceEnumerableInstance.
-  Definition cost_instance := resourceCCostInstance.
-  Definition cost_max := resourceCCostMaxInstance.
-  Definition showable := resourceShowable.
+  Definition enumerable  : Enumerable t := _.
+  Definition cost_instance : forall N, CCostClass N t := _.
+  Definition cost_max : forall N, CCostMaxClass N t := _.
+  Definition showable : Showable t := _.
   Definition eq r1 r2 := resource_eq r1 r2 = true.
   Definition lt r1 r2 :=
     match r1, r2 with
@@ -142,9 +181,16 @@ Module OrderedResource <: BoolableMyOrderedType.
 
   Lemma eqP : forall x y, x = y <-> eq x y.
   Proof. by move => x y; rewrite /eq; case: (@resource_eqP x y). Qed.
-
-  Definition boolable : Boolable t := boolable_Resource.
 End OrderedResource.
+
+Module BoolableOrderedResource <: BoolableMyOrderedType.
+  Include OrderedResource.
+  Definition boolable : Boolable t := _.
+  Definition boolableUnit : BoolableUnit boolable := _.
+  Definition eq' : Eq t := _.
+  Definition eq_refl' : Eq_Refl eq' := _.
+  Definition eq_dec' : Eq_Dec eq' := _.
+End BoolableOrderedResource.
 
 Module OrderedFinResource <: OrderedFinType.
   Include OrderedResource.                              
@@ -153,61 +199,26 @@ Module OrderedFinResource <: OrderedFinType.
   Definition fin_mixin := resource_finMixin.
 End OrderedFinResource.
 
-Module OrderedSingleton (A : BoolableMyOrderedType) <: BoolableMyOrderedType.
-  Definition t := singleton (A.t).
-  Definition t0 := Wrap Singleton A.t0.
-  Definition enumerable := (singCTypeInstance A.enumerable).
-  Definition cost_instance N := singCCostInstance (A.boolable) N.
-  Definition cost_max N := @singCCostMaxInstance N A.t.
-  Definition show_sing (sA : singleton (A.t)) : string := 
-      append "Singleton" (to_string (unwrap sA)).
-  Instance showable : Showable t := mkShowable show_sing.
-  Definition eq (p1 p2 : t) := A.eq (unwrap p1) (unwrap p2).
-  Definition lt (p1 p2 : t) := A.lt (unwrap p1) (unwrap p2).
-  Definition lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
-  Proof.
-    rewrite /lt; move => x y z; apply A.lt_trans.
-  Qed.
-  Lemma lt_not_eq : forall x y, lt x y -> ~ eq x y.
-  Proof.
-    rewrite /eq /lt; move => x y; apply A.lt_not_eq.
-  Qed.
-  Lemma compare : forall x y, Compare lt eq x y.
-  Proof.
-    move => x y.
-    case H: (A.compare (unwrap x) (unwrap y)) => [lt_pf|eq_pf|gt_pf];
-    [apply LT | apply EQ | apply GT] => //.
-  Qed.
-  Lemma eq_dec : forall x y, {eq x y} + {~eq x y}.
-  Proof.
-    move => x y.
-    case H : (A.eq_dec (unwrap x) (unwrap y)); [left | right] => //.
-  Qed.
-  Lemma eqP : forall x y, x = y <-> eq x y.
-  Proof.
-    rewrite /t.
-    move => x y. destruct x. destruct y.
-    split => H. rewrite H /eq. apply A.eqP. auto.
-    rewrite /eq /= in H. apply A.eqP in H. rewrite H => //.
-  Qed.
-  Definition boolable := BoolableSingleton (A.boolable).
-End OrderedSingleton.
 
+(* We now begin defining functors for constructing
+    OrderedTypes and BoolableOrderedTypes *)
 
+(** First, we set up those functors which work without boolability **)
+
+  (* Products and their extensions (boolable and fin) *)
 Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
   Definition t := (A.t*B.t)%type.
   Definition t0 := (A.t0, B.t0).
-  Definition enumerable := prodEnumerableInstance A.enumerable B.enumerable.
-  Definition cost_instance N :=
-    prodCCostInstance (A.cost_instance N) (B.cost_instance N).
-  Definition cost_max N :=         
-    prodCCostMaxInstance (A.cost_max N) (B.cost_max N).
+  Definition enumerable  : Enumerable t := _.
+  Definition cost_instance : forall N, CCostClass N t := _.
+  Definition cost_max : forall N, CCostMaxClass N t := _.
   Definition show_prod (p : A.t*B.t) : string :=
     let s1 := to_string p.1 in
     let s2 := to_string p.2 in
     append s1 s2.
   Instance showable : Showable t := mkShowable show_prod.
-  Definition eq p1 p2 := A.eq p1.1 p2.1 /\ B.eq p1.2 p2.2.
+  Definition eq p1 p2 : Prop :=
+    (eqProd A.eq B.eq) p1 p2.
   Definition lt p1 p2 :=
     match p1, p2 with
     | (a1, b1), (a2, b2) =>
@@ -255,7 +266,7 @@ Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
           right; split => //. }
         apply: LT H2. }
       { have H2: eq x y.
-        { rewrite /eq; split => //. }
+        { rewrite /eq /eqProd. destruct x, y; split => //. }
         apply: EQ H2. }
       have H2: lt y x.
       { clear - eq_pf gt_pf'; move: eq_pf gt_pf'.
@@ -294,16 +305,6 @@ Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
   Qed.
 End OrderedProd.
 
-Module BoolableOrderedProd (X Y : BoolableMyOrderedType) <: BoolableMyOrderedType.
-  Include OrderedProd X Y.
-  Definition boolable : Boolable t := 
-    fun p =>
-      match p with
-      | (p1, p2) => (X.boolable p1) && (Y.boolable p2)
-      end.
-End BoolableOrderedProd.
-
-
 Module OrderedFinProd (X Y : OrderedFinType) <: OrderedFinType.
   Module A := OrderedProd X Y. 
   Include A.
@@ -321,23 +322,50 @@ Module OrderedFinProd (X Y : OrderedFinType) <: OrderedFinType.
   Definition fin_mixin := prod_finMixin xF yF.
 End OrderedFinProd.
 
+Module BoolableOrderedProd (X Y : BoolableMyOrderedType) <: BoolableMyOrderedType.
+  Module SimpX := SimplifyBoolable X.
+  Module SimpY := SimplifyBoolable Y.
+  Module A := OrderedProd SimpX SimpY.
+  Include A.
+  
+  Definition boolable : Boolable t := _.
+  Definition boolableUnit : BoolableUnit boolable := _.
+  Definition eq' : Eq t := _.
+  Definition eq_refl' : Eq_Refl eq' := _.
+  Definition eq_dec' : Eq_Dec eq' := _.
+End BoolableOrderedProd.
+
+  (* Sigma Games *)
 Module Type OrderedPredType.
   Include MyOrderedType.
-  Parameter pred : t -> bool.
+  Declare Instance pred : PredClass t.
   Parameter a0 : t.
   Parameter a0_pred : pred a0.
 End OrderedPredType.
-                      
+
+  (** We don't want/need boolability to be preserved for every predicate.
+        For those where it's important to do so, we use the BoolableOrderedPredType **)
+Module Type BoolableOrderedPredType.
+  Include BoolableMyOrderedType.
+
+  Declare Instance pred : PredClass t.
+  Parameter a0 : t.
+  Parameter a0_pred : pred a0.
+  Declare Instance boolablePres :
+    PredClassPreservesBoolableUnit pred boolableUnit.
+End BoolableOrderedPredType.
+
+Module SimplifyBoolablePredType (A : BoolableOrderedPredType) <: OrderedPredType.
+  Include A.
+End SimplifyBoolablePredType.
+
 Module OrderedSigma (T : OrderedPredType) <: MyOrderedType.
-  Definition pred := T.pred.                                              
-  Definition t := {x : T.t | pred x}%type.
+  Definition t := {x : T.t | T.pred x}%type.
   Definition t0 := exist T.pred T.a0 T.a0_pred.
-  Instance APredInstance : PredClass T.t := pred.
-  Definition enumerable :=
-    sigmaEnumerableInstance T.enumerable APredInstance.
-  Definition cost_instance N :=
-    sigmaCCostInstance (T.cost_instance N).
-  Definition cost_max N := sigmaCCostMaxInstance APredInstance (T.cost_max N).
+
+  Definition enumerable  : Enumerable t := _.
+  Definition cost_instance : forall N, CCostClass N t := _.
+  Definition cost_max : forall N, CCostMaxClass N t := _.
   Definition show_sigma (x : t) : string :=
     to_string (projT1 x).
   Instance showable : Showable t := mkShowable show_sigma.
@@ -377,21 +405,31 @@ Module OrderedSigma (T : OrderedPredType) <: MyOrderedType.
     case => a H; case => b H2; rewrite /eq /=; move: (T.eqP a b) => <-.
     split; first by inversion 1.
     move => H3; move: H H2; subst a => H H2; f_equal.
-    case: (pred b) H H2 => //.
     apply: proof_irrelevance.
   Qed.
 End OrderedSigma.
 
+Module BoolableOrderedSigma (T : BoolableOrderedPredType) <: BoolableMyOrderedType.
+  Module SimplPred := SimplifyBoolablePredType T.
+  Module SimplSigma := OrderedSigma SimplPred.
+  Include SimplSigma.
+  Definition boolable : Boolable t := _.
+  Definition boolableUnit: BoolableUnit boolable := _.
+  Definition eq' : Eq t := _.
+  Definition eq_refl' : Eq_Refl eq' := _.
+  Definition eq_dec' : Eq_Dec eq' := _.
+End BoolableOrderedSigma.
+
 Module Type OrderedPredFinType.
   Include OrderedFinType.
-  Parameter pred : t -> bool.
+  Declare Instance pred : PredClass t.
   Parameter a0 : t.
   Parameter a0_pred : pred a0.
 End OrderedPredFinType.
 
 Module OrderedPredType_of_OrderedPredFinType
        (X : OrderedPredFinType) <: OrderedPredType.
-  Include X.                                    
+  Include X.
 End OrderedPredType_of_OrderedPredFinType.
   
 Module OrderedFinSigma (X : OrderedPredFinType) <: OrderedFinType.
@@ -404,20 +442,30 @@ Module OrderedFinSigma (X : OrderedPredFinType) <: OrderedFinType.
   Definition xC := ChoiceType xE X.choice_mixin.
   Definition xF := FinType xC X.fin_mixin.
 
-  Definition eq_mixin := @sig_eqMixin xE pred.
-  Definition choice_mixin := @sig_choiceMixin xC pred.
-  Definition fin_mixin := @sig_finMixin xF pred.
+  Definition eq_mixin := @sig_eqMixin xE X.pred.
+  Definition choice_mixin := @sig_choiceMixin xC X.pred.
+  Definition fin_mixin := @sig_finMixin xF X.pred.
 End OrderedFinSigma.
 
+
+  (* Scalar Games *)
 Module Type OrderedScalarType.
   Include MyOrderedType.
   Parameter scal : dyadic_rat.
 End OrderedScalarType.
 
 Module Type BoolableOrderedScalarType.
-  Include BoolableMyOrderedType.
-  Parameter scal : dyadic_rat.
+  Include OrderedScalarType.
+  Declare Instance boolable : Boolable t.
+  Declare Instance boolableUnit: BoolableUnit boolable. 
+  Declare Instance eq' : Eq t.
+  Declare Instance eq_dec' : Eq_Dec eq'.
+  Declare Instance eq_refl' : Eq_Refl eq'.
 End BoolableOrderedScalarType.
+
+Module SimplifyBoolableScalarType (A: BoolableOrderedScalarType) <: OrderedScalarType.
+  Include A.
+End SimplifyBoolableScalarType.
                       
 Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
   Definition t := scalar (projT1 T.scal) T.t.
@@ -459,124 +507,119 @@ Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
   Qed.
 End OrderedScalar.
 
-Module BoolableOrderedScalar (T : BoolableOrderedScalarType) <: MyOrderedType.
-  Include (OrderedScalar T).
-  Definition boolable : Boolable t := BoolableScalar _.
-End BoolableOrderedScalar.
-
-(* Given an OrderedOffsetType, this lifts the ordering
-    to an OrderedScalarType over the OrderedSingletonType *)
-Module OrderedOffsetSingletonComponent
-      (T : BoolableOrderedScalarType) <: OrderedScalarType.
-  Include (OrderedSingleton T).
-  Definition scal := T.scal.
-End OrderedOffsetSingletonComponent.
+Module BoolableOrderedScalar (A : BoolableOrderedScalarType) <: BoolableMyOrderedType.
+  Module SimplScalarType := SimplifyBoolableScalarType A.
+  Module SimplScalar := OrderedScalar SimplScalarType.
+  Include SimplScalar.
   
-Module Type OrderedBiasType.
-  Include MyOrderedType.
-  Parameter bias : dyadic_rat.
-End OrderedBiasType.
-                      
-Module OrderedBias (T : OrderedBiasType) <: MyOrderedType.
-  Definition t := bias (projT1 T.bias) T.t.
-  Definition t0 := Wrap (Bias (rty:=rat_realFieldType) T.bias) T.t0.
-  Definition enumerable : Enumerable t :=
-    biasCTypeInstance T.bias T.enumerable.
-  Definition cost_instance (N : nat) :=
-    biasCCostInstance T.enumerable (T.cost_instance N) (q:=T.bias).
-  Definition cost_max (N : nat) :=
-    biasCCostMaxInstance (T.cost_max N) T.bias.
-  Definition show_bias (x : t) : string :=
-    append "Bias" (to_string (unwrap x)).
-  Instance showable : Showable t := mkShowable show_bias.
-  Definition eq (x1 x2 : t) := T.eq (unwrap x1) (unwrap x2).
-  Definition lt (x1 x2 : t) := T.lt (unwrap x1) (unwrap x2).
-  Lemma lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
+  (* Need to remind the system of these for some reason... *)
+  Existing Instances eqScalarRefl eqScalarDec.
+
+  Definition boolable : Boolable t := _.
+  Definition boolableUnit : BoolableUnit boolable := _.
+  Definition eq' : Eq t := _.
+  Definition eq_refl' : Eq_Refl eq' := _.
+  Definition eq_dec' : Eq_Dec eq' := _. 
+End BoolableOrderedScalar.     
+
+(** The following combinators require notions of boolability **)
+Module BoolableOrderedSingleton (A : BoolableMyOrderedType) <: BoolableMyOrderedType.
+  Definition t := singleton (A.t).
+  Definition t0 := Wrap Singleton A.t0.
+  Definition enumerable  : Enumerable t := _.
+  Definition cost_instance : forall N, CCostClass N t := _.
+  Definition cost_max : forall N, CCostMaxClass N t := _.
+  Definition show_sing (sA : singleton (A.t)) : string := 
+      append "Singleton" (to_string (unwrap sA)).
+  Instance showable : Showable t := mkShowable show_sing.
+  Definition eq (p1 p2 : t) := A.eq (unwrap p1) (unwrap p2).
+  Definition lt (p1 p2 : t) := A.lt (unwrap p1) (unwrap p2).
+  Definition lt_trans : forall x y z, lt x y -> lt y z -> lt x z.
   Proof.
-    case => a; case => b; case => e.
-    apply: T.lt_trans.
+    rewrite /lt; move => x y z; apply A.lt_trans.
   Qed.
-  Lemma lt_not_eq : forall x y, lt x y -> ~eq x y.
-  Proof. case => a; case => b; apply: T.lt_not_eq. Qed.
+  Lemma lt_not_eq : forall x y, lt x y -> ~ eq x y.
+  Proof.
+    rewrite /eq /lt; move => x y; apply A.lt_not_eq.
+  Qed.
   Lemma compare : forall x y, Compare lt eq x y.
   Proof.
-    case => a; case => b; rewrite /=.
-    case: (T.compare a b) => H.
-    { rewrite /lt; constructor => //. }
-    { by rewrite /lt /eq; apply: EQ. }
-    by rewrite /lt /eq; apply: GT.
+    move => x y.
+    case H: (A.compare (unwrap x) (unwrap y)) => [lt_pf|eq_pf|gt_pf];
+    [apply LT | apply EQ | apply GT] => //.
   Qed.
   Lemma eq_dec : forall x y, {eq x y} + {~eq x y}.
-  Proof. case => a; case => b; apply: T.eq_dec. Qed.
+  Proof.
+    move => x y.
+    case H : (A.eq_dec (unwrap x) (unwrap y)); [left | right] => //.
+  Qed.
   Lemma eqP : forall x y, x = y <-> eq x y.
   Proof.
-    case => a; case => b; split => H; rewrite /eq.
-    by rewrite -(T.eqP a b); inversion H.
-    rewrite /eq /= in H; f_equal.
-    by rewrite T.eqP.
+    rewrite /t.
+    move => x y. destruct x. destruct y.
+    split => H. rewrite H /eq. apply A.eqP. auto.
+    rewrite /eq /= in H. apply A.eqP in H. rewrite H => //.
   Qed.
-End OrderedBias.
-
-Module Type OrderedAffineType.
+  Definition boolable : Boolable t := _.
+  Definition boolableUnit : BoolableUnit boolable := _.
+  Definition eq' : Eq t := _.
+  Definition eq_refl' : Eq_Refl eq' := _.
+  Definition eq_dec' : Eq_Dec eq' := _.
+End BoolableOrderedSingleton.
+  
+(* This bundles the scalar and bias terms of an affine game together *) 
+Module Type BoolableOrderedAffineType.
   Include BoolableMyOrderedType.
-  Parameter scal : dyadic_rat.
-  Parameter offset : dyadic_rat.
-  (* why the a0? *)
-  Parameter a0 : t.
-End OrderedAffineType.
+  Parameter scalar : dyadic_rat.
+  Parameter bias : dyadic_rat.
+End BoolableOrderedAffineType.
 
-Module OrderedScalarType_of_OrderedAffineType (A : OrderedAffineType)
+Module ScalarType_of_OrderedAffineType (A : BoolableOrderedAffineType)
   <: BoolableOrderedScalarType.
-  Include A.      
-End OrderedScalarType_of_OrderedAffineType.
+  Include A.
+  Definition scal := A.scalar.
+End ScalarType_of_OrderedAffineType.
 
-Module OrderedOffsetType_of_OrderedAffineType (A : OrderedAffineType)
+Module OffsetType_of_OrderedAffineType (A : BoolableOrderedAffineType)
   <: BoolableOrderedScalarType.
-  Definition t := A.t.
-  Definition t0 := A.t0.
-  Definition enumerable := A.enumerable.
-  Definition cost_instance := A.cost_instance.
-  Definition cost_max := A.cost_max.
-  Instance showable : Showable t := A.showable.
-  Definition eq := A.eq.
-  Definition lt := A.lt.
-  Definition lt_trans := A.lt_trans.
-  Definition lt_not_eq := A.lt_not_eq.
-  Definition compare := A.compare.
-  Definition eq_dec := A.eq_dec.
-  Definition eqP := A.eqP.
-  Definition scal := A.offset.
-  Definition boolable := A.boolable.
-End OrderedOffsetType_of_OrderedAffineType.
+    Include A.
+    Definition scal := A.bias.
+End OffsetType_of_OrderedAffineType.
 
-Module OrderedAffine (A : OrderedAffineType) <: BoolableMyOrderedType.
-  Module S := OrderedScalarType_of_OrderedAffineType A.
-  Module O := OrderedOffsetType_of_OrderedAffineType A.
-  Module Off := OrderedOffsetSingletonComponent O.
-  Module Scaled := BoolableOrderedScalar S.
-  Module Offset := BoolableOrderedScalar Off.
-  Module Prod := BoolableOrderedProd Scaled Offset.
+Module BiasType_of_OffsetType (A : BoolableOrderedScalarType)
+  <: BoolableOrderedScalarType.
+  Include BoolableOrderedSingleton A.
+  Definition scal := A.scal.
+End BiasType_of_OffsetType.
 
-  Definition mypred : PredClass Prod.t :=
-    affinePredInstance A.eq_dec.
+(* Given a BoolableOrderedAffineType, toss everything together to build
+    affine games *)
 
-  Module Pred <: OrderedPredType.
-    Include Prod.                  
-    Definition pred := mypred.
-    Definition a0 : t := (Wrap _ A.a0, Wrap _ (Wrap _ A.a0)).
-    Lemma a0_pred : mypred a0.
+Module OrderedAffinePred (A : BoolableOrderedAffineType) <: OrderedPredType.
+    Module S := ScalarType_of_OrderedAffineType A.
+    Module Off := OffsetType_of_OrderedAffineType A.
+    Module Bias := BiasType_of_OffsetType Off.
+    Module Scaled := BoolableOrderedScalar S.
+    Module Offset := BoolableOrderedScalar Bias.
+    Module Prod := BoolableOrderedProd Scaled Offset.
+
+    Include Prod.
+    Instance pred : PredClass Prod.t :=
+      affinePredInstance A.eq_dec'.
+    Definition a0 : t := (Wrap _ A.t0, Wrap _ (Wrap _ A.t0)).
+    Lemma a0_pred : pred a0.
     Proof.
-      rewrite /a0 /mypred /affinePredInstance => /=.
-      case H: (A.eq_dec A.a0 A.a0) => // [x].
-      move: (A.eqP A.a0 A.a0) => []H2 H3.
-      by elimtype False; move {H}; apply: x; apply: H2.
+      rewrite /a0 /pred /affinePredInstance => /=.
+      case H: (A.eq_dec' A.t0 A.t0) => //=.
+      assert (A.eq' A.t0 A.t0) as  H0 by apply A.eq_refl'.
+      contradiction.
     Qed.
-  End Pred.
-  Module P := OrderedSigma Pred.
-  Include P.
-  Definition boolable : Boolable P.t := 
-  fun p =>
-    match (proj1_sig p).2 with
-    | Wrap (Wrap y) => (boolify y)
-    end.
-End OrderedAffine.  
+  
+    Instance boolablePres : PredClassPreservesBoolableUnit pred _ :=
+      affinePredPreservesBoolableUnit _ _ _ _ _.      
+End OrderedAffinePred.
+  
+Module OrderedAffine (A : BoolableOrderedAffineType) <: BoolableMyOrderedType.
+  Module Pred := OrderedAffinePred A.
+  Include BoolableOrderedSigma Pred.
+End OrderedAffine.

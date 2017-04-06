@@ -267,6 +267,9 @@ Class Eq (A : Type) : Type :=
 Class Eq_Dec (A : Type) (eq : Eq A) : Type :=
   isDec : forall x y : A,  {eq x y} + {~ eq x y}.
 
+Class Eq_Refl (A : Type) (eq :Eq A) : Type :=
+  isRefl : forall x : A, eq x x.
+
 (** The game type package provided by MWU to the client network oracle *)
 
 Class GameType
