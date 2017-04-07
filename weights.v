@@ -815,9 +815,6 @@ Section weights.
     by rewrite Rplus_comm.
   Qed.    
 
-  Lemma exp_ineq2 (x : R) : (1 + x <= exp x)%R.
-  Admitted. (*TODO*)                              
-  
   (** \Gamma^T >= (1 - \epsilon)^{OPT} *)
   Section OPT.
     Variable cT : costs.    
@@ -921,7 +918,7 @@ Section weights.
         apply: weights_of_gt0 => // a1; apply: init_weights_gt0. }
       rewrite rat_to_R_plus rat_to_R1 rat_to_R_opp rat_to_R_mul.
       rewrite Ropp_mult_distr_l.
-      apply: exp_ineq2.
+      apply: ln_Taylor_upper'.
     Qed.      
   End OPT.        
 
@@ -1038,26 +1035,53 @@ Section weights.
       apply: gammaT_ge_wT_astar => //.
     Qed.
 
+    Lemma eps_mult_cost_le12 a c (H : c \in cs) :
+      (rat_to_R eps * rat_to_R (c a) <= 1/2)%R.
+    Proof.
+      have ->: (1/2 = 1/2*1)%R by field.
+      case H2: (c a < 0).
+      { have H3: (rat_to_R eps * rat_to_R (c a) <= 0)%R.
+        { move: rat_to_R_eps_le_one_half => H3.
+          have H4: (rat_to_R (c a) < 0)%R.
+          { clear - H2.
+            rewrite -rat_to_R0.
+            by apply: rat_to_R_lt. }
+          move: rat_to_R_eps_gt0 => H5.
+          clear - H4 H5; move: H4 H5.
+          move: (rat_to_R eps) => x; move: (rat_to_R (c a)) => y H1 H2.
+          have H3: (x * y <= y * 0)%R.
+          { rewrite Rmult_comm.
+            by left; apply Rmult_lt_gt_compat_neg_l. }
+          apply: Rle_trans; first by apply: H3.
+          rewrite Rmult_0_r; apply: Rle_refl. }
+        apply: Rle_trans; first by apply: H3.
+        fourier. }
+      apply: Rmult_le_compat.
+      { apply: rat_to_R_eps_pos. }
+      { rewrite -rat_to_R0; apply: rat_to_R_le.
+        have H3: 0 <= c a.
+        { admit. }
+        by []. }
+      { apply: Rle_trans; first by apply: rat_to_R_eps_le_one_half.
+        fourier. }
+      rewrite -rat_to_R1.
+      apply: rat_to_R_le.
+      have H3: (c a <= 1).
+      { case: (andP (CMAX H a)) => _ H3.
+        move: (ler_norm (c a)) => H4.
+        apply: ler_trans; first by apply: H4.
+        by []. }
+      by [].
+    Admitted.
+    
     Lemma one_nepscost_ge0 a c (H : c \in cs) :     
       (0 <= 1 - rat_to_R eps * rat_to_R (c a))%R.
     Proof.
       apply: one_minus_pos.
-      have ->: (1 = 1*1)%R by field.
-      case H2: (c a < 0).
-      { admit. }
-      apply: Rmult_le_compat.
-      { apply: rat_to_R_eps_pos. }
-      admit.
-      { apply: Rle_trans; first by apply: rat_to_R_eps_le_one_half.
-        fourier. }
-      admit.
-    Admitted.
-
-    Lemma eps_mult_cost_le12 a c (H : c \in cs) :
-      (rat_to_R eps * rat_to_R (c a) <= 1/2)%R.
-    Proof.
-    Admitted.
-    
+      apply: Rle_trans; first by apply: eps_mult_cost_le12.
+      fourier.
+    Qed.
+      
     Lemma R176_aux :
       (big_product cs
          (fun c : costs => exp (-rat_to_R eps * rat_to_R (c astar) +
@@ -1105,9 +1129,21 @@ Section weights.
     Notation T := (INR (size cs)).
     Hypothesis T_ge1 : (1 <= T)%R.
 
-    Lemma pow_le1 x : (x <= 1 -> x^2 <= 1)%R.
+    Lemma pow_le1 x : (-1 <= x <= 1 -> x^2 <= 1)%R.
     Proof.
-    Admitted.
+      case => H1 H2.
+      have ->: (1 = 1^2)%R by rewrite pow1.
+      case H3: (Rlt_dec x 0) => [pf|pf].
+      { clear H2 H3.
+        rewrite /pow Rmult_1_r Rmult_1_l.
+        have H2: (x * x <= x * -1)%R.
+        { apply: Rmult_le_compat_neg_l; try fourier. }
+        apply: Rle_trans; first by apply: H2.
+        fourier. }
+      apply pow_incr.
+      split => //.
+      by apply: Rnot_lt_le.
+    Qed.
     
     Lemma R176_aux2 :
       (big_product cs
@@ -1131,12 +1167,33 @@ Section weights.
       { rewrite Rmult_1_r.
         apply: pow_le.
         left; apply: rat_to_R_eps_gt0. }
-      admit. 
-      have H3: (rat_to_R (c astar) <= 1)%R.
-      { admit. }
+      by apply: pow2_ge_0.
+      have H3: (-1 <= rat_to_R (c astar) <= 1)%R.
+      { split.
+        { clear x y.
+          case: (andP (CMAX H astar)) => H1 H2.
+          rewrite ler_normr in H1.
+          case: (orP H1) => [H3|H3].
+          { apply: Rle_trans; last first.
+            { apply: rat_to_R_le.
+              apply: H3. }
+            rewrite rat_to_R0; fourier. }
+          have H4: (0 <= - rat_to_R (c astar))%R.
+          { by rewrite -rat_to_R0 -rat_to_R_opp; apply: rat_to_R_le. }
+          rewrite ler_norml in H2.
+          case: (andP H2) => H5 _.
+          apply: Rle_trans.
+          { rewrite -rat_to_R1 -rat_to_R_opp; apply: rat_to_R_le.
+            apply: H5. }
+          by apply: Rle_refl. }
+        clear x y.
+        case: (andP (CMAX H astar)) => H1 H2.
+        rewrite ler_norml in H2.
+        case: (andP H2) => _ H4.
+        by rewrite -rat_to_R1; apply: rat_to_R_le. }
       apply: Rle_trans; first by apply: pow_le1.
       fourier.
-    Admitted.
+    Qed.
 
     Lemma R176 : (exp (-epsR*OPTR - epsR^2*T) <= rat_to_R gammaT)%R.
     Proof.
@@ -1299,7 +1356,12 @@ Section weights_noregret.
   Proof. apply: Rlt_le; apply: T_gt0. Qed.
 
   Lemma T_ge1 : (1 <= T)%R.
-  Proof. Admitted. (*TODO*)
+  Proof.
+    have ->: (1 = INR 1)%R by [].
+    apply: le_INR.
+    move: (ltP cs_size_gt0) => H2.
+    omega.
+  Qed.    
   
   (** The expected cost at time [T = size cs]. That is, the expected
       cost of [head cs] given the weights table computed from [behead cs]. *)
