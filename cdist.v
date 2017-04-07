@@ -154,7 +154,7 @@ Section functions0.
     elim: l => // a l IH m i n /=.
     rewrite fold_right_app /= IH /=.
     (** NoDupA !!! *)
-  Admitted.
+  Abort.
     
   Lemma map_from_list_index_gt l (n n' : N.t) m m' :
     List.fold_right
