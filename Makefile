@@ -105,7 +105,6 @@ VFILES:=bigops.v\
   extrema.v\
   depfinfun.v\
   games.v\
-  neps_exp_le.v\
   numerics.v\
   dyadic.v\
   potential.v\
