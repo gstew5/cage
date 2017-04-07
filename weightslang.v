@@ -116,7 +116,7 @@ Section client_oracle.
                  T -> dist A rat_realFieldType -> oracle_chanty -> T -> Prop
              ; oracle_recv_ok : forall st ch f t' (a : A),
                  @oracle_recv st ch f t' -> 
-                 0 <= f a <= 1
+                 `|f a| <= 1
              }.
 End client_oracle.  
 
@@ -129,9 +129,9 @@ Section semantics.
   Record state : Type :=
     mkState
       { SCosts : {ffun A -> rat} (* the current cost vector *)
-      ; SCostsOk : forall a, 0 <= SCosts a <= 1
+      ; SCostsOk : forall a, `|SCosts a| <= 1
         (* the history of cost vectors seen so far *)                   
-      ; SPrevCosts : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}
+      ; SPrevCosts : seq {c : {ffun A -> rat} & forall a, `|c a| <= 1}
       ; SWeights : {ffun A -> rat} (* current weights *)
       ; SWeightsOk : forall a, 0 < SWeights a
       ; SEpsilon : rat (* epsilon -- a parameter *)
@@ -166,7 +166,7 @@ Section semantics.
 
   Definition CMAX_costs_seq_cons
              (c : costs A)
-             (pf : forall a, 0 <= c a <= 1)
+             (pf : forall a, `|c a| <= 1)
              (cs : CMAX_costs_seq A)
     : CMAX_costs_seq A.
   Proof.
@@ -177,7 +177,7 @@ Section semantics.
   Defined.
 
   Lemma CMAX_nil :
-    forall c, c \in (nil : seq (costs A)) -> forall a, 0 <= c a <= 1.
+    forall c, c \in (nil : seq (costs A)) -> forall a, `|c a| <= 1.
   Proof. by []. Qed.
   
   (** The small-step semantics *)
@@ -1059,7 +1059,7 @@ Section mult_weights_refinement.
   (** One loop of the functional implementation *)
   Definition mult_weights1_one
              (c : {ffun A -> rat})
-             (pf : forall a, 0 <= c a <= 1)
+             (pf : forall a, `|c a| <= 1)
              (s : state A)
     : state A :=
     let: old_costs := existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s in
@@ -1090,7 +1090,7 @@ Section mult_weights_refinement.
       rather than reverse chronological order, as was done in [weights_of],
       the Ssreflect spec given in weights.v. *)
   Fixpoint mult_weights1_loop_left
-           (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
+           (cs : seq {c : {ffun A -> rat} & forall a, `|c a| <= 1})
            (s : state A)
     : state A :=
     if cs is [:: c & cs'] then mult_weights1_loop_left cs' (mult_weights1_one (projT2 c) s)
@@ -1098,7 +1098,7 @@ Section mult_weights_refinement.
 
   (** Here's a fold-right implementation. *)
   Fixpoint mult_weights1_loop_right
-           (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
+           (cs : seq {c : {ffun A -> rat} & forall a, `|c a| <= 1})
            (s : state A)
     : state A :=
     if cs is [:: c & cs'] then mult_weights1_one (projT2 c) (mult_weights1_loop_right cs' s)
@@ -1138,7 +1138,7 @@ Section mult_weights_refinement.
       t.
 
   Definition mult_weights1
-             (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1})
+             (cs : seq {c : {ffun A -> rat} & forall a, `|c a| <= 1})
              (s : state A) ch t
     : state A :=
     mult_weights1_loop_left cs (mult_weights1_init s ch t).
@@ -1193,9 +1193,9 @@ Section mult_weights_refinement.
   Definition all_costs (s : state A) :=
     [:: existT _ _ (SCostsOk s) & SPrevCosts s].
 
-  Lemma all_costs_CMAX' (l : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}) :
+  Lemma all_costs_CMAX' (l : seq {c : {ffun A -> rat} & forall a, `|c a| <= 1}) :
     forall c, c \in map (fun c => projT1 c) l ->
-                    forall a : A, 0 <= c a <= 1.
+                    forall a : A, `|c a| <= 1.
   Proof.    
     move => c; rewrite /in_mem /=; elim: l => // a l IH; case/orP.
     { move/eqP => ->; apply: (projT2 a). }
@@ -1204,7 +1204,7 @@ Section mult_weights_refinement.
   
   Lemma all_costs_CMAX (s : state A) :
     forall c, c \in map (fun c => projT1 c) (all_costs s) ->
-                    forall a : A, 0 <= c a <= 1.
+                    forall a : A, `|c a| <= 1.
   Proof. apply: all_costs_CMAX'. Qed.
 
   Lemma step_all_costs_cat :
@@ -1213,7 +1213,7 @@ Section mult_weights_refinement.
       exists l, all_costs s' = l ++ all_costs s.
   Proof.
     move => c s c' s'; induction 1; try solve[exists nil => //].
-    { exists [:: existT (fun c1 : {ffun A->rat} => forall a, 0 <= c1 a <= 1) f
+    { exists [:: existT (fun c1 : {ffun A->rat} => forall a, `|c1 a| <= 1) f
                  (fun a => oracle_recv_ok (A:=A) a Hrecv)].
       rewrite /all_costs /=; f_equal; f_equal.
       apply: proof_irrelevance. }
@@ -1287,7 +1287,7 @@ Section mult_weights_refinement.
     (forall m s s', stepN a0 m c s s' ->
                     exists x, all_costs s' = x :: all_costs s) ->
     stepN a0 n (CIter nx c) s s' -> 
-    exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1},
+    exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, `|c0 a| <= 1},
      all_costs s' = catrev l0 (all_costs s).
   Proof.
     set (P :=
@@ -1296,7 +1296,7 @@ Section mult_weights_refinement.
                (forall m s s', stepN a0 m c s s' ->
                                exists x, all_costs s' = x :: all_costs s) ->
                stepN a0 n (CIter nx c) s s' -> 
-               exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1},
+               exists l0 : seq {c0 : {ffun A -> rat} & forall a : A, `|c0 a| <= 1},
                  all_costs s' = catrev l0 (all_costs s)).
     move: s nx; change (P n).
     apply: (well_founded_ind lt_wf); case.
@@ -1321,7 +1321,7 @@ Section mult_weights_refinement.
            (Hsym : forall s s', R s s' -> R s' s)           
            (Htrans : forall s1 s2 s3, R s1 s2 -> R s2 s3 -> R s1 s3)
            (f : forall c : {ffun A -> rat},
-               (forall a, 0 <= c a <= 1) ->
+               (forall a, `|c a| <= 1) ->
                state A -> state A)
            (Hf : forall c pf s1 s2,
                R s1 s2 ->
@@ -1343,7 +1343,7 @@ Section mult_weights_refinement.
                (Hsym : forall s s', R s s' -> R s' s)
                (Htrans : forall s1 s2 s3, R s1 s2 -> R s2 s3 -> R s1 s3)
                (f : forall c : {ffun A -> rat},
-                   (forall a, 0 <= c a <= 1) ->
+                   (forall a, `|c a| <= 1) ->
                    state A -> state A)
                (Hf : forall c pf s1 s2,
                    R s1 s2 ->
@@ -1391,7 +1391,7 @@ Section mult_weights_refinement.
     exists s; split => //=.
     move: Hs.
     set (F := (fun (s0 : state A)
-           (c0 : {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1}) =>
+           (c0 : {c0 : {ffun A -> rat} & forall a : A, `|c0 a| <= 1}) =>
                  f (projT1 c0) (projT2 c0) s0)).
     have Hr': R sx (f (SCosts s1') (SCostsOk s1') s).
     { apply: Htrans; first by apply: Hr.
@@ -1401,7 +1401,7 @@ Section mult_weights_refinement.
     have <-: rev (rev lx) = lx by rewrite revK.
     rewrite 2!foldl_rev; move: (rev lx) => ly.
     set (G := foldr
-         (fun x : {c : {ffun A -> rat} & forall a0 : A, 0 <= c a0 <= 1} =>
+         (fun x : {c : {ffun A -> rat} & forall a0 : A, `|c a0| <= 1} =>
             F^~ x)).
     set (sy := f (SCosts s1') (SCostsOk s1') s).
     clear - R Hsym Htrans Hrefl Hf lx; elim: ly sx sy s'.
@@ -1416,7 +1416,7 @@ Section mult_weights_refinement.
   Lemma stepN_iter_fold_upto :
     forall n nx (s s' : state A) l c 
            (f : forall c : {ffun A -> rat},
-               (forall a, 0 <= c a <= 1) ->
+               (forall a, `|c a| <= 1) ->
                state A -> state A)
            (Hf : forall c pf s1 s2,
                upto_oracle_eq s1 s2 ->
@@ -1440,11 +1440,11 @@ Section mult_weights_refinement.
          f) => //.
     move => x []H5.
     set (F := (fun (s0 : state A)
-           (c0 : {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1}) =>
+           (c0 : {c0 : {ffun A -> rat} & forall a : A, `|c0 a| <= 1}) =>
                  f (projT1 c0) (projT2 c0) s0)).
     have <-: rev (rev l) = l by apply: revK.
     rewrite 2!foldl_rev; move: (rev l) => lx.
-    set (G := (fun x0 : {c0 : {ffun A -> rat} & forall a : A, 0 <= c0 a <= 1} =>
+    set (G := (fun x0 : {c0 : {ffun A -> rat} & forall a : A, `|c0 a| <= 1} =>
          F^~ x0)).
     clear H3 H4; elim: lx x s s' H5.
     { move => x s s' H3 /= H4.
@@ -1464,7 +1464,7 @@ Section mult_weights_refinement.
   Lemma stepN_iter_fold :
     forall n nx (s s' : state A) l c
            (f : forall c : {ffun A -> rat},
-               (forall a, 0 <= c a <= 1) ->
+               (forall a, `|c a| <= 1) ->
                state A -> state A),
       (forall n s s', stepN a0 n c s s' -> f (SCosts s') (SCostsOk s') s = s') ->
       (forall n s s',
@@ -1478,7 +1478,7 @@ Section mult_weights_refinement.
       fun (n : nat) =>               
         forall nx (s s' : state A) l c
                (f : forall c : {ffun A -> rat},
-                   (forall a, 0 <= c a <= 1) ->
+                   (forall a, `|c a| <= 1) ->
                    state A -> state A),
           (forall n s s', stepN a0 n c s s' -> f (SCosts s') (SCostsOk s') s = s') ->
           (forall n s s',
@@ -1516,7 +1516,7 @@ Section mult_weights_refinement.
   Qed.
   
   Lemma mult_weights1_loop_left_foldl
-        (cs : seq {c : {ffun A -> rat} & forall a, 0 <= c a <= 1}) (s : state A) :
+        (cs : seq {c : {ffun A -> rat} & forall a, `|c a| <= 1}) (s : state A) :
     mult_weights1_loop_left cs s =
     foldl (fun s c => mult_weights1_one (projT2 c) s) s cs.
   Proof. by elim: cs s => // c cs' IH s /=; rewrite IH. Qed.
@@ -1743,8 +1743,8 @@ Section mult_weights_refinement.
       Show that [mult_weights1] refines the Ssreflect spec in weights.v. *)
 
   Lemma CMAX_all 
-    (cs : seq {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1}) :
-    forall c, c \in map (fun p => projT1 p) cs -> forall a : A, 0 <= c a <= 1.
+    (cs : seq {c : {ffun A -> rat} & forall a : A, `|c a| <= 1}) :
+    forall c, c \in map (fun p => projT1 p) cs -> forall a : A, `|c a| <= 1.
   Proof.
     elim: cs => // [][]c pf l IH c0.
     rewrite /in_mem /=; case /orP; first by move/eqP => -> a; apply: pf.
@@ -1767,7 +1767,7 @@ Section mult_weights_refinement.
   Qed.                 
   
   Lemma mult_weights1_one_hd
-        (c : {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1})
+        (c : {c : {ffun A -> rat} & forall a : A, `|c a| <= 1})
         cs
         (s : state A)
         d :
@@ -1911,7 +1911,7 @@ Section semantics_lemmas.
     cost of c_1 given d_init. *)
 
   Fixpoint state_expCost1_aux
-           (l : seq {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1})
+           (l : seq {c : {ffun A -> rat} & forall a : A, `|c a| <= 1})
            (ds : seq (dist.dist A rat_realFieldType)) :=
     match l, ds with
     | [:: c & l'], [:: d, d' & ds'] =>
@@ -1925,7 +1925,7 @@ Section semantics_lemmas.
   Fixpoint state_expCost2
            eps
            (EpsOk : 0 < eps <= 1 / 2%:R)
-           (l : seq {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1}) :=
+           (l : seq {c : {ffun A -> rat} & forall a : A, `|c a| <= 1}) :=
     match l with 
     | [:: c & l'] =>
       (rat_to_R
@@ -2032,7 +2032,7 @@ Section semantics_lemmas.
   Lemma state_expCost2_expCostsR
         eps
         (EpsOk : 0 < eps <= 1 / 2%:R)
-        (l : seq {c : {ffun A -> rat} & forall a : A, 0 <= c a <= 1}) :
+        (l : seq {c : {ffun A -> rat} & forall a : A, `|c a| <= 1}) :
     state_expCost2 EpsOk l =
     expCostsR (A:=A) a0 (cs:=[seq projT1 c | c <- l])
               (all_costs_CMAX' (A:=A) (l:=l))
@@ -2052,7 +2052,7 @@ Section semantics_lemmas.
   Definition init_costs : {ffun A -> rat} :=
     finfun (fun _ => 1).
 
-  Lemma init_costs_ok : forall a, 0 <= init_costs a <= 1.
+  Lemma init_costs_ok : forall a, `|init_costs a| <= 1.
   Proof. by rewrite /init_costs => a; rewrite ffunE. Qed.
 
   Definition init_weights := init_costs.

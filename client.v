@@ -126,7 +126,7 @@ Module AxClientOracle (C : CONFIG).
     forall st ch a,
     exists d,
       [/\ In (a,d) (recv st ch).1
-        , Dle D0 d & Dle d D1].
+        , Dle (-D1) d & Dle d D1].
   Proof.
     rewrite /recv /cost_vector => st ch a.
     case: (ax_recv _ _ _) => [][]a0 b b0; rewrite seqP => /=.
@@ -139,7 +139,9 @@ Module AxClientOracle (C : CONFIG).
       move: H2 {H}; elim: (List.rev (enumerate C.A.t)) => // a1 l IH.
       inversion 1; subst; first by left.
       by right; apply: IH. }
-    { by generalize (ccost_ok (M.add a0 a b) a0); case. }
+    { generalize (ccost_ok (M.add a0 a b) a0); case => H1 H2.
+      apply: Qle_trans; last by apply: H1.
+      by []. }
     by generalize (ccost_ok (M.add a0 a b) a0); case. 
   Qed.    
 

@@ -13,6 +13,7 @@ Require Import Structures.Orders NArith.
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
+Import GRing.Theory Num.Def Num.Theory.
 
 Require Import strings weights weightslang compile dist numerics dyadic orderedtypes.
 
@@ -74,7 +75,7 @@ Class ClientOracle {A} `{gametype_instance : GameType A} :=
            ; oracle_recv_ok : forall st ch a,
                exists d,
                  [/\ In (a,d) (oracle_recv st ch).1
-                   , Dle D0 d & Dle d D1]
+                   , Dle (-D1) d & Dle d D1]
            ; oracle_recv_nodup : forall st ch,
                NoDupA (fun p q => p.1 = q.1) (oracle_recv st ch).1
            }.
@@ -313,7 +314,7 @@ Module MWUProof (T : OrderedFinType).
       forall a st ch,
       exists d,
         [/\ M.find a (mwu_recv ch st).1 = Some d
-          , Dle_bool D0 d & Dle_bool d D1].
+          , Dle_bool (-D1) d & Dle_bool d D1].
     Proof.
      rewrite /mwu_recv.
       move => a0 st ch.
@@ -366,12 +367,12 @@ Module MWUProof (T : OrderedFinType).
     exists q, M.find a m = Some q /\ Qred (D_to_Q q) = rat_to_Q (s a).
   
   Definition match_costs
-             (s : {c : {ffun t -> rat} & forall a : t, (0 <= c a <= 1)%R})
+             (s : {c : {ffun t -> rat} & forall a : t, (`|c a| <= 1)%R})
              (m : M.t D) : Prop :=
     match_maps (projT1 s) m.
   
   Inductive match_costs_seq :
-    seq {c : {ffun t -> rat} & forall a : t, (0 <= c a <= 1)%R} ->
+    seq {c : {ffun t -> rat} & forall a : t, (`|c a| <= 1)%R} ->
     list (M.t D) ->
     Prop :=
   | match_costs_nil :
@@ -997,22 +998,21 @@ Module MWUProof (T : OrderedFinType).
              | None => 0%R (*bogus*)
              | Some q => Q_to_rat (Qred (D_to_Q q))
              end).
-      have pf: forall a, (0 <= f a <= 1)%R.
-      { move => a. rewrite /f ffunE. clear f.
+      have pf: forall a, (`|f a| <= 1)%R.
+      { move => a.
+        rewrite /f ffunE.
+        clear f.
         case: (recv_ok a (SOracleSt tx) (SChan tx)) => q [] -> [] H H3.
-        apply/andP; split.
-        { rewrite -Q_to_rat0; apply: Q_to_rat_le.
-          have H4: (Qeq (Qred (D_to_Q q))) (D_to_Q q) by apply: Qred_correct.
-          rewrite H4.
-          clear - H; move: H.
-          rewrite /Dle_bool D_to_Q0 => H.
-          by apply: (Qle_bool_imp_le _ _ H).
-        }
-        rewrite -Q_to_rat1; apply: Q_to_rat_le.
+        rewrite -Q_to_rat1 ler_norml; apply/andP; split.
+        { rewrite -Q_to_rat_opp.        
+          apply: Q_to_rat_le.
+          move: (Qred_correct (D_to_Q q)) ->.
+          apply: Qle_bool_imp_le.
+          by move: H; rewrite /Dle_bool Dopp_ok D_to_Q1. }
+        apply: Q_to_rat_le.
         move: (Qred_correct (D_to_Q q)) ->.
-        clear - H3; move: H3.
-        rewrite /Dle_bool D_to_Q1 => H3.
-        by apply: (Qle_bool_imp_le _ _ H3). }
+        apply: Qle_bool_imp_le.
+        by move: H3; rewrite /Dle_bool D_to_Q1. }
       exists CSkip.
       have Hora: match_oracle_states (weightslang.SOracleSt s) (SOracleSt tx).
       { by case: H2. }

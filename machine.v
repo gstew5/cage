@@ -98,7 +98,10 @@ Section machine_semantics.
   Next Obligation.
     move: H; rewrite /simple_oracle_recv.
     case: st => [sent recv rok]; case => /= H H1 H2.
-    by apply: rok.
+    case: (andP (rok _ H a)) => H3 H4.
+    rewrite ler_norml; apply/andP; split => //.
+    apply: ler_trans; last by apply: H3.
+    by []. 
   Qed.    
   
   Definition client_step
@@ -227,7 +230,7 @@ Section extract_oracle.
              (cost_vec : {ffun A -> rat})
              (_ : unit) 
     : Prop
-    := forall a, 0 <= cost_vec a <= 1.
+    := forall a, `|cost_vec a| <= 1.
       
   Definition extract_oracle_send
              (_ : unit)
@@ -307,7 +310,7 @@ Section extract_oracle.
           SCostsOk := pf;
           SPrevCosts := existT
                           (fun c : {ffun A -> rat} =>
-                             forall a : A, 0 <= c a <= 1) 
+                             forall a : A, `|c a| <= 1) 
                           (SCosts s) (SCostsOk s) :: 
                           SPrevCosts s;
           SWeights := SWeights sx;
@@ -322,11 +325,11 @@ Section extract_oracle.
       have H10:
         existT
           (fun c : {ffun A -> rat} =>
-             forall a : A, 0 <= c a <= 1) 
+             forall a : A, `|c a| <= 1) 
           (SCosts s) (SCostsOk s) :: SPrevCosts s =
         existT
           (fun c : {ffun A -> rat} =>
-             forall a : A, 0 <= c a <= 1) 
+             forall a : A, `|c a| <= 1) 
           (SCosts sx) (SCostsOk sx) :: SPrevCosts sx.
       { f_equal => //.
         clear - H1.
