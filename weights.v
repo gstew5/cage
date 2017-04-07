@@ -1035,6 +1035,17 @@ Section weights.
       apply: gammaT_ge_wT_astar => //.
     Qed.
 
+    Lemma ler_contra (R : realFieldType) (x y : R) : ~~(x <= y) -> y < x.
+    Proof.
+      rewrite ler_eqVlt; move/negP.
+      case H: (x < y); first by rewrite orbC.
+      case H2: (x == y) => // _.
+      case H3: (y < x) => //.
+      have H4: x != y.
+      { by apply/negP => H5; rewrite H5 in H2. }
+      by move: (ltr_total H4); rewrite H H3.
+    Qed.      
+    
     Lemma eps_mult_cost_le12 a c (H : c \in cs) :
       (rat_to_R eps * rat_to_R (c a) <= 1/2)%R.
     Proof.
@@ -1060,7 +1071,11 @@ Section weights.
       { apply: rat_to_R_eps_pos. }
       { rewrite -rat_to_R0; apply: rat_to_R_le.
         have H3: 0 <= c a.
-        { admit. }
+        { clear - H2; rewrite ltr_def in H2.
+          move: H2; rewrite andb_false_iff; case.
+          { rewrite /negb; case H: (0 == c a) => //.
+            by move: (eqP H) => <-. }
+          by move => H; apply: ltrW; apply: ler_contra; rewrite H. }
         by []. }
       { apply: Rle_trans; first by apply: rat_to_R_eps_le_one_half.
         fourier. }
@@ -1072,7 +1087,7 @@ Section weights.
         apply: ler_trans; first by apply: H4.
         by []. }
       by [].
-    Admitted.
+    Qed.
     
     Lemma one_nepscost_ge0 a c (H : c \in cs) :     
       (0 <= 1 - rat_to_R eps * rat_to_R (c a))%R.
@@ -1244,51 +1259,70 @@ Section weights.
       by apply: R174.
     Qed.
 
-    Lemma gamma_sum_le_OPT_1plus_eps :
+    Lemma gamma_sum_le_OPT_aux :
       (big_sum cs_subSeqs (fun cs => expCostR cs) <=
-       ln size_A / epsR + OPTR * (1 + epsR))%R.
+       ln size_A / epsR + OPTR + epsR*T)%R.
     Proof.
       move: R174_176 => H; move: (ln_le (exp_pos _) H).
       rewrite ln_exp rat_to_R_sum ln_mult; last by apply: exp_pos. Focus 2.
-      admit. (* A is inhabited *)
-      rewrite ln_exp => H2.
-      (*divide through by -epsR in H2*)
-    Admitted.
+      apply: rat_to_R_Acard_gt0.
+      rewrite ln_exp.
+      move: (big_sum _ _) => OPT.
+      move: (ln _) => SIZE.
+      move: (big_sum _ _) => EXPECTED => H2.
+      have H3: ((/-epsR) * (-epsR*OPT - epsR^2*T) >= (/-epsR) * (SIZE + - epsR*EXPECTED))%R.
+      { apply: Rle_ge.
+        apply: Rmult_le_compat_neg_l.
+        { rewrite -Ropp_inv_permute; last by apply: rat_to_R_eps_neq0.
+          rewrite -Ropp_0; apply: Ropp_ge_le_contravar.
+          apply: Rle_ge.
+          have ->: (/epsR = 1*/epsR)%R by rewrite Rmult_1_l.
+          apply: Rle_mult_inv_pos; try fourier.
+          apply: rat_to_R_eps_gt0. }
+        apply: H2. }
+      clear H2.
+      have epsR_neq : (epsR <> 0)%R.
+      { move => H4.
+        move: rat_to_R_eps_gt0; rewrite H4.
+        apply: Rlt_irrefl. }
+      have nepsR_neq : (-epsR <> 0)%R.
+      { by apply: Ropp_neq_0_compat. }
+      have H4: (OPT + epsR*T >= EXPECTED - SIZE/epsR)%R.
+      { move: H3.
+        have ->: (/-epsR * (-epsR*OPT - epsR^2*T) = OPT + epsR*T)%R.
+        { rewrite Rmult_plus_distr_l -Rmult_assoc.
+          rewrite -Rinv_l_sym => //.
+          rewrite Rmult_1_l.
+          rewrite -Ropp_mult_distr_r -Rmult_assoc.
+          rewrite /pow Rmult_1_r -Ropp_inv_permute // -Rmult_assoc.
+          rewrite -Ropp_mult_distr_l -Rinv_l_sym => //.
+          by rewrite -2!Ropp_mult_distr_l Ropp_involutive Rmult_1_l. }
+        have ->: (/-epsR * (SIZE + -epsR*EXPECTED) = EXPECTED - SIZE/epsR)%R.
+        { rewrite Rmult_plus_distr_l -Rmult_assoc -Rinv_l_sym => //.
+          rewrite Rmult_1_l Rmult_comm -Ropp_inv_permute // -Ropp_mult_distr_r //.
+          rewrite Rplus_comm //. }
+        by []. }
+      clear - H4 epsR_neq.
+      move: (Rge_le _ _ H4) => H5; clear H4.
+      have H6: (SIZE/epsR + (EXPECTED - SIZE/epsR) <= SIZE/epsR + (OPT + epsR*T))%R.
+      { by apply: Rplus_le_compat_l. }
+      clear - H6 epsR_neq; move: H6.
+      have ->: (SIZE/epsR + (EXPECTED - SIZE/epsR) = EXPECTED)%R.
+      { by rewrite -Rplus_assoc [(SIZE/epsR + _)%R]Rplus_comm Rplus_assoc; field. }
+      by rewrite Rplus_assoc.
+    Qed.
 
-    Lemma OPTR_le_length_cs : (OPTR <= INR (length cs))%R.
-    Proof.
-      move: astar=> ax.
-      elim: cs CMAX; first by rewrite /= big_nil rat_to_R0=> _; apply: Rle_refl.
-      move=> a l /= IH; rewrite big_cons /= => H; rewrite rat_to_R_plus.
-      have H2: (rat_to_R (a ax) <= 1)%R.
-      { (*apply: (@rat_to_R_cost_le1 _ H ax a).
-        by rewrite in_cons; apply/orP; left.*)
-        admit. }
-      have H3: (rat_to_R (\sum_(c <- l) c ax) <= INR (length l))%R.
-      { by apply: IH=> c H3 a1; apply: H; rewrite in_cons; apply/orP; right. }
-      move {IH H}.
-      suff: (rat_to_R (a ax) + rat_to_R (\sum_(j <- l) j ax) <= INR (length l) + 1)%R.
-      move {H3}; case: l=> //=; rewrite Rplus_0_l; case=> H4; first by left.
-        by right.
-      by rewrite [(INR _ + _)%R]Rplus_comm; apply: Rplus_le_compat.
-    Admitted.
-    
+    (* CLEANUP: This lemma and the previous should be combined. *)
     Lemma gamma_sum_le_OPT :
       (big_sum cs_subSeqs (fun cs => expCostR cs) <=
        OPTR + epsR * INR (length cs) + ln size_A / epsR)%R.
     Proof.
-      apply: Rle_trans; first by apply: gamma_sum_le_OPT_1plus_eps.
-      rewrite Rplus_comm.
-      have H: (OPTR * (1 + epsR) + ln (size_A) / epsR <=
-               OPTR + OPTR * epsR + ln (size_A) / epsR)%R.
-      { by rewrite Rmult_plus_distr_l Rmult_1_r; apply: Rle_refl. }
-      apply: Rle_trans; first by apply: H.
-      rewrite [(_ + _ * INR (length cs))%R]Rplus_comm.
-      rewrite [(_ + _ * epsR)%R]Rplus_comm.
-      rewrite 2!Rplus_assoc; apply: Rplus_le_compat; last by apply: Rle_refl.
-      { rewrite Rmult_comm.
-        apply: Rmult_le_compat_l; last by apply: OPTR_le_length_cs.
-        by apply: rat_to_R_eps_pos. }
+      apply: Rle_trans; first by apply: gamma_sum_le_OPT_aux.
+      have ->: INR (length cs) = T by [].
+      move: (ln _) => SIZE.
+      move: (rat_to_R _) => OPT.
+      move: (rat_to_R _) => EXPECTED.
+      rewrite Rplus_assoc Rplus_comm; apply: Rle_refl.
     Qed.      
   End OPT4.
 End weights.
@@ -1381,8 +1415,7 @@ Section weights_noregret.
   Lemma weights_noregret :
     (expCostsR <= OPTR + epsR * T + (ln size_A / epsR))%R.
   Proof.
-    apply: gamma_sum_le_OPT; first by apply: costs_default_in_range.
-    by apply: T_ge1.
+    apply: gamma_sum_le_OPT. 
   Qed.
   
   Lemma perstep_weights_noregret :
