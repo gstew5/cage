@@ -31,7 +31,7 @@ Section weights.
     finfun (fun a : A => w a * (1 - eps * c a)).
 
   Lemma update_weights_gt0 (w : weights) (c : costs) :
-    (forall a : A, 0 <= `|c a| <= 1) -> 
+    (forall a : A, `|c a| <= 1) -> 
     (forall a : A, 0 < w a) ->
     forall a : A, 0 < update_weights w c a.
   Proof.
@@ -48,17 +48,13 @@ Section weights.
       { rewrite mulrC pmulr_rlt0 => //. }
       by apply: (ltr_le_trans H5). }
     have H5: 0 < c a.
-    { case: (andP (H0 a)); rewrite ler_normr; case/orP.
-      { move => H5 _; rewrite lt0r; apply/andP; split => //.
-          by rewrite H3. }
-      rewrite oppr_ge0 ler_eqVlt; case/orP; first by rewrite H3.
-      by rewrite H4. }
+    { have H6: (c a != 0) by apply/negP; rewrite H3.
+      by case: (ltr_total H6); rewrite H4. }
     have H6: (c a * eps < c a).
     { rewrite gtr_pmulr => //.
       apply: (ler_lt_trans H2)=> //. }
-    case: (andP (H0 a))=> H7 H8.
-    apply: (ltr_le_trans H6).
-    by rewrite ler_norml in H8; case: (andP H8).
+    move: (H0 a)=> H7; apply: (ltr_le_trans H6).
+    by rewrite ler_norml in H7; case: (andP H7).
   Qed.    
 
   (** The cost functions [cs] are given in reverse chronological order.
@@ -120,7 +116,7 @@ Section weights.
   Qed.  
   
   Lemma weights_of_gt0 (cs : seq costs) (w : weights) :
-    (forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) ->     
+    (forall c, c \in cs -> forall a : A, `|c a| <= 1) ->     
     (forall a : A, 0 < w a) -> 
     forall a : A, 0 < weights_of cs w a.
   Proof.
@@ -149,7 +145,7 @@ Section weights.
   Qed.
   
   Lemma sum_weights_of_gt0 (cs : seq costs) (w : weights) :
-    (forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) ->     
+    (forall c, c \in cs -> forall a : A, `|c a| <= 1) ->     
     (forall a : A, 0 < w a) -> 
     0 < \sum_(a : A) (weights_of cs w) a.
   Proof.
@@ -157,7 +153,7 @@ Section weights.
   Qed.   
  
   Lemma sum_weights_of_not0 (cs : seq costs) :
-    (forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) ->     
+    (forall c, c \in cs -> forall a : A, `|c a| <= 1) ->     
     \sum_(a : A) (weights_of cs init_weights) a != 0.    
   Proof.
     move=> H; move: sum_weights_of_gt0.
@@ -242,13 +238,13 @@ Section weights.
   Lemma p_aux_ind
         (cs : seq costs)
         (w : weights)
-        (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1)
+        (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1)
         (WEIGHTS : forall a : A, 0 < w a)        
         (P : seq costs -> weights -> Prop) :
     P [::] [ffun a => w a / gamma w] ->
     (forall (w' : weights) c cs',
         let: w'' := update_weights w' c in
-        (forall a : A, 0 <= `|c a| <= 1) ->
+        (forall a : A, `|c a| <= 1) ->
         (forall a : A, 0 < w' a) -> 
         P cs' [ffun a => w' a / gamma w'] ->
         P [:: c & cs'] [ffun a => w'' a / gamma w'']) -> 
@@ -266,7 +262,7 @@ Section weights.
 
   Lemma p_aux_dist_axiom (cs : seq costs) (w : weights) :
     (forall a : A, 0 < w a) -> 
-    (forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) -> 
+    (forall c, c \in cs -> forall a : A, `|c a| <= 1) -> 
     dist_axiom (p_aux cs w).
   Proof.
     move => Hx H0; rewrite /p_aux /dist_axiom; apply/andP; split.
@@ -299,7 +295,7 @@ Section weights.
 
   Lemma p_aux_left_dist_axiom (cs : seq costs) (w : weights) :
     (forall a : A, 0 < w a) -> 
-    (forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) -> 
+    (forall c, c \in cs -> forall a : A, `|c a| <= 1) -> 
     dist_axiom (p_aux_left cs w).
   Proof.
     move => H H2; rewrite /p_aux_left.
@@ -312,7 +308,7 @@ Section weights.
              (w : weights)
              (WPOS : forall a : A, 0 < w a)
              (cs : seq costs)
-             (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1)             
+             (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1)             
     : dist A [numDomainType of rat] :=
     mkDist (p_aux_dist_axiom WPOS CMAX).
 
@@ -320,7 +316,7 @@ Section weights.
              (w : weights)
              (WPOS : forall a : A, 0 < w a)
              (cs : seq costs)
-             (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1)             
+             (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1)             
     : dist A [numDomainType of rat] :=
     mkDist (p_aux_left_dist_axiom WPOS CMAX).
   
@@ -328,7 +324,7 @@ Section weights.
     p_aux cs init_weights.
 
   Lemma p_dist_axiom (cs : seq costs) :
-    (forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) -> 
+    (forall c, c \in cs -> forall a : A, `|c a| <= 1) -> 
     dist_axiom (p cs).
   Proof.
     move => H; apply: p_aux_dist_axiom => //.
@@ -421,7 +417,7 @@ Section weights.
   
   Definition pdist
              (cs : seq costs)
-             (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1)             
+             (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1)             
     : dist A [numDomainType of rat] :=
     mkDist (p_dist_axiom CMAX).
 
@@ -429,7 +425,7 @@ Section weights.
   Definition expCost
              (cT : costs)
              (cs : seq costs)
-             (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1)
+             (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1)
     : rat :=
     expectedValue (pdist CMAX) cT.
   
@@ -729,9 +725,9 @@ Section weights.
   Qed.  
   
   Lemma subSeqs_of_CMAX (cs : seq costs)
-        (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) :
+        (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1) :
     forall cs', cs' \in subSeqs_of cs ->
-    forall c, c \in cs' -> forall a : A, 0 <= `|c a| <= 1.
+    forall c, c \in cs' -> forall a : A, `|c a| <= 1.
   Proof.
     elim: cs CMAX=> /=.
     { by move=> H cs'; rewrite in_nil. }
@@ -740,24 +736,24 @@ Section weights.
       { by move/eqP=> -> a1; apply: H; apply/orP; left. }
       by move=> H2; apply: H; apply/orP; right. }
     move=> H2 c H3.
-    have H4: forall c, c \in l -> forall a, 0 <= `|c a| <= 1.
+    have H4: forall c, c \in l -> forall a, `|c a| <= 1.
     { by move=> c0 H4; apply: H; apply/orP; right. }
     by apply: (IH H4 cs' H2).
   Qed.    
 
   Lemma CMAX_nil :
-    forall c : costs, c \in [::] -> forall a : A, 0 <= `|c a| <= 1.
+    forall c : costs, c \in [::] -> forall a : A, `|c a| <= 1.
   Proof. by move=> c; rewrite in_nil. Qed.
 
   Definition CMAXb (cs : seq costs) :=
-    all [pred c : costs | [forall a : A, 0 <= `|c a| <= 1]] cs.
+    all [pred c : costs | [forall a : A, `|c a| <= 1]] cs.
 
   Lemma CMAXb_behead (cs : seq costs) :
     CMAXb cs -> CMAXb (behead cs).
   Proof. by move/allP=> H; apply/allP=> y/mem_behead H2; apply: H. Qed.
   
   Lemma CMAXP (cs : seq costs) :
-    reflect (forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) (CMAXb cs).
+    reflect (forall c, c \in cs -> forall a : A, `|c a| <= 1) (CMAXb cs).
   Proof.
     case H: (CMAXb cs).
     { apply: ReflectT=> c H2 a; rewrite /CMAXb in H; move: (allP H).
@@ -769,7 +765,7 @@ Section weights.
 
   Lemma CMAXb_CMAX cs :
     CMAXb cs ->
-    forall c, c \in cs -> forall a, 0 <= `|c a| <= 1.
+    forall c, c \in cs -> forall a, `|c a| <= 1.
   Proof. by apply/CMAXP. Qed.
   
   Definition CMAX_costs_seq := {cs : seq costs | CMAXb cs}.
@@ -786,13 +782,13 @@ Section weights.
   Next Obligation. by case: (andP CMAX). Qed.
   
   Lemma CMAX_seq_subSeqs_of (cs : seq weights)
-        (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1)
+        (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1)
     : CMAX_seq (subSeqs_of cs).
   Proof.
     elim: cs CMAX=> //= a l IH H; apply/andP; split.
     apply/andP; split.
     { by apply/forallP; apply: H; rewrite in_cons; apply/orP; left. }
-    have H2: forall c, c \in l -> forall a, 0 <= `|c a| <= 1.
+    have H2: forall c, c \in l -> forall a, `|c a| <= 1.
     { by move=> c H2 a1; apply: H; rewrite in_cons; apply/orP; right. }
     case H0: (l == [::]).
     { move: (eqP H0)=> -> //. }
@@ -801,7 +797,7 @@ Section weights.
   Qed.      
     
   Definition subSeqs (cs : seq weights)
-             (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1)
+             (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1)
     : seq CMAX_costs_seq
     := @subSeqs_aux (subSeqs_of cs) (CMAX_seq_subSeqs_of CMAX). 
 
@@ -820,7 +816,7 @@ Section weights.
     Variable cT : costs.    
     Variable cs : seq costs.
     Notation cs' := ([:: cT & cs]).
-    Variable CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1.
+    Variable CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1.
       
     Notation astar := (best_action cs).
     Notation OPT := (\sum_(c <- cs) c astar).
@@ -847,8 +843,9 @@ Section weights.
 
     Lemma rat_to_R_cost_pos a c : c \in cs -> (0 <= rat_to_R `|c a|)%R.
     Proof.
-      rewrite -rat_to_R0=> H; case: (andP (CMAX H a))=> H2 H3.
-      by apply: rat_to_R_le.
+      rewrite -rat_to_R0=> H.
+      apply: rat_to_R_le.
+      by move: (normr_ge0 (c a)).
     Qed.
 
     Lemma rat_to_R_sumcost_pos a : (0 <= rat_to_R (\sum_(c <- cs) `|c a|))%R.
@@ -863,7 +860,7 @@ Section weights.
 
     Lemma rat_to_R_cost_le1 a c : c \in cs -> (rat_to_R `|c a| <= 1)%R.
     Proof.
-      rewrite -rat_to_R1=> H; case: (andP (CMAX H a))=> H2 H3.
+      rewrite -rat_to_R1=> H; move: (CMAX H a)=> H2.
       by apply: rat_to_R_le.
     Qed.
 
@@ -923,7 +920,7 @@ Section weights.
   End OPT.        
 
   Lemma gamma_prod_aux (cs : seq costs) c_bogus
-        (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) :
+        (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1) :
     gamma (weights_of cs init_weights) =
     #|A|%:R * 
     \prod_(cs' <- @subSeqs cs CMAX)
@@ -953,7 +950,7 @@ Section weights.
 
   (*R17.4*)  
   Lemma gamma_prod (cs : seq costs) c_bogus
-        (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) :
+        (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1) :
     (rat_to_R (gamma (weights_of cs init_weights)) <=
      rat_to_R #|A|%:R * 
      big_product
@@ -990,7 +987,7 @@ Section weights.
   Qed.
   
   Lemma R174 (cs : seq costs) c_bogus
-        (CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1) :
+        (CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1) :
     (rat_to_R (gamma (weights_of cs init_weights)) <=
     (rat_to_R #|A|%:R * 
      (exp
@@ -1010,7 +1007,7 @@ Section weights.
   
   Section OPT2.
     Variable cs : seq costs.
-    Variable CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1.
+    Variable CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1.
     Notation astar := (best_action cs).
     Notation OPT := (\sum_(c <- cs) c astar).
     Notation wT := (weights_of cs init_weights). 
@@ -1082,7 +1079,7 @@ Section weights.
       rewrite -rat_to_R1.
       apply: rat_to_R_le.
       have H3: (c a <= 1).
-      { case: (andP (CMAX H a)) => _ H3.
+      { move: (CMAX H a) => H3.
         move: (ler_norm (c a)) => H4.
         apply: ler_trans; first by apply: H4.
         by []. }
@@ -1129,8 +1126,8 @@ Section weights.
   Section OPT3.
     Variable cT : costs.
     Variable cs : seq costs.
-    Variable CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1.
-    Variable cT_range : forall a, 0 <= `|cT a| <= 1. 
+    Variable CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1.
+    Variable cT_range : forall a, `|cT a| <= 1. 
 
     Notation astar := (best_action cs).
     Notation OPT := (\sum_(c <- cs) c astar).
@@ -1186,23 +1183,14 @@ Section weights.
       have H3: (-1 <= rat_to_R (c astar) <= 1)%R.
       { split.
         { clear x y.
-          case: (andP (CMAX H astar)) => H1 H2.
-          rewrite ler_normr in H1.
-          case: (orP H1) => [H3|H3].
-          { apply: Rle_trans; last first.
-            { apply: rat_to_R_le.
-              apply: H3. }
-            rewrite rat_to_R0; fourier. }
-          have H4: (0 <= - rat_to_R (c astar))%R.
-          { by rewrite -rat_to_R0 -rat_to_R_opp; apply: rat_to_R_le. }
-          rewrite ler_norml in H2.
-          case: (andP H2) => H5 _.
+          move: (CMAX H astar) => H2.
+          rewrite ler_norml in H2; case: (andP H2) => H3 _.
           apply: Rle_trans.
           { rewrite -rat_to_R1 -rat_to_R_opp; apply: rat_to_R_le.
-            apply: H5. }
+            apply: H3. }
           by apply: Rle_refl. }
         clear x y.
-        case: (andP (CMAX H astar)) => H1 H2.
+        move: (CMAX H astar) => H2.
         rewrite ler_norml in H2.
         case: (andP H2) => _ H4.
         by rewrite -rat_to_R1; apply: rat_to_R_le. }
@@ -1230,8 +1218,8 @@ Section weights.
   Section OPT4.
     Variable cT : costs.
     Variable cs : seq costs.
-    Variable CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1.
-    Variable cT_range : forall a, 0 <= `|cT a| <= 1. 
+    Variable CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1.
+    Variable cT_range : forall a, `|cT a| <= 1. 
 
     Notation astar := (best_action cs).
     Notation OPT := (\sum_(c <- cs) c astar).
@@ -1259,9 +1247,9 @@ Section weights.
       by apply: R174.
     Qed.
 
-    Lemma gamma_sum_le_OPT_aux :
+    Lemma R177 :
       (big_sum cs_subSeqs (fun cs => expCostR cs) <=
-       ln size_A / epsR + OPTR + epsR*T)%R.
+       OPTR + epsR * INR (length cs) + ln size_A / epsR)%R.
     Proof.
       move: R174_176 => H; move: (ln_le (exp_pos _) H).
       rewrite ln_exp rat_to_R_sum ln_mult; last by apply: exp_pos. Focus 2.
@@ -1309,21 +1297,10 @@ Section weights.
       clear - H6 epsR_neq; move: H6.
       have ->: (SIZE/epsR + (EXPECTED - SIZE/epsR) = EXPECTED)%R.
       { by rewrite -Rplus_assoc [(SIZE/epsR + _)%R]Rplus_comm Rplus_assoc; field. }
-      by rewrite Rplus_assoc.
+      rewrite Rplus_assoc Rplus_comm Rplus_assoc.
+      have ->: INR (length cs) = T by [].      
+      by [].
     Qed.
-
-    (* CLEANUP: This lemma and the previous should be combined. *)
-    Lemma gamma_sum_le_OPT :
-      (big_sum cs_subSeqs (fun cs => expCostR cs) <=
-       OPTR + epsR * INR (length cs) + ln size_A / epsR)%R.
-    Proof.
-      apply: Rle_trans; first by apply: gamma_sum_le_OPT_aux.
-      have ->: INR (length cs) = T by [].
-      move: (ln _) => SIZE.
-      move: (rat_to_R _) => OPT.
-      move: (rat_to_R _) => EXPECTED.
-      rewrite Rplus_assoc Rplus_comm; apply: Rle_refl.
-    Qed.      
   End OPT4.
 End weights.
 
@@ -1343,13 +1320,13 @@ Section weights_noregret.
   Qed.    
   
   Variable cs : seq (costs A).
-  Variable CMAX : forall c, c \in cs -> forall a : A, 0 <= `|c a| <= 1.
+  Variable CMAX : forall c, c \in cs -> forall a : A, `|c a| <= 1.
   Variable cs_size_gt0 : (0 < size cs)%N.
 
   (** [costs_default] remains unused assuming [size cs > 0]. *)
   Definition costs_default : costs A := finfun (fun _ => 1).
-  Lemma costs_default_in_range : forall a : A, 0 <= `|costs_default a| <= 1.
-  Proof. by move=> a; rewrite /costs_default ffunE; apply/andP; split. Qed.
+  Lemma costs_default_in_range : forall a : A, `|costs_default a| <= 1.
+  Proof. by move=> a; rewrite /costs_default ffunE. Qed.
   
   Variable eps : rat.
   Variable eps_range : 0 < eps <= 1/2%:R.
@@ -1414,9 +1391,7 @@ Section weights_noregret.
   
   Lemma weights_noregret :
     (expCostsR <= OPTR + epsR * T + (ln size_A / epsR))%R.
-  Proof.
-    apply: gamma_sum_le_OPT. 
-  Qed.
+  Proof. apply: R177. Qed.
   
   Lemma perstep_weights_noregret :
     ((expCostsR - OPTR) / T <= epsR + ln size_A / (epsR * T))%R.
