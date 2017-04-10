@@ -30,7 +30,7 @@ Module GameType_of_CONFIG (C : CONFIG).
       2) a refineCostClass instance for (ccost), and
       3) a refineTypeClass instance for (enumerate). *)
   Axiom ccost_ok : forall (p : M.t C.A.t) (player : N), (*TODO: result of cgame*)
-      (0 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
+      (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
   Axiom enum_nodup :
     SetoidList.NoDupA (fun x : C.A.t => [eta eq x]) (enumerate C.A.t). (*TODO: result of cgame*)
   Axiom enum_total : forall a : C.A.t, List.In a (enumerate C.A.t). (*TODO: result of cgame*)

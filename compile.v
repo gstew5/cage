@@ -282,7 +282,7 @@ Class GameType
        ; ccost_ok : 
            forall (p : M.t A) (player : N),
              let: d := ccost player p in
-             [/\ Dle D0 d & Dle d D1]
+             [/\ Dle (-D1) d & Dle d D1]
        ; enum_nodup : NoDupA (fun x y => x=y) (enumerate A)
        ; enum_total : forall a : A, In a (enumerate A)
        }.

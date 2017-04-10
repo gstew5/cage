@@ -71,7 +71,7 @@ Module AxClientOracle (C : CONFIG).
   
   Section clientCostVectorShim.
   Variable num_players : nat.
-  Context `{GameTypeInstance : GameType C.A.t num_players}.
+  Context `{game_instance : GameType C.A.t}.
   
   Definition send (st : ax_st_ty) (l : list (C.A.t*D))
     : ax_chan * ax_st_ty :=
@@ -82,7 +82,7 @@ Module AxClientOracle (C : CONFIG).
              (fun _ => seq (eprint_newline tt)
                            (fun _ => print_Dvector l tt)))
         (fun _ => seq (rsample a0 d)
-                      (fun x => seq (eprint_string "Chose action " tt)
+                        (fun x => seq (eprint_string "Chose action " tt)
                                     (fun _ => seq (eprint_showable x tt)
                                                   (fun _ => seq (eprint_newline tt)
                                                                 (fun _ => ax_send st x))))).
@@ -154,13 +154,15 @@ Module AxClientOracle (C : CONFIG).
   Qed.
   End clientCostVectorShim.
 
-  Instance client_ax_oracle {num_players} `{GameType C.A.t num_players}
-    : @ClientOracle C.A.t num_players _ _ _ _ :=
-    @mkOracle _ _ _ _ _ _
+  Instance client_ax_oracle
+           `{GameType C.A.t}
+    : @ClientOracle C.A.t num_players ccost_instance :=
+    @mkOracle C.A.t num_players ccost_instance
       ax_st_ty empty_ax_st
       ax_chan ax_bogus_chan
       (@recv num_players _ _)
       (@send num_players _ _ _ _)
       (@recv_ok num_players _ _ _ _)
       (@recv_nodup num_players _ _ _ _).
+    
 End AxClientOracle.
