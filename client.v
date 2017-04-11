@@ -155,9 +155,10 @@ Module AxClientOracle (C : CONFIG).
   End clientCostVectorShim.
 
   Instance client_ax_oracle
-           `{GameType C.A.t}
-    : @ClientOracle C.A.t num_players ccost_instance :=
-    @mkOracle C.A.t num_players ccost_instance
+            {num_players : nat}
+           `{GameType C.A.t num_players}
+    : @ClientOracle C.A.t :=
+    @mkOracle C.A.t 
       ax_st_ty empty_ax_st
       ax_chan ax_bogus_chan
       (@recv num_players _ _)

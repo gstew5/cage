@@ -65,7 +65,7 @@ Definition one : Q := 1.
 Definition two : Q := Qmake 2 1.
     
 (* The package provided by the client network oracle to MWU *)
-Class ClientOracle {A} {num_players} `{ccost_instance : CCostClass num_players A} := 
+Class ClientOracle {A} :=
   mkOracle { T : Type (* oracle private state *)
            ; oracle_init_state : T
            ; oracle_chanty : Type
@@ -441,7 +441,7 @@ Module MWUProof (T : OrderedFinType).
         match_oracle_states oracle_st coracle_st ->
         match_states
           (@mkState _ _ _ s s_ok ss w w_ok eps eps_ok outs ch oracle_st)
-          (@mkCState _ _ _ m mm wc epsc outs' ch coracle_st).
+          (@mkCState _ m mm wc epsc outs' ch coracle_st).
 
   Definition eval_binopc (b : binop) (v1 v2 : D) :=
     match b with
