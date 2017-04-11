@@ -64,7 +64,24 @@ Definition max_inf_norm (cs : A) : D :=
        cs
        D0.
 
+(** Enumerate [0..n]. *)
+Fixpoint enum_nat_rec (acc : list nat) (n : nat) : list nat :=
+  (match n with
+   | O => 0 :: acc
+   | S n' => enum_nat_rec (n :: acc) n'
+   end)%nat.
+
+(** Enumerate [0..n-1]. *)
+Definition enum_nat (n : nat) : list nat :=
+  match n with
+  | O => O :: nil
+  | S n' => enum_nat_rec nil n'
+  end.
+
 Section LP.
+  Variable I : Type. (* the index type *)
+  Context `{Enumerable I}.
+  
   Variable n : nat. (* #features *)
   Hypothesis n_pos : (0 < n)%N.
   Variable cs : A.  (* the constraints *)
@@ -85,8 +102,59 @@ Section LP.
      | _, _ => acc
      end)%D.
 
-  Definition cost_vector_of_unsatisfied (w v : vector) :=
+  Definition cost_vector_of_unsatisfied (w v : vector) : list (nat*D) :=
     cost_vector_of_unsatisfied_rec nil O w v.
 
-  (* ... MORE STUFF TO DO HERE ... *)
+  Definition init_cost_vector (n : nat) : list (nat*D) :=
+    (List.fold_left
+      (fun acc n => (n,1) :: acc)
+      (enum_nat n)
+      nil)%D.
+  
+  Definition cost_vector (w : vector) : list (nat*D) :=
+    match unsatisfied w cs with
+    | None => init_cost_vector n
+    | Some c => cost_vector_of_unsatisfied w (interp_constraint c)
+    end.
+
+  Definition state := vector.
+  Definition init_state : state := nil.
+
+  Definition chanty : Type := unit.
+  Definition bogus_chan : chanty := tt.
+
+  Definition weight_vector_of_list (l : list (nat*D)) : vector :=
+    List.rev (* reverse to generate vector in little-endian order *)
+      (List.fold_left
+         (fun acc n =>
+            let d :=
+                match findA (fun n' => Nat.eqb n n') l with
+                | None => 1
+                | Some d' => d'
+                end
+            in d :: acc)%D
+         (enum_nat 4)
+         nil).
+
+  Definition send (st : state) (l : list (nat*D)) : (chanty*state) :=
+    (bogus_chan, weight_vector_of_list l).
+  
+  Definition recv (st : state) (_ : chanty) : (list (nat*D) * state) :=
+    (cost_vector st, st).
+End LP.
+  
+  Program Definition lp_client_oracle : @ClientOracle nat :=
+    @mkOracle
+      nat
+      state
+      init_state
+      chanty
+      bogus_chan
+      recv
+      send
+      _
+      _.
+  Next Obligation.
+    rewrite /cost_vector.
+    
 End LP.  
