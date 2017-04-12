@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith String Ascii.
+Require Import QArith String Ascii ProofIrrelevance.
 
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
@@ -64,56 +64,47 @@ Definition max_inf_norm (cs : A) : D :=
        cs
        D0.
 
-(** Enumerate [0..n]. *)
-Fixpoint enum_nat_rec (acc : list nat) (n : nat) : list nat :=
-  (match n with
-   | O => 0 :: acc
-   | S n' => enum_nat_rec (n :: acc) n'
-   end)%nat.
+Class Eqb {A} : Type := mkEqb : A -> A -> bool.
+Infix "===" := (fun x y => mkEqb x y) (at level 30).
+Class Eqb_ok {A} `{Eqb A} :=
+  mkEqb_ok : forall x y, reflect (x = y) (x === y).
 
-(** Enumerate [0..n-1]. *)
-Definition enum_nat (n : nat) : list nat :=
-  match n with
-  | O => O :: nil
-  | S n' => enum_nat_rec nil n'
-  end.
-
-Section LP.
-  Variable I : Type. (* the index type *)
-  Context `{Enumerable I}.
-  
-  Variable n : nat. (* #features *)
-  Hypothesis n_pos : (0 < n)%N.
+Section lp.
+  Variable I : Type.
+  Context `{Enum_ok I}. (* the enumerable index type *)
+  Context `{Eqb_ok I}. (* a boolean equality over I *)
   Variable cs : A.  (* the constraints *)
+  (*FIXME: we'll need add'l hypothesis on dimensions of c \in cs, or 
+    to use a different vector representation *)
 
   (* 1 / smallest power of two greater than [max_inf_norm cs] *)  
   Definition rho : D := Dlub (max_inf_norm cs). 
 
   Fixpoint cost_vector_of_unsatisfied_rec
-             (acc : list (nat*D))             
-             (n : nat)
+             (acc : list (I*D))
+             (e : list I) (*the enumerated I's*)
              (w : vector) (*the weight vector*)
              (v : vector) (*the unsatisfied constraint vector*)
-    : list (nat*D) :=
-    (match w, v with
-     | nil, nil => acc
-     | x::w', a::v' =>
-       cost_vector_of_unsatisfied_rec ((n, rho * a*x) :: acc) (S n) w v'
-     | _, _ => acc
+    : list (I*D) :=
+    (match e, w, v with
+     | nil, nil, nil => acc
+     | i::e', x::w', a::v' =>
+       cost_vector_of_unsatisfied_rec ((i, rho*a*x) :: acc) e' w' v'
+     | _, _, _ => acc
      end)%D.
 
-  Definition cost_vector_of_unsatisfied (w v : vector) : list (nat*D) :=
-    cost_vector_of_unsatisfied_rec nil O w v.
+  Definition cost_vector_of_unsatisfied (w v : vector) : list (I*D) :=
+    cost_vector_of_unsatisfied_rec nil (enumerate I) w v.
 
-  Definition init_cost_vector (n : nat) : list (nat*D) :=
+  Definition init_cost_vector : list (I*D) :=
     (List.fold_left
-      (fun acc n => (n,1) :: acc)
-      (enum_nat n)
+      (fun acc i => (i,1) :: acc)
+      (enumerate I)
       nil)%D.
   
-  Definition cost_vector (w : vector) : list (nat*D) :=
+  Definition cost_vector (w : vector) : list (I*D) :=
     match unsatisfied w cs with
-    | None => init_cost_vector n
+    | None => init_cost_vector 
     | Some c => cost_vector_of_unsatisfied w (interp_constraint c)
     end.
 
@@ -123,29 +114,28 @@ Section LP.
   Definition chanty : Type := unit.
   Definition bogus_chan : chanty := tt.
 
-  Definition weight_vector_of_list (l : list (nat*D)) : vector :=
+  Definition weight_vector_of_list (l : list (I*D)) : vector :=
     List.rev (* reverse to generate vector in little-endian order *)
       (List.fold_left
          (fun acc n =>
             let d :=
-                match findA (fun n' => Nat.eqb n n') l with
+                match findA (fun n' => n === n') l with
                 | None => 1
                 | Some d' => d'
                 end
             in d :: acc)%D
-         (enum_nat 4)
+         (enumerate I)
          nil).
 
-  Definition send (st : state) (l : list (nat*D)) : (chanty*state) :=
+  Definition send (st : state) (l : list (I*D)) : (chanty*state) :=
     (bogus_chan, weight_vector_of_list l).
   
-  Definition recv (st : state) (_ : chanty) : (list (nat*D) * state) :=
+  Definition recv (st : state) (_ : chanty) : (list (I*D) * state) :=
     (cost_vector st, st).
-End LP.
   
-  Program Definition lp_client_oracle : @ClientOracle nat :=
+  Program Definition lp_client_oracle : @ClientOracle I :=
     @mkOracle
-      nat
+      I
       state
       init_state
       chanty
@@ -155,6 +145,73 @@ End LP.
       _
       _.
   Next Obligation.
-    rewrite /cost_vector.
-    
-End LP.  
+    rewrite /cost_vector; generalize (enum_total a) => H3.
+    case H4: (unsatisfied _ _) => [x|].
+  Admitted. (*LP TODO*) 
+  Next Obligation.
+  Admitted. (*LP TODO*)  
+End lp.
+
+Require Import weightsextract.
+
+(** Interface to the LP solver *)
+Module Type LINEAR_PROGRAM.
+  Parameter d : nat. (* the dimensionality *)
+  Parameter d_gt0 : (0 < d)%N.
+  Parameter cs : A.  (* the constraints *)
+  Parameter eps : D.
+  Parameter num_rounds : N.t.
+End LINEAR_PROGRAM.   
+
+Module LP (P : LINEAR_PROGRAM).
+  Module B : BOUND.
+    Definition n := P.d.
+    Definition n_gt0 := P.d_gt0.
+  End B.    
+  Module MDepProps := MyOrdNatDepProps B. Import MDepProps.
+  Module A := M.
+  Module MWU := MWU A.
+  
+  Instance A_Enum_ok : @Enum_ok A.t A.enumerable := enum_ok.
+
+  Instance A_Eqb : @Eqb A.t :=
+    fun x y : A.t =>
+      match A.eq_dec x y with
+      | left _ => true
+      | right _ => false
+      end.
+  Program Instance M_Eqb_ok : @Eqb_ok A.t A_Eqb.
+  Next Obligation.
+    rewrite /mkEqb /A_Eqb; case H: (A.eq_dec x y) => [pf|pf].
+    { constructor.
+      by case: (A.eqP x y) => _; apply. }
+    constructor => H2; subst y; clear H; apply: pf0.
+    apply: A.eq_refl.
+  Qed.
+  
+  Instance client_oracle (cs : A) : ClientOracle :=
+    lp_client_oracle cs.
+
+  Definition cs_client_oracle := client_oracle P.cs.
+  Existing Instance cs_client_oracle.
+
+  Definition mwu :=
+    MWU.interp
+      (weightslang.mult_weights A.t P.num_rounds)
+      (MWU.init_cstate P.eps).
+End LP.
+
+(** TEST 1 *)
+
+Module P <: LINEAR_PROGRAM.
+  Definition d : nat := 2.
+  Lemma d_gt0 : (0 < d)%N. Proof. by []. Qed.
+  Definition cs : A :=
+    ([:: ([:: 0; 0], false)
+       ; ([:: 1; 1], true)])%D.
+  Definition eps := Dmake 1 1. (* eps = 1/2 *)
+  Definition num_rounds : N.t := 20.
+End P.  
+
+Module LP_P := LP P.
+Extraction "runtime/lp_p.ml" LP_P.mwu.

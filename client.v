@@ -162,8 +162,8 @@ Module AxClientOracle (C : CONFIG).
       ax_st_ty empty_ax_st
       ax_chan ax_bogus_chan
       (@recv num_players _ _)
-      (@send num_players _ _ _ _)
-      (@recv_ok num_players _ _ _ _)
-      (@recv_nodup num_players _ _ _ _).
+      (@send num_players _ _ _ _ _)
+      (@recv_ok num_players _ _ _ _ _)
+      (@recv_nodup num_players _ _ _).
     
 End AxClientOracle.

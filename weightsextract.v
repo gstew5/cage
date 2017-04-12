@@ -316,7 +316,7 @@ Module MWUProof (T : OrderedFinType).
         [/\ M.find a (mwu_recv ch st).1 = Some d
           , Dle_bool (-D1) d & Dle_bool d D1].
     Proof.
-     rewrite /mwu_recv.
+      rewrite /mwu_recv.
       move => a0 st ch.
       have H: NoDupA (M.eq_key (elt:=D)) (oracle_recv st ch).1.
       { generalize (oracle_recv_nodup (ClientOracle:=coracle) st ch) => H.

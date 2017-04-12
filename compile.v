@@ -51,29 +51,36 @@ Module M := Make OrdNat. (* The type of shared states *)
 Module MFacts := Facts M.
 Module MProps := Properties M.
 
-Module OrdNatDep
-<: OrderedType.OrderedType.
+(** OrdNatDep: A computational analogue of 'I_n *)
+
+Module Type BOUND.
+  Parameter n : nat.
+  Parameter n_gt0 : (0 < n)%nat.
+End BOUND.
+
+Module OrdNatDep (B : BOUND)
+  <: OrderedType.OrderedType.
+      Notation n := B.n.
       Record t' : Type :=
         mk { val :> N.t;
-             n : nat;
              pf : (N.to_nat val < n)%nat }.
       Definition t := t'.
       Definition eq (x y : t) := N.eq (val x) (val y).
       Definition lt (x y : t) := N.lt (val x) (val y).
       Lemma eq_refl : forall x : t, eq x x.
-      Proof. case => x n pf; apply: N.eq_refl. Qed.
+      Proof. case => x pf; apply: N.eq_refl. Qed.
       Lemma eq_sym : forall x y : t, eq x y -> eq y x.
-      Proof. case => x n pf; case => y n' pf'; apply: N.eq_sym. Qed.   
+      Proof. case => x pf; case => y pf'; apply: N.eq_sym. Qed.   
       Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
-      Proof. case => x n pf; case => y n' pf'; case => z n'' pf''; apply: N.eq_trans. Qed.  
+      Proof. case => x pf; case => y pf'; case => z pf''; apply: N.eq_trans. Qed.  
       Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-      Proof. case => x n pf; case => y n' pf'; case => z n'' pf''; apply: N.lt_trans. Qed.        
+      Proof. case => x pf; case => y pf'; case => z pf''; apply: N.lt_trans. Qed.        
       Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-      Proof. case => x n pf; case => y n' pf' H H2; rewrite /eq /N.eq in H2.
+      Proof. case => x pf; case => y pf' H H2; rewrite /eq /N.eq in H2.
              rewrite /lt H2 in H; apply: (N.lt_irrefl _ H). Qed.
       Lemma compare : forall x y : t, OrderedType.Compare lt eq x y.
       Proof.
-        case => x n pf; case => y n' pf'; case H: (N.eq_dec x y).
+        case => x pf; case => y pf'; case H: (N.eq_dec x y).
         { by subst x; apply: OrderedType.EQ. }
         case H2: (N.ltb x y).
         { by apply: OrderedType.LT; rewrite /lt -N.ltb_lt. }
@@ -85,10 +92,6 @@ Module OrdNatDep
       Lemma eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
       Proof. case => x pf; case => y pf'; apply: N.eq_dec. Qed.
 End OrdNatDep.
-
-Module MDep := Make OrdNatDep.
-Module MDepFacts := Facts MDep.
-Module MDepProps := Properties MDep.
 
 Class Enumerable (T : Type) :=
   enumerable_fun : list T.
@@ -272,10 +275,17 @@ Class Eq_Refl (A : Type) (eq :Eq A) : Type :=
 
 (** The game type package provided by MWU to the client network oracle *)
 
+Class Enum_ok A `{Enumerable A} : Type :=
+  mkEnum_ok { 
+      enum_nodup : NoDupA (fun x : A => [eta eq x]) (enumerate A);
+      enum_total : forall a : A, In a (enumerate A)
+    }.
+
 Class GameType
       (A : Type) num_players
       `{ccost_instance : CCostClass num_players A}
       `{enum_instance : Enumerable A}
+      `{enum_ok : @Enum_ok A enum_instance}
       `{show_instance : Showable A}
   := mkGameType
        { a0 : A
@@ -283,6 +293,4 @@ Class GameType
            forall (p : M.t A) (player : N),
              let: d := ccost player p in
              [/\ Dle (-D1) d & Dle d D1]
-       ; enum_nodup : NoDupA (fun x y => x=y) (enumerate A)
-       ; enum_total : forall a : A, In a (enumerate A)
        }.

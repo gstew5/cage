@@ -31,11 +31,10 @@ Module GameType_of_CONFIG (C : CONFIG).
       3) a refineTypeClass instance for (enumerate). *)
   Axiom ccost_ok : forall (p : M.t C.A.t) (player : N), (*TODO: result of cgame*)
       (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
-  Axiom enum_nodup :
-    SetoidList.NoDupA (fun x : C.A.t => [eta eq x]) (enumerate C.A.t). (*TODO: result of cgame*)
-  Axiom enum_total : forall a : C.A.t, List.In a (enumerate C.A.t). (*TODO: result of cgame*)
-  Definition gametype_instance : @GameType C.A.t C.num_players _ _ _ :=
-    @mkGameType C.A.t C.num_players _ _ _ C.A.t0 ccost_ok enum_nodup enum_total.
+  Existing Instance C.A.enumerable.
+  Axiom enum_ok : @Enum_ok C.A.t _. (*TODO: result of cgame*)
+  Definition gametype_instance : @GameType C.A.t C.num_players _ _ _ _ :=
+    @mkGameType C.A.t C.num_players _ _ _ _ C.A.t0 ccost_ok.
 End GameType_of_CONFIG.
 
 (* 2. CONFIG -> Client *)
