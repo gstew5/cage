@@ -623,3 +623,244 @@ Module OrderedAffine (A : BoolableOrderedAffineType) <: BoolableMyOrderedType.
   Module Pred := OrderedAffinePred A.
   Include BoolableOrderedSigma Pred.
 End OrderedAffine.
+
+(** MyOrdNatDep: a computational analogue of 'I_B.n *)
+
+Module MyOrdNatDep (B : BOUND) <: MyOrderedType.
+  Module N := OrdNatDep B. Include N.
+
+  Program Definition t0 := @mk 0%N _.
+  Next Obligation. by apply: B.n_gt0. Qed.
+
+  (* FIXME: this definition should be fold_left, not fold_right *)
+  Program Fixpoint enumerate_rec (m : nat) (pf : (m < n)%nat) : list t :=
+    (match m as x return _ = x -> list t with
+     | O => fun _ => t0 :: nil
+     | S m' => fun pf => @mk (N.of_nat m) _ :: enumerate_rec m' _
+     end) erefl.
+  Next Obligation. by rewrite Nat2N.id. Qed.
+
+  Lemma lt_dec x y : ({x<y} + {x>=y})%nat.
+  Proof.
+    case H: (leq (S x) y); first by left.
+    case H2: (y <= x)%nat; first by right.
+    move: (leq_total y x); rewrite H2 /= => H3.
+    rewrite ltnNge in H.    
+    rewrite leqNgt in H2.
+    rewrite leqNgt in H3.
+    rewrite -ltnNge in H.
+    by rewrite H in H2.
+  Qed.
+
+  Lemma gt0_pred_lt n : (0 < n -> n.-1 < n)%nat.
+  Proof. elim: n => //. Qed.
+  
+  Definition enumerate_t : list t :=
+    match lt_dec 0 n with 
+    | left pfn => enumerate_rec (Nat.pred n) (gt0_pred_lt _ pfn)
+    | right _ => nil
+    end.
+
+  Instance enumerable : Enumerable t := enumerate_t.
+
+  Instance showable : Showable t :=
+    mkShowable (fun x => "<FIXME: my_ord_nat_dep>")%string.
+
+  Lemma eqP : forall x y : t, x = y <-> eq x y.
+  Proof.
+    move => x y; case: x => vx px; case y => vy py.
+    rewrite /eq /=; split.
+    { inversion 1; subst.
+      apply: M.E.eq_refl. }
+    rewrite /BinNat.N.eq => H; subst vy.
+    f_equal.
+    apply: proof_irrelevance.
+  Qed.
+  
+  (* FIXME: Bogus cost_instance -- perhaps cost_instance and cost_max should 
+     be factored out of MyOrderedType. *)
+  Instance cost_instance (n : nat) : CCostClass n t := fun _ _ => 0%D.
+  Instance cost_max (n : nat) : CCostMaxClass n t := 0%D.
+End MyOrdNatDep.  
+
+Module MyOrdNatDepProps (B : BOUND).
+  Module M := MyOrdNatDep B. Include M.
+
+  Fixpoint enumerate_rec_erased (m : nat) : list N :=
+    match m with
+    | O => N.of_nat O :: nil
+    | S m' => N.of_nat m :: enumerate_rec_erased m'
+    end.
+
+  Lemma enumerate_rec_map_erased m (pf : (m < n)%nat) :
+    map val (enumerate_rec m pf) = enumerate_rec_erased m.
+  Proof. by elim: m pf => // n IH pf /=; f_equal; rewrite IH. Qed.
+
+  Fixpoint enumerate_rec_erased_nat (m : nat) : list nat :=
+    match m with
+    | O => O :: nil
+    | S m' => m :: enumerate_rec_erased_nat m'
+    end.
+
+  Lemma enumerate_rec_map_erased_nat m :
+    map N.to_nat (enumerate_rec_erased m) = enumerate_rec_erased_nat m.
+  Proof.
+    elim: m => // m IH /=; f_equal => //.
+    by rewrite SuccNat2Pos.id_succ.
+  Qed.      
+
+  Lemma notin_gtn m n :
+    (m > n)%nat -> 
+    ~InA (fun x : nat => [eta Logic.eq x]) m (enumerate_rec_erased_nat n).
+  Proof.
+    elim: n m.
+    { move => m H H2; inversion H2; subst => //.
+      inversion H1. }
+    move => n IH m H H2; apply: IH.
+    { apply: ltn_trans; last by apply: H.
+      by []. }
+    inversion H2; subst => //.
+    move: (ltP H) => H3; omega.
+  Qed.    
+  
+  Lemma enumerate_rec_erased_nat_nodup m :
+    NoDupA (fun x : nat => [eta Logic.eq x]) (enumerate_rec_erased_nat m).
+  Proof.
+    elim: m.
+    { constructor; first by inversion 1.
+      constructor. }
+    move => n IH /=; constructor => //.
+    by apply: notin_gtn.
+  Qed.
+
+  Lemma enumerate_rec_erased_nat_total n m :
+    (n <= m)%nat ->
+    In n (enumerate_rec_erased_nat m).
+  Proof.
+    elim: m n; first by case => //= _; left.
+    move => m IH n H; case: (Nat.eq_dec n m.+1) => [pf|pf].
+    { by left; subst n. }
+    right; apply: IH.
+    apply/leP; move: (leP H) => H2; omega.
+  Qed.
+
+  Lemma enumerate_rec_erased_total n m :
+    (N.to_nat n <= N.to_nat m)%nat ->
+    In n (enumerate_rec_erased (N.to_nat m)).
+  Proof.
+    move => H.
+    suff: In (N.to_nat n) (map N.to_nat (enumerate_rec_erased (N.to_nat m))).
+    { clear H; elim: m n.
+      { move => n /=; case => // H; left.
+        destruct n => //.
+        simpl in H.
+        move: (PosN0 p); rewrite -H //. }
+      move => p n; rewrite in_map_iff; case => x []H H1.
+      by move: (N2Nat.inj _ _ H) => H2; subst n. }
+    rewrite enumerate_rec_map_erased_nat.
+    apply: (enumerate_rec_erased_nat_total _ _ H).
+  Qed.    
+
+  Lemma enumerate_rec_total m (pf : (m < n)%nat) (x : t) :
+    (m.+1 = n)%nat -> 
+    In x (enumerate_rec _ pf).
+  Proof.
+    move => Hsucc.
+    suff: In (val x) (map val (enumerate_rec m pf)).
+    { clear Hsucc.
+      elim: m pf x => /=.
+      { move => H x; case => // H2; left.
+        rewrite /t0; f_equal; destruct x as [vx pfx].
+        simpl in H2; subst vx; f_equal.
+        apply: proof_irrelevance. }
+      move => n IH pf x; case.
+      { destruct x as [vx pfx]; simpl => H; subst vx; left.
+        f_equal.
+        apply: proof_irrelevance. }
+      rewrite in_map_iff; case => x0 [] H H2; right.
+      clear - H H2.
+      destruct x0 as [vx0 pfx0].
+      destruct x as [vx pfx].
+      simpl in H; subst vx0.
+      have ->: pfx = pfx0 by apply: proof_irrelevance.
+      by []. }
+    rewrite enumerate_rec_map_erased.
+    destruct x as [vx pfx].
+    rewrite /val.
+    have ->: m = N.to_nat (N.of_nat m) by rewrite Nat2N.id.
+    apply: enumerate_rec_erased_total.
+    rewrite Nat2N.id.
+    apply/leP; move: (ltP pfx) (ltP pf); move: (N.to_nat vx) => n0.
+    rewrite -Hsucc => X Y.
+    omega.
+  Qed.    
+  
+  Lemma InA_map A B (f : A -> B) (l : list A) x :
+    InA (fun x => [eta Logic.eq x]) x l -> 
+    InA (fun x => [eta Logic.eq x]) (f x) (map f l).
+  Proof.
+    elim: l; first by inversion 1.
+    move => a l IH; inversion 1; subst; first by constructor.
+    by apply: InA_cons_tl; apply: IH.
+  Qed.
+  
+  Lemma enumerate_rec_erased_nodup m :
+    NoDupA (fun x => [eta Logic.eq x]) (enumerate_rec_erased m).
+  Proof.
+    suff: (NoDupA (fun x => [eta Logic.eq x]) (map N.to_nat (enumerate_rec_erased m))).
+    { elim: (enumerate_rec_erased m) => // a l IH; inversion 1; subst.
+      constructor.
+      { by move => H; apply: H1; apply: InA_map. }
+      apply: (IH H2). }
+    rewrite enumerate_rec_map_erased_nat.
+    apply: enumerate_rec_erased_nat_nodup.
+  Qed.      
+
+  Lemma enumerate_rec_nodup m pf :
+    NoDupA (fun x : t => [eta Logic.eq x]) (enumerate_rec m pf).
+  Proof.
+    suff: NoDupA (fun x => [eta Logic.eq x]) (map val (enumerate_rec m pf)).
+    { elim: (enumerate_rec m pf) => // a l IH; inversion 1; subst.
+      constructor.
+      { clear - H1 => H2; apply: H1.
+        elim: l H2; first by inversion 1.
+        move => b l H; inversion 1; subst; first by constructor.
+        by apply: InA_cons_tl; apply: H. }
+      by apply: IH. }
+    rewrite enumerate_rec_map_erased.
+    apply: enumerate_rec_erased_nodup.
+  Qed.
+
+  Lemma enumerate_t_nodup :
+    NoDupA (fun x : t => [eta Logic.eq x]) enumerate_t.
+  Proof.
+    rewrite /enumerate_t.
+    case H: (lt_dec 0 n) => [pf|pf]; last by constructor.
+    by apply: enumerate_rec_nodup.
+  Qed.
+
+  Lemma enumerate_t_total x : In x enumerate_t.
+  Proof.
+    rewrite /enumerate_t.
+    case: (lt_dec 0 n) => [pf|pf]; last first.
+    { destruct x as [vx pfx].
+      move: (ltP pfx) (leP pf) => X Y.
+      omega. }
+    have H: (n = n.-1.+1).
+    { rewrite (ltn_predK (m:=0)) => //. }
+    symmetry in H.
+    by apply: (enumerate_rec_total _ (gt0_pred_lt n pf) x H).
+  Qed.    
+  
+  Program Instance enum_ok : @Enum_ok t enumerable.
+  Next Obligation.
+    rewrite /enumerable_fun /enumerable.
+    apply: enumerate_t_nodup.
+  Qed.
+  Next Obligation.
+    rewrite /enumerable_fun /enumerable.
+    apply: enumerate_t_total.    
+  Qed.    
+End MyOrdNatDepProps.       
+  
+                       
