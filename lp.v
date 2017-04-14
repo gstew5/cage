@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith String Ascii ProofIrrelevance.
+Require Import QArith String Ascii ProofIrrelevance List.
 Require VectorDef.
 
 (*The computable state representation is an FMap over 
@@ -16,12 +16,6 @@ From mathcomp Require Import all_algebra.
 Require Import strings compile orderedtypes dyadic numerics weightsextract.
 
 Definition Dvec (n : nat) : Type :=  VectorDef.t D n.
-
-Definition zip_vectors
-           A B (n : nat)
-           (x : VectorDef.t A n)
-           (y : VectorDef.t B n)
-  : VectorDef.t (A*B) n := VectorDef.map2 (fun a b => (a,b)) x y.
 
 Section Dvecs.
   Variable n : nat.
@@ -166,23 +160,20 @@ Module LP (P : LINEAR_PROGRAM).
   (* 1 / smallest power of two greater than [max_inf_norm cs] *)  
   Definition inv_rho : D := Dlub (max_inf_norm cs). 
 
-  Definition cost_vector_of_unsatisfied (w v : Dvec M.n) : list (M.t*D) :=
-    let wv := zip_vectors w v in
+  Definition cost_vector_of_unsatisfied (v : Dvec M.n) : list (M.t*D) :=
     VectorDef.to_list
       (VectorDef.map2
-         (fun i (p : D*D) =>
-            let (x,a) := p in
-            (i, (inv_rho * -a*x)%D))
+         (fun i a => (i, (inv_rho * -a)%D))
          index_vec
-         wv).
+         v).
 
   Definition init_cost_vector : list (M.t*D) :=
-    VectorDef.to_list (VectorDef.map (fun i => (i,0%D)) index_vec).
+    VectorDef.to_list (VectorDef.map (fun i => (i,1%D)) index_vec).
 
   Definition cost_vector (w : Dvec M.n) : list (M.t*D) :=
     match unsatisfied w cs with
     | None => init_cost_vector 
-    | Some c => cost_vector_of_unsatisfied w (interp_constraint c)
+    | Some c => cost_vector_of_unsatisfied (interp_constraint c)
     end.
 
   Definition state : Type := VectorDef.t D n.
@@ -193,11 +184,19 @@ Module LP (P : LINEAR_PROGRAM).
   Definition bogus_chan : chanty := tt.
   
   Definition weight_vector_of_list (l : list (M.t*D)) : state :=
+    let gamma :=
+        List.fold_left
+          (fun acc (p : M.t*D) =>
+             let (_, d) := p in
+             (d + acc)%D)
+          l
+          0%D
+    in           
     VectorDef.map 
       (fun i =>
          match findA (fun j => i===j) l with
          | None => 0%D
-         | Some d => d
+         | Some d => (Dlub gamma * d)%D
          end)
       index_vec.
 
@@ -240,18 +239,23 @@ End LP.
 (** TEST 1 *)
 
 Module P : LINEAR_PROGRAM.
-  Definition n : nat := 2.
+  Definition n : nat := 1.
   Lemma n_gt0 : (0 < n)%N. Proof. by []. Qed.
   Definition num_constraints : nat := 2.
   
   Definition cs : A n num_constraints :=
-    let c1 : constraint n :=
+    let c1 : constraint 2 :=
         (VectorDef.cons _ (-(Dmake 3 1))%D _ (VectorDef.cons _ 1%D _ (VectorDef.nil _)), true) in
-    let c2 : constraint n :=
+    let c2 : constraint 2 :=
         (VectorDef.cons _ 1%D _ (VectorDef.cons _ (-(Dmake 3 1))%D _ (VectorDef.nil _)), true) in
-    VectorDef.cons _ c1 _ (VectorDef.cons _ c2 _ (VectorDef.nil _)).
+    let c3 : constraint 2 := 
+        (VectorDef.cons _ 1%D _ (VectorDef.cons _ (-(Dmake 1 2))%D _ (VectorDef.nil _)), false) in
+    let c4 : constraint n := (VectorDef.cons _ (-(1))%D _ (VectorDef.nil _), true) in
+    let c5 : constraint n := (VectorDef.cons _ (1)%D _ (VectorDef.nil _), false) in    
+    VectorDef.cons _ c5 _ (VectorDef.cons _ c4 _ (VectorDef.nil _)).
+  
   Definition eps := Dmake 1 2. (* eps = 1/4 *)
-  Definition num_rounds : N.t := 10.
+  Definition num_rounds : N.t := 50.
 End P.  
 
 Module LP_P := LP P.
