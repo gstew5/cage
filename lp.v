@@ -2,7 +2,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 
 Require Import QArith String Ascii ProofIrrelevance.
-Require Vector.
+Require VectorDef.
 
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
@@ -21,13 +21,13 @@ Definition zip_vectors
            A B (n : nat)
            (x : VectorDef.t A n)
            (y : VectorDef.t B n)
-  : VectorDef.t (A*B) n := Vector.map2 (fun a b => (a,b)) x y.
+  : VectorDef.t (A*B) n := VectorDef.map2 (fun a b => (a,b)) x y.
 
 Section Dvecs.
   Variable n : nat.
 
   Definition dot_product (v1 v2 : Dvec n) : D :=
-    Vector.fold_left2 (fun x y acc => (x*y + acc)%D) 0%D v1 v2.
+    VectorDef.fold_left2 (fun x y acc => (x*y + acc)%D) 0%D v1 v2.
 End Dvecs.
   
 Definition label := bool.
@@ -46,7 +46,7 @@ Section constraints.
 
   Definition interp_constraint (c : constraint) : Dvec n :=
     let: (v, l) := c in
-    Vector.map (fun x => (l*x)%D) v.
+    VectorDef.map (fun x => (l*x)%D) v.
 
   Definition A := VectorDef.t constraint num_constraints.
 
@@ -54,7 +54,7 @@ Section constraints.
       -Return [Some a_j], the feature vector a_j not satisfied by [w], or
       -Return [None] if no such [a_j] exists. *)
   Fixpoint unsatisfied (w : Dvec n) (cs : A) : option constraint :=
-    Vector.fold_left
+    VectorDef.fold_left
       (fun acc c =>
          match acc with
          | None => 
@@ -68,11 +68,11 @@ Section constraints.
   (** The max l-\inf norm over the vectors in A *)
   Definition max_inf_norm (cs : A) : D :=
     let max v :=
-        Vector.fold_left
+        VectorDef.fold_left
           (fun acc d => if Dlt_bool acc (Dabs d) then Dabs d else acc)
           D0          
           v
-    in Vector.fold_left
+    in VectorDef.fold_left
          (fun acc c =>
             let m := max (interp_constraint c) in 
             if Dlt_bool acc m then m else acc)
@@ -153,9 +153,7 @@ Module LP (P : LINEAR_PROGRAM).
      | S n' => fun pfn : n = S n' =>
          let pf' := index_vec_rec_lem1 pfn (index_vec_rec_lem2 pf) in
          let pf'' := index_vec_rec_lem3 pfn pf in                 
-         Vector.cast
-           (VectorDef.cons _ (@M.mk (N.of_nat n') pf') _ (@index_vec_rec n' pf''))
-           erefl
+         VectorDef.cons _ (@M.mk (N.of_nat n') pf') _ (@index_vec_rec n' pf'')
      end) erefl.
   
   (** The vector [0, 1, ..., n-1]. *)
@@ -163,15 +161,15 @@ Module LP (P : LINEAR_PROGRAM).
   Lemma index_vec_lem : (M.n <= M.n)%nat. Proof. by []. Qed.
   
   Definition index_vec : VectorDef.t M.t n :=
-    Vector.rev (index_vec_rec index_vec_lem).
+    VectorDef.rev (index_vec_rec index_vec_lem).
 
   (* 1 / smallest power of two greater than [max_inf_norm cs] *)  
   Definition inv_rho : D := Dlub (max_inf_norm cs). 
 
   Definition cost_vector_of_unsatisfied (w v : Dvec M.n) : list (M.t*D) :=
     let wv := zip_vectors w v in
-    Vector.to_list
-      (Vector.map2
+    VectorDef.to_list
+      (VectorDef.map2
          (fun i (p : D*D) =>
             let (x,a) := p in
             (i, (inv_rho * -a*x)%D))
@@ -179,7 +177,7 @@ Module LP (P : LINEAR_PROGRAM).
          wv).
 
   Definition init_cost_vector : list (M.t*D) :=
-    Vector.to_list (Vector.map (fun i => (i,0%D)) index_vec).
+    VectorDef.to_list (VectorDef.map (fun i => (i,0%D)) index_vec).
 
   Definition cost_vector (w : Dvec M.n) : list (M.t*D) :=
     match unsatisfied w cs with
@@ -195,7 +193,7 @@ Module LP (P : LINEAR_PROGRAM).
   Definition bogus_chan : chanty := tt.
   
   Definition weight_vector_of_list (l : list (M.t*D)) : state :=
-    Vector.map 
+    VectorDef.map 
       (fun i =>
          match findA (fun j => i===j) l with
          | None => 0%D
@@ -241,7 +239,7 @@ End LP.
 
 (** TEST 1 *)
 
-Module P <: LINEAR_PROGRAM.
+Module P : LINEAR_PROGRAM.
   Definition n : nat := 2.
   Lemma n_gt0 : (0 < n)%N. Proof. by []. Qed.
   Definition num_constraints : nat := 2.
@@ -257,4 +255,8 @@ Module P <: LINEAR_PROGRAM.
 End P.  
 
 Module LP_P := LP P.
-Extraction "runtime/lp_p.ml" LP_P.mwu.
+
+Unset Extraction Optimize.
+Unset Extraction AutoInline.
+
+Extraction "runtime/lp.ml" LP_P.mwu.
