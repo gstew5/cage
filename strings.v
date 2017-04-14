@@ -158,5 +158,25 @@ Instance showable_list {A : Type} `{Showable A} : Showable (list A) :=
                         (F l'))
        end).
 
+Instance showable_nat : Showable nat :=
+  mkShowable
+    (fun n => match n with
+     | O => "0"
+     | 1%nat => "1"
+     | 2 => "2"
+     | 3 => "3"
+     | 4 => "4"
+     | 5 => "5"
+     | 6 => "6"
+     | 7 => "7"
+     | 8 => "8"
+     | 9 => "9"
+     | 10 => "10"
+     | _ => "<nat > 10>"
+     end)%string.
+
+Instance showable_N : Showable N.t :=
+  mkShowable (fun n => to_string (N.to_nat n)).
+
 
 

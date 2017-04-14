@@ -664,7 +664,7 @@ Module MyOrdNatDep (B : BOUND) <: MyOrderedType.
   Instance enumerable : Enumerable t := enumerate_t.
 
   Instance showable : Showable t :=
-    mkShowable (fun x => "<FIXME: my_ord_nat_dep>")%string.
+    mkShowable (fun x => to_string x.(val)).
 
   Lemma eqP : forall x y : t, x = y <-> eq x y.
   Proof.

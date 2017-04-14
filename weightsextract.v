@@ -109,8 +109,7 @@ Module MWU (A : MyOrderedType).
         ; SChan : oracle_chanty
         ; SOracleSt : T }.
 
-    (** Draw from a distribution, communicating the resulting action 
-      to the network. *)
+    (** Send weights to the network. *)
     Definition mwu_send (m : M.t D) (oracle_st : T) : (oracle_chanty * T) :=
       oracle_send oracle_st (M.elements m).
 
