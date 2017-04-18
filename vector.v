@@ -17,8 +17,10 @@ Require Import strings compile orderedtypes dyadic numerics.
 Module Type PAYLOAD.
   Parameter t : Type. (* the low-level type *)
   Parameter t0 : t.   (* the "unit" value of type t *)
+  Parameter eq0 : t -> bool.
+  Parameter eq0P : forall x, reflect (x = t0) (eq0 x).
   Parameter u : Type. (* the high-level type *)
-  (* almost but not quite a bijection *)    
+  (* one half of a bijection *)    
   Parameter u_of_t : t -> u.
   Parameter t_of_u : u -> t.
   Parameter t_of_u_t : forall t, t_of_u (u_of_t t) = t.
@@ -31,6 +33,13 @@ Module Vector (B : BOUND) (P : PAYLOAD).
   Module MProps := Properties M.
   Notation n := B.n.          (* the dimensionality *)
   Definition t := (M.t P.t).  (* the type of computable vectors *)
+
+  (** [SPARSITY INVARIANT]: 
+      ~~~~~~~~~~~~~~~~~~~~~ 
+      The map contains no key-value pairs (i,p) s.t. p = P.t0. That is, 
+      it only implicitly represents keys that map to the zero of the 
+      payload domain.
+    *)
   
   (* operations *)
   Definition get (i : Ix.t) (m : t) : P.t :=
@@ -39,8 +48,10 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     | Some p => p
     end.
 
+  (* update i -> p; maintains [SPARSITY_INVARIANT] *)
   Definition set (i : Ix.t) (p : P.t) (m : t) : t :=
-    M.add i p m.
+    if P.eq0 p then M.remove i m
+    else M.add i p m.
 
   (* assumes f P.t0 = P.t0 *)
   Definition map0 (f : P.t -> P.t) (m : t) : t :=
@@ -67,10 +78,17 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     end.
 
   (* construct a vector from list of ordered pairs l *)
-  Definition of_list (l : list (Ix.t * P.t)) : t := MProps.of_list l.
+  Definition of_list_INTERNAL (l : list (Ix.t * P.t)) : t :=
+    MProps.of_list l.
+
+  (* same as of_list_INTERNAL but filters out pairs (i,p) 
+     s.t. p = P.t0, thus maintaining the [SPARSITY_INVARIANT] *)
+  Definition nonzero (p : P.t) : bool := ~~(P.eq0 p).
   
-  (* construct a vector from function f -- 
-     WARNING: results in a nonsparse representation *)
+  Definition of_list (l : list (Ix.t * P.t)) : t :=
+    of_list_INTERNAL (List.filter (fun p : (Ix.t*P.t) => nonzero p.2) l).
+  
+  (* construct a vector from function f *)
   Definition of_fun (f : Ix.t -> P.t) : t :=
     of_list (List.map (fun ix => (ix, f ix)) (enumerate Ix.t)).
   
@@ -110,7 +128,8 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     f_equal.
     apply: proof_irrelevance.
   Qed.    
-  
+
+  (* the actual representation invariant *)
   Definition match_vecs (v : t) (f : ty) : Prop :=
     forall i : Ix.t, get i v = P.t_of_u (f (Ordinal_of_Ix i)).
 
@@ -125,7 +144,23 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       match_vecs (set i p v) (upd (Ordinal_of_Ix i) (P.u_of_t p) f).
     Proof.
       move => j; rewrite /upd ffunE /set /get.
-      case: (Ix.eq_dec i j) => [px|px].
+      case Heq: (P.eq0 p). (*P.t0 = p*)
+      { move: (P.eq0P _ Heq) => <-.
+        case: (Ix.eq_dec i j) => [px|px].
+        { move: px; rewrite -Ix.eqP => H; rewrite H MProps.F.remove_eq_o; last first.
+        { apply: N.eq_refl. }
+        by subst i; rewrite eq_refl P.t_of_u_t. }
+        have ->: (Ordinal_of_Ix i == Ordinal_of_Ix j = false).
+        { case E: (Ordinal_of_Ix i == Ordinal_of_Ix j) => //.
+          move: (eqP E) => F; elimtype False; apply: px.
+          clear - E; move: E; case: i => i pfi; case: j => j pfj.
+          rewrite /Ordinal_of_Ix /=; move/eqP; case; rewrite /Ix.eq /=.
+          apply: N2Nat.inj. }
+        rewrite MProps.F.remove_neq_o; last first.
+        { move => H; apply: px.
+          by case: i H => x pfx /=; case: j => y pfy /=. }
+        by move: (P.eq0P _ Heq) => ->; apply: pf. }
+      case: (Ix.eq_dec i j) => [px|px]. (*P.t0 <> p*)
       { move: px; rewrite -Ix.eqP => H; rewrite H MProps.F.add_eq_o; last first.
         { apply: N.eq_refl. }
         by subst i; rewrite eq_refl P.t_of_u_t. }
@@ -175,10 +210,10 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       by rewrite (pf (Ix_of_Ordinal i)) Ordinal_of_Ix_Ordinal.
     Qed.
 
-    Lemma match_vecs_of_list (l : list (Ix.t * P.t)) :
+    Lemma match_vecs_of_list_INTERNAL (l : list (Ix.t * P.t)) :
       NoDupA (M.eq_key (elt:=P.t)) l ->      
       match_vecs
-        (of_list l)
+        (of_list_INTERNAL l)
         [ffun i =>
          P.u_of_t
            (match findA (MProps.F.eqb (Ix_of_Ordinal i)) l with
@@ -203,6 +238,89 @@ Module Vector (B : BOUND) (P : PAYLOAD).
         by move => X; elimtype False; apply: pfx. }
       by [].
     Qed.      
+
+    Lemma filter_InA' A (l : list A) r g a
+      : InA r a (List.filter g l) -> InA r a l.
+    Proof.
+      elim: l => // ax l IH /=; case H2: (g ax).
+      { inversion 1; subst; first by constructor => //.
+        by apply: InA_cons_tl; apply: IH. }
+      by move => H3; apply: InA_cons_tl; apply: IH.
+    Qed.      
+
+    Lemma filtered_out A (l : list A) (r : A -> A -> Prop) g a
+          (H0 : forall a a' : A, r a a' -> g a = g a')
+      : InA r a l -> ~InA r a (List.filter g l) -> ~g a.
+    Proof.
+      elim: l => // ax l IH /=; case H2: (g ax).
+      { inversion 1; subst.
+        { by move => Hx Hy; apply: Hx; constructor. }
+        move => Hx; apply: IH => //.
+        by move => Hy; apply: Hx; apply: InA_cons_tl. }
+      move => Hx Hy Hz; inversion Hx; subst.
+      { by rewrite (H0 _ _ H1) H2 in Hz. }
+      by apply: IH.
+    Qed.
+    
+    Lemma filter_NoDupA A (l : list A) r g
+      : NoDupA r l -> NoDupA r (List.filter g l).
+    Proof.
+      elim: l => // a l IH; inversion 1; subst => /=; case Hg: (g a).
+      { constructor => //.
+        { move => H4; apply: H2; apply: filter_InA'; apply: H4. }
+        by apply: IH. }
+      by apply: IH.
+    Qed.
+    
+    Lemma of_list_of_list_INTERNAL (l : list (Ix.t * P.t)) i :
+      NoDupA (M.eq_key (elt:=P.t)) l ->
+      get i (of_list l) = get i (of_list_INTERNAL l).
+    Proof.
+      move => H; rewrite /get /of_list /of_list_INTERNAL.
+      rewrite (MProps.of_list_1b _ H).
+      have H': NoDupA (M.eq_key (elt:=P.t))
+                      (List.filter (fun p : Ix.t * P.t => nonzero p.2) l).
+      { apply filter_NoDupA => //. }
+      rewrite (MProps.of_list_1b _ H').
+      case H2: (findA _ _) => [x|].
+      { move: H2; rewrite -findA_NoDupA => // H2.
+        move: (filter_InA' H2).
+        generalize (@findA_NoDupA _ P.t _ _ Ix.eq_dec _ i x H).              
+        by rewrite /MProps.F.eqb /M.E.eq_dec => -> ->. }
+      case H3: (findA _ _) => [y|//].
+      move: H3; rewrite -findA_NoDupA => //.
+      set (r := (fun _ _ => _ /\ _)) => H3.
+      have H4: ~InA r (i,y) (List.filter (fun p => nonzero p.2) l).
+      { clear - H2; elim: l H2 => //=; first by move => _; inversion 1.
+        move => [] a b l IH => /=.
+        case H: (nonzero b) => //=.
+        case H2: (MProps.F.eqb i a) => // H3 H4; apply: IH => //.
+        inversion H4; subst => //.
+        clear - H H2 H1; move: H1; rewrite /r/N.eq/=; case => H5 ->.
+        clear - H2 H5; elimtype False.
+        move: H2; rewrite /MProps.F.eqb /M.E.eq_dec.
+        case H6: (Ix.eq_dec i a) => //. }
+      move: H4; set (g := (fun p : Ix.t * P.t => nonzero p.2)) => H4.
+      have H5: forall a a' : Ix.t * P.t, r a a' -> g a = g a'.
+      { by case => a pa; case => b pb; rewrite /r/g/nonzero /= => [][] Hx <-. }
+      move: (@filtered_out _ l r g (i,y) H5 H3 H4).
+      by rewrite /g /= /nonzero; move/negP; rewrite negb_involutive; move/P.eq0P.
+    Qed.      
+    
+    Lemma match_vecs_of_list (l : list (Ix.t * P.t)) :
+      NoDupA (M.eq_key (elt:=P.t)) l ->      
+      match_vecs
+        (of_list l)
+        [ffun i =>
+         P.u_of_t
+           (match findA (MProps.F.eqb (Ix_of_Ordinal i)) l with
+            | None => P.t0
+            | Some p => p
+            end)].
+    Proof.
+      move => H; rewrite /match_vecs => i; rewrite of_list_of_list_INTERNAL => //.
+      by apply: match_vecs_of_list_INTERNAL.
+    Qed.    
 
     Lemma match_vecs_of_fun (g : Ix.t -> P.t) :
       let g' := [ffun i : 'I_n => P.u_of_t (g (Ix_of_Ordinal i))] in 
@@ -241,9 +359,14 @@ Module Vector (B : BOUND) (P : PAYLOAD).
   End refinement_lemmas.
 End Vector.  
 
+(* one-dimensional D-vectors *)
+
 Module DPayload <: PAYLOAD.
   Definition t := D.                    
   Definition t0 := 0%D.
+  Definition eq0 d := if Deq_dec d D0 then true else false.
+  Lemma eq0P d : reflect (d=D0) (eq0 d).
+  Proof. by rewrite /eq0; case: (Deq_dec d D0) => a; constructor. Qed.
   Definition u := dyadic_rat.
   Definition u_of_t := D_to_dyadic_rat.
   Definition t_of_u := dyadic_rat_to_D.
@@ -252,6 +375,38 @@ Module DPayload <: PAYLOAD.
 End DPayload.  
 
 Module DVector (B : BOUND) := Vector B DPayload.
+
+(* two-dimensional D-vectors 
+   (TODO: generalize this construction to arbitray input payloads) *)
+
+Module DDPayload (B : BOUND) <: PAYLOAD.
+  Module DVec := DVector B.
+  Definition t := DVec.t.                    
+  Definition t0 : t := DVec.M.empty _.
+  Definition eq0 (d : t) := DVec.M.is_empty d.
+  Lemma eq0P d : reflect (d=t0) (eq0 d).
+  Proof.
+    rewrite /eq0 /DVec.M.is_empty /DVec.M.Raw.is_empty /t0.
+    case: d => x y /=; move: y; case: x => y; constructor => //.
+    case H: DVec.M.empty => [z w]; inversion H; subst.
+    f_equal; apply: proof_irrelevance.
+  Qed.    
+  Definition u := {m : t & {f : DVec.ty & DVec.match_vecs m f}}.
+  Program Definition u_of_t (m : t) : u :=
+    existT _ m _.
+  Next Obligation.
+    set (f := [ffun i : 'I_B.n =>
+               D_to_dyadic_rat (DVec.get (DVec.Ix_of_Ordinal i) m)] : DVec.ty).
+    refine (existT _ f _).
+    by move => i; rewrite /f /DPayload.t_of_u ffunE DVec.Ix_of_Ordinal_Ix.
+  Qed.
+  Definition t_of_u (f : u) : t := projT1 f.
+  Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
+  Proof. by []. Qed.
+End DDPayload.
+
+
+
 
     
   
