@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import QArith String Ascii ProofIrrelevance List.
+Require Import QArith String Ascii ProofIrrelevance List Permutation.
 
 Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
@@ -40,6 +40,10 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       it only implicitly represents keys that map to the zero of the 
       payload domain.
     *)
+
+  Definition nonzero (p : P.t) : bool := ~~(P.eq0 p).
+
+  Definition sparse (m : t) := forall i y, M.find i m = Some y -> nonzero y.
   
   (* operations *)
   Definition get (i : Ix.t) (m : t) : P.t :=
@@ -61,6 +65,10 @@ Module Vector (B : BOUND) (P : PAYLOAD).
   Definition fold0 T (f : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
     M.fold f m t0.
 
+  (* a slow fold0 that doesn't assume f i P.t0 t = t *)
+  Definition foldr T (f : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
+    List.fold_right (fun ix acc => f ix (get ix m) acc) t0 (enumerate Ix.t).
+  
   (* does any (i, p) pair satisfy f? if so, which one? *)
   Fixpoint any_rec (f : Ix.t -> P.t -> bool) (m : t) (l : list Ix.t) : option (Ix.t * P.t) :=
     match l with
@@ -83,8 +91,6 @@ Module Vector (B : BOUND) (P : PAYLOAD).
 
   (* same as of_list_INTERNAL but filters out pairs (i,p) 
      s.t. p = P.t0, thus maintaining the [SPARSITY_INVARIANT] *)
-  Definition nonzero (p : P.t) : bool := ~~(P.eq0 p).
-  
   Definition of_list (l : list (Ix.t * P.t)) : t :=
     of_list_INTERNAL (List.filter (fun p : (Ix.t*P.t) => nonzero p.2) l).
   
@@ -187,6 +193,263 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       by rewrite P.t_of_u_t -H pf_g.
     Qed.
 
+    Lemma match_vecs_foldr
+          T (tx : T) (g : Ix.t -> P.t -> T -> T)
+          (pf_g : forall i t, g i P.t0 t = t) :
+      let g' := fun i t => g (Ix_of_Ordinal i) (P.t_of_u (f i)) t in
+      foldr g v tx =
+      List.fold_right g' tx [seq (Ordinal_of_Ix ix) | ix <- enumerate Ix.t].
+    Proof.
+      rewrite /foldr; move: (enumerate Ix.t) => l.
+      elim: l tx => // a l IH /= tx; f_equal => //.
+      case: a => av apf; move: (Ix_of_Ordinal_lem _); rewrite N2Nat.id => pfix /=.
+      by f_equal; apply: proof_irrelevance.
+    Qed.    
+
+    (* foldr and fold0 are equivalent assuming the composition operator is 
+       symmetric, associative, and preserves zeros *)
+    
+    Definition foldr_aux1 T (g : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
+      List.fold_right
+        (fun ix acc => g ix (get ix m) acc) t0
+        (List.filter (fun i => nonzero (get i m)) (enumerate Ix.t)).        
+
+    Lemma foldr_foldr_aux1
+          T (tx : T) (g : Ix.t -> P.t -> T -> T)
+          (pf_g : forall i t, g i P.t0 t = t) :
+      foldr g v tx = foldr_aux1 g v tx.
+    Proof.
+      rewrite /foldr /foldr_aux1; move: (enumerate Ix.t) => l.
+      elim: l tx => // a l IH tx /=; case H: (nonzero (get a v)) => /=.
+      { f_equal; apply: IH. }
+      have H2: (get a v = P.t0).
+      { move: H; rewrite /nonzero => H.
+        have H2: ~~ ~~ (P.eq0 (get a v)) by rewrite H.
+        by rewrite negb_involutive in H2; move: (P.eq0P _ H2). }
+      rewrite H2 pf_g; apply: IH.
+    Qed.
+
+    Definition foldr_aux2 T (g : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
+      List.fold_right
+        (fun ix acc => g ix (get ix m) acc) t0
+        (map fst (M.elements m)).
+
+    Lemma foldr_permute
+          (g : P.t -> P.t -> P.t)
+          (gcom : forall t1 t2, g t1 t2 = g t2 t1)
+          (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3)
+          l1 l2 :
+      Permutation l1 l2 ->
+      let g' := (fun ix : Ix.t => [eta g (get ix v)]) in 
+      List.fold_right g' P.t0 l1 = List.fold_right g' P.t0 l2.
+    Proof.
+      elim => //; first by move => x l l' H /= ->.
+      { move => x y l /=; move: (fold_right _ _ _) => z.
+        by rewrite [g (get _ _) (g _ _)]gcom -[g (g _ _) _]gassoc [g z _]gcom. }
+      by move => l l' l'' H H2 H3 H4 g'; rewrite H2 H4.
+    Qed.
+
+    Lemma In_elements_find_Some_get x : 
+      In x [seq i.1 | i <- M.elements (elt:=P.t) v] ->
+      M.find x v = Some (get x v).
+    Proof.
+      rewrite -MProps.F.find_mapsto_iff => H.
+      rewrite /get; apply: M.elements_2.
+      rewrite MFacts.elements_o.
+      elim: (M.elements _) H => // [][]k a l IH /=.
+      rewrite /MFacts.eqb; case: (M.E.eq_dec x k) => //.
+      { move => H _; constructor; constructor => //. }
+      move => H; case.
+      { by move => H2; subst x; elimtype False; apply: H. }
+      move => H2; move: (IH H2).
+      have H3: findA (fun y : Ix.t' => if M.E.eq_dec x y then true else false) l =
+               findA (MFacts.eqb x) l.
+      { clear IH H2; elim: l => // [][]q y l IH /=; rewrite IH.
+        rewrite [MFacts.eqb x q]/MFacts.eqb /is_left.
+        case: (M.E.eq_dec _ _) => //. }
+      by rewrite -H3 => H4; apply: InA_cons_tl.
+    Qed.      
+
+    Lemma In_elements_find_Some x : 
+      In x (M.elements (elt:=P.t) v) ->
+      M.find x.1 v = Some x.2.
+    Proof.
+      rewrite -MProps.F.find_mapsto_iff => H.
+      rewrite /get; apply: M.elements_2.
+      elim: (M.elements _) H => // [][]k a l IH /=; case.
+      { by move => ->; constructor. }
+      by move => H; apply: InA_cons_tl; apply: IH.
+    Qed.     
+    
+    Lemma In_elements_nonzero :
+      sparse v ->
+      forall x,
+      In x [seq i.1 | i <- M.elements (elt:=P.t) v] ->
+      nonzero (get x v) = true.
+    Proof.
+      move => H x; rewrite /get; move/In_elements_find_Some_get.
+      rewrite /nonzero; move: (H x).
+      by case: (M.find _ _) => // a; move/(_ a erefl).
+    Qed.        
+
+    Lemma filter_InA' A (l : list A) r g a
+      : InA r a (List.filter g l) -> InA r a l.
+    Proof.
+      elim: l => // ax l IH /=; case H2: (g ax).
+      { inversion 1; subst; first by constructor => //.
+        by apply: InA_cons_tl; apply: IH. }
+      by move => H3; apply: InA_cons_tl; apply: IH.
+    Qed.      
+
+    Lemma filtered_out A (l : list A) (r : A -> A -> Prop) g a
+          (H0 : forall a a' : A, r a a' -> g a = g a')
+      : InA r a l -> ~InA r a (List.filter g l) -> ~g a.
+    Proof.
+      elim: l => // ax l IH /=; case H2: (g ax).
+      { inversion 1; subst.
+        { by move => Hx Hy; apply: Hx; constructor. }
+        move => Hx; apply: IH => //.
+        by move => Hy; apply: Hx; apply: InA_cons_tl. }
+      move => Hx Hy Hz; inversion Hx; subst.
+      { by rewrite (H0 _ _ H1) H2 in Hz. }
+      by apply: IH.
+    Qed.
+    
+    Lemma filter_NoDupA A (l : list A) r g
+      : NoDupA r l -> NoDupA r (List.filter g l).
+    Proof.
+      elim: l => // a l IH; inversion 1; subst => /=; case Hg: (g a).
+      { constructor => //.
+        { move => H4; apply: H2; apply: filter_InA'; apply: H4. }
+        by apply: IH. }
+      by apply: IH.
+    Qed.
+    
+    Lemma Perm_elems_enum :
+      sparse v -> 
+      Permutation
+        (List.filter (fun i : Ix.t => nonzero (get i v)) (enumerate Ix.t))
+        [seq i.1 | i <- M.elements (elt:=P.t) v].
+    Proof.
+      move => Hsparse; apply: NoDup_Permutation.
+      { assert (H:
+          NoDupA (fun x : Ix.t => [eta eq x])
+                 (List.filter (fun i : Ix.t => nonzero (get i v)) (enumerate Ix.t))).
+        { by apply: filter_NoDupA; case: Ix.enum_ok => H _. }
+        elim: (enumerate Ix.t) H => //=; first by move => _; constructor.
+        move => a l IH; case: (nonzero (get a v)) => //; inversion 1; subst.
+        constructor.
+        { move => H4; apply: H2; clear - H4.
+          elim: l H4 => // x l IH /=; case: (nonzero _) => //=; case.
+          { by move => ->; constructor. }
+            by move => H; apply: InA_cons_tl; apply: IH. }
+          by apply: IH. }
+      { move: (M.elements_3w v); elim: (M.elements _) => //=.
+        { move => _; constructor. }
+        move => []a b l IH; inversion 1; subst; constructor => /=.
+        { clear - H1 => H2; apply: H1; elim: l H2 => // [] ax l IH /=; case.
+          { by move => <-; constructor; case: ax. }
+          by move => H; apply: InA_cons_tl; apply: IH. }
+        by apply: IH. }
+      move => x; rewrite filter_In; split.
+      { case => H; rewrite /get/nonzero MProps.F.elements_o.
+        elim: (M.elements _) => /=; first by case: (P.eq0P P.t0).
+        case => a b l IH; rewrite /MProps.F.eqb /M.E.eq_dec.
+        case H2: (Ix.eq_dec _ _) => [eqpf|eqpf] /=.
+        { move => H3; left; clear - eqpf; move: eqpf.
+          case: x => xv xpf; case: a => av apf /=; rewrite /Ix.eq /N.eq /= => H.
+          subst xv; f_equal; apply: proof_irrelevance. }
+        by move => H3; right; apply: IH. }
+      move => H; split; first by case: Ix.enum_ok.
+      by apply: In_elements_nonzero.
+    Qed.
+      
+    Lemma foldr_aux1_aux2
+          (Hsparse : sparse v)
+          (g : P.t -> P.t -> P.t)
+          (gcom : forall t1 t2, g t1 t2 = g t2 t1)
+          (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3) :
+      foldr_aux1 (fun _ => g) v P.t0 = foldr_aux2 (fun _ => g) v P.t0.
+    Proof.
+      rewrite /foldr_aux1/foldr_aux2; apply: foldr_permute => //.
+      by apply: Perm_elems_enum.
+    Qed.      
+
+    Definition foldr_aux3 T (g : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
+      List.fold_right
+        (fun p acc => g p.1 p.2 acc) t0
+        [seq (i.1, get i.1 m) | i <- M.elements m].
+
+    Lemma foldr_aux2_aux3
+          (g : P.t -> P.t -> P.t) :
+      foldr_aux2 (fun _ => g) v P.t0 = foldr_aux3 (fun _ => g) v P.t0.
+    Proof.
+      rewrite /foldr_aux2 /foldr_aux3.
+      elim: (M.elements _) => // [][]a b l IH /=.
+      by f_equal; apply: IH => x H2. 
+    Qed.
+
+    Definition foldr_aux4 T (g : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
+      List.fold_right
+        (fun p acc => g p.1 p.2 acc) t0
+        (M.elements m).
+
+    Lemma foldr_aux3_aux4
+          (g : P.t -> P.t -> P.t) :
+      foldr_aux3 (fun _ => g) v P.t0 = foldr_aux4 (fun _ => g) v P.t0.
+    Proof.
+      rewrite /foldr_aux3 /foldr_aux4.
+      move: (In_elements_find_Some).
+      elim: (M.elements v) => // [][]a b l IH H /=; rewrite IH.
+      { by rewrite /get (H (a,b)); last by constructor. }
+      by move => x H2; apply: H; right.
+    Qed.      
+
+    Definition foldr_aux5 T (g : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
+      List.fold_right
+        (fun p acc => g p.1 p.2 acc) t0
+        (List.rev (M.elements m)).
+
+    Lemma foldr_aux4_aux5
+          (g : P.t -> P.t -> P.t)
+          (gcom : forall t1 t2, g t1 t2 = g t2 t1)
+          (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3) :
+      foldr_aux4 (fun _ => g) v P.t0 = foldr_aux5 (fun _ => g) v P.t0.
+    Proof.
+      move: P.t0 => tx; rewrite /foldr_aux4/foldr_aux5.
+      move: (M.elements _) => l; elim: l tx => // a l IH tx /=.
+      rewrite fold_right_app /= -IH; clear - gcom gassoc. 
+      set (f := (fun _ => [eta g _])).
+      elim: l tx => // ax l /=; rewrite /f /= => IH tx.
+      rewrite -IH; set (y := fold_right _ _ _).
+      by rewrite 2!gassoc [g a.2 _]gcom.
+    Qed.
+
+    Lemma fold0_foldr
+          (Hsparse : sparse v)
+          (g : P.t -> P.t -> P.t)
+          (pf_g : forall t, g P.t0 t = t)           
+          (gcom : forall t1 t2, g t1 t2 = g t2 t1)
+          (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3) :
+      fold0 (fun _ => g) v P.t0 = foldr (fun _ => g) v P.t0.
+    Proof.
+      rewrite /fold0 M.fold_1 -fold_left_rev_right.
+      move: (foldr_aux4_aux5 gcom gassoc); rewrite /foldr_aux5 => <-.
+      rewrite -foldr_aux3_aux4 -foldr_aux2_aux3 -foldr_aux1_aux2 //.
+      rewrite foldr_foldr_aux1 //.
+    Qed.      
+
+    Lemma match_vecs_fold0 
+          (Hsparse : sparse v)
+          (g : P.t -> P.t -> P.t)
+          (pf_g : forall t, g P.t0 t = t)           
+          (gcom : forall t1 t2, g t1 t2 = g t2 t1)
+          (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3) :
+      let g' := fun i t => g (P.t_of_u (f i)) t in
+      fold0 (fun _ => g) v P.t0 =
+      List.fold_right g' P.t0 [seq (Ordinal_of_Ix ix) | ix <- enumerate Ix.t].
+    Proof. by rewrite fold0_foldr //; apply: match_vecs_foldr. Qed.
+    
     (* a single refinement lem for any would be better here... *)
 
     Lemma match_vecs_any_some g ix p :
@@ -238,39 +501,6 @@ Module Vector (B : BOUND) (P : PAYLOAD).
         by move => X; elimtype False; apply: pfx. }
       by [].
     Qed.      
-
-    Lemma filter_InA' A (l : list A) r g a
-      : InA r a (List.filter g l) -> InA r a l.
-    Proof.
-      elim: l => // ax l IH /=; case H2: (g ax).
-      { inversion 1; subst; first by constructor => //.
-        by apply: InA_cons_tl; apply: IH. }
-      by move => H3; apply: InA_cons_tl; apply: IH.
-    Qed.      
-
-    Lemma filtered_out A (l : list A) (r : A -> A -> Prop) g a
-          (H0 : forall a a' : A, r a a' -> g a = g a')
-      : InA r a l -> ~InA r a (List.filter g l) -> ~g a.
-    Proof.
-      elim: l => // ax l IH /=; case H2: (g ax).
-      { inversion 1; subst.
-        { by move => Hx Hy; apply: Hx; constructor. }
-        move => Hx; apply: IH => //.
-        by move => Hy; apply: Hx; apply: InA_cons_tl. }
-      move => Hx Hy Hz; inversion Hx; subst.
-      { by rewrite (H0 _ _ H1) H2 in Hz. }
-      by apply: IH.
-    Qed.
-    
-    Lemma filter_NoDupA A (l : list A) r g
-      : NoDupA r l -> NoDupA r (List.filter g l).
-    Proof.
-      elim: l => // a l IH; inversion 1; subst => /=; case Hg: (g a).
-      { constructor => //.
-        { move => H4; apply: H2; apply: filter_InA'; apply: H4. }
-        by apply: IH. }
-      by apply: IH.
-    Qed.
     
     Lemma of_list_of_list_INTERNAL (l : list (Ix.t * P.t)) i :
       NoDupA (M.eq_key (elt:=P.t)) l ->
@@ -407,21 +637,3 @@ Module DVector (B : BOUND) := Vector B DPayload.
 (* D-matrices *)
 
 Module DMatrix (B : BOUND) := Matrix B DPayload.
-
-
-
-
-    
-  
-      
-        
-        
-        
-      
-  
-
-  
-    
-  
-  
-  
