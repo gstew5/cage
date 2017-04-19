@@ -44,7 +44,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
   Definition nonzero (p : P.t) : bool := ~~(P.eq0 p).
 
   Definition sparse (m : t) := forall i y, M.find i m = Some y -> nonzero y.
-  
+
   (* operations *)
   Definition get (i : Ix.t) (m : t) : P.t :=
     match M.find i m with
@@ -97,8 +97,56 @@ Module Vector (B : BOUND) (P : PAYLOAD).
   (* construct a vector from function f *)
   Definition of_fun (f : Ix.t -> P.t) : t :=
     of_list (List.map (fun ix => (ix, f ix)) (enumerate Ix.t)).
+
+  (* SPARSITY PROOFS *)
+  Definition mk_sparse (m : t) : t := of_fun (fun ix => get ix m).
+
+  Lemma mk_sparse_sparse m : sparse (mk_sparse m).
+  Proof.
+    rewrite /mk_sparse /sparse /of_fun /of_list => i t.
+    rewrite /of_list_INTERNAL /MProps.of_list.
+    rewrite -MProps.F.find_mapsto_iff MProps.F.elements_mapsto_iff.
+    elim: (enumerate Ix.t) => //=.
+    { rewrite MProps.elements_empty; inversion 1. }
+    move => a l /= IH.
+    case H: (nonzero (get a m)) => //=.
+    rewrite /MProps.uncurry /= => H2.
+    move: H2; rewrite -MFacts.elements_mapsto_iff.
+    rewrite MProps.F.add_mapsto_iff; case.
+    { by case => H2 H3; rewrite H3 in H. }
+    case => H2; rewrite MFacts.elements_mapsto_iff => H3.
+    by apply: IH.
+  Qed.    
+
+  Lemma set_sparse m i t : sparse m -> sparse (set i t m).
+  Proof.
+    rewrite /sparse => H j k; rewrite /set; case: (P.eq0P t).
+    { move => H2.
+      case: (M.E.eq_dec i j) => H3.
+      { rewrite MProps.F.remove_eq_o => //. }
+      rewrite MProps.F.remove_neq_o => //; apply: H. }
+    move => H2; case: (M.E.eq_dec i j) => H3.
+    { rewrite MProps.F.add_eq_o => //; inversion 1; subst.
+      apply/negP => H4; apply: H2; case: (P.eq0P k) H4 => //. }
+    by rewrite MProps.F.add_neq_o => //; apply: H.
+  Qed.    
+
+  (* map0 is only sparse if (f t = P.t0 -> t = P.t0) *)
+  Lemma map0_sparse m f :
+    (forall t, f t = P.t0 -> t = P.t0) ->
+    sparse m ->
+    sparse (map0 f m).
+  Proof.
+    move => pf; rewrite /sparse /map0 => H i t; move: (H i t) => H' H2.
+    rewrite MFacts.map_o /option_map in H2; move: H' H2.
+    case: (M.find i m) => // a H' H2; inversion H2; subst; move {H2}.
+    move: (pf a); case: (P.eq0P (f a)).
+    { move => H3; move/(_ H3) => H4; subst a; elimtype False.
+      by rewrite H3 /nonzero /= in H'; move: (H' erefl); case: (P.eq0P P.t0). }
+    by move => H2 H3; apply/negP; move: H2; case: (P.eq0P (f a)).
+  Qed.    
   
-  (* the refinement relation *)
+  (* REFINEMENT PROOFS *)
   Definition ty := {ffun 'I_n -> P.u}. (* high-level vectors *)
 
   Definition upd i p (f : ty) : ty :=
@@ -553,7 +601,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     Qed.    
 
     Lemma match_vecs_of_fun (g : Ix.t -> P.t) :
-      let g' := [ffun i : 'I_n => P.u_of_t (g (Ix_of_Ordinal i))] in 
+      let: g' := [ffun i : 'I_n => P.u_of_t (g (Ix_of_Ordinal i))] in 
       match_vecs (of_fun g) g'.
     Proof.
       rewrite /of_fun; case: (Ix.enum_ok) => H Htot ix.
@@ -585,7 +633,11 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       rewrite /M.E.eq_dec; case: (findA _ _).
       { by move => a; case => H4 _; case: (H4 H5). }
       by case => H4 _; move: (H4 H5).
-    Qed.        
+    Qed.
+
+    Lemma match_vecs_mk_sparse :
+      match_vecs (mk_sparse v) [ffun i => P.u_of_t (get (Ix_of_Ordinal i) v)].
+    Proof. apply: (match_vecs_of_fun (fun ix => get ix v)). Qed.
   End refinement_lemmas.
 End Vector.  
 
