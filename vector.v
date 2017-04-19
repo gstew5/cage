@@ -129,7 +129,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     apply: proof_irrelevance.
   Qed.    
 
-  (* the actual representation invariant *)
+  (* the representation invariant *)
   Definition match_vecs (v : t) (f : ty) : Prop :=
     forall i : Ix.t, get i v = P.t_of_u (f (Ordinal_of_Ix i)).
 
@@ -359,6 +359,34 @@ Module Vector (B : BOUND) (P : PAYLOAD).
   End refinement_lemmas.
 End Vector.  
 
+(* two-dimensional vectors *)
+
+Module Matrix (B : BOUND) (P : PAYLOAD) <: PAYLOAD.
+  Module Vec := Vector B P.
+  Definition t := Vec.t.                    
+  Definition t0 : t := Vec.M.empty _.
+  Definition eq0 (d : t) := Vec.M.is_empty d.
+  Lemma eq0P d : reflect (d=t0) (eq0 d).
+  Proof.
+    rewrite /eq0 /Vec.M.is_empty /Vec.M.Raw.is_empty /t0.
+    case: d => x y /=; move: y; case: x => y; constructor => //.
+    case H: Vec.M.empty => [z w]; inversion H; subst.
+    f_equal; apply: proof_irrelevance.
+  Qed.    
+  Definition u := {m : t & {f : Vec.ty & Vec.match_vecs m f}}.
+  Program Definition u_of_t (m : t) : u :=
+    existT _ m _.
+  Next Obligation.
+    set (f := [ffun i : 'I_B.n =>
+               P.u_of_t (Vec.get (Vec.Ix_of_Ordinal i) m)] : Vec.ty).
+    refine (existT _ f _).
+    by move => i; rewrite /f ffunE Vec.Ix_of_Ordinal_Ix P.t_of_u_t.
+  Qed.
+  Definition t_of_u (f : u) : t := projT1 f.
+  Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
+  Proof. by []. Qed.
+End Matrix.
+
 (* one-dimensional D-vectors *)
 
 Module DPayload <: PAYLOAD.
@@ -376,34 +404,9 @@ End DPayload.
 
 Module DVector (B : BOUND) := Vector B DPayload.
 
-(* two-dimensional D-vectors 
-   (TODO: generalize this construction to arbitray input payloads) *)
+(* D-matrices *)
 
-Module DDPayload (B : BOUND) <: PAYLOAD.
-  Module DVec := DVector B.
-  Definition t := DVec.t.                    
-  Definition t0 : t := DVec.M.empty _.
-  Definition eq0 (d : t) := DVec.M.is_empty d.
-  Lemma eq0P d : reflect (d=t0) (eq0 d).
-  Proof.
-    rewrite /eq0 /DVec.M.is_empty /DVec.M.Raw.is_empty /t0.
-    case: d => x y /=; move: y; case: x => y; constructor => //.
-    case H: DVec.M.empty => [z w]; inversion H; subst.
-    f_equal; apply: proof_irrelevance.
-  Qed.    
-  Definition u := {m : t & {f : DVec.ty & DVec.match_vecs m f}}.
-  Program Definition u_of_t (m : t) : u :=
-    existT _ m _.
-  Next Obligation.
-    set (f := [ffun i : 'I_B.n =>
-               D_to_dyadic_rat (DVec.get (DVec.Ix_of_Ordinal i) m)] : DVec.ty).
-    refine (existT _ f _).
-    by move => i; rewrite /f /DPayload.t_of_u ffunE DVec.Ix_of_Ordinal_Ix.
-  Qed.
-  Definition t_of_u (f : u) : t := projT1 f.
-  Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
-  Proof. by []. Qed.
-End DDPayload.
+Module DMatrix (B : BOUND) := Matrix B DPayload.
 
 
 
