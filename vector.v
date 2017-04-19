@@ -684,7 +684,21 @@ Module DPayload <: PAYLOAD.
   Proof. by []. Qed.
 End DPayload.  
 
-Module DVector (B : BOUND) := Vector B DPayload.
+Definition Dabs (d : D) : D :=
+  (if Dlt_bool d D0 then -d else d)%D.
+
+Module DVector (B : BOUND).
+  Module Vec := Vector B DPayload.
+
+  Definition dot_product (v1 v2 : Vec.t) : D :=
+    Vec.fold0 (fun ix d acc => (acc + (d * Vec.get ix v2))%D) v1 0%D.
+  
+  Definition linf_norm (v : Vec.t) : D :=
+    Vec.fold0
+      (fun _ d acc => if Dlt_bool acc (Dabs d) then Dabs d else acc)
+      v
+      0%D.
+End DVector.    
 
 (* D-matrices *)
 
