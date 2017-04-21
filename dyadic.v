@@ -789,3 +789,392 @@ Proof.
     rewrite <-D_to_Q0; apply Dlub_nonneg; auto. }
   apply Dlub_mult_le1.
 Qed.
+
+Fixpoint Dred' (n : Z) (d : nat) : (Z * nat) :=
+  match d with
+  | O => (n,d)
+  | S d' => if Zeven_dec n then Dred' (Z.div2 n) d'
+            else (n,d)
+  end.
+
+Lemma Dred'P n d : Zodd (fst (Dred' n d)) \/ (snd (Dred' n d) = 0%nat).
+Proof.
+  revert n; induction d; auto.
+  intros n; simpl; destruct (Zeven_dec n).
+  { apply (IHd (Z.div2 n)). }
+  left; simpl.
+  destruct (Zodd_dec n); auto.
+  destruct (Zeven_odd_dec n); auto.
+  elimtype False; apply n0; auto.
+Qed.  
+
+Definition D_of_Dred' (p : Z*nat) : D :=
+  let (x,y) := p in Dmake x (Pos.of_nat (S y)).
+
+Definition Dred (d : D) : D := 
+  D_of_Dred' (Dred' (num d) (pred (Pos.to_nat (den d)))).
+
+Lemma DredP d : Zodd (num (Dred d)) \/ (den (Dred d) = 1%positive).
+Proof.
+  unfold Dred; destruct d as [x y]; simpl.
+  destruct (Dred'P x (pred (Pos.to_nat y))).
+  { unfold D_of_Dred'.
+    destruct (Dred' _ _); auto. }
+  destruct (Dred' _ _); right; simpl in *.
+  rewrite H; auto.
+Qed.  
+
+Lemma D_of_Dred'_correct x y :
+  D_to_Q (D_of_Dred' (Dred' x y)) == D_to_Q (D_of_Dred' (x,y)).
+Proof.
+  revert x; induction y.
+  { intros x; apply Qeq_refl. }
+  intros x.
+  unfold Dred'; fold Dred'.
+  destruct (Zeven_dec x) as [pf|pf].
+  { rewrite IHy.
+    unfold D_to_Q; simpl.
+    unfold Qeq; simpl.
+    pattern x at 2.
+    rewrite (Zeven_div2 x pf).
+    rewrite 2!shift_pos_correct, 2!Zmult_1_r.
+    rewrite 2!Zpower_pos_nat.
+    rewrite Pos2Nat.inj_succ.
+    rewrite Zpower_nat_succ_r.
+    rewrite Zmult_assoc.
+    pattern (Z.div2 x * 2)%Z; rewrite Zmult_comm; auto. }
+  apply Qeq_refl.
+Qed.  
+
+Lemma Dred_correct d : D_to_Q (Dred d) == D_to_Q d.
+Proof.
+  unfold Dred.
+  destruct d as [x y] eqn:Heq.
+  simpl.
+  rewrite D_of_Dred'_correct.
+  unfold D_of_Dred'.
+  rewrite <-Pos.of_nat_succ.
+  generalize (Pos2Nat.is_pos y).
+  destruct (Pos.to_nat y) eqn:Heq'; try omega.
+  intros _; simpl.
+  rewrite (SuccNat2Pos.inv n y); auto.
+  apply Qeq_refl.
+Qed.  
+
+Lemma gcd_2_odd_1 x : Zodd x -> Z.gcd x 2 = 1%Z.
+Proof.
+  generalize (Z.gcd_divide_r x 2).
+  intros H.
+  generalize (Znumtheory.Zdivide_bounds _ _ H).
+  generalize (Z.gcd_nonneg x 2); intros H2 H3 H4.
+  assert (H5: (Z.abs (Z.gcd x 2) <= Z.abs 2)%Z).
+  { apply H3; inversion 1. }
+  destruct (Z.abs_eq_iff (Z.gcd x 2)) as [_ Y].
+  rewrite (Y H2) in H5. clear Y.
+  simpl in H5.
+  clear - H2 H4 H5.
+  assert (H6: (Z.gcd x 2 = 0 \/ Z.gcd x 2 = 1 \/ Z.gcd x 2 = 2)%Z).
+  { omega. }
+  clear H2 H5.
+  destruct H6.
+  { apply Z.gcd_eq_0_l in H; subst x.
+    inversion H4. }
+  destruct H; auto.
+  generalize (Z.gcd_divide_l x 2); rewrite H.
+  intros H2; apply Znumtheory.Zdivide_mod in H2.
+  rewrite Zmod_odd in H2.
+  rewrite <-Zodd_bool_iff in H4; rewrite H4 in H2; inversion H2.
+Qed.  
+
+Lemma gcd_2_even_2 x : Zeven x -> Z.gcd x 2 = 2%Z.
+Proof.
+  generalize (Z.gcd_divide_r x 2).
+  intros H.
+  generalize (Znumtheory.Zdivide_bounds _ _ H).
+  generalize (Z.gcd_nonneg x 2); intros H2 H3 H4.
+  assert (H5: (Z.abs (Z.gcd x 2) <= Z.abs 2)%Z).
+  { apply H3; inversion 1. }
+  destruct (Z.abs_eq_iff (Z.gcd x 2)) as [_ Y].
+  rewrite (Y H2) in H5. clear Y.
+  simpl in H5.
+  clear - H2 H4 H5.
+  assert (H6: (Z.gcd x 2 = 0 \/ Z.gcd x 2 = 1 \/ Z.gcd x 2 = 2)%Z).
+  { omega. }
+  clear H2 H5.
+  destruct H6.
+  { apply Z.gcd_eq_0_l in H; subst x.
+    auto. }
+  destruct H; auto.
+  elimtype False.
+  rewrite Znumtheory.Zgcd_1_rel_prime in H.
+  destruct H. 
+  assert (H2: (2 | x)%Z).
+  { apply Znumtheory.Zmod_divide.
+    { inversion 1. }
+    rewrite Zmod_odd.
+    rewrite Zodd_even_bool.
+    rewrite <-Zeven_bool_iff in H4; rewrite H4.
+    auto. }
+  assert (H3: (2 | 2)%Z).
+  { exists 1%Z; auto. }
+  assert (Hcontra: (2 | 1)%Z).
+  { apply H1; auto. }
+  assert (2 <= 1)%Z.
+  { apply Z.divide_pos_le; auto.
+    omega. }
+  omega.
+Qed.    
+
+Lemma gcd_x_times2_1 x y : Zodd x -> Z.gcd x y = 1%Z -> Z.gcd x (2*y) = 1%Z.
+Proof.
+  intros Hodd H.
+  generalize (Znumtheory.Zgcd_is_gcd x y) as H2; intro.
+  apply Znumtheory.Zis_gcd_gcd; try omega.
+  inversion H2.
+  constructor; try apply Z.divide_1_l. 
+  intros w H4 H5.
+  rewrite H in H3.
+  apply Znumtheory.Gauss in H5; auto.
+  rewrite <-Znumtheory.Zgcd_1_rel_prime.
+  destruct (Zeven_odd_dec w).
+  { rewrite Zeven_ex_iff in z.
+    destruct z as [m H6].
+    rewrite H6 in H4.
+    clear - Hodd H4.
+    elimtype False.
+    destruct H4 as [y H4].
+    rewrite Zmult_assoc in H4.
+    rewrite (Zmult_comm y) in H4.
+    rewrite <-Zmult_assoc in H4.
+    assert (H5: Zeven x).
+    { rewrite H4.
+      apply Zeven_2p. }
+    apply Zodd_not_Zeven in Hodd; auto. }
+  apply gcd_2_odd_1; auto.
+Qed.  
+
+Lemma gcd_pow2_odd_1 x n : Zodd x -> Z.gcd x (Zpower_nat 2 n) = 1%Z.
+Proof.
+  induction n.
+  { simpl.
+    rewrite Z.gcd_1_r; auto. }
+  rewrite Zpower_nat_succ_r.
+  intros Hodd.
+  generalize (IHn Hodd).
+  intros H.
+  apply gcd_x_times2_1; auto.
+Qed.  
+
+Lemma Qred_odd_pow2 x n : Zodd x -> Qred (x # pow_pos 2 n) = x # (pow_pos 2 n).
+Proof.
+  unfold Qred.
+  generalize (Z.ggcd_gcd x ('pow_pos 2 n)).
+  generalize (Z.ggcd_correct_divisors x ('pow_pos 2 n)).
+  destruct (Z.ggcd x ('pow_pos 2 n)) as [a [b c]]; simpl.
+  intros [H0 H] H2 H3.
+  subst a.
+  assert (H2: Z.gcd x ('pow_pos 2 n) = 1%Z).
+  { rewrite pow_pos_Zpow_pos, Zpower_pos_nat.
+    apply gcd_pow2_odd_1; auto. }
+  rewrite H2, Zmult_1_l in H.
+  subst c.
+  rewrite H2, Zmult_1_l in H0.
+  subst b.
+  auto.
+Qed.  
+
+Lemma Qred_odd_2 x : Zodd x -> Qred (x # 2) = x # 2.
+Proof.
+  unfold Qred.
+  generalize (Z.ggcd_gcd x 2).
+  generalize (Z.ggcd_correct_divisors x 2).
+  destruct (Z.ggcd x 2) as [a [b c]]; simpl.
+  intros [H0 H] H2 H3.
+  subst a.
+  assert (H2: Z.gcd x 2 = 1%Z).
+  { apply gcd_2_odd_1; auto. }
+  rewrite H2, Zmult_1_l in H.
+  subst c.
+  rewrite H2, Zmult_1_l in H0.
+  subst b.
+  auto.
+Qed.  
+
+Lemma shift_pos_pow_pos n : shift_pos n 1 = pow_pos 2 n.
+Proof.
+  rewrite shift_pos_nat.
+  set (P := fun n => shift_nat (Pos.to_nat n) 1 = pow_pos 2 n).
+  change (P n).
+  apply Pos.peano_ind.
+  { unfold P; auto. }
+  intros p; unfold P; intros IH; simpl.
+  rewrite Pos2Nat.inj_succ; simpl; rewrite IH.
+  unfold pow_pos; simpl; auto.
+  rewrite Pos.iter_succ; auto.
+Qed.  
+
+Lemma pow_pos_2inj p q : pow_pos 2 p = pow_pos 2 q -> p = q.
+Proof.
+  rewrite <-!shift_pos_pow_pos.
+  unfold shift_pos.
+  rewrite !Pos2Nat.inj_iter; intros H.
+  apply Pos2Nat.inj.
+  revert H.
+  generalize (Pos.to_nat p) as n.
+  generalize (Pos.to_nat q) as m.
+  clear p q.
+  induction m.
+  { destruct n; auto. inversion 1. }
+  destruct n; simpl.
+  { inversion 1. }
+  inversion 1; subst; f_equal; apply IHm; auto.
+Qed.  
+
+Lemma Qred_even_2 x :
+  Zeven x -> 
+  Qred (x # 2) = Z.div2 x # 1.
+Proof.
+  unfold Qred.
+  generalize (Z.ggcd_gcd x 2).
+  generalize (Z.ggcd_correct_divisors x 2).
+  destruct (Z.ggcd x 2) as [a [b c]]; simpl.
+  intros [H0 H] H2 H3.
+  subst a.
+  assert (H2: Z.gcd x 2 = 2%Z).
+  { apply gcd_2_even_2; auto. }
+  rewrite H2 in H.
+  assert (H4: c = 1%Z).
+  { omega. }
+  subst c.
+  rewrite H2 in H0.
+  rewrite H0.
+  f_equal.
+  destruct b; auto.
+Qed.  
+
+Lemma Zdiv2_even_inj x y : Zeven x -> Zeven y -> Z.div2 x = Z.div2 y -> x=y.
+Proof.
+  intros H H1 H2.
+  destruct x; destruct y; simpl in H2; auto;
+  try destruct p; try destruct p0; inversion H2;
+  try inversion H; try inversion H1; auto.
+Qed.  
+
+Lemma Dred_complete d1 d2 :
+  D_to_Q d1 == D_to_Q d2 ->
+  Dred d1 = Dred d2.
+Proof.
+  generalize (Dred_correct d1). intros <-.
+  generalize (Dred_correct d2). intros <-.
+  intros H.
+  apply Qred_complete in H.
+  unfold D_to_Q in H|-*.
+  generalize H; clear H.
+  rewrite !shift_pos_pow_pos.
+  destruct (DredP d1).
+  (* Zodd (num (Dred d1)) *)
+  { destruct (DredP d2).
+    (* Zodd (num (Dred d2)) *)
+    { rewrite !Qred_odd_pow2; auto.
+      destruct (Dred d1); simpl.
+      destruct (Dred d2); simpl.
+      inversion 1; subst.
+      f_equal.
+      apply pow_pos_2inj; auto. }
+
+    (* den (Dred d2) = 1 *)    
+    rewrite H0.
+    rewrite Qred_odd_pow2; auto.
+    intros H2.
+    assert (Hpow : pow_pos 2 1 = 2%positive) by auto.
+    rewrite Hpow in H2.
+    destruct (Zeven_odd_dec (num (Dred d2))).
+    { assert (Qred (num (Dred d2) # 2) = Z.div2 (num (Dred d2)) # 1).
+      { rewrite Qred_even_2; auto. }
+      rewrite H1 in H2; clear H1.
+      inversion H2.
+      assert (1 < pow_pos 2 (den (Dred d1)))%positive.
+      { rewrite <-shift_pos_pow_pos.
+        rewrite shift_pos_nat.
+        destruct (Pos2Nat.is_succ (den (Dred d1))) as [x H1].
+        rewrite H1; simpl.
+        generalize (shift_nat x 1); intros p.
+        unfold Pos.lt, Pos.compare; simpl; auto. }
+      rewrite H4 in H1.
+      inversion H1. }
+    rewrite <-Hpow in H2.
+    rewrite Qred_odd_pow2 in H2; auto.
+    rewrite Hpow in H2.
+    inversion H2; subst.
+    revert H3 H4 H0.
+    destruct (Dred d1); simpl.
+    destruct (Dred d2); simpl.
+    intros -> Hx ->.
+    assert (Hy: pow_pos 2 1 = pow_pos 2 den0).
+    { rewrite Hx, Hpow; auto. }
+    f_equal.
+    apply pow_pos_2inj; auto. }
+
+  (* den (Dred d1) = 1 *)    
+  destruct (DredP d2).
+    (* Zodd (num (Dred d2)) *)
+    { rewrite H.
+      rewrite (Qred_odd_pow2 _ _ H0).
+      intros H2.
+      assert (Hpow : pow_pos 2 1 = 2%positive) by auto.
+      rewrite Hpow in H2.
+      destruct (Zeven_odd_dec (num (Dred d1))).
+      { assert (Qred (num (Dred d1) # 2) = Z.div2 (num (Dred d1)) # 1).
+        { rewrite Qred_even_2; auto. }
+        rewrite H1 in H2; clear H1.
+        inversion H2.
+        assert (1 < pow_pos 2 (den (Dred d2)))%positive.
+        { rewrite <-shift_pos_pow_pos.
+          rewrite shift_pos_nat.
+          destruct (Pos2Nat.is_succ (den (Dred d2))) as [x H1].
+          rewrite H1; simpl.
+          generalize (shift_nat x 1); intros p.
+          unfold Pos.lt, Pos.compare; simpl; auto. }
+        rewrite <-H4 in H1.
+        inversion H1. }
+      rewrite <-Hpow in H2.
+      rewrite Qred_odd_pow2 in H2; auto.
+      rewrite Hpow in H2.
+      inversion H2; subst.
+      revert H3 H4 H0.
+      destruct (Dred d2); simpl.
+      destruct (Dred d1); simpl.            
+      intros <- Hx Hodd.
+      simpl in H.
+      subst den1.
+      assert (Hy: pow_pos 2 1 = pow_pos 2 den0).
+      { rewrite <-Hx, Hpow; auto. }
+      f_equal.
+      apply pow_pos_2inj; auto. }
+
+    (* den (Dred d1) = 1 *)
+    rewrite H, H0.
+    assert (Hpow : pow_pos 2 1 = 2%positive) by auto.
+    rewrite Hpow.
+    destruct (Dred d1) as [num1 den1].
+    destruct (Dred d2) as [num2 den2].
+    destruct (Zeven_odd_dec num1); destruct (Zeven_odd_dec num2).
+    { rewrite !Qred_even_2; auto.
+      simpl.
+      inversion 1; subst.
+      apply Zdiv2_even_inj in H3; auto.
+      subst num1.
+      simpl in H0, H.
+      subst; auto. }
+    { rewrite Qred_even_2; auto.
+      rewrite Qred_odd_2; auto.
+      simpl.
+      inversion 1. }
+    { rewrite Qred_odd_2; auto.
+      rewrite Qred_even_2; auto.
+      simpl.
+      inversion 1. }
+    rewrite !Qred_odd_2; auto.
+    inversion 1; subst.
+    simpl in H0, H; subst; auto. 
+Qed.  
