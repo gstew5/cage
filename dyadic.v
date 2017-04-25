@@ -1177,4 +1177,223 @@ Proof.
     rewrite !Qred_odd_2; auto.
     inversion 1; subst.
     simpl in H0, H; subst; auto. 
+Qed.
+
+Lemma Dred'_idem x y :
+  Dred' (fst (Dred' x y)) (snd (Dred' x y)) = Dred' x y.
+Proof.
+  destruct (Dred'P x y).
+  { revert H.
+    generalize (Dred' x y).
+    destruct p.
+    simpl; intros H.
+    unfold Dred'.
+    destruct n; auto.
+    destruct (Zeven_dec z); auto.
+    apply Zodd_not_Zeven in H; contradiction. }
+  destruct (Dred' x y); simpl in H|-*; rewrite H; auto.
 Qed.  
+    
+Lemma Dred_idem d : Dred (Dred d) = Dred d.
+Proof.
+  unfold Dred.
+  destruct (Dred' _ _) eqn:H.
+  unfold D_of_Dred' in H.
+  assert (H2: (num
+           (let (x, y) :=
+              Dred' (num d) (Init.Nat.pred (Pos.to_nat (den d))) in
+            {| num := x; den := Pos.of_nat (S y) |})) =
+              fst (Dred' (num d) (Init.Nat.pred (Pos.to_nat (den d))))).
+  { destruct (Dred' _ _).
+    destruct (Dred' _ _); auto. }
+  rewrite H2 in H.
+  assert (H3: (Init.Nat.pred
+           (Pos.to_nat
+              (den
+                 (let (x, y) :=
+                    Dred' (num d) (Init.Nat.pred (Pos.to_nat (den d))) in
+                  {| num := x; den := Pos.of_nat (S y) |})))) =
+              snd (Dred' (num d) (Init.Nat.pred (Pos.to_nat (den d))))).
+  { destruct (Dred' _ _).
+    destruct (Dred' _ _); auto.
+    simpl.
+    destruct n1; auto.
+    rewrite Pos2Nat.inj_succ.
+    unfold Init.Nat.pred.
+    rewrite Nat2Pos.id; auto. }
+  rewrite H3 in H.
+  rewrite Dred'_idem in H.
+  rewrite H; auto.
+Qed.  
+
+Module DRed.
+  Record t : Type :=
+    mk { d :> D;
+         pf : Dred d = d }.
+
+  Program Definition add (d1 d2 : t) : t :=
+    mk (Dred (Dadd d1.(d) d2.(d))) _.
+  Next Obligation.
+    apply Dred_complete; rewrite Dred_correct; apply Qeq_refl.
+  Qed.
+
+  Program Definition sub (d1 d2 : t) : t :=
+    mk (Dred (Dsub d1.(d) d2.(d))) _.
+  Next Obligation.
+    apply Dred_complete; rewrite Dred_correct; apply Qeq_refl.    
+  Qed.
+
+  Program Definition mult (d1 d2 : t) : t := 
+    mk (Dred (Dmult d1.(d) d2.(d))) _.
+  Next Obligation.
+    apply Dred_complete; rewrite Dred_correct; apply Qeq_refl.        
+  Qed.
+
+  Program Definition opp (dx : t) : t := 
+    mk (Dred (Dopp dx.(d))) _.
+  Next Obligation.
+    apply Dred_complete; rewrite Dred_correct; apply Qeq_refl.            
+  Qed.
+
+  Program Definition lub (dx : t) : t := 
+    mk (Dred (Dlub dx.(d))) _.
+  Next Obligation.
+    apply Dred_complete; rewrite Dred_correct; apply Qeq_refl.            
+  Qed.
+
+  Lemma addP d1 d2 :
+    D_to_Q (d (add d1 d2)) == (D_to_Q (d d1) + D_to_Q (d d2))%Q.
+  Proof.
+    unfold add; simpl.
+    rewrite Dred_correct.
+    rewrite Dadd_ok; apply Qeq_refl.
+  Qed.    
+  
+  Lemma addC d1 d2 : add d1 d2 = add d2 d1.
+  Proof.
+    unfold add; simpl.
+    assert (H: Dred (d d1 + d d2) = Dred (d d2 + d d1)).
+    { apply Dred_complete.
+      rewrite 2!Dadd_ok.
+      apply Qplus_comm. }
+    generalize (add_obligation_1 d1 d2).
+    generalize (add_obligation_1 d2 d1).    
+    rewrite H.
+    intros pf pf'; f_equal; apply proof_irrelevance.
+  Qed.
+
+  Lemma addA d1 d2 d3 : add d1 (add d2 d3) = add (add d1 d2) d3.
+  Proof.
+    unfold add; simpl.
+    assert (H: Dred (d d1 + Dred (d d2 + d d3)) =
+               Dred (Dred (d d1 + d d2) + d d3)).
+    { apply Dred_complete.
+      rewrite !Dadd_ok.
+      rewrite !Dred_correct.
+      rewrite !Dadd_ok.      
+      apply Qplus_assoc. }
+    generalize (add_obligation_1 d2 d3).
+    generalize (add_obligation_1 d1 d2).
+    intros e e0.
+    generalize (add_obligation_1 d1 {|d:=_; pf:=e0|}).        
+    generalize (add_obligation_1 {|d:=Dred _; pf:=e|} d3).
+    revert e e0 H.
+    generalize (Dred (d d1 + d d2)).
+    generalize (Dred (d d2 + d d3)).
+    simpl.
+    intros.
+    revert e e0 e1 e2.
+    rewrite H.
+    intros.
+    f_equal; apply proof_irrelevance.
+  Qed.    
+
+  Lemma subP d1 d2 :
+    D_to_Q (d (sub d1 d2)) == (D_to_Q (d d1) - D_to_Q (d d2))%Q.
+  Proof.
+    unfold sub; simpl.
+    rewrite Dred_correct.
+    rewrite Dsub_ok; apply Qeq_refl.
+  Qed.
+
+  Lemma multP d1 d2 :
+    D_to_Q (d (mult d1 d2)) == (D_to_Q (d d1) * D_to_Q (d d2))%Q.
+  Proof.
+    unfold mult; simpl.
+    rewrite Dred_correct.
+    rewrite Dmult_ok; apply Qeq_refl.
+  Qed.    
+  
+  Lemma multC d1 d2 : mult d1 d2 = mult d2 d1.
+  Proof.
+    unfold mult; simpl.
+    assert (H: Dred (d d1 * d d2) = Dred (d d2 * d d1)).
+    { apply Dred_complete.
+      rewrite 2!Dmult_ok.
+      apply Qmult_comm. }
+    generalize (mult_obligation_1 d1 d2).
+    generalize (mult_obligation_1 d2 d1).    
+    rewrite H.
+    intros pf pf'; f_equal; apply proof_irrelevance.
+  Qed.
+
+  Lemma multA d1 d2 d3 : mult d1 (mult d2 d3) = mult (mult d1 d2) d3.
+  Proof.
+    unfold mult; simpl.
+    assert (H: Dred (d d1 * Dred (d d2 * d d3)) =
+               Dred (Dred (d d1 * d d2) * d d3)).
+    { apply Dred_complete.
+      rewrite !Dmult_ok.
+      rewrite !Dred_correct.
+      rewrite !Dmult_ok.      
+      apply Qmult_assoc. }
+    generalize (mult_obligation_1 d2 d3).
+    generalize (mult_obligation_1 d1 d2).
+    intros e e0.
+    generalize (mult_obligation_1 d1 {|d:=_; pf:=e0|}).        
+    generalize (mult_obligation_1 {|d:=Dred _; pf:=e|} d3).
+    revert e e0 H.
+    generalize (Dred (d d1 * d d2)).
+    generalize (Dred (d d2 * d d3)).
+    simpl.
+    intros.
+    revert e e0 e1 e2.
+    rewrite H.
+    intros.
+    f_equal; apply proof_irrelevance.
+  Qed.
+
+  Lemma oppP dx :
+    D_to_Q (d (opp dx)) == (- D_to_Q (d dx))%Q.
+  Proof.
+    unfold opp; simpl.
+    rewrite Dred_correct.
+    rewrite Dopp_ok; apply Qeq_refl.
+  Qed.
+
+  Lemma lubP (dx : t) :
+    0 <= dx -> 0 <= dx * lub dx /\ dx * lub dx <= 1.
+  Proof.
+    intros H.
+    generalize (Dlub_ok dx H); intros [H1 H2].
+    unfold lub, Dle in *; simpl.
+    rewrite Dmult_ok in *.
+    rewrite Dred_correct in *; auto.
+  Qed.
+
+  (* TODO: More lemmas here! *)
+End DRed.    
+
+  
+  
+
+
+
+  
+  
+  
+
+  
+  
+    
+                         
