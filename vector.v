@@ -672,32 +672,62 @@ End Matrix.
 (* one-dimensional D-vectors *)
 
 Module DPayload <: PAYLOAD.
-  Definition t := D.                    
-  Definition t0 := 0%D.
-  Definition eq0 d := if Deq_dec d D0 then true else false.
-  Lemma eq0P d : reflect (d=D0) (eq0 d).
-  Proof. by rewrite /eq0; case: (Deq_dec d D0) => a; constructor. Qed.
+  Definition t := DRed.t.   
+  Definition t0 := 0%DRed.
+  Definition eq0 (dx : t) :=
+    if Deq_dec dx.(DRed.d) 0 then true else false.
+  Lemma eq0P (dx : t) : reflect (dx=0%DRed) (eq0 dx).
+  Proof.
+    rewrite /eq0; case: (Deq_dec dx.(DRed.d) 0) => a; constructor.
+    { case: dx a => /= d pf H; subst d; unfold DRed.t0.
+      f_equal; apply: proof_irrelevance. }
+    by inversion 1; case: dx H H0 a => d pf; case => H /= _; subst d.
+  Qed.
   Definition u := dyadic_rat.
-  Definition u_of_t := D_to_dyadic_rat.
-  Definition t_of_u := dyadic_rat_to_D.
+  Definition u_of_t (dx : t) := D_to_dyadic_rat dx.(DRed.d).
+  Definition t_of_u (r : dyadic_rat) : t :=
+    DRed.mk (Dred (dyadic_rat_to_D r)) (Dred_idem _).
   Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
-  Proof. by []. Qed.
+  Proof.
+    unfold t_of_u, u_of_t.
+    intros [tx pf]; simpl.
+    generalize (projT2 (D_to_dyadic_rat tx)) as x; intro.
+    generalize (projT2 x) as y.    
+    generalize (projT1 x) as d; intro.
+    intros H.
+    assert (H2: Dred (D_to_dyadic_rat tx) = tx).
+    { pattern tx at 2.
+      rewrite <-pf.
+      apply Dred_complete.
+      assert (H3: dyadic_rat_to_D (D_to_dyadic_rat tx) = tx).
+      { unfold dyadic_rat_to_D, D_to_dyadic_rat.
+        destruct tx; simpl in *.
+        auto. }
+      rewrite H3; apply Qeq_refl. }
+    clear - H2.
+    generalize (Dred_idem (D_to_dyadic_rat tx)).
+    generalize pf.
+    revert H2; clear pf; intros -> pf e.
+    f_equal; apply proof_irrelevance.
+  Qed.    
 End DPayload.  
 
-Definition Dabs (d : D) : D :=
-  (if Dlt_bool d D0 then -d else d)%D.
+Definition Dabs (d : DRed.t) : DRed.t :=
+  (if Dlt_bool d.(DRed.d) D0 then -d else d)%DRed.
 
 Module DVector (B : BOUND).
   Module Vec := Vector B DPayload.
 
-  Definition dot_product (v1 v2 : Vec.t) : D :=
-    Vec.fold0 (fun ix d acc => (acc + (d * Vec.get ix v2))%D) v1 0%D.
+  Definition dot_product (v1 v2 : Vec.t) : DRed.t :=
+    Vec.fold0 (fun ix d acc => (acc + (d * Vec.get ix v2))%DRed) v1 0%DRed.
   
-  Definition linf_norm (v : Vec.t) : D :=
+  Definition linf_norm (v : Vec.t) : DRed.t :=
     Vec.fold0
-      (fun _ d acc => if Dlt_bool acc (Dabs d) then Dabs d else acc)
+      (fun _ d acc => if Dlt_bool acc.(DRed.d) (Dabs d).(DRed.d)
+                      then Dabs d
+                      else acc)
       v
-      0%D.
+      0%DRed.
 End DVector.    
 
 (* D-matrices *)
