@@ -1231,6 +1231,10 @@ Module DRed.
     mk { d :> D;
          pf : Dred d = d }.
 
+  Program Definition t0 := mk 0 _.
+
+  Program Definition t1 := mk 1 _.
+  
   Program Definition add (d1 d2 : t) : t :=
     mk (Dred (Dadd d1.(d) d2.(d))) _.
   Next Obligation.
@@ -1382,11 +1386,26 @@ Module DRed.
   Qed.
 
   (* TODO: More lemmas here! *)
-End DRed.    
+End DRed.      
 
-  
-  
+Delimit Scope DRed_scope with DRed.
+Bind Scope DRed_scope with DRed.t.
 
+(* notations repeated from D_scope *)
+Infix "<" := Dlt : DRed_scope.
+Infix "<=" := Dle : DRed_scope.
+Notation "x > y" := (Dlt y x)(only parsing) : DRed_scope.
+Notation "x >= y" := (Dle y x)(only parsing) : DRed_scope.
+Notation "x <= y <= z" := (x<=y/\y<=z) : DRed_scope.
+(* END *)
+
+Infix "+" := DRed.add : DRed_scope.
+Notation "- x" := (DRed.opp x) : DRed_scope.
+Infix "-" := DRed.sub : DRed_scope.
+Infix "*" := DRed.mult : DRed_scope.
+
+Notation "'0'" := DRed.t0 : DRed_scope.
+Notation "'1'" := DRed.t1 : DRed_scope.
 
 
   
