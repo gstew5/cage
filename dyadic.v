@@ -1265,6 +1265,14 @@ Module DRed.
     apply Dred_complete; rewrite Dred_correct; apply Qeq_refl.            
   Qed.
 
+  Lemma Dred_eq (d1 d2 : t) : (D_to_Q (d d1) == D_to_Q (d d2))%Q -> d1 = d2.
+  Proof.
+    destruct d1 as [x1 pf1]; destruct d2 as [x2 pf2]; simpl.
+    intros H; assert (H2: x1 = x2).
+    { rewrite <-pf1, <-pf2; apply Dred_complete; auto. }
+    generalize pf1 pf2; rewrite H2; intros; f_equal; apply proof_irrelevance.
+  Qed.    
+  
   Lemma addP d1 d2 :
     D_to_Q (d (add d1 d2)) == (D_to_Q (d d1) + D_to_Q (d d2))%Q.
   Proof.
@@ -1275,43 +1283,25 @@ Module DRed.
   
   Lemma addC d1 d2 : add d1 d2 = add d2 d1.
   Proof.
-    unfold add; simpl.
-    assert (H: Dred (d d1 + d d2) = Dred (d d2 + d d1)).
-    { apply Dred_complete.
-      rewrite 2!Dadd_ok.
-      apply Qplus_comm. }
-    generalize (add_obligation_1 d1 d2).
-    generalize (add_obligation_1 d2 d1).    
-    rewrite H.
-    intros pf pf'; f_equal; apply proof_irrelevance.
+    apply Dred_eq; simpl; rewrite 2!Dred_correct, 2!Dadd_ok.
+    apply Qplus_comm.
   Qed.
 
   Lemma addA d1 d2 d3 : add d1 (add d2 d3) = add (add d1 d2) d3.
   Proof.
-    unfold add; simpl.
-    assert (H: Dred (d d1 + Dred (d d2 + d d3)) =
-               Dred (Dred (d d1 + d d2) + d d3)).
-    { apply Dred_complete.
-      rewrite !Dadd_ok.
-      rewrite !Dred_correct.
-      rewrite !Dadd_ok.      
-      apply Qplus_assoc. }
-    generalize (add_obligation_1 d2 d3).
-    generalize (add_obligation_1 d1 d2).
-    intros e e0.
-    generalize (add_obligation_1 d1 {|d:=_; pf:=e0|}).        
-    generalize (add_obligation_1 {|d:=Dred _; pf:=e|} d3).
-    revert e e0 H.
-    generalize (Dred (d d1 + d d2)).
-    generalize (Dred (d d2 + d d3)).
-    simpl.
-    intros.
-    revert e e0 e1 e2.
-    rewrite H.
-    intros.
-    f_equal; apply proof_irrelevance.
+    apply Dred_eq; simpl.
+    rewrite !Dred_correct, !Dadd_ok, !Dred_correct, !Dadd_ok.
+    apply Qplus_assoc.
   Qed.    
 
+  Lemma add0l d : add t0 d = d.
+  Proof.
+    unfold t0; apply Dred_eq; unfold add.
+    generalize (add_obligation_1 {|d:=0;pf:=t0_obligation_1|} d).
+    unfold DRed.d; rewrite Dred_correct; intros e.
+    rewrite Dadd_ok, D_to_Q0, Qplus_0_l; apply Qeq_refl.
+  Qed.    
+        
   Lemma subP d1 d2 :
     D_to_Q (d (sub d1 d2)) == (D_to_Q (d d1) - D_to_Q (d d2))%Q.
   Proof.
@@ -1330,42 +1320,16 @@ Module DRed.
   
   Lemma multC d1 d2 : mult d1 d2 = mult d2 d1.
   Proof.
-    unfold mult; simpl.
-    assert (H: Dred (d d1 * d d2) = Dred (d d2 * d d1)).
-    { apply Dred_complete.
-      rewrite 2!Dmult_ok.
-      apply Qmult_comm. }
-    generalize (mult_obligation_1 d1 d2).
-    generalize (mult_obligation_1 d2 d1).    
-    rewrite H.
-    intros pf pf'; f_equal; apply proof_irrelevance.
+    apply Dred_eq; simpl; rewrite 2!Dred_correct, 2!Dmult_ok.
+    apply Qmult_comm.
   Qed.
 
   Lemma multA d1 d2 d3 : mult d1 (mult d2 d3) = mult (mult d1 d2) d3.
   Proof.
-    unfold mult; simpl.
-    assert (H: Dred (d d1 * Dred (d d2 * d d3)) =
-               Dred (Dred (d d1 * d d2) * d d3)).
-    { apply Dred_complete.
-      rewrite !Dmult_ok.
-      rewrite !Dred_correct.
-      rewrite !Dmult_ok.      
-      apply Qmult_assoc. }
-    generalize (mult_obligation_1 d2 d3).
-    generalize (mult_obligation_1 d1 d2).
-    intros e e0.
-    generalize (mult_obligation_1 d1 {|d:=_; pf:=e0|}).        
-    generalize (mult_obligation_1 {|d:=Dred _; pf:=e|} d3).
-    revert e e0 H.
-    generalize (Dred (d d1 * d d2)).
-    generalize (Dred (d d2 * d d3)).
-    simpl.
-    intros.
-    revert e e0 e1 e2.
-    rewrite H.
-    intros.
-    f_equal; apply proof_irrelevance.
-  Qed.
+    apply Dred_eq; simpl.
+    rewrite !Dred_correct, !Dmult_ok, !Dred_correct, !Dmult_ok.
+    apply Qmult_assoc.
+  Qed.    
 
   Lemma oppP dx :
     D_to_Q (d (opp dx)) == (- D_to_Q (d dx))%Q.
@@ -1387,6 +1351,8 @@ Module DRed.
 
   (* TODO: More lemmas here! *)
 End DRed.      
+
+Coercion DRed.d : DRed.t >-> D.
 
 Delimit Scope DRed_scope with DRed.
 Bind Scope DRed_scope with DRed.t.

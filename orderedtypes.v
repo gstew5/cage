@@ -683,6 +683,51 @@ Module MyOrdNatDep (B : BOUND) <: MyOrderedType.
   Instance cost_max (n : nat) : CCostMaxClass n t := 0%D.
 End MyOrdNatDep.  
 
+Lemma app_cons A (l1 l2 : list A) x y :
+  l1 ++ [:: x] = y :: l2 ->
+  (l1=nil /\ l2=nil /\ x=y) \/ 
+  exists l1',
+    [/\ l1 = y :: l1' 
+      & l2 = l1' ++ [:: x]].
+Proof.
+  elim: l1 l2 => //.
+  { by move => l2 /=; inversion 1; subst; left. }
+  move => a l1 /= IH l2; inversion 1; subst; right.
+  exists l1; split => //.
+Qed.
+
+Lemma rev_nil A (l : list A) : List.rev l = nil -> l=nil.
+Proof.
+  elim: l => // a l IH /= H.
+  by elimtype False; apply (app_cons_not_nil (List.rev l) nil a).
+Qed.    
+
+Lemma rev_cons' A (l1 l2 : list A) x :
+  List.rev l1 = x :: l2 ->
+  exists l1', [/\ l1=l1' ++ [:: x] & List.rev l1'=l2].
+Proof.                
+  elim: l1 l2 => // a l1' IH l2 /= H.
+  apply app_cons in H; case: H.
+  { case => H1 []H2 H3; subst.
+    exists nil; split => //=.
+    have ->: l1' = [::].
+    { clear - H1; elim: l1' H1 => //= a l IH H.
+      elim: (List.rev l) H => //. }
+    by []. }
+  case => l1'' [] H1 ->.
+  case: (IH _ H1) => lx [] H2 H3; subst.
+  exists (a::lx); split => //.
+Qed.
+
+Lemma map_inj A B (f : A -> B) (l1 l2 : list A) (H : injective f) :
+  List.map f l1 = List.map f l2 -> l1=l2.
+Proof.
+  elim: l1 l2; first by case.
+  move => a l1' IH; case => // b l2' /=; inversion 1; subst; f_equal.
+  { by apply: H. }
+  by apply: IH.
+Qed.
+  
 Module MyOrdNatDepProps (B : BOUND).
   Module M := MyOrdNatDep B. Include M.
 
@@ -702,6 +747,18 @@ Module MyOrdNatDepProps (B : BOUND).
     | S m' => m :: enumerate_rec_erased_nat m'
     end.
 
+  Lemma enumerate_rec_erased_nat_iota n :
+    List.rev (enumerate_rec_erased_nat n) = iota 0 (n.+1).
+  Proof.
+    elim: n => // n /= ->.
+    have ->: (0::iota 1 n = [::0]++iota 1 n)%nat by [].
+    rewrite -app_assoc /=; f_equal.
+    have ->: (n.+1 = n+1)%nat by rewrite addnC.
+    move: 1%nat => nx; elim: n nx => //= n IH nx; f_equal.
+    have ->: (n.+1 +nx = n + nx.+1)%nat by rewrite addSn.
+    apply: IH.
+  Qed.    
+  
   Lemma enumerate_rec_map_erased_nat m :
     map N.to_nat (enumerate_rec_erased m) = enumerate_rec_erased_nat m.
   Proof.
@@ -851,7 +908,7 @@ Module MyOrdNatDepProps (B : BOUND).
     symmetry in H.
     by apply: (enumerate_rec_total _ (gt0_pred_lt n pf) x H).
   Qed.    
-  
+
   Program Instance enum_ok : @Enum_ok t enumerable.
   Next Obligation.
     rewrite /enumerable_fun /enumerable.
@@ -860,6 +917,66 @@ Module MyOrdNatDepProps (B : BOUND).
   Next Obligation.
     rewrite /enumerable_fun /enumerable.
     apply: enumerate_t_total.    
+  Qed.
+
+  Definition Ordinal_of_t (x : t) :=
+    @Ordinal n (N.to_nat (val x)) (M.pf x).
+
+  Definition val_of_Ordinal (x : 'I_n) : N :=
+    match x with
+      Ordinal n _ => N.of_nat n
+    end.
+  
+  Lemma rev_enumerate_enum :
+    List.rev (List.map Ordinal_of_t enumerate_t) =
+    enum 'I_n.
+  Proof.
+    rewrite /enumerate_t; case: (lt_dec 0 n); last first.
+    { move => a; move: (leP a) => H; move: (ltP B.n_gt0) => Hx; omega. }
+    move => pf.
+    suff: (List.rev (map val (enumerate_rec n.-1 (gt0_pred_lt n pf))) =
+           List.map val_of_Ordinal (enum 'I_n)).
+    { move: (enumerate_rec _ _) => l1.
+      move: (enum 'I_n) => l2; elim: l1 l2; first by case.
+      move => a l1 /= IH l2 H2.
+      have [l2' H]:
+        exists l2',
+          map val_of_Ordinal l2 = map val_of_Ordinal l2' ++ [:: val a].
+      { clear - H2; move: H2; move: (rev _) => l1x.
+        elim: l2 l1x => //.
+        { move => l1x /=; case: l1x => //. }
+        move => ax l2x IH l1x /= H2; case: l1x H2.
+        { simpl; inversion 1; subst; exists nil => //. }
+        move => ay l1y /=; inversion 1; subst.
+        case: (IH _ H1) => ll H3; exists (ax :: ll); simpl.
+        by rewrite -H1 in H3; rewrite H3. }
+      rewrite H in H2; apply app_inj_tail in H2; case: H2 => H2 _.
+      rewrite (IH _ H2); clear - H; symmetry in H.
+      have H2:
+        map val_of_Ordinal l2' ++ [:: val a] =
+        map val_of_Ordinal (l2' ++ [:: Ordinal_of_t a]).
+      { by rewrite map_app /= N2Nat.id. }
+      rewrite H2 in H; clear H2.
+      apply: map_inj; last by apply: H.
+      move => x y; case: x => x pfx; case: y => y pfy; move/Nat2N.inj.
+      move => H2; subst; f_equal; apply: proof_irrelevance. }
+    rewrite enumerate_rec_map_erased.
+    suff:
+      rev (map N.to_nat (enumerate_rec_erased n.-1)) =
+      map N.to_nat (map val_of_Ordinal (enum 'I_n)).
+    { rewrite -map_rev; move/map_inj; apply; apply: N2Nat.inj. }
+    rewrite enumerate_rec_map_erased_nat.
+    rewrite enumerate_rec_erased_nat_iota.
+    have ->: (map N.to_nat (map val_of_Ordinal (enum 'I_n)) = iota 0 n).
+    { have ->:
+        map N.to_nat (map val_of_Ordinal (enum 'I_n)) =
+        map eqtype.val (enum 'I_n).
+      { elim: (enum 'I_n) => // a l /= IH; f_equal => //.
+        by case: a => // m i; rewrite /val_of_Ordinal Nat2N.id. }
+      rewrite -val_enum_ord //. }
+    have ->: (n.-1.+1 = n).
+    { move: (ltP pf) => Hx; omega. }
+    by [].
   Qed.    
 End MyOrdNatDepProps.       
   

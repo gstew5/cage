@@ -26,6 +26,31 @@ Module Type PAYLOAD.
   Parameter t_of_u_t : forall t, t_of_u (u_of_t t) = t.
 End PAYLOAD.  
 
+(* TODO: Move *)
+Lemma map_list_map A B (f : A -> B) l : List.map f l = map f l.
+Proof. by elim: l. Qed.
+
+Lemma Permutation_NoDup_map_inj A B (f : A -> B) (l l' : seq A) (H : injective f) :
+  NoDup l ->
+  NoDup l' -> 
+  Permutation (List.map f l) (List.map f l') ->
+  Permutation l l'.
+Proof.
+  move => H1 H2 H3; apply: NoDup_Permutation => //.
+  move => x; split => Hin.
+  { have Hin': In (f x) (List.map f l) by apply: in_map.
+    suff: In (f x) (List.map f l').
+    { by rewrite in_map_iff; case => xx; case; move/H => <-. }
+    apply: Permutation_in; first by apply: H3.
+    apply: Hin'. }
+  have Hin': In (f x) (List.map f l') by apply: in_map.
+  suff: In (f x) (List.map f l).
+  { by rewrite in_map_iff; case => xx; case; move/H => <-. }
+  apply: Permutation_in; first by apply: (Permutation_sym H3).
+  apply: Hin'.
+Qed.
+(* END TODO *)
+
 Module Vector (B : BOUND) (P : PAYLOAD).
   Module Ix := MyOrdNatDepProps B. (* the indices *)
   Module M := Make Ix.             (* sparse maps *)
@@ -57,9 +82,9 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     if P.eq0 p then M.remove i m
     else M.add i p m.
 
-  (* assumes f P.t0 = P.t0 *)
-  Definition map0 (f : P.t -> P.t) (m : t) : t :=
-    M.map f m.
+  (* assumes f i P.t0 = P.t0 *)
+  Definition map0 (f : Ix.t -> P.t -> P.t) (m : t) : t :=
+    M.mapi f m.
 
   (* assumes f i P.t0 t = t *)  
   Definition fold0 T (f : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
@@ -133,17 +158,20 @@ Module Vector (B : BOUND) (P : PAYLOAD).
 
   (* map0 is only sparse if (f t = P.t0 -> t = P.t0) *)
   Lemma map0_sparse m f :
-    (forall t, f t = P.t0 -> t = P.t0) ->
+    (forall i t, f i t = P.t0 -> t = P.t0) ->
     sparse m ->
     sparse (map0 f m).
   Proof.
     move => pf; rewrite /sparse /map0 => H i t; move: (H i t) => H' H2.
-    rewrite MFacts.map_o /option_map in H2; move: H' H2.
+    rewrite MFacts.mapi_o /option_map in H2; last first.
+    { move => x y e; rewrite /N.eq; case: x => x pfx; case: y => y pfy /= Hxy.
+      by subst x; have ->: pfx = pfy by apply: proof_irrelevance. }
+    move: H' H2.
     case: (M.find i m) => // a H' H2; inversion H2; subst; move {H2}.
-    move: (pf a); case: (P.eq0P (f a)).
+    move: (pf i a); case: (P.eq0P (f i a)).
     { move => H3; move/(_ H3) => H4; subst a; elimtype False.
       by rewrite H3 /nonzero /= in H'; move: (H' erefl); case: (P.eq0P P.t0). }
-    by move => H2 H3; apply/negP; move: H2; case: (P.eq0P (f a)).
+    by move => H2 H3; apply/negP; move: H2; case: (P.eq0P (f i a)).
   Qed.    
   
   (* REFINEMENT PROOFS *)
@@ -183,6 +211,22 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     apply: proof_irrelevance.
   Qed.    
 
+  Lemma rev_enumerate_enum :
+    List.rev (List.map Ordinal_of_Ix (enumerate Ix.t)) =
+    enum 'I_n.
+  Proof. apply: Ix.rev_enumerate_enum. Qed.
+
+  Lemma Perm_enumerate_enum :
+    Permutation
+      (List.map Ordinal_of_Ix (enumerate Ix.t))
+      (enum 'I_n).
+  Proof. 
+    apply: Permutation_trans.
+    apply: Permutation_rev.
+    rewrite rev_enumerate_enum.
+    apply: Permutation_refl.
+  Qed.    
+  
   (* the representation invariant *)
   Definition match_vecs (v : t) (f : ty) : Prop :=
     forall i : Ix.t, get i v = P.t_of_u (f (Ordinal_of_Ix i)).
@@ -230,15 +274,25 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       apply: pf.
     Qed.
 
-    Lemma match_vecs_map0 (g : P.t -> P.t) (pf_g : g P.t0 = P.t0) :
-      let g' := fun u => P.u_of_t (g (P.t_of_u u)) in
-      match_vecs (map0 g v) [ffun i : 'I_n => g' (f i)].
+    Lemma match_vecs_map0
+          (g : Ix.t -> P.t -> P.t)
+          (pf_g : forall i, g i P.t0 = P.t0) :
+      let g' := fun i u => P.u_of_t (g (Ix_of_Ordinal i) (P.t_of_u u)) in
+      match_vecs (map0 g v) [ffun i : 'I_n => g' i (f i)].
     Proof.
-      rewrite /map0 => j; rewrite ffunE /get MProps.F.map_o.
+      rewrite /map0 => j; rewrite ffunE /get MProps.F.mapi_o.
       case E: (M.find _ _) => /= [d|].
-      { by move: (pf j) => <-; f_equal; f_equal; rewrite /get E P.t_of_u_t. }
-      move: (pf j); rewrite /get E => H.
-      by rewrite P.t_of_u_t -H pf_g.
+      { move: (pf j) => <-; f_equal; f_equal; rewrite /get E P.t_of_u_t.
+        have ->: j = {| Ix.val := N.of_nat (N.to_nat (Ix.val j));
+                        Ix.pf := Ix_of_Ordinal_lem (x:=N.to_nat (Ix.val j)) (Ix.pf j)|}.
+        { clear E; case: j => j pfj /=; move: (Ix_of_Ordinal_lem _).
+          rewrite N2Nat.id => i; f_equal; apply: proof_irrelevance. }
+        simpl; f_equal; move: (Ix_of_Ordinal_lem _); rewrite N2Nat.id => pfj.
+        move: (Ix_of_Ordinal_lem _); move: pfj; rewrite N2Nat.id => x y.
+        f_equal; apply: proof_irrelevance. }
+      { move: (pf j); rewrite /get E => H; rewrite P.t_of_u_t -H pf_g //. }
+      case => ? pf1; case => ? pf2 e /=; rewrite /N.eq => Heq; move: pf1 pf2.
+      rewrite Heq => ??; f_equal; f_equal; apply: proof_irrelevance.      
     Qed.
 
     Lemma match_vecs_foldr
@@ -288,12 +342,42 @@ Module Vector (B : BOUND) (P : PAYLOAD).
           (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3)
           l1 l2 :
       Permutation l1 l2 ->
+      List.fold_right g P.t0 l1 = List.fold_right g P.t0 l2.
+    Proof.
+      elim => //; first by move => x l l' H /= ->.
+      { move => x y l /=; move: (fold_right _ _ _) => z.
+        by rewrite [g _ (g _ _)]gcom -[g (g _ _) _]gassoc [g z _]gcom. }
+      by move => l l' l'' H H2 H3 H4; rewrite H2 H4.
+    Qed.
+    
+    Lemma foldr_permute2
+          (g : P.t -> P.t -> P.t)
+          (gcom : forall t1 t2, g t1 t2 = g t2 t1)
+          (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3)
+          l1 l2 :
+      Permutation l1 l2 ->      
       let g' := (fun ix : Ix.t => [eta g (get ix v)]) in 
       List.fold_right g' P.t0 l1 = List.fold_right g' P.t0 l2.
     Proof.
       elim => //; first by move => x l l' H /= ->.
       { move => x y l /=; move: (fold_right _ _ _) => z.
         by rewrite [g (get _ _) (g _ _)]gcom -[g (g _ _) _]gassoc [g z _]gcom. }
+      by move => l l' l'' H H2 H3 H4 g'; rewrite H2 H4.
+    Qed.
+
+    Lemma foldr_permute3
+          (g : P.t -> P.t -> P.t)
+          (gcom : forall t1 t2, g t1 t2 = g t2 t1)
+          (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3)
+          l1 l2 :
+      Permutation l1 l2 ->
+      let g' := fun i t => g (P.t_of_u (f i)) t in      
+      List.fold_right (fun i : ordinal_finType n => [eta g (P.t_of_u (f i))]) P.t0 l1 =
+      List.fold_right g' P.t0 l2.
+    Proof.
+      elim => //; first by move => x l l' H /= ->.
+      { move => x y l /=; move: (fold_right _ _ _) => z.
+        by rewrite [g _ (g _ _)]gcom -[g (g _ _) _]gassoc [g z _]gcom. }
       by move => l l' l'' H H2 H3 H4 g'; rewrite H2 H4.
     Qed.
 
@@ -411,7 +495,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       move => H; split; first by case: Ix.enum_ok.
       by apply: In_elements_nonzero.
     Qed.
-      
+    
     Lemma foldr_aux1_aux2
           (Hsparse : sparse v)
           (g : P.t -> P.t -> P.t)
@@ -419,7 +503,8 @@ Module Vector (B : BOUND) (P : PAYLOAD).
           (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3) :
       foldr_aux1 (fun _ => g) v P.t0 = foldr_aux2 (fun _ => g) v P.t0.
     Proof.
-      rewrite /foldr_aux1/foldr_aux2; apply: foldr_permute => //.
+      rewrite /foldr_aux1/foldr_aux2.
+      apply: foldr_permute2 => //.
       by apply: Perm_elems_enum.
     Qed.      
 
@@ -487,7 +572,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       rewrite foldr_foldr_aux1 //.
     Qed.      
 
-    Lemma match_vecs_fold0 
+    Lemma match_vecs_fold0' 
           (Hsparse : sparse v)
           (g : P.t -> P.t -> P.t)
           (pf_g : forall t, g P.t0 t = t)           
@@ -497,6 +582,25 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       fold0 (fun _ => g) v P.t0 =
       List.fold_right g' P.t0 [seq (Ordinal_of_Ix ix) | ix <- enumerate Ix.t].
     Proof. by rewrite fold0_foldr //; apply: match_vecs_foldr. Qed.
+
+    Lemma match_vecs_fold0
+          (Hsparse : sparse v)
+          (g : P.t -> P.t -> P.t)
+          (pf_g : forall t, g P.t0 t = t)           
+          (gcom : forall t1 t2, g t1 t2 = g t2 t1)
+          (gassoc : forall t1 t2 t3, g t1 (g t2 t3) = g (g t1 t2) t3) :
+      let g' := fun i t => g (P.t_of_u (f i)) t in
+      fold0 (fun _ => g) v P.t0 =
+      List.fold_right g' P.t0 (enum 'I_n).
+    Proof.
+      rewrite match_vecs_fold0' // => g'.
+      have ->:
+        [seq Ordinal_of_Ix ix | ix <- enumerate Ix.t] =
+        List.map Ordinal_of_Ix (enumerate Ix.t).
+      { elim: (enumerate Ix.t) => //. }
+      apply: foldr_permute3 => //.
+      apply: Perm_enumerate_enum.
+    Qed.             
     
     (* a single refinement lem for any would be better here... *)
 
@@ -713,19 +817,40 @@ Module DPayload <: PAYLOAD.
 End DPayload.  
 
 Definition Dabs (d : DRed.t) : DRed.t :=
-  (if Dlt_bool d.(DRed.d) D0 then -d else d)%DRed.
+  (if Dlt_bool d D0 then -d else d)%DRed.
 
 Module DVector (B : BOUND).
   Module Vec := Vector B DPayload.
 
+  Definition sum1 (v : Vec.t) : DRed.t :=
+    Vec.fold0 (fun ix d acc => (d + acc)%DRed) v 0%DRed.
+  
+  Lemma sum1_sum v f :
+    Vec.sparse v ->
+    Vec.match_vecs v f ->
+    Qeq (D_to_Q (sum1 v))
+        (rat_to_Q (\sum_(i : 'I_B.n) projT1 (f i))).
+  Proof.
+    move => Hsparse H; rewrite /sum1.
+    rewrite (Vec.match_vecs_fold0 (f := f)) => //.
+    { rewrite -filter_index_enum; elim: (index_enum _).
+      { rewrite big_nil //. }
+      move => a l; rewrite big_cons /= => IH.
+      rewrite rat_to_Q_plus !Dred_correct Dadd_ok IH.
+      have ->: Qeq (D_to_Q (Dred (dyadic_rat_to_D (f a)))) (rat_to_Q (projT1 (f a))).
+      { by rewrite Dred_correct dyadic_rat_to_Q. }
+      by []. }
+    { by move => t; rewrite /DPayload.t0 DRed.add0l. }
+    { move => t1 t2; apply: DRed.addC. }
+    move => t1 t2 t3; apply: DRed.addA.
+  Qed.
+  
   Definition dot_product (v1 v2 : Vec.t) : DRed.t :=
-    Vec.fold0 (fun ix d acc => (acc + (d * Vec.get ix v2))%DRed) v1 0%DRed.
+    sum1 (Vec.map0 (fun ix d1 => (d1 * Vec.get ix v2)%DRed) v1). 
   
   Definition linf_norm (v : Vec.t) : DRed.t :=
     Vec.fold0
-      (fun _ d acc => if Dlt_bool acc.(DRed.d) (Dabs d).(DRed.d)
-                      then Dabs d
-                      else acc)
+      (fun _ d (acc : DRed.t) => if Dlt_bool acc (Dabs d) then Dabs d else acc)
       v
       0%DRed.
 End DVector.    
