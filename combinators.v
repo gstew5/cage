@@ -1060,6 +1060,13 @@ End ScalarType.
 Class ScalarClass (rty : realFieldType)
   : Type := scalar_val : rty.
 
+Class DyadicScalarClass 
+  : Type := dyadic_scalar_val : dyadic_rat.
+
+Instance DyadicScalarInstance `(DyadicScalarClass)
+  : ScalarClass [realFieldType of rat] :=
+  dyadic_scalar_val.  
+
 Class ScalarAxiomClass (rty : realFieldType)
       `(ScalarClass rty)
   : Type := scalar_axiom : 0 < scalar_val.

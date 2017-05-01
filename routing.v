@@ -280,6 +280,7 @@ Module P8Scalar <: OrderedScalarType.
     D_to_dyadic_rat
       (Dlub
          (@ccostmax_fun num_players P8.t (P8.cost_max num_players))).
+  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
 End P8Scalar.
 
 Module P8Scaled <: MyOrderedType := OrderedScalar P8Scalar.

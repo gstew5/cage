@@ -248,20 +248,28 @@ Instance BoolableT n : Boolable (T n) :=
 Instance EqT n : Eq (T n) :=
   match n with 
   | O => _
-  | 1 => _
-  | 2 => _
-  | 3 => _
+  | 1 => R10.eq'
+  | 2 => R10.eq'
+  | 3 => R'.eq'
   | _ => _
   end.
 
-Instance EqDecT n : @Eq_Dec _ (@EqT n) :=
-match n with
-  | O => _
-  | 1 => _
-  | 2 => _
-  | 3 => _
+Program Instance EqDecT n : @Eq_Dec _ (@EqT n) :=
+  match n with
+  | O => UnitEqDec
+  | 1 => R10.eq_dec'
+  | 2 => R10.eq_dec'
+  | 3 => R'.eq_dec'
   | _ => _
   end.
+Next Obligation.
+  do 4 (destruct n; simpl;
+  try solve[apply UnitEqDec|apply R10.eq_dec'|apply R'.eq_dec']).
+Qed.
+Next Obligation.
+  destruct H2; split; auto.
+  destruct H2; split; auto.
+Qed.  
 
 Existing Instances R'.boolableUnit R10.boolableUnit.
 Instance BoolableUnitT n : BoolableUnit (@BoolableT n) :=
@@ -284,6 +292,7 @@ Module P3Scalar <: OrderedScalarType.
   Definition scal :=
     D_to_dyadic_rat
       (Dlub (@ccostmax_fun num_players P3.t (P3.cost_max num_players))).
+  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.  
 End P3Scalar.
 
 Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
@@ -313,6 +322,13 @@ Module P <: OrderedPredType.
   Proof. by vm_compute. Qed.
 End P.
 Module P3Scaled' <: MyOrderedType := OrderedSigma P.
+
+(* (*Typeclass regressions for P3Scaled'*)
+Definition t :=  P3Scaled'.t. 
+Variable s : {ffun 'I_10 -> t}.
+Variable i : 'I_10.
+Typeclasses eauto := debug.
+Check (cost i s : rat).*)
 
 Module Conf : CONFIG.
   Module A := P3Scaled'.                

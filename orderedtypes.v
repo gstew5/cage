@@ -360,8 +360,10 @@ Module SimplifyBoolablePredType (A : BoolableOrderedPredType) <: OrderedPredType
 End SimplifyBoolablePredType.
 
 Module OrderedSigma (T : OrderedPredType) <: MyOrderedType.
-  Definition t := {x : T.t | T.pred x}%type.
-  Definition t0 := exist T.pred T.a0 T.a0_pred.
+  Definition pred_instance : PredClass T.t := T.pred.
+
+  Definition t := {x : T.t | @the_pred _ pred_instance x}%type.
+  Definition t0 := exist the_pred T.a0 T.a0_pred.
 
   Definition enumerable  : Enumerable t := _.
   Definition cost_instance : forall N, CCostClass N t := _.
@@ -415,9 +417,11 @@ Module BoolableOrderedSigma (T : BoolableOrderedPredType) <: BoolableMyOrderedTy
   Include SimplSigma.
   Definition boolable : Boolable t := _.
   Definition boolableUnit: BoolableUnit boolable := _.
-  Definition eq' : Eq t := _.
-  Definition eq_refl' : Eq_Refl eq' := _.
-  Definition eq_dec' : Eq_Dec eq' := _.
+  Definition eq' : Eq t := eqSigma (A:=SimplPred.t) SimplPred.eq' (P:=SimplPred.pred).
+  Definition eq_refl' : Eq_Refl eq' :=
+    eqSigmaRefl SimplPred.t SimplPred.eq' SimplPred.eq_refl' SimplPred.pred.
+  Definition eq_dec' : Eq_Dec eq' :=
+    eqSigmaDec SimplPred.t SimplPred.eq' SimplPred.eq_dec' SimplPred.pred.
 End BoolableOrderedSigma.
 
 Module Type OrderedPredFinType.
@@ -448,10 +452,11 @@ Module OrderedFinSigma (X : OrderedPredFinType) <: OrderedFinType.
 End OrderedFinSigma.
 
 
-  (* Scalar Games *)
+(* Scalar Games *)
 Module Type OrderedScalarType.
   Include MyOrderedType.
   Parameter scal : dyadic_rat.
+  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
 End OrderedScalarType.
 
 Module Type BoolableOrderedScalarType.
@@ -468,14 +473,14 @@ Module SimplifyBoolableScalarType (A: BoolableOrderedScalarType) <: OrderedScala
 End SimplifyBoolableScalarType.
                       
 Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
-  Definition t := scalar (projT1 T.scal) T.t.
-  Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) T.scal) T.t0.
+  Definition t := scalar scalar_val T.t.
+  Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) scalar_val) T.t0.
   Definition enumerable : Enumerable t :=
-    scalarEnumerableInstance T.enumerable (projT1 T.scal).
+    scalarEnumerableInstance _ T.enumerable scalar_val.
   Definition cost_instance (N : nat) :=
-    scalarCCostInstance T.enumerable (T.cost_instance N) (q:=T.scal).
+    scalarCCostInstance T.enumerable (T.cost_instance N) (H1:=T.scal_DyadicScalarInstance).
   Definition cost_max (N : nat) :=
-    scalarCCostMaxInstance (T.cost_max N) T.scal.
+    scalarCCostMaxInstance (T.cost_max N) dyadic_scalar_val.
   Definition show_scalar (x : t) : string :=
     append "Scalar" (to_string (unwrap x)).
   Instance showable : Showable t := mkShowable show_scalar.
@@ -578,18 +583,21 @@ Module ScalarType_of_OrderedAffineType (A : BoolableOrderedAffineType)
   <: BoolableOrderedScalarType.
   Include A.
   Definition scal := A.scalar.
+  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
 End ScalarType_of_OrderedAffineType.
 
 Module OffsetType_of_OrderedAffineType (A : BoolableOrderedAffineType)
   <: BoolableOrderedScalarType.
     Include A.
     Definition scal := A.bias.
+    Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.    
 End OffsetType_of_OrderedAffineType.
 
 Module BiasType_of_OffsetType (A : BoolableOrderedScalarType)
   <: BoolableOrderedScalarType.
   Include BoolableOrderedSingleton A.
   Definition scal := A.scal.
+  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.  
 End BiasType_of_OffsetType.
 
 (* Given a BoolableOrderedAffineType, toss everything together to build
@@ -980,4 +988,3 @@ Module MyOrdNatDepProps (B : BOUND).
   Qed.    
 End MyOrdNatDepProps.       
   
-                       

@@ -132,6 +132,7 @@ Module RAffine3Scalar <: OrderedScalarType.
       (Dlub
          (@ccostmax_fun num_players' RAffine3.t
                         (RAffine3.cost_max num_players'))).
+  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.  
 End RAffine3Scalar.
 
 (** Normalized game *)

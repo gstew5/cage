@@ -1096,15 +1096,15 @@ End prodCGameTest. End ProdCGameTest.
  *******************************************)
 
 Instance scalarEnumerableInstance
-         (A : Type) (rty : realFieldType)
+         (A : Type)
          `(Enumerable A)
-         (q : rty)
-  : Enumerable (scalar q A) := map (@Wrap (Scalar q) A) (enumerate A).
+         `(ScalarClass)
+  : Enumerable (scalar scalar_val A) := 
+    map (@Wrap (Scalar scalar_val) A) (enumerate A).
 
 Definition unwrapScalarTree
-           A (rty : realFieldType)
-           (q : rty) : M.t (scalar q A) -> M.t A :=
-  fun m : (M.t (scalar q A)) =>
+           A `(ScalarClass) : M.t (scalar scalar_val A) -> M.t A :=
+  fun m : (M.t (scalar scalar_val A)) =>
     M.fold (fun i r acc =>
               M.add i (unwrap r) acc)
       m (M.empty A).    
@@ -1113,23 +1113,23 @@ Global Instance scalarCCostInstance
          N (A : Type)
          `(Enumerable A)
          `(CCostClass N A)
-         (q : DRat)
-  : CCostClass N (scalar (projT1 q) A)
+         `(DyadicScalarClass)
+  : CCostClass N (scalar scalar_val A)
   :=
-    fun (i : OrdNat.t) (m : M.t (@scalar _ (projT1 q) A)) =>
-      (q * ccost i (unwrapScalarTree m))%D.
+    fun (i : OrdNat.t) (m : M.t (@scalar _ scalar_val A)) =>
+      (dyadic_scalar_val * ccost i (unwrapScalarTree m))%D.
 
 Instance scalarCCostMaxInstance
          N (A : Type)
          `(cmax : CCostMaxClass N A)
-         (q : DRat)
-  : @CCostMaxClass N (scalar (projT1 q) A) := (q * cmax)%D.
+         `(DyadicScalarClass)
+  : @CCostMaxClass N (scalar scalar_val A) := (dyadic_scalar_val * cmax)%D.
 
 Section scalarCompilable.
-  Context {A N} {q : DRat} `{cgame N A}.
+  Context {A N} `{Hdyadic: DyadicScalarClass} `{cgame N A}.
 
   Global Program Instance scalarRefineTypeAxiomInstance
-    : @RefineTypeAxiomClass (scalarType (projT1 q) A) _.
+    : @RefineTypeAxiomClass (scalarType scalar_val A) _.
   Next Obligation.
     clear H1 H2 refineCostAxiomClass H0 refineCostClass ccostClass
           costAxiomClass costMaxAxiomClass costClass.
@@ -1147,9 +1147,9 @@ Section scalarCompilable.
     case_eq (in_mem
                r (mem
                   (enum_mem
-                     (T:=scalarType (rty:=rat_realFieldType) (projT1 q) A)
+                     (T:=scalarType (rty:=rat_realFieldType) scalar_val A)
                      (mem (sort_of_simpl_pred (pred_of_argType
-              (Wrapper (Scalar (rty:=rat_realFieldType) (projT1 q)) A)))))))
+              (Wrapper (Scalar (rty:=rat_realFieldType) scalar_val) A)))))))
       => H3; rewrite H3.
     {
       move: H3.
@@ -1169,9 +1169,9 @@ Section scalarCompilable.
   Qed.
 
   Global Instance scalarRefineTypeInstance
-    : @RefineTypeClass (scalarType (projT1 q) A)  _ _.
+    : @RefineTypeClass (scalarType scalar_val A)  _ _.
 
-  Lemma unwrapScalarTree_spec i (t : scalarType (projT1 q) A) m:
+  Lemma unwrapScalarTree_spec i (t : scalarType scalar_val A) m:
     M.find i m = Some t ->
     M.find i (unwrapScalarTree m) = Some (unwrap t).
   Proof.
@@ -1204,8 +1204,8 @@ Section scalarCompilable.
 
   Global Program Instance scalarRefineCostAxiomInstance
     : @RefineCostAxiomClass
-        N (scalarType (projT1 q) A)
-        (@scalarCostInstance _ _ _ costClass (projT1 q))
+        N (scalarType scalar_val A)
+        (@scalarCostInstance _ _ _ costClass scalar_val)
         _. 
   Next Obligation.
     clear H H0 H1 H2
@@ -1215,13 +1215,13 @@ Section scalarCompilable.
     rewrite [rat_to_Q (_ * _)] rat_to_Q_red.
     rewrite -rat_to_Q_red /scalar_val.
     rewrite rat_to_Q_mul Dmult_ok.
-    move: (Qeq_dec (rat_to_Q q) 0%Q).
+    generalize (Qeq_dec (rat_to_Q (projT1 dyadic_scalar_val)) 0%Q).
     case => H0.
     { rewrite H0 !Qmult_0_l => //.
-      have ->: (D_to_Q q == 0)%Q.
+      have ->: (D_to_Q dyadic_scalar_val == 0)%Q.
       { by rewrite dyadic_rat_to_Q H0. }
       by rewrite Qmult_0_l. }
-    have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
+    have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
     { apply: dyadic_rat_to_Q. }
     apply Qmult_inj_l => //.
     move: refineCostAxiomClass; clear refineCostAxiomClass.
@@ -1236,42 +1236,43 @@ Section scalarCompilable.
   Qed.
 
   Global Instance scalarRefineCostInstance
-    : @RefineCostClass N (scalarType (projT1 q) A)
+    : @RefineCostClass N (scalarType scalar_val A)
         (@scalarCostInstance N _ A costClass _) _ _.
 
   Global Instance scalarRefineCostMaxInstance
-         `(scalarAxiomInstance : @ScalarAxiomClass _ (projT1 q))
+         `(scalarAxiomInstance : @ScalarAxiomClass _ scalar_val)
     : @RefineCostMaxClass
-        N (scalarType (projT1 q) A)
-        (scalarCostMaxInstance costMaxClass q)
-        (scalarCCostMaxInstance ccostMaxClass q).
+        N (scalarType scalar_val A)
+        (scalarCostMaxInstance costMaxClass scalar_val)
+        (scalarCCostMaxInstance ccostMaxClass dyadic_scalar_val).
   Proof.
     rewrite /RefineCostMaxClass /scalarCostMaxInstance /scalarCCostMaxInstance.
     rewrite rat_to_Q_mul Dmult_ok.
     rewrite /scalar_val.
-    have ->: (rat_to_Q q == D_to_Q q)%Q.
+    have ->: (rat_to_Q (projT1 dyadic_scalar_val) == D_to_Q dyadic_scalar_val)%Q.
     { by rewrite dyadic_rat_to_Q. }
     apply Qmult_le_l => //.
     have H3 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
     rewrite -H3.
-    have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
+    have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
     { by apply: dyadic_rat_to_Q. }
     apply lt_rat_to_Q => //.
   Qed.
 
   Global Instance scalar_cgame
-         `{scalarA : @ScalarAxiomClass rat_realFieldType q}
+         `{scalarA : @ScalarAxiomClass _ scalar_val}
     : @cgame
-        N (scalarType (projT1 q) A)
+        N (scalarType scalar_val A)
         _ _ _ _ _ _ _ _ _ _ _ _
         (scalarGameInstance _ _ _ _ _).
 End scalarCompilable.
 
 Module ScalarCGameTest. Section scalarCGameTest.
-  Context {A : finType} {N : nat} `{cgame N A} {q : DRat}
-          `{scalarA : @ScalarAxiomClass rat_realFieldType q}.
+  Context {A : finType} {N : nat} `{cgame N A}
+          `{Hdyad: DyadicScalarClass}
+          `{scalarA : @ScalarAxiomClass _ scalar_val}.
   Variable i' : OrdNat.t.
-  Variable t' : M.t (@scalarType rat_realFieldType q A).
+  Variable t' : M.t (@scalarType rat_realFieldType scalar_val A).
   Check ccost_fun (N:=N) i' t'.
 End scalarCGameTest. End ScalarCGameTest.
 
@@ -1477,14 +1478,21 @@ Section unitCompilable.
   Global Instance unit_cgame : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _.
 End unitCompilable.
 
+(***************************
+ Affine Games are compilable 
+ ***************************)
+
 Section affineCompilable.
-  Context {A N} {q1 q2 : DRat} `{cgame N A}
+  Context {A N}
+          `{scalA : DyadicScalarClass}
+          `{scalB : DyadicScalarClass}
+          `{cgame N A}
           `{Boolable A}
           (eqA : Eq A) (eqDecA : Eq_Dec eqA).
 
   Definition affine_preType :=
-    ((@scalarType rat_realFieldType q1 A) *
-    (@scalarType rat_realFieldType q2 (singletonType A)))%type.
+    ((@scalarType rat_realFieldType (@dyadic_scalar_val scalA) A) *
+    (@scalarType rat_realFieldType (@dyadic_scalar_val scalB) (singletonType A)))%type.
 
   Global Instance affineTypePredInstance :
     PredClass (affine_preType) := affinePredInstance eqDecA.

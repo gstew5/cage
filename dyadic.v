@@ -1231,6 +1231,8 @@ Module DRed.
     mk { d :> D;
          pf : Dred d = d }.
 
+  Definition build (d : D) : t := @mk (Dred d) (Dred_idem d).
+  
   Program Definition t0 := mk 0 _.
 
   Program Definition t1 := mk 1 _.
