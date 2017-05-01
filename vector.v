@@ -118,6 +118,9 @@ Module Vector (B : BOUND) (P : PAYLOAD).
      s.t. p = P.t0, thus maintaining the [SPARSITY_INVARIANT] *)
   Definition of_list (l : list (Ix.t * P.t)) : t :=
     of_list_INTERNAL (List.filter (fun p : (Ix.t*P.t) => nonzero p.2) l).
+
+  Definition to_list (m : t) : list (Ix.t * P.t) :=
+    M.elements m.
   
   (* construct a vector from function f *)
   Definition of_fun (f : Ix.t -> P.t) : t :=
@@ -704,6 +707,18 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       by apply: match_vecs_of_list_INTERNAL.
     Qed.    
 
+    Lemma match_vecs_to_list :
+      [/\ NoDupA (M.eq_key (elt:=P.t)) (to_list v)
+        & forall p,
+          InA (M.eq_key_elt (elt:=P.t)) p (to_list v) ->
+          p.2 = P.t_of_u (f (Ordinal_of_Ix p.1))].
+    Proof.
+      split; first by apply: M.elements_3w.
+      case => i x; rewrite /to_list /= => H. 
+      apply M.elements_2 in H; move: H; rewrite MProps.F.find_mapsto_iff => H.
+      by move: (pf i); rewrite /get H.
+    Qed.
+    
     Lemma match_vecs_of_fun (g : Ix.t -> P.t) :
       let: g' := [ffun i : 'I_n => P.u_of_t (g (Ix_of_Ordinal i))] in 
       match_vecs (of_fun g) g'.
@@ -747,7 +762,7 @@ End Vector.
 
 (* two-dimensional vectors *)
 
-Module Matrix (B : BOUND) (P : PAYLOAD) <: PAYLOAD.
+Module MatrixPayload (B : BOUND) (P : PAYLOAD) <: PAYLOAD.
   Module Vec := Vector B P.
   Definition t := Vec.t.                    
   Definition t0 : t := Vec.M.empty _.
@@ -771,7 +786,36 @@ Module Matrix (B : BOUND) (P : PAYLOAD) <: PAYLOAD.
   Definition t_of_u (f : u) : t := projT1 f.
   Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
   Proof. by []. Qed.
-End Matrix.
+End MatrixPayload.
+
+Module ConstraintMatrixPayload (B : BOUND) (P : PAYLOAD) <: PAYLOAD.
+  Module Vec := Vector B P.
+  Definition label := bool.
+  Definition t : Type := (Vec.t * label).
+  Definition t0 : t := (Vec.M.empty _, false).
+  Definition eq0 (d : t) := Vec.M.is_empty (fst d) && negb (snd d).
+  Lemma eq0P d : reflect (d=t0) (eq0 d).
+  Proof.
+    rewrite /eq0 /Vec.M.is_empty /Vec.M.Raw.is_empty /t0.
+    case: d => d; case.
+    { case: d => x y /=; move: y; case: x => y; constructor => //. }
+    case: d => x y /=; move: y; case: x => y; constructor => //.     
+    case H: Vec.M.empty => [z w]; inversion H; subst.
+    f_equal; f_equal; apply: proof_irrelevance.
+  Qed.    
+  Definition u := {m : t & {f : Vec.ty & Vec.match_vecs (fst m) f}}.
+  Program Definition u_of_t (m : t) : u :=
+    existT _ m _.
+  Next Obligation.
+    set (f := [ffun i : 'I_B.n =>
+               P.u_of_t (Vec.get (Vec.Ix_of_Ordinal i) m.1)] : Vec.ty).
+    refine (existT _ f _).
+    by move => i; rewrite /f ffunE Vec.Ix_of_Ordinal_Ix P.t_of_u_t.
+  Qed.
+  Definition t_of_u (f : u) : t := projT1 f.
+  Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
+  Proof. by []. Qed.
+End ConstraintMatrixPayload.
 
 (* one-dimensional D-vectors *)
 
@@ -855,6 +899,38 @@ Module DVector (B : BOUND).
       0%DRed.
 End DVector.    
 
-(* D-matrices *)
+(* D-constraint matrices (TODO: refactor general constructions above) *)
 
-Module DMatrix (B : BOUND) := Matrix B DPayload.
+Module DConstraintMatrixPayload (B : BOUND) <: PAYLOAD.
+  Module DVec := DVector B. Include DVec.
+  Definition label := bool.
+  Definition t : Type := (Vec.t * label).
+  Definition t0 : t := (Vec.M.empty _, false).
+  Definition eq0 (d : t) := Vec.M.is_empty (fst d) && negb (snd d).
+  Lemma eq0P d : reflect (d=t0) (eq0 d).
+  Proof.
+    rewrite /eq0 /Vec.M.is_empty /Vec.M.Raw.is_empty /t0.
+    case: d => d; case.
+    { case: d => x y /=; move: y; case: x => y; constructor => //. }
+    case: d => x y /=; move: y; case: x => y; constructor => //.     
+    case H: Vec.M.empty => [z w]; inversion H; subst.
+    f_equal; f_equal; apply: proof_irrelevance.
+  Qed.    
+  Definition u := {m : t & {f : Vec.ty & Vec.match_vecs (fst m) f}}.
+  Program Definition u_of_t (m : t) : u :=
+    existT _ m _.
+  Next Obligation.
+    set (f := [ffun i : 'I_B.n =>
+               DPayload.u_of_t (Vec.get (Vec.Ix_of_Ordinal i) m.1)] : Vec.ty).
+    refine (existT _ f _).
+    by move => i; rewrite /f ffunE Vec.Ix_of_Ordinal_Ix DPayload.t_of_u_t.
+  Qed.
+  Definition t_of_u (f : u) : t := projT1 f.
+  Lemma t_of_u_t : forall t0 : t, t_of_u (u_of_t t0) = t0.
+  Proof. by []. Qed.
+End DConstraintMatrixPayload.
+
+Module DConstraintMatrix (NumFeatures : BOUND) (NumConstraints : BOUND).
+  Module Constraint := DConstraintMatrixPayload NumFeatures. Include Constraint.
+  Module CMatrix := Vector NumConstraints Constraint.
+End DConstraintMatrix.  
