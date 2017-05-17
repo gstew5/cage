@@ -17,50 +17,56 @@ Require Import extrema dist games dynamics potential.
 
 Local Open Scope ring_scope.
 
-Class LambdaClass (lT : finType) (rty : realFieldType)
+Class LambdaClass (lT : Type) (rty : realFieldType)
   : Type := lambda_val : rty.
 Notation "'lambda' 'of' T" := (@lambda_val T _ _) (at level 30).
 
-Instance finCloneLambdaInstance lT rty `(H : LambdaClass lT rty) :
+Instance finCloneLambdaInstance (lT : finType) rty `(H : LambdaClass lT rty) :
   @LambdaClass [finType of lT] rty :=
   @lambda_val _ _ H.
 
-Class LambdaAxiomClass (lT : finType) (rty : realFieldType)
+Class LambdaAxiomClass (lT : Type) (rty : realFieldType)
       `(LambdaClass lT rty)
   : Type := lambda_axiom : 0 <= lambda of lT.
 
-Class MuClass (mT : finType) (rty : realFieldType) 
+Class MuClass (mT : Type) (rty : realFieldType) 
   : Type := mu_val : rty.
 Notation "'mu' 'of' T" := (@mu_val T _ _) (at level 30).
 
-Instance finCloneMuInstance lT rty `(H : MuClass lT rty) :
+Instance finCloneMuInstance (lT : finType) rty `(H : MuClass lT rty) :
   @MuClass [finType of lT] rty :=
   @mu_val _ _ H.
 
-Class MuAxiomClass (mT : finType) (rty : realFieldType)
+Class MuAxiomClass (mT : Type) (rty : realFieldType)
       `(MuClass mT rty)
   : Type := mu_axiom : 0 <= mu of mT < 1.
 
 Class SmoothnessAxiomClass (sT : finType) (sN : nat) (rty : realFieldType)
-      (costClass : CostClass sN rty sT)
-      (costAxiomInstance : CostAxiomClass costClass)
-      (costMaxClass : CostMaxClass sN rty sT)
-      (costMaxAxiomClass : CostMaxAxiomClass costClass costMaxClass)
-      (gameInstance : game costAxiomInstance costMaxAxiomClass)
+      `(costClass : CostClass sN rty sT)
+      `(costAxiomInstance : @CostAxiomClass sN rty sT costClass)
+      `(costMaxClass : CostMaxClass sN rty sT)
+      `(costMaxAxiomClass : @CostMaxAxiomClass sN rty sT costClass costMaxClass)
+      (*`(gameInstance : @game sT sN rty _ costAxiomInstance _ costMaxAxiomClass)*)
       `(lambdaAxiomInstance : LambdaAxiomClass sT rty)
       `(muAxiomInstance : MuAxiomClass sT rty) : Type :=
   SmoothnessAxiom :
     forall t t' : (sT ^ sN)%type,
       \sum_(i : 'I_sN) cost i (upd i t t') <=
       lambda of sT * Cost t' + mu of sT * Cost t.
-Notation "'smooth_ax'" := (@SmoothnessAxiom _ _ _ _ _ _ _ _).
+Notation "'smoothness_axiom'" := (@SmoothnessAxiom _ _ _).
 
 Class smooth (T : finType) (N : nat) (rty : realFieldType)
-      `(gameInstance : game T N rty)
+      (*`(gameInstance : game T N rty)*)
+      `(costClass : CostClass N rty T)
+      `(costAxiomInstance : @CostAxiomClass N rty T costClass)
+      `(costMaxClass : CostMaxClass N rty T)
+      `(costMaxAxiomClass : @CostMaxAxiomClass N rty T costClass costMaxClass)
       `(lambdaAxiomInstance : LambdaAxiomClass T rty)
       `(muAxiomInstance : MuAxiomClass T rty)
-      (smoothnessAxiomInstance :
-         SmoothnessAxiomClass gameInstance lambdaAxiomInstance muAxiomInstance)
+      `(smoothnessAxiomInstance :
+          @SmoothnessAxiomClass
+            T N rty _ _ _ _
+            _ lambdaAxiomInstance _ muAxiomInstance)
   : Type := {}.
 
 
@@ -196,10 +202,11 @@ Instance negative_cost_smooth_of_payoff_smooth
 (** End Payoff smooth -> negative cost smooth *)
 (**********************************************)
 
-Section SmoothLemmas.
-  Context {T : finType}.
-  Context `{smoothClass : smooth T}.
-
+Section LambdaMuLemmas.
+  Context {T : Type}.
+  Context `{lambdaAxiomInstance : LambdaAxiomClass T}.
+  Context `{muAxiomInstance : MuAxiomClass T}.
+  
   Lemma lambda_pos : 0 <= lambda of T.
   Proof. apply: lambda_axiom. Qed.
 
@@ -208,6 +215,11 @@ Section SmoothLemmas.
   
   Lemma mu_lt1 : mu of T < 1.
   Proof. by case: (andP (@mu_axiom _ _ _ muAxiomInstance)). Qed.
+End LambdaMuLemmas.
+
+Section SmoothLemmas.
+  Context {T : finType}.
+  Context `{smoothClass : smooth T}.
   
   Lemma smooth_PNE_aux (t t' : (T ^ N)%type) :
     PNE t ->
@@ -218,7 +230,7 @@ Section SmoothLemmas.
     { rewrite /Cost; apply: ler_sum=> /= i _; rewrite /PNE in Hpne.
       by apply: (Hpne _ (upd i t t')).
     }
-    by apply: ler_trans; [apply: H2|]; apply: smooth_ax.
+    by apply: ler_trans; [apply: H2|]; apply: smoothness_axiom.
   Qed.
 
   Lemma smooth_PNE (t t' : (T ^ N)%type) :
@@ -261,7 +273,7 @@ Section SmoothLemmas.
       have H3: \sum_t d t * (\sum_(i < N) cost i ((upd i t) t'))
             <= expectedValue d (fun t => lambda of T * Cost t' + mu of T * Cost t).
       { apply: ler_sum=> t _.
-        case Hgt0: (0 < d t); first by apply: ler_mull=> //; apply: smooth_ax.
+        case Hgt0: (0 < d t); first by apply: ler_mull=> //; apply: smoothness_axiom.
         have H3: d t = 0.
         { move: (dist_positive d t)=> Hpos; rewrite ltr_def in Hgt0.
           move: Hgt0; rewrite Hpos andbC /=; case Heq: (d t == 0)=> //= _.

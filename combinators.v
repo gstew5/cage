@@ -188,8 +188,7 @@ Next Obligation.
 Qed.
 
 Instance resourceCostMaxInstance (N : nat)
-  : CostMaxClass N rat_realFieldType [finType of resource] :=
-  N%:R.
+  : CostMaxClass N rat_realFieldType resource := N%:R.
 
 Program Instance resourceCostMaxAxiomInstance (N : nat)
   : CostMaxAxiomClass (@resourceCostInstance N)
@@ -210,16 +209,16 @@ Instance resourceGame (N : nat) : @game [finType of resource] N _ _ _ _
  ******************************************)
 
 Instance resourceLambdaInstance 
-  : @LambdaClass [finType of resource] rat_realFieldType| 0 := 5%:R/3%:R.
+  : @LambdaClass resource rat_realFieldType| 0 := 5%:R/3%:R.
 
 Program Instance resourceLambdaAxiomInstance
-  : @LambdaAxiomClass [finType of resource] rat_realFieldType _.
+  : @LambdaAxiomClass resource rat_realFieldType _.
 
 Instance resourceMuInstance
-  : MuClass [finType of resource] rat_realFieldType | 0 := 1%:R/3%:R.
+  : MuClass resource rat_realFieldType | 0 := 1%:R/3%:R.
 
 Instance resourceMuAxiomInstance
-  : @MuAxiomClass [finType of resource] rat_realFieldType _.
+  : @MuAxiomClass resource rat_realFieldType _.
 Proof. by []. Qed.
 
 Lemma Cost_traffic_sq N t:
@@ -358,8 +357,8 @@ Qed.
 
 Lemma resourceSmoothnessAxiom N (t t' : (resource ^ N)%type) :
   \sum_(i : 'I_N) cost i (upd i t t') <=
-  lambda of [finType of resource] * Cost t' +
-  mu of [finType of resource] * Cost t.
+  lambda of resource * Cost t' +
+  mu of resource * Cost t.
 Proof.
   rewrite /Cost.
   rewrite /lambda_val /resourceLambdaInstance.
@@ -376,11 +375,11 @@ Qed.
 
 Program Instance resourceSmoothAxiomInstance N
   : @SmoothnessAxiomClass [finType of resource] N rat_realFieldType _ _ _
-                          (resourceCostMaxAxiomInstance _) _ _ _ _ _.
+                          (resourceCostMaxAxiomInstance _) _ _ _ _.
 Next Obligation. by apply: resourceSmoothnessAxiom. Qed.
 Instance resourceSmoothInstance N
   : @smooth [finType of resource] N rat_realFieldType _ _ _
-            (resourceCostMaxAxiomInstance _) _ _ _ _ _ _.
+            (resourceCostMaxAxiomInstance _) _ _ _ _ _.
 
 (******************************************
   Resource Games are Boolable
@@ -409,6 +408,7 @@ Instance eqReflResource : Eq_Refl eqResource.
 Proof.
   rewrite /Eq_Refl /eqResource. move => x //.
 Qed.
+
 (******************************************
   Singleton Games A : Boolable, 
   c_i s =  if (boolify s_i) then 1 else 0
@@ -485,7 +485,7 @@ Next Obligation.
 Qed.
 
 Instance singletonCostMaxInstance (N : nat) (A : finType)
-  : CostMaxClass N rat_realFieldType A :=
+  : CostMaxClass N rat_realFieldType (singleton A) :=
   1.
 
 Program Instance singletonCostMaxAxiomInstance
@@ -513,20 +513,20 @@ Module SingletonGameTest. Section singletonGameTest.
   Check cost i t.
 End singletonGameTest. End SingletonGameTest.
 
-Instance singletonLambdaInstance (A : finType)
-  : @LambdaClass (singletonType A) rat_realFieldType| 0 := 5%:R/3%:R.
+Instance singletonLambdaInstance (A : Type)
+  : @LambdaClass (singleton A) rat_realFieldType| 0 := 5%:R/3%:R.
 
 Program Instance singletonLambdaAxiomInstance
-        (A : finType)
-  : @LambdaAxiomClass (singletonType A) _ _.
+        (A : Type)
+  : @LambdaAxiomClass (singleton A) _ _.
 
 Instance singletonMuInstance
-         (A : finType)
-  : @MuClass (singletonType A) rat_realFieldType| 0 := 1%:R/3%:R.
+         (A : Type)
+  : @MuClass (singleton A) rat_realFieldType| 0 := 1%:R/3%:R.
 
 Instance singletonMuAxiomInstance
-        (A : finType)
-  : @MuAxiomClass (singletonType A) _ _.
+        (A : Type)
+  : @MuAxiomClass (singleton A) _ _.
 Proof. by []. Qed.
 
 Program Instance singletonSmoothAxiomInstance
@@ -534,7 +534,7 @@ Program Instance singletonSmoothAxiomInstance
          `{boolableA : Boolable A}
   : @SmoothnessAxiomClass (singletonType A) N _ (singletonCostInstance _)
                           (singletonCostAxiomInstance _ _ _)
-                          _ (singletonCostMaxAxiomInstance _ _ _) _
+                          _ (singletonCostMaxAxiomInstance _ _ _) 
                           _ (singletonLambdaAxiomInstance A)
                           _ (singletonMuAxiomInstance A).
 Next Obligation.
@@ -549,15 +549,15 @@ Next Obligation.
   rewrite -[\sum_i (if boolify (t' i) then 1 else 0)]addr0; apply: ler_add.
   rewrite addr0; apply: ler_pemull=> //.
   apply: sumr_ge0 => // i _; case: (boolify _) => //; apply: ler01.
-  apply: mulr_ge0; first by apply: mu_pos.
-  by apply: sumr_ge0 => // i _; case: (boolify _) => //; apply: ler01.
+  apply: mulr_ge0; first by apply: (mu_pos (T:=singleton A)).
+  apply: sumr_ge0 => // i _; case: (boolify _) => //; apply: ler01.
 Qed.  
 
 Instance singletonSmoothInstance {A : finType} {N}
          `{boolableA : Boolable A}
   : @smooth (singletonType A) N _ _ _ _
             (singletonCostMaxAxiomInstance _ _ _)
-            _ _ _ _ _ _.
+            _ _ _ _ _.
 
 Module SingletonSmoothTest. Section singletonSmoothTest.
   Context {A : finType} {N : nat} `{Boolable A}.
@@ -637,21 +637,24 @@ Program Instance  sigmaCostAxiomInstance
     apply: cost_axiom.
   Qed.
 
-Instance sigmaCostMaxInstance (N : nat) (rty : realFieldType) (A : finType)
+Instance sigmaCostMaxInstance (N : nat) (rty : realFieldType) (A : Type)
          (predInstance : PredClass A)
          (costMaxInstance : CostMaxClass N rty A)
-  : CostMaxClass N rty [finType of {x : A | the_pred x}] :=
+  : CostMaxClass N rty {x : A | the_pred x} :=
   costmax_fun.
 
 Program Instance sigmaCostMaxAxiomInstance
         (N : nat) (rty : realFieldType) (A : finType)
-        (predInstance : PredClass A)
+        `(predInstance : PredClass A)
         `(costA : CostClass N rty A)
-        (costMaxInstance : CostMaxClass N rty A)
-        (costMaxAxiomInstance : @CostMaxAxiomClass N rty A _ _)
-  : CostMaxAxiomClass (@sigmaCostInstance N rty A _ _)
-                      (sigmaCostMaxInstance _ _).
-Next Obligation. by apply costMaxAxiomInstance. Qed.
+        `(costMaxInstance : CostMaxClass N rty A)
+        `(costMaxAxiomInstance : @CostMaxAxiomClass N rty A costA costMaxInstance)
+  : CostMaxAxiomClass (@sigmaCostInstance N rty A predInstance costA)
+                      (sigmaCostMaxInstance predInstance costMaxInstance) := _.
+Next Obligation.
+  move => x s; rewrite /(cost) /sigmaCostInstance.
+  apply: costMaxAxiom_fun.
+Qed.  
 
 Instance sigmaGameInstance
          (N : nat) (rty : realFieldType) (A : finType)
@@ -666,18 +669,40 @@ Module SigmaGameTest. Section sigmaGameTest.
 End sigmaGameTest. End SigmaGameTest.
 
 Instance sigmaLambdaInstance
-         (rty : realFieldType) (A : finType)
+         (rty : realFieldType) (A : Type)
          `(lambdaA : LambdaClass A rty)
          (predInstance : PredClass A)
-  : @LambdaClass [finType of {x : A | the_pred x}] rty | 0 :=
+  : @LambdaClass {x : A | the_pred x} rty | 0 :=
   lambda of A.
 
+Program Instance sigmaLambdaAxiomInstance
+        (rty : realFieldType) (A : Type)
+        `(lambdaA : LambdaClass A rty)
+        `(lambdaAxiomA : @LambdaAxiomClass A rty lambdaA)
+        `(predInstance : PredClass A)        
+  : @LambdaAxiomClass
+      {x : A | the_pred x}
+      rty
+      (@sigmaLambdaInstance rty A lambdaA predInstance)
+  := _.
+
 Instance sigmaMuInstance
-         (rty : realFieldType) (A : finType)
+         (rty : realFieldType) (A : Type)
          `(muA : MuClass A rty)
          (predInstance : PredClass A)
-  : @MuClass [finType of {x : A | the_pred x}] rty | 0 :=
+  : @MuClass {x : A | the_pred x} rty | 0 :=
   mu of A.
+
+Program Instance sigmaMuAxiomInstance
+        (rty : realFieldType) (A : Type)
+        `(muA : MuClass A rty)
+        `(muAxiomA : @MuAxiomClass A rty muA)
+        `(predInstance : PredClass A)        
+  : @MuAxiomClass
+      {x : A | the_pred x}
+      rty
+      (@sigmaMuInstance rty A muA predInstance)
+  := _.
 
 Lemma sigmaSmoothnessAxiom
       (N : nat) (rty : realFieldType) (A : finType)
@@ -685,8 +710,8 @@ Lemma sigmaSmoothnessAxiom
       `{smoothA : smooth A N rty}
       (t t' : {ffun 'I_N -> {x : A | the_pred x}}) :
   \sum_(i : 'I_N) cost i (upd i t t') <=
-  lambda of [finType of {x : A | the_pred x}] * Cost t' +
-  mu of [finType of {x : A | the_pred x}] * Cost t.
+  lambda of {x : A | the_pred x} * Cost t' +
+  mu of {x : A | the_pred x} * Cost t.
 Proof.
   rewrite /Cost /cost_fun /sigmaCostInstance /cost_fun.
   have ->: (lambda of [finType of {x : A | the_pred x}] = lambda of A) by [].
@@ -696,8 +721,44 @@ Proof.
              (upd i [ffun j => projT1 (t j)] [ffun j => projT1 (t' j)])).
   { apply congr_big => // i _. f_equal. apply ffunP => x /=.
     rewrite !ffunE. case: (i == x) => //. }
-  apply (smooth_ax _).
+  apply (smoothness_axiom _).
 Qed.
+
+Program Instance sigmaSmoothAxiomInstance
+      (N : nat) (rty : realFieldType) (A : finType)
+      `(predInstance : PredClass A)
+      `{smoothA : smooth A N rty}
+  : @SmoothnessAxiomClass
+      [finType of {x : A | the_pred x}]
+      N _
+      (sigmaCostInstance _)
+      (sigmaCostAxiomInstance _ _ _ _ _)
+      _ (sigmaCostMaxAxiomInstance _ _ _ _ _ _ _) 
+      _ (sigmaLambdaAxiomInstance _ A _ _ _)
+      _ (sigmaMuAxiomInstance _ A _ _ _).
+Next Obligation. apply: sigmaSmoothnessAxiom. Qed.
+
+Instance sigmaSmoothInstance
+      (N : nat) (rty : realFieldType) (A : finType)
+      `(predInstance : PredClass A)
+      `{smoothA : smooth A N rty}
+  : @smooth
+      [finType of {x : A | the_pred x}]
+      N
+      rty
+      _ _ _ _ _ _ _ _ 
+      (sigmaSmoothAxiomInstance _ _ _ _).
+      
+Module SigmaSmoothTest. Section sigmaSmoothTest.
+  Context (N : nat) (rty : realFieldType) (A : finType)
+          `(predInstance : PredClass A)
+          `{smoothA : smooth A N rty}.
+  Definition t := {x : A | the_pred x}.
+  Lemma x0 (t : {ffun 'I_N -> t}) (i : 'I_N) :
+    cost i t == 0. Abort.
+  Lemma x0 (x : {ffun 'I_N -> t}) (i : 'I_N) :
+    cost i x == lambda of t. Abort.
+End sigmaSmoothTest. End SigmaSmoothTest.
 
 (**********************************************
   Product Games A * B 
@@ -772,10 +833,10 @@ Program Instance  prodCostAxiomInstance
     apply addr_ge0 => //.
   Qed.
 
-Instance prodCostMaxInstance (N : nat) (rty : realFieldType) (aT bT : finType)
+Instance prodCostMaxInstance (N : nat) (rty : realFieldType) (aT bT : Type)
          (costMaxA : CostMaxClass N rty aT)
          (costMaxB : CostMaxClass N rty bT)
-  : CostMaxClass N rty [finType of aT*bT].
+  : CostMaxClass N rty (aT*bT).
 Proof. apply GRing.add. apply costMaxA. apply costMaxB. Defined.
 
 Program Instance prodCostMaxAxiomInstance
@@ -816,20 +877,23 @@ End prodGameTest. End ProdGameTest.
   over the generic finType clone instance for LambdaClass.*)
 
 Instance prodLambdaInstance
-         (rty : realFieldType) (aT bT : finType)
+         (rty : realFieldType) (aT bT : Type)
          `(lambdaA : LambdaClass aT rty)
          `(lambdaB : LambdaClass bT rty)  
-  : @LambdaClass [finType of (aT*bT)] rty | 0 :=
+  : @LambdaClass (aT*bT) rty | 0 :=
   maxr (lambda of aT) (lambda of bT).
 
 Program Instance prodLambdaAxiomInstance
-         (rty : realFieldType) (aT bT : finType)
+         (rty : realFieldType) (aT bT : Type)
          `(lambdaA : LambdaAxiomClass aT rty)
          `(lambdaB : LambdaAxiomClass bT rty)
-  : @LambdaAxiomClass [finType of (aT*bT)] rty _.
+  : @LambdaAxiomClass (aT*bT) rty _.
 Next Obligation.
   rewrite /lambda_val /prodLambdaInstance.
-  by rewrite ler_maxr; apply/orP; left; apply: lambda_pos.
+  rewrite ler_maxr.
+  apply/orP.
+  left.
+  apply: lambda_pos.
 Qed.
 
 Lemma lambdaA_le_prodLambda N rty aT bT
@@ -845,17 +909,17 @@ Lemma lambdaB_le_prodLambda N rty aT bT
 Proof. by rewrite /prodLambdaInstance; rewrite ler_maxr; apply/orP; right. Qed.
 
 Instance prodMuInstance
-         (rty : realFieldType) (aT bT : finType)
+         (rty : realFieldType) (aT bT : Type)
          `(muA : MuClass aT rty)
          `(muB : MuClass bT rty)
-  : @MuClass [finType of (aT*bT)] rty | 0 :=
+  : @MuClass (aT*bT) rty | 0 :=
   maxr (mu of aT) (mu of bT).
 
 Program Instance prodMuAxiomInstance
-        (rty : realFieldType) (aT bT : finType)
+        (rty : realFieldType) (aT bT : Type)
         `(muA : MuAxiomClass aT rty)
         `(muB : MuAxiomClass bT rty)
-  : @MuAxiomClass [finType of (aT*bT)] rty _ | 0.
+  : @MuAxiomClass (aT*bT) rty _ | 0.
 Next Obligation.
   rewrite /mu_val /prodMuInstance ler_maxr; apply/andP; split.
   { apply/orP; left; apply: mu_pos. }
@@ -916,7 +980,7 @@ Proof.
   rewrite -lambda_of_finType.
   rewrite -mu_of_finType.
   eapply (ler_trans _
-    (smooth_ax _ _)).
+    (smoothness_axiom _ _)).
   apply ler_add;
   rewrite ler_wpmul2r => //.
   apply big_rec => //=.
@@ -935,7 +999,7 @@ Proof.
   rewrite -lambda_of_finType.
   rewrite -mu_of_finType.
   eapply (ler_trans _
-    (smooth_ax _ _)).
+    (smoothness_axiom _ _)).
   apply ler_add;
   rewrite ler_wpmul2r => //.
   apply big_rec => //=.
@@ -978,13 +1042,13 @@ Qed.
 Instance prodSmoothAxiomInstance {aT bT N rty}
          `{smoothA : smooth aT N rty}
          `{smoothB : smooth bT N rty}
-  : @SmoothnessAxiomClass [finType of (aT*bT)] N rty _ _ _ _ _ _ _ _ _
+  : @SmoothnessAxiomClass [finType of (aT*bT)] N rty _ _ _ _ _ _ _ _ 
   := prodSmoothnessAxiom.
 
 Instance prodSmoothInstance {aT bT N rty}
          `{smoothA : smooth aT N rty}
          `{smoothB : smooth bT N rty}
-  : @smooth [finType of (aT*bT)] N rty _ _ _ _ _ _ _ _ _ _.
+  : @smooth [finType of (aT*bT)] N rty _ _ _ _ _ _ _ _ _.
 
 Module ProdSmoothTest. Section prodSmoothTest.
   Context {A B N rty} `{gameA : smooth A N rty} `{gameB : smooth B N rty}.
@@ -1092,10 +1156,10 @@ Next Obligation.
   by apply: ltrW.
 Qed.
 
-Instance scalarCostMaxInstance (N : nat) (rty : realFieldType) (A : finType)
+Instance scalarCostMaxInstance (N : nat) (rty : realFieldType) (A : Type)
          (costMax : CostMaxClass N rty A)
          (scalarA : ScalarClass rty)
-  : CostMaxClass N rty A :=
+  : CostMaxClass N rty (scalar scalar_val A) :=
   scalar_val * costmax_fun.
 
 Program Instance scalarCostMaxAxiomInstance
@@ -1125,35 +1189,43 @@ Module ScalarGameTest. Section scalarGameTest.
 End scalarGameTest. End ScalarGameTest.
 
 Instance scalarLambdaInstance
-         (rty : realFieldType) (A : finType)
+         (rty : realFieldType) (A : Type)
          `(scalarA : ScalarClass rty)
          `(lambdaA : LambdaClass A rty)
-  : @LambdaClass (scalarType scalar_val A) rty | 0 := lambda of A.
+  : @LambdaClass (scalar scalar_val A) rty | 0 := lambda of A.
 
-Program Instance scalarLambdaAxiomInstance
-        (rty : realFieldType) (A : finType)
-        `(scalarA : ScalarAxiomClass rty)
-        `(lambdaA : LambdaAxiomClass A rty)
-  : @LambdaAxiomClass (scalarType scalar_val A) rty _ | 0.
+Instance scalarLambdaAxiomInstance
+         (rty : realFieldType) (A : Type)
+        `(scalarA : ScalarClass rty)         
+        `(scalarAxiomA : @ScalarAxiomClass rty scalarA)
+        `(lambdaA : LambdaClass A rty)
+        `(lambdaAxiomA : @LambdaAxiomClass A rty lambdaA)
+  : @LambdaAxiomClass
+      (scalar scalar_val A)
+      rty
+      (scalarLambdaInstance scalarA lambdaA) | 0
+  := @lambda_axiom A rty lambdaA lambdaAxiomA.
 
 Instance scalarMuInstance
-         (rty : realFieldType) (A : finType)
+         (rty : realFieldType) (A : Type)
          `(scalarA : ScalarClass rty)
          `(lambdaA : MuClass A rty)
-  : @MuClass (scalarType scalar_val A) rty | 0 := mu of A.
+  : @MuClass (scalar scalar_val A) rty | 0 := mu of A.
 
-Program Instance scalarMuAxiomInstance
-        (rty : realFieldType) (A : finType)
+Instance scalarMuAxiomInstance
+        (rty : realFieldType) (A : Type)
         `(scalarA : ScalarAxiomClass rty)
-        `(lambdaA : MuAxiomClass A rty)
-  : @MuAxiomClass (scalarType scalar_val A) rty _ | 0.
+        `(muA : MuClass A rty)        
+        `(muAxiomA : @MuAxiomClass A rty muA)
+  : @MuAxiomClass (scalar scalar_val A) rty _ | 0
+  := @mu_axiom A rty muA muAxiomA.
 
 Program Instance scalarSmoothAxiomInstance {A N rty}
          `{smoothA : smooth A N rty}
          `{scalarA : ScalarAxiomClass rty}
   : @SmoothnessAxiomClass (scalarType scalar_val A) N rty _ _ _
                           (scalarCostMaxAxiomInstance _ _ _ _ _ _ _ _ _)
-                          _ _ _ _ _.
+                          _ _ _ _.
 Next Obligation.
   rewrite /Cost /(cost) /scalarCostInstance.
   rewrite /lambda_val /scalarLambdaInstance.
@@ -1162,7 +1234,7 @@ Next Obligation.
   rewrite mulrA [lambda of A * _]mulrC -mulrA.
   rewrite [mu of A * _]mulrA [mu of A * _]mulrC -mulrA.
   rewrite -mulrDr; apply: ler_mull=> //.
-  by rewrite unwrap_ffun_simpl unwrap_eta; apply: smooth_ax.
+  by rewrite unwrap_ffun_simpl unwrap_eta; apply: smoothness_axiom.
 Qed.
 
 Instance scalarSmoothInstance {A N rty}
@@ -1170,7 +1242,7 @@ Instance scalarSmoothInstance {A N rty}
          `{scalarA : ScalarAxiomClass rty}
   : @smooth (scalarType scalar_val A) N rty _ _ _
             (scalarCostMaxAxiomInstance _ _ _ _ _ _ _ _ _)
-            _ _ _ _ _ _.
+            _ _ _ _ _.
 
 Module ScalarSmoothTest. Section scalarSmoothTest.
   Context {A N rty} `{gameA : smooth A N rty} `{scalarA : ScalarAxiomClass rty}.
@@ -1249,7 +1321,7 @@ Class BiasClass (rty : realFieldType)
 
 Class BiasAxiomClass (rty : realFieldType)
       `(BiasClass rty)
-  : Type := bias_axiom : 0 < bias_val.
+  : Type := bias_axiom : 0 <= bias_val.
 
 Instance biasCostInstance
          (N : nat) (rty : realFieldType) (A : finType)
@@ -1267,13 +1339,12 @@ Program Instance biasCostAxiomInstance
                     (@biasCostInstance N rty _ bias_val _).
 Next Obligation.
   rewrite /(cost) /biasCostInstance addr_ge0 => //.
-  by apply: ltrW; apply bias_axiom.
 Qed.
 
-Instance biasCostMaxInstance (N : nat) (rty : realFieldType) (A : finType)
+Instance biasCostMaxInstance (N : nat) (rty : realFieldType) (A : Type)
          (costMax : CostMaxClass N rty A)
          `(biasA : BiasAxiomClass rty)
-  : CostMaxClass N rty A :=
+  : CostMaxClass N rty (bias bias_val A) :=
   bias_val + costmax_fun.
 
 Program Instance biasCostMaxAxiomInstance
@@ -1303,28 +1374,28 @@ Module BiasGameTest. Section biasGameTest.
 End biasGameTest. End BiasGameTest.
 
 Instance biasLambdaInstance
-         (rty : realFieldType) (A : finType)
+         (rty : realFieldType) (A : Type)
          `(biasA : BiasClass rty)
          `(lambdaA : LambdaClass A rty)
-  : @LambdaClass (biasType bias_val A) rty | 0 := lambda of A.
+  : @LambdaClass (bias bias_val A) rty | 0 := lambda of A.
 
 Program Instance biasLambdaAxiomInstance
-        (rty : realFieldType) (A : finType)
+        (rty : realFieldType) (A : Type)
         `(biasA : BiasAxiomClass rty)
         `(lambdaA : LambdaAxiomClass A rty)
-  : @LambdaAxiomClass (biasType bias_val A) rty _ | 0.
+  : @LambdaAxiomClass (bias bias_val A) rty _ | 0.
 
 Instance biasMuInstance
-         (rty : realFieldType) (A : finType)
+         (rty : realFieldType) (A : Type)
          `(biasA : BiasClass rty)
          `(lambdaA : MuClass A rty)
-  : @MuClass (biasType bias_val A) rty | 0 := mu of A.
+  : @MuClass (bias bias_val A) rty | 0 := mu of A.
 
 Program Instance biasMuAxiomInstance
-        (rty : realFieldType) (A : finType)
+        (rty : realFieldType) (A : Type)
         `(biasA : BiasAxiomClass rty)
         `(lambdaA : MuAxiomClass A rty)
-  : @MuAxiomClass (biasType bias_val A) rty _ | 0.
+  : @MuAxiomClass (bias bias_val A) rty _ | 0.
                                           
 Class LambdaMuGe1Class (A : finType) N (rty : realFieldType) `(smooth A N rty)
   : Type := lambdaMu_ge1 : 1 <= lambda of A + mu of A.
@@ -1335,7 +1406,7 @@ Program Instance biasSmoothAxiomInstance {A N rty}
         `{biasA : BiasAxiomClass rty}
   : @SmoothnessAxiomClass (biasType bias_val A) N rty _ _ _
                           (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
-                          _ _ _ _ _.
+                          _ _ _ _.
 Next Obligation.
   rewrite /Cost /(cost) /biasCostInstance.
   rewrite /lambda_val /biasLambdaInstance.
@@ -1346,9 +1417,9 @@ Next Obligation.
   rewrite [lambda of A * _ + _]addrC.
   rewrite -[(lambda of A * _ + _) + _ + _]addrA; apply: ler_add.
   { rewrite -mulrDl; apply: ler_pemull.
-    by apply: sumr_ge0=> _ _; apply: ltrW; apply: bias_axiom.
+    by apply: sumr_ge0=> _ _; apply: bias_axiom.
     by apply: lambdaMu_ge1. }
-  by rewrite unwrap_ffun_simpl unwrap_eta; apply: smooth_ax.
+  by rewrite unwrap_ffun_simpl unwrap_eta; apply: smoothness_axiom.
 Qed.
 
 Instance biasSmoothInstance {A N rty}
@@ -1357,7 +1428,7 @@ Instance biasSmoothInstance {A N rty}
          `{biasA : BiasAxiomClass rty}
   : @smooth (biasType bias_val A) N rty _ _ _
             (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
-            _ _ _ _ _ _.
+            _ _ _ _ _.
 
 Module BiasSmoothTest. Section biasSmoothTest.
   Context {A N rty} `{gameA : smooth A N rty} `{biasA : BiasAxiomClass rty}.
@@ -1425,8 +1496,7 @@ Program Instance  unitCostAxiomInstance
   : @CostAxiomClass N rty [finType of Unit] (@unitCostInstance N rty).
 
 Instance unitCostMaxInstance ( N : nat) {rty : realFieldType}
-  : CostMaxClass N rty [finType of Unit] :=
-  0.
+  : CostMaxClass N rty Unit := 0.
 
 Program Instance unitCostMaxAxiomInstance
         (N : nat) {rty : realFieldType}
@@ -1448,33 +1518,33 @@ End unitGameTest. End UnitGameTest.
 
 Instance unitLambdaInstance
          (rty : realFieldType) 
-  : @LambdaClass [finType of Unit] rty | 0 := 1.
+  : @LambdaClass Unit rty | 0 := 1.
 
 Program Instance unitLambdaAxiomInstance
         (rty : realFieldType) 
-  : @LambdaAxiomClass [finType of Unit] rty _ | 0.
+  : @LambdaAxiomClass Unit rty _ | 0.
 Next Obligation. by apply: ler01. Qed.
 
 Instance unitMuInstance
          (rty : realFieldType)
-  : @MuClass [finType of Unit] rty | 0 := 0.
+  : @MuClass Unit rty | 0 := 0.
 
 Program Instance unitMuAxiomInstance
         (rty : realFieldType)
-  : @MuAxiomClass [finType of Unit] rty _ | 0.
+  : @MuAxiomClass Unit rty _ | 0.
 Next Obligation.
   apply/andP; split; first by apply: lerr.
   by apply: ltr01.
 Qed.
                                           
 Program Instance unitSmoothAxiomInstance {N rty}
-  : @SmoothnessAxiomClass [finType of Unit] N rty _ _ _ _ _ _ _ _ _.
+  : @SmoothnessAxiomClass [finType of Unit] N rty _ _ _ _ _ _ _ _.
 Next Obligation.
   rewrite mul1r /Cost /(cost) /unitCostInstance mul0r addr0 => //.
 Qed.
 
 Instance unitSmoothInstance {N rty}
-  : @smooth [finType of Unit] N rty _ _ _ _ _ _ _ _ _ _.
+  : @smooth [finType of Unit] N rty _ _ _ _ _ _ _ _ _.
 
 Module UnitSmoothTest. Section unitSmoothTest.
   Context {N rty} `{gameA : smooth [finType of Unit] N rty}.

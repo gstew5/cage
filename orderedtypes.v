@@ -457,6 +457,8 @@ Module Type OrderedScalarType.
   Include MyOrderedType.
   Parameter scal : dyadic_rat.
   Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
+  Local Open Scope ring_scope.
+  Parameter scal_pos : 0 < projT1 scal.
 End OrderedScalarType.
 
 Module Type BoolableOrderedScalarType.
@@ -576,13 +578,17 @@ End BoolableOrderedSingleton.
 Module Type BoolableOrderedAffineType.
   Include BoolableMyOrderedType.
   Parameter scalar : dyadic_rat.
+  Local Open Scope ring_scope.
+  Parameter scalar_pos : 0 < projT1 scalar.
   Parameter bias : dyadic_rat.
+  Parameter bias_pos : 0 < projT1 bias. (*FIXME*)
 End BoolableOrderedAffineType.
 
 Module ScalarType_of_OrderedAffineType (A : BoolableOrderedAffineType)
   <: BoolableOrderedScalarType.
   Include A.
   Definition scal := A.scalar.
+  Definition scal_pos := A.scalar_pos.
   Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
 End ScalarType_of_OrderedAffineType.
 
@@ -590,14 +596,24 @@ Module OffsetType_of_OrderedAffineType (A : BoolableOrderedAffineType)
   <: BoolableOrderedScalarType.
     Include A.
     Definition scal := A.bias.
-    Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.    
+    Definition scal_pos := A.bias_pos.
+    Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
+    (*FIXME: incorporate into module signature:*)
+    Instance scal_ScalarAxiomInstance :
+      ScalarAxiomClass
+        (DyadicScalarInstance scal_DyadicScalarInstance) := scal_pos.
 End OffsetType_of_OrderedAffineType.
 
 Module BiasType_of_OffsetType (A : BoolableOrderedScalarType)
   <: BoolableOrderedScalarType.
-  Include BoolableOrderedSingleton A.
-  Definition scal := A.scal.
-  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.  
+    Include BoolableOrderedSingleton A.
+    Definition scal := A.scal.
+    Definition scal_pos := A.scal_pos.  
+    Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
+    (*FIXME: incorporate into module signature:*)
+    Instance scal_ScalarAxiomInstance :
+      ScalarAxiomClass
+        (DyadicScalarInstance scal_DyadicScalarInstance) := scal_pos.
 End BiasType_of_OffsetType.
 
 (* Given a BoolableOrderedAffineType, toss everything together to build

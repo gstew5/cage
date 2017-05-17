@@ -63,7 +63,11 @@ Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 Module RValues <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat 1.
-  Definition bias := D_to_dyadic_rat 0.
+  Definition bias := D_to_dyadic_rat 1.
+  Lemma scalar_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.
+  Lemma bias_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.    
   Definition a0 := RYes.
 End RValues.
 Module RAffine := OrderedAffine RValues.
@@ -71,7 +75,11 @@ Module RAffine := OrderedAffine RValues.
 Module RExpensive <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat (Dmake 40 1).
-  Definition bias := D_to_dyadic_rat (Dmake 0 1).
+  Definition bias := D_to_dyadic_rat (Dmake 1 1).
+  Lemma scalar_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.
+  Lemma bias_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.    
   Definition a0 := RYes.
 End RExpensive.
 Module RAffineExpensive := OrderedAffine RExpensive.
@@ -132,7 +140,9 @@ Module RAffine3Scalar <: OrderedScalarType.
       (Dlub
          (@ccostmax_fun num_players' RAffine3.t
                         (RAffine3.cost_max num_players'))).
-  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.  
+  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
+  Lemma scal_pos : 0 < projT1 scal.
+  Proof. by []. Qed.  
 End RAffine3Scalar.
 
 (** Normalized game *)

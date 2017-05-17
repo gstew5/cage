@@ -198,7 +198,11 @@ Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 Module R5Values <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat (Dmake 100 1).
-  Definition bias := D_to_dyadic_rat 0%D.
+  Definition bias := D_to_dyadic_rat 1%D.
+  Lemma scalar_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.
+  Lemma bias_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.  
   Definition a0 := RNo.
 End R5Values.
 Module R5 := OrderedAffine R5Values.
@@ -206,7 +210,11 @@ Module R5 := OrderedAffine R5Values.
 Module R4Values <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat (Dmake 60 1).
-  Definition bias := D_to_dyadic_rat 0%D.
+  Definition bias := D_to_dyadic_rat 1%D.
+  Lemma scalar_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.
+  Lemma bias_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.  
   Definition a0 := RNo.
 End R4Values.
 Module R4 := OrderedAffine R4Values.
@@ -215,6 +223,10 @@ Module R2Values <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat 1%D.
   Definition bias := D_to_dyadic_rat (Dmake 100 1).
+  Lemma scalar_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.
+  Lemma bias_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.  
   Definition a0 := RNo.
 End R2Values.
 Module R2 := OrderedAffine R2Values.
@@ -222,7 +234,11 @@ Module R2 := OrderedAffine R2Values.
 Module RValues <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat 1%D.
-  Definition bias := D_to_dyadic_rat 0%D.
+  Definition bias := D_to_dyadic_rat 1%D.
+  Lemma scalar_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.
+  Lemma bias_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.  
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
@@ -281,6 +297,8 @@ Module P8Scalar <: OrderedScalarType.
       (Dlub
          (@ccostmax_fun num_players P8.t (P8.cost_max num_players))).
   Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
+  Lemma scal_pos : 0 < projT1 scal.
+  Proof. by []. Qed.
 End P8Scalar.
 
 Module P8Scaled <: MyOrderedType := OrderedScalar P8Scalar.

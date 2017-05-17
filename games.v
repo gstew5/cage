@@ -36,7 +36,7 @@ End costLemmas.
   CostClass cN rty [finType of cT] :=
   @cost_fun cN rty [finType of cT] H.*)
 
-Class CostMaxClass (N : nat) (rty : realFieldType) (T : finType) :=
+Class CostMaxClass (N : nat) (rty : realFieldType) (T : Type) :=
   costmax_fun : rty.
 
 Class CostMaxAxiomClass (N : nat) (rty : realFieldType) (T : finType)
@@ -101,7 +101,7 @@ Class payoff_game (T : finType) (N : nat) (rty : realFieldType)
 Instance negativeCostInstance_of_payoffInstance
          N rty (T : finType)
          `(payoffInstance : @PayoffClass N rty T)
-  : CostClass _ _ _ :=
+  : CostClass _ _ _ | 99 :=
   fun i f => - payoff i f.
 
 (* 0 <= payoff -> cost <= 0 *)
@@ -109,7 +109,7 @@ Instance negativeCostInstance_of_payoffInstance
 Instance negativeCostAxiomInstance_of_payoffAxiomInstance
          N rty (T : finType)
          `(payoffAxiomInstance : PayoffAxiomClass N rty T) :
-  NegativeCostAxiomClass (negativeCostInstance_of_payoffInstance _).
+  NegativeCostAxiomClass (negativeCostInstance_of_payoffInstance _) | 99.
 Proof.
   move=> i f. rewrite /cost_fun /negativeCostInstance_of_payoffInstance.
   rewrite /PayoffAxiomClass in payoffAxiomInstance.
@@ -119,7 +119,7 @@ Qed.
 Instance negative_cost_game_of_payoff_game
          N rty (T : finType)
          `(_ : payoff_game T N rty)
-  : negative_cost_game _ :=
+  : negative_cost_game _ | 99 :=
   Build_negative_cost_game
     (negativeCostAxiomInstance_of_payoffAxiomInstance
        N rty T payoffAxiomClass). (* payoffAxiomClass is an auto-generated name *)

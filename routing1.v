@@ -201,7 +201,12 @@ Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 Module R10Values <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat (Dmake 20 1).
+  Local Open Scope ring_scope.
+  Lemma scalar_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.
   Definition bias := D_to_dyadic_rat (Dmake 20 1).
+  Lemma bias_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.  
   Definition a0 := RNo.
 End R10Values.
 Module R10 := OrderedAffine R10Values.
@@ -209,7 +214,11 @@ Module R10 := OrderedAffine R10Values.
 Module RValues <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat 1.
-  Definition bias := D_to_dyadic_rat 0.
+  Lemma scalar_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.
+  Definition bias := D_to_dyadic_rat 1.
+  Lemma bias_pos : 0 < projT1 scalar.
+  Proof. by []. Qed.  
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
@@ -292,7 +301,10 @@ Module P3Scalar <: OrderedScalarType.
   Definition scal :=
     D_to_dyadic_rat
       (Dlub (@ccostmax_fun num_players P3.t (P3.cost_max num_players))).
-  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.  
+  Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
+  Local Open Scope ring_scope.
+  Lemma scal_pos : 0 < projT1 scal.
+  Proof. by []. Qed.                     
 End P3Scalar.
 
 Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
@@ -323,13 +335,54 @@ Module P <: OrderedPredType.
 End P.
 Module P3Scaled' <: MyOrderedType := OrderedSigma P.
 
-(* (*Typeclass regressions for P3Scaled'*)
-Definition t :=  P3Scaled'.t. 
+Notation t := (P3Scaled'.t). 
+
+Require Import smooth.
+
+(*FIXME: move into OrderedScalarType*)
+Lemma P3ScalarAxiomInstance :
+  ScalarAxiomClass (rty:=[realFieldType of rat])
+                   (DyadicScalarInstance
+                      P3Scalar.scal_DyadicScalarInstance).
+Proof. by []. Qed.
+Existing Instance P3ScalarAxiomInstance.
+
+(*Typeclass regressions for P3Scaled'*)
+(*Typeclasses eauto := debug.
+Check (costmax_fun (T:=[finType of t]) (N:=10) (rty:=rat_realFieldType)).
 Variable s : {ffun 'I_10 -> t}.
 Variable i : 'I_10.
-Typeclasses eauto := debug.
-Check (cost i s : rat).*)
+Check (cost i s : rat).
+Goal cost i s <= costmax_fun (T:=[finType of t]) (N:=10) (rty:=rat_realFieldType).
+Proof. apply: costMaxAxiom_fun. Qed.
+Check lambda of t : rat.
+Check mu of t : rat.
+Goal 0 <= (lambda of scalar (rty:=[realFieldType of rat]) scalar_val
+  R'.Pred.Scaled.SimplScalarType.t).
+Proof. apply: lambda_axiom. Qed.  
+Goal 0 <= (lambda of t). Proof. apply: lambda_axiom. Qed.*)
 
+Lemma P3Scaled'_lambda_53 : lambda of t = (5%:R/3%:R).
+Proof. by []. Qed.                                            
+
+Lemma P3Scaled'_mu_13 : mu of t = (1%:R/3%:R).
+Proof. by []. Qed.                                            
+
+Lemma P3Scaled'_smooth_aux N : 
+  forall x x' : (t ^ N)%type,
+    \sum_(i : 'I_N) cost i (upd i x x') <=
+    (lambda of t * Cost x' + mu of t * Cost x : rat).
+Proof. apply: smoothness_axiom. Qed.
+
+Lemma P3Scaled'_smooth N :
+  forall x x' : (t ^ N)%type,
+    \sum_(i : 'I_N) cost i (upd i x x') <=
+    5%:R/3%:R * Cost x' + 1%:R/3%:R * Cost x.
+Proof.
+  rewrite -P3Scaled'_lambda_53 -P3Scaled'_mu_13.
+  apply: P3Scaled'_smooth_aux.
+Qed.  
+                                      
 Module Conf : CONFIG.
   Module A := P3Scaled'.                
   Definition num_players := num_players.
