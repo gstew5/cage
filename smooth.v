@@ -63,6 +63,7 @@ Class smooth (T : finType) (N : nat) (rty : realFieldType)
          SmoothnessAxiomClass gameInstance lambdaAxiomInstance muAxiomInstance)
   : Type := {}.
 
+
 (*************************)
 (** Negative cost smooth *)
 
@@ -300,6 +301,95 @@ Section SmoothLemmas.
     }
     by rewrite -mulrA [(1 - _)^-1 * _]mulrC mulrA.
   Qed.
-End SmoothLemmas.
 
+  Lemma smooth_eCCE_aux
+    (d : dist [finType of state N T] rty) (t' : state N T) (eps : rty) :
+    0 <= eps ->
+    eCCE eps d ->
+    optimal t' ->
+    ExpectedCost d <= (1 + eps) *(lambda of T * Cost t' + mu of T * ExpectedCost d).
+  Proof.
+    move=> epsPos Hcce Hopt.
+      have epsCase: 0 = eps \/ 0 < eps. rewrite ler_eqVlt in epsPos.
+      move/orP: epsPos => epsPos. case: epsPos;
+      [move/eqP => epsPos; left => // | right => //].
+    case:epsCase => epsCase.
+      {
+        rewrite -epsCase addr0 mul1r.
+        apply smooth_CCE_aux; try by []. rewrite/CCE epsCase //.
+      }
+      {
+        have H2: ExpectedCost d
+              <= \sum_(i : 'I_N) (1 + eps) * expectedUnilateralCost i d t'.
+        { apply: ler_sum=> /= i _.
+          by apply: (eCCE_elim Hcce)=> ? X; apply: Hval; apply: in_support.
+        }
+        apply: ler_trans; [apply: H2|].
+        rewrite -big_distrr /= expectedUnilateralCost_linear.
+        have H3:
+          expectedValue d
+            (fun t : {ffun 'I_N -> T} =>
+               \sum_(i < N) cost i (upd i t t'))
+        <= expectedValue d
+            (fun t : state N T => lambda of T * Cost t' + mu of T * Cost t).
+        { rewrite expectedValue_linear expectedValue_const /expectedValue.
+          have H3: \sum_t d t * (\sum_(i < N) cost i ((upd i t) t'))
+                <= expectedValue d (fun t => lambda of T * Cost t' + mu of T * Cost t).
+          { apply: ler_sum=> t _.
+            case Hgt0: (0 < d t); first by apply: ler_mull=> //; apply: smooth_ax.
+            have H3: d t = 0.
+            { move: (dist_positive d t)=> Hpos; rewrite ltr_def in Hgt0.
+              move: Hgt0; rewrite Hpos andbC /=; case Heq: (d t == 0)=> //= _.
+              by apply: (eqP Heq).
+            }
+            by rewrite H3 2!mul0r.
+          }
+          apply: ler_trans; first by apply: H3.
+          by rewrite expectedValue_linear expectedValue_const /expectedValue.
+        }
+        rewrite ler_pmul2l; last first.
+        rewrite ltr_paddl; [| rewrite ler01 | ]; try by [].
+        apply: ler_trans; first by apply: H3.
+        have H5:
+          expectedValue d
+            (fun t : {ffun 'I_N -> T} => lambda of T * Cost t' + mu of T * Cost t)
+        = lambda of T * Cost t' +
+          expectedValue d
+            (fun t : {ffun 'I_N -> T} => mu of T * Cost t).
+        { by rewrite expectedValue_linear expectedValue_const.
+        }
+        rewrite H5 ExpectedCost_linear expectedValue_mull.
+        rewrite lerr; first by [].
+    }
+  Qed.
+
+  Lemma smooth_eCCE
+    (d : dist [finType of state N T] rty) (t' : state N T) (eps : rty) :
+    0 <= eps -> 
+    0 < 1 - mu of T * (1 + eps) ->
+    mu of T < 1 -> 
+    eCCE eps d -> 
+    optimal t' ->
+    ExpectedCost d <= ((1 + eps) * (lambda of T)) / (1 - (mu of T)* (1 + eps)) * Cost t'.
+  Proof.
+      move=> epsPos epsBound Hlt1 Hecce Hopt.
+      move: (smooth_eCCE_aux epsPos Hecce Hopt).
+      rewrite mulrDr -ler_subl_addr.
+      have H1 :
+        ExpectedCost d - (1 + eps) * (mu of T * ExpectedCost d) =
+        (1 - (1 + eps) * (mu of T)) * ExpectedCost d.
+      {
+        rewrite mulrDl mulrDl mul1r mul1r. apply /eqP.
+        rewrite subr_eq  mulNr !mulrDl mul1r -mulrA.
+        set q := (mu of T * ExpectedCost d + eps * (mu of T * ExpectedCost d)).
+        rewrite addrNK //.
+      }
+      rewrite H1 => H2. rewrite mulrC -ler_pdivl_mulr
+        [(1 + eps) * mu of T] mulrC in H2.
+      rewrite -mulrA [(1 - _)^-1 * _]mulrC mulrA.
+      rewrite -[(1 + eps) * _ * _] mulrA //.
+      by [].
+  Qed.
+
+End SmoothLemmas.
 Print Assumptions smooth_CCE.

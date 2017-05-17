@@ -53,7 +53,7 @@ Section machine_semantics.
   Local Open Scope ring_scope.  
   Variable A : finType.
   Variable a0 : A.
-  Variable N : nat. (*how many clients?*)
+  Variable N : nat.
   Context `{Hgame : game A N rat_realFieldType}.
   
   Record ClientPkg : Type :=
@@ -110,10 +110,20 @@ Section machine_semantics.
 
   Definition client_state :=
     (com A * @weightslang.state A ClientPkg unit)%type.
-  
+
+  (* This relation between expected cost histories and
+      strategy distributions needs to be filled in *) 
+  Inductive distHistRel
+    (expCostHist : (seq {c : {ffun A -> rat} & forall a, `|c a| <= 1}))
+    (distHist    : (seq (dist A rat_realFieldType))) : Prop.
+
   Record machine_state : Type :=
     mkMachineState
-      { clients : {ffun 'I_N -> client_state}
+      { clients : {ffun 'I_N -> client_state};
+        clientsDistHist : {ffun 'I_N -> seq (dist A rat_realFieldType)};
+        histRel : forall (n : 'I_N), distHistRel
+                                      (SPrevCosts (snd (clients n)))
+                                      (clientsDistHist n)
       }.
 
   Definition all_clients_have_sent
@@ -127,7 +137,16 @@ Section machine_semantics.
   Definition upd {A : finType} {T : Type}
              (a : A) (t : T) (s : {ffun A -> T}) :=
     finfun (fun b => if a==b then t else s b).
-  
+
+  (* Connects the effects of updating a machine state to the distHistRel  *)
+  Lemma distHistRelStep : forall c s m (i n: 'I_N),
+    distHistRel
+      (SPrevCosts (snd (upd i (c,s) m.(clients) n)))
+      ((finfun (fun x => ((((upd i (c,s) m.(clients)) x).2)).(SOutputs))) n).
+  Proof.
+  Admitted.
+
+
   Inductive server_sent_cost_vector
             (i : 'I_N) (f : {ffun 'I_N -> dist A rat_realFieldType})
     : machine_state -> machine_state -> Prop :=
@@ -147,20 +166,28 @@ Section machine_semantics.
       s'.(SOracleSt).(sent) = None ->
       (* send new cost vector *)      
       s'.(SOracleSt).(received) = Some cost_vec ->
-      server_sent_cost_vector i f m m'.
+      server_sent_cost_vector i f m m'. 
 
-  Inductive machine_step : machine_state -> machine_state -> Prop :=
+  (* For the moment, this just updates based on the result of upd.
+      If we want to make the relation between the
+      new history and the old deeper, we'll probably need to modify
+      weightslang. *) 
+Inductive machine_step : machine_state -> machine_state -> Prop :=
   (** Step client [i], as long as it hasn't yet sent a distribution. *)
   | MSClientStep :
       forall (i : 'I_N) c s c' s' (m : machine_state),
         m.(clients) i = (c,s) ->         
         s.(SOracleSt).(sent) = None -> 
         client_step c s c' s' ->
+ (* New requirement to handle the relational addition goes here*)
         machine_step
           m
-          (mkMachineState
-             (upd i (c',s') m.(clients)))
-      
+          (@mkMachineState
+             (upd i (c',s') m.(clients))
+              (* Update the ditribution histories for each client *)
+             (finfun (fun x => ((((upd i (c',s') m.(clients)) x).2)).(SOutputs)))
+             (distHistRelStep c' s' m i)
+          )      
   (** Once all clients have committed to a distribution, 
       calculate their new cost vectors and reset [sent] to None (thus 
       acknowledging the send). *) 
@@ -215,7 +242,10 @@ Section machine_semantics.
     { by move => s H2; case: (machine_step_CSkip H H2) => s' H3; exists s'. }
     move => s H2; case: (machine_step_CSkip H H2) => s'' H3.
     by case: (IHHstep _ H3) => s' H4; exists s'.
-  Qed.      
+  Qed.
+
+  
+
 End machine_semantics.  
 
 Section extract_oracle.
@@ -582,9 +612,6 @@ Section extract_oracle.
       by rewrite H9. }
     rewrite Hq.
     apply: (mult_weights_epsilon_no_regret Hstep Hfinal H4).
-  Qed.    
-End extract_oracle.
+  Qed.
 
-                           
-      
-  
+End extract_oracle.
