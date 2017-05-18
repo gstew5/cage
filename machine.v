@@ -307,6 +307,27 @@ Section machine_semantics.
     move => Hx; apply: IHmachine_step_plus.
     by move => i; apply: (machine_step_histRel_inv i H).
   Qed.
+
+  Definition ffun_of_list A (l : list A) : {ffun 'I_(size l) -> A} :=
+    finfun (fun i => tnth (in_tuple l) i).
+
+  Section regret.
+    Variable m : machine_state.
+    Variable pf : (0:rat) < (size (m.(hist)))%:R.
+
+    (* The time-averaged \sigma distribution *)
+    Definition sigma : dist [finType of {ffun 'I_N -> A}] rat_realFieldType
+      := timeAvg_dist pf (ffun_of_list m.(hist)).
+
+    (* Client i has regret at most \eps *)
+    Definition client_regret_eps (eps : rat) (i : 'I_N) : Prop :=
+      forall a : A,
+        expectedCost i sigma <= 
+        expectedUnilateralCost i sigma [ffun=> a] + eps.
+
+    Definition machine_regret_eps (eps : rat) : Prop :=
+      forall i : 'I_N, client_regret_eps eps i.
+  End regret.
 End machine_semantics.  
 
 Section extract_oracle.
