@@ -127,6 +127,7 @@ Section machine_semantics.
     : Prop :=
     forall i : 'I_N,
       let: (c,s) := m.(clients) i in
+      s.(SOracleSt).(received) = None /\ 
       s.(SOracleSt).(sent) = Some (f i).
 
   Inductive server_sent_cost_vector
@@ -220,10 +221,8 @@ Section machine_semantics.
     move => s H2; case: (machine_step_CSkip H H2) => s'' H3.
     by case: (IHHstep _ H3) => s' H4; exists s'.
   Qed.
-  
-   (*histRel : forall (i : 'I_N),
-     distHistRel i hist (all_costs' (clients i).2)
 
+  (* The pre-client history relation *)
   Inductive distHistRel :
     'I_N ->
     seq (dist [finType of {ffun 'I_N -> A}] rat_realFieldType) ->
@@ -243,7 +242,71 @@ Section machine_semantics.
                      (prod_dist f)
                      (fun p => cost i (upd i a p)))
         in
-        distHistRel i [:: prod_dist f & ds] [:: c & cs].*)
+        distHistRel i [:: prod_dist f & ds] [:: c & cs].
+
+  Definition costvec_of_clientpkg (c : ClientPkg) : seq {ffun A -> rat} :=
+    match c.(received) with
+    | None => nil
+    | Some c => [:: c]
+    end.
+  
+  Lemma client_step_all_costs'_inv c s c' s' :
+    client_step c s c' s' ->
+    costvec_of_clientpkg s.(SOracleSt) ++ all_costs' s =
+    costvec_of_clientpkg s'.(SOracleSt) ++ all_costs' s'.
+  Proof.
+    induction 1; subst => //.
+    { simpl; rewrite /costvec_of_clientpkg.
+      inversion Hrecv; subst; rewrite H H0 /all_costs' //. }
+    inversion H; subst; simpl.
+    rewrite /costvec_of_clientpkg.
+    inversion H2; subst => //. 
+  Qed.    
+  
+  Lemma machine_step_histRel_inv m m' i :
+    machine_step m m' ->     
+    (forall i,
+      distHistRel
+      i m.(hist)
+      (costvec_of_clientpkg (m.(clients) i).2.(SOracleSt) ++
+       all_costs' (m.(clients) i).2)) ->
+    distHistRel
+      i m'.(hist)
+      (costvec_of_clientpkg (m'.(clients) i).2.(SOracleSt) ++
+       all_costs' (m'.(clients) i).2).
+  Proof.
+    inversion 1; subst => /=.
+    { (*client step*)
+      rewrite /upd ffunE; case Heq: (i0 == i) => //=.
+      move: (eqP Heq) => Heq'; subst i0; clear Heq.
+      by move/(_ i); rewrite H0 /=; rewrite (client_step_all_costs'_inv H2). }
+    (*server step*)
+    move => H3; move: (H1 i); inversion 1; subst.
+    move: (H3 i); rewrite H6 /= /costvec_of_clientpkg H11 /= H2 H5 /=.
+    move: (H0 i); rewrite H5; case => -> Hsent /= Hx.
+    constructor => //.
+    inversion H8; subst; move: Hx; rewrite /all_costs'/all_costs0/all_costs.
+    move: (SCostsOk s); move: (SCostsOk s'); rewrite H7 H9 => pf1 pf2.
+    by have ->: pf1 = pf2 by apply: proof_irrelevance.
+  Qed.
+
+  Lemma machine_step_plus_histRel m m' :
+    machine_step_plus m m' ->     
+    (forall i,
+      distHistRel
+      i m.(hist)
+      (costvec_of_clientpkg (m.(clients) i).2.(SOracleSt) ++
+       all_costs' (m.(clients) i).2)) ->
+    forall i,
+      distHistRel
+      i m'.(hist)
+      (costvec_of_clientpkg (m'.(clients) i).2.(SOracleSt) ++
+       all_costs' (m'.(clients) i).2).
+  Proof.
+    induction 1; first by move => Hx i; apply: (machine_step_histRel_inv i H).
+    move => Hx; apply: IHmachine_step_plus.
+    by move => i; apply: (machine_step_histRel_inv i H).
+  Qed.
 End machine_semantics.  
 
 Section extract_oracle.
