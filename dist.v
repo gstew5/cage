@@ -200,7 +200,45 @@ Section product.
   Definition prod_dist : dist [finType of type] rty :=
     @mkDist _ _ prod_pmf prod_pmf_dist.
 End product.
+
+Section timeAvg.
+  Variable T : finType.
+  Notation rty := rat_realFieldType.
+  (* the number of iterations (=size of history) *)  
+  Variable n : nat.
+  Variable n_pos : (0 : rty) < n%:R. 
+  (* the distributions at each iteration: *)
+  Variable s : {ffun 'I_n -> dist T rty}.
   
+  Definition timeAvg_pmf : {ffun T -> rty} :=
+    finfun (fun x : T => (\sum_(i < n) s i x) / n%:R).
+
+  Lemma timeAvg_pmf_dist :
+    dist_axiom (T:=T) (rty:=rty) timeAvg_pmf.
+  Proof.
+    apply/andP; split.
+    { rewrite /timeAvg_pmf sum_ffunE' -mulr_suml mulrC exchange_big /=.
+      have ->: (\sum_(j < n) \sum_i (s j) i = n%:R).
+      { have ->: \sum_(j < n) \sum_i (s j) i = \sum_(j < n) 1.
+        { apply: congr_big => // i _; apply: dist_normalized. }
+        have H: (\sum_(j<n) 1)%N = n.
+        { rewrite bigop.sum1_size.
+          have ->: size (index_enum (ordinal_finType n)) = size (enum 'I_n).
+          { rewrite /enum_mem size_map //. }
+          apply: size_enum_ord. }
+        have <-: ((\sum_(j < n) 1)%N)%:R = (n%:R : rty) by rewrite H.
+        rewrite natr_sum //. }
+      rewrite mulVf => //.
+      apply/negP => H2; move: (eqP H2) => H2'; move: n_pos; rewrite H2' //. }
+    apply/forallP => x; rewrite /timeAvg_pmf ffunE.
+    rewrite mulrC pmulr_rge0; last by rewrite invr_gt0.
+    apply: sumr_ge0 => i _; apply: dist_positive.
+  Qed.
+
+  Definition timeAvg_dist : dist T rty := 
+    @mkDist _ _ timeAvg_pmf timeAvg_pmf_dist.
+End timeAvg.
+
 Section uniform.
   Variable T : finType.
   Variable t0 : T.
