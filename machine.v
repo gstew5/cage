@@ -316,6 +316,42 @@ Section machine_semantics.
     move => Hx; apply: IHmachine_step_plus.
     by move => i; apply: (machine_step_histRel_inv i H).
   Qed.
+
+  Inductive outHistRel :
+    'I_N ->
+    seq {ffun 'I_N -> dist A rat_realFieldType} -> 
+    seq (dist A rat_realFieldType) -> 
+    Prop := 
+  | outHistRel_nil :
+      forall i : 'I_N,
+        outHistRel i nil nil
+  | outHistRel_cons :
+      forall (i : 'I_N) f fs d ds,
+        outHistRel i fs ds ->
+        outHistRel i [:: f & fs] [:: d & ds].
+
+  Inductive machineClientHistRel :
+    'I_N ->
+    machine_state ->
+    Prop :=
+  | sentNone :
+      forall (i : 'I_N) m,
+        sent (m.(clients) i).2.(SOracleSt) = None ->
+        outHistRel i m.(hist) (m.(clients) i).2.(SOutputs) ->
+        machineClientHistRel i m
+  | sentSome :
+      forall (i : 'I_N) m d,
+        sent (m.(clients) i).2.(SOracleSt) = Some d ->
+        outHistRel i m.(hist) (behead (m.(clients) i).2.(SOutputs)) ->
+        machineClientHistRel i m.
+
+  Lemma machine_step_machineClientHistRel m m' i :
+    machine_step m m' ->
+    machineClientHistRel i m ->
+    machineClientHistRel i m'.
+  Proof.
+    inversion 1; subst.
+  Abort.    
   
   Definition ffun_of_list A (l : list A) : {ffun 'I_(size l) -> A} :=
     finfun (fun i => tnth (in_tuple l) i).
