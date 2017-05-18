@@ -118,7 +118,7 @@ Section machine_semantics.
   Record machine_state : Type :=
     mkMachineState
       { clients : {ffun 'I_N -> client_state};
-        hist : seq (dist [finType of {ffun 'I_N -> A}] rat_realFieldType)
+        hist : seq {ffun 'I_N -> dist A rat_realFieldType}
       }.
 
   Definition all_clients_have_sent
@@ -168,10 +168,13 @@ Section machine_semantics.
       calculate their new cost vectors and reset [sent] to None (thus 
       acknowledging the send). *) 
   | MSExpectedCost :
-      forall f m m',
+      forall f m m'
+        (FIXME: forall i,
+            (m.(clients) i).2.(SOutputs) =
+            map (fun (f : {ffun 'I_N -> dist A rat_realFieldType}) => f i) m.(hist)),
         all_clients_have_sent m f ->
         (forall i, server_sent_cost_vector i f m m') ->
-        m'.(hist) = [:: prod_dist f & m.(hist)] -> 
+        m'.(hist) = [:: f & m.(hist)] ->
         machine_step m m'.
 
   Inductive final_state : machine_state -> Prop :=
@@ -222,10 +225,10 @@ Section machine_semantics.
     by case: (IHHstep _ H3) => s' H4; exists s'.
   Qed.
 
-  (* The pre-client history relation *)
+  (* The per-client history relation *)
   Inductive distHistRel :
     'I_N ->
-    seq (dist [finType of {ffun 'I_N -> A}] rat_realFieldType) ->
+    seq {ffun 'I_N -> dist A rat_realFieldType} -> 
     seq {ffun A -> rat} ->
     Prop := 
 
@@ -242,12 +245,18 @@ Section machine_semantics.
                      (prod_dist f)
                      (fun p => cost i (upd i a p)))
         in
-        distHistRel i [:: prod_dist f & ds] [:: c & cs].
+        distHistRel i [:: f & ds] [:: c & cs].
 
   Definition costvec_of_clientpkg (c : ClientPkg) : seq {ffun A -> rat} :=
     match c.(received) with
     | None => nil
     | Some c => [:: c]
+    end.
+
+  Definition sent_of_clientpkg (c : ClientPkg) : seq (dist A rat_realFieldType) :=
+    match c.(sent) with
+    | None => nil
+    | Some d => [:: d]
     end.
   
   Lemma client_step_all_costs'_inv c s c' s' :
@@ -307,17 +316,17 @@ Section machine_semantics.
     move => Hx; apply: IHmachine_step_plus.
     by move => i; apply: (machine_step_histRel_inv i H).
   Qed.
-
+  
   Definition ffun_of_list A (l : list A) : {ffun 'I_(size l) -> A} :=
     finfun (fun i => tnth (in_tuple l) i).
 
   Section regret.
     Variable m : machine_state.
-    Variable pf : (0:rat) < (size (m.(hist)))%:R.
+    Variable pf : (0:rat) < (size (map (@prod_dist _ _ _) m.(hist)))%:R.
 
     (* The time-averaged \sigma distribution *)
     Definition sigma : dist [finType of {ffun 'I_N -> A}] rat_realFieldType
-      := timeAvg_dist pf (ffun_of_list m.(hist)).
+      := timeAvg_dist pf (ffun_of_list (map (@prod_dist _ _ _) m.(hist))).
 
     (* Client i has regret at most \eps *)
     Definition client_regret_eps (eps : rat) (i : 'I_N) : Prop :=
@@ -327,7 +336,19 @@ Section machine_semantics.
 
     Definition machine_regret_eps (eps : rat) : Prop :=
       forall i : 'I_N, client_regret_eps eps i.
+
+    Lemma state_expCost1_distHistRel i :
+      let: s := (m.(clients) i).2 in
+      distHistRel i m.(hist) (all_costs' s) -> 
+      state_expCost1 (all_costs0 s) s = rat_to_R (expectedCost i sigma).
+    Proof.
+      rewrite /all_costs'/all_costs0.
+      rewrite /expectedCost/expectedValue/expectedCondValue.
+      set (l := List.removelast _).
+      rewrite /sigma/timeAvg_dist/timeAvg_pmf/=.
+    Abort.
   End regret.
+  
 End machine_semantics.  
 
 Section extract_oracle.
@@ -697,5 +718,5 @@ Section extract_oracle.
     rewrite Hq.
     apply: (mult_weights_epsilon_no_regret Hstep Hfinal H4).
   Qed.
-
+  
 End extract_oracle.
