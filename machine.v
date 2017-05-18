@@ -110,20 +110,15 @@ Section machine_semantics.
 
   Definition client_state :=
     (com A * @weightslang.state A ClientPkg unit)%type.
-
-  (* This relation between expected cost histories and
-      strategy distributions needs to be filled in *) 
-  Inductive distHistRel
-    (expCostHist : (seq {c : {ffun A -> rat} & forall a, `|c a| <= 1}))
-    (distHist    : (seq (dist A rat_realFieldType))) : Prop.
-
+  
+  Definition upd {A : finType} {T : Type}
+             (a : A) (t : T) (s : {ffun A -> T}) :=
+    finfun (fun b => if a==b then t else s b).
+      
   Record machine_state : Type :=
     mkMachineState
       { clients : {ffun 'I_N -> client_state};
-        clientsDistHist : {ffun 'I_N -> seq (dist A rat_realFieldType)};
-        histRel : forall (n : 'I_N), distHistRel
-                                      (SPrevCosts (snd (clients n)))
-                                      (clientsDistHist n)
+        hist : seq (dist [finType of {ffun 'I_N -> A}] rat_realFieldType)
       }.
 
   Definition all_clients_have_sent
@@ -133,19 +128,6 @@ Section machine_semantics.
     forall i : 'I_N,
       let: (c,s) := m.(clients) i in
       s.(SOracleSt).(sent) = Some (f i).
-  
-  Definition upd {A : finType} {T : Type}
-             (a : A) (t : T) (s : {ffun A -> T}) :=
-    finfun (fun b => if a==b then t else s b).
-
-  (* Connects the effects of updating a machine state to the distHistRel  *)
-  Lemma distHistRelStep : forall c s m (i n: 'I_N),
-    distHistRel
-      (SPrevCosts (snd (upd i (c,s) m.(clients) n)))
-      ((finfun (fun x => ((((upd i (c,s) m.(clients)) x).2)).(SOutputs))) n).
-  Proof.
-  Admitted.
-
 
   Inductive server_sent_cost_vector
             (i : 'I_N) (f : {ffun 'I_N -> dist A rat_realFieldType})
@@ -162,31 +144,24 @@ Section machine_semantics.
                    expectedValue
                      (prod_dist f)
                      (fun p => cost i (upd i a p))) ->
-      (* acknowledge receipt of dstribution *)
+      (* acknowledge receipt of distribution *)
       s'.(SOracleSt).(sent) = None ->
       (* send new cost vector *)      
       s'.(SOracleSt).(received) = Some cost_vec ->
       server_sent_cost_vector i f m m'. 
 
-  (* For the moment, this just updates based on the result of upd.
-      If we want to make the relation between the
-      new history and the old deeper, we'll probably need to modify
-      weightslang. *) 
-Inductive machine_step : machine_state -> machine_state -> Prop :=
+  Inductive machine_step : machine_state -> machine_state -> Prop :=
   (** Step client [i], as long as it hasn't yet sent a distribution. *)
   | MSClientStep :
       forall (i : 'I_N) c s c' s' (m : machine_state),
         m.(clients) i = (c,s) ->         
         s.(SOracleSt).(sent) = None -> 
         client_step c s c' s' ->
- (* New requirement to handle the relational addition goes here*)
         machine_step
           m
           (@mkMachineState
              (upd i (c',s') m.(clients))
-              (* Update the ditribution histories for each client *)
-             (finfun (fun x => ((((upd i (c',s') m.(clients)) x).2)).(SOutputs)))
-             (distHistRelStep c' s' m i)
+             m.(hist)
           )      
   (** Once all clients have committed to a distribution, 
       calculate their new cost vectors and reset [sent] to None (thus 
@@ -195,6 +170,7 @@ Inductive machine_step : machine_state -> machine_state -> Prop :=
       forall f m m',
         all_clients_have_sent m f ->
         (forall i, server_sent_cost_vector i f m m') ->
+        m'.(hist) = [:: prod_dist f & m.(hist)] -> 
         machine_step m m'.
 
   Inductive final_state : machine_state -> Prop :=
@@ -228,6 +204,7 @@ Inductive machine_step : machine_state -> machine_state -> Prop :=
         rewrite H0 in H4; inversion H4; subst; simpl.
         inversion H2. }
       by move => H4; simpl; exists s; rewrite /upd ffunE Heq. }
+    move: H2 => Hhist.
     move => H4; move: (H1 i); inversion 1; subst.
     rewrite H4 in H3; inversion H3; subst. clear H3.
     by exists s'.
@@ -243,9 +220,30 @@ Inductive machine_step : machine_state -> machine_state -> Prop :=
     move => s H2; case: (machine_step_CSkip H H2) => s'' H3.
     by case: (IHHstep _ H3) => s' H4; exists s'.
   Qed.
-
   
+   (*histRel : forall (i : 'I_N),
+     distHistRel i hist (all_costs' (clients i).2)
 
+  Inductive distHistRel :
+    'I_N ->
+    seq (dist [finType of {ffun 'I_N -> A}] rat_realFieldType) ->
+    seq {ffun A -> rat} ->
+    Prop := 
+
+  | distHistRel_nil :
+      forall i : 'I_N,
+        distHistRel i nil nil
+
+  | distHistRel_cons :
+      forall (i : 'I_N) ds cs f,
+        distHistRel i ds cs ->
+        let: c := 
+           finfun (fun a : A =>
+                   expectedValue
+                     (prod_dist f)
+                     (fun p => cost i (upd i a p)))
+        in
+        distHistRel i [:: prod_dist f & ds] [:: c & cs].*)
 End machine_semantics.  
 
 Section extract_oracle.
@@ -453,14 +451,16 @@ Section extract_oracle.
     move => H4 H5; inversion 1; subst.
     have Hupto: upto_oracle_eq s s'.
     { move: (H1 i); inversion 1; subst.
-      rewrite H7 in H4; inversion H4; subst.
-      by rewrite H8 in H5; inversion H5; subst. }
+      move: H2 => Hhist.
+      rewrite H9 in H5; inversion H5; subst.
+      by rewrite H8 in H4; inversion H4; subst. }
     left; split => //.
+    move: H2 => Hhist.
     move: (H1 i); inversion 1; subst; split => //.
     rewrite H7 in H4; inversion H4; subst.
     rewrite H8 in H5; inversion H5; subst.
     constructor.
-    by apply: (upto_oracle_trans (upto_oracle_sym Hupto) H3).
+    by apply: (upto_oracle_trans (upto_oracle_sym Hupto) H6).
     rewrite H7 in H4; inversion H4; subst.
     by rewrite H8 in H5; inversion H5; subst.
   Qed.      
