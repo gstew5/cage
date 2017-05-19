@@ -496,20 +496,84 @@ Section machine_semantics.
     rewrite (H g) //.
   Qed.    
 
+  Lemma timeAvg_fun_big_sum' i m : 
+    rat_to_R (\sum_(i0 < size (hist m)) (\sum_t ((timeAvg_fun m) i0) t * (cost) i t)) =
+    big_sum (hist m) (fun h =>
+      rat_to_R
+        (expectedValue
+           (prod_dist (T:=A) (rty:=rat_realFieldType) (n:=N) h)
+           (fun t => (cost) i t))).
+  Proof.
+    rewrite rat_to_R_sum /timeAvg_fun /expectedValue/expectedCondValue.
+    symmetry; rewrite -big_sum_index_enum; apply: big_sum_ext => // x.
+    f_equal; apply: congr_big => // y _; rewrite ffunE //.
+  Qed.    
+
+  Lemma expectedValue_nested (f : {ffun 'I_N -> dist A rat_realFieldType}) i :
+    expectedValue (f i)
+     [eta [ffun a => expectedValue
+                       (prod_dist (T:=A) (rty:=rat_realFieldType) (n:=N) f)
+                       (fun p : {ffun 'I_N -> A} => (cost) i (upd i a p))]] =
+    expectedValue (prod_dist (T:=A) (rty:=rat_realFieldType) (n:=N) f)
+     [eta (cost) i].
+  Proof.
+    rewrite /expectedValue/expectedCondValue/prod_dist/=/prod_pmf.
+    have ->:
+     \sum_t
+      (f i) t *
+      [ffun a =>
+       \sum_t0
+        [ffun p : [finType of {ffun 'I_N -> A}] =>
+         \prod_(i0 < N) (f i0) (p i0)] t0 *
+       (cost) i (upd i a t0)] t =
+    \sum_t
+     (f i) t *
+     (\sum_(p : [finType of {ffun 'I_N -> A}])
+       \prod_(i0 < N) (f i0) (p i0) * (cost) i (upd i t p)).
+    { apply: congr_big => // x _; rewrite ffunE; f_equal.
+      have ->:
+        \sum_t0
+        [ffun p : {ffun 'I_N -> A} =>
+         \prod_(i0 < N) (f i0) (p i0)] t0 * (cost) i (upd i x t0) =        
+        \sum_(t0 : {ffun 'I_N -> A})
+         (\prod_(i0 < N) (f i0) (t0 i0)) * (cost) i (upd i x t0).
+      { apply: congr_big => // y _; rewrite ffunE //. }
+      by []. }
+    have ->:
+      \sum_t [ffun p : {ffun 'I_N -> A} =>
+            \prod_(i0 < N) (f i0) (p i0)] t * (cost) i t =
+      \sum_(t : {ffun 'I_N -> A}) (\prod_(i0 < N) (f i0) (t i0)) * (cost) i t.
+    { apply: congr_big => // x _; rewrite ffunE //. }
+  Abort.
+  
   Lemma state_expCost1_distHistRel i m (pf : 0 < (size (hist m))%:R) :    
     let: s := (m.(clients) i).2 in
     (0 < size (all_costs0 s))%N ->
     (0 < size (behead (SOutputs s)))%N ->
-    outHistRel i m.(hist) s.(SOutputs) -> 
+    outHistRel i m.(hist) (behead s.(SOutputs)) -> 
     distHistRel i m.(hist) (all_costs' s) -> 
     Rdefinitions.Rmult
       (rat_to_R (1/(size (hist m))%:R))
       (state_expCost1 (all_costs0 s) s) =
     rat_to_R (expectedCost i (sigma pf)).
   Proof.
-    move => H H1; rewrite state_expCost13 // /sigma; clear H H1.
-    rewrite /expectedCost expectedValue_timeAvg.
-    rewrite 3!rat_to_R_mul => H1 H2; f_equal.
+    move => H H1; rewrite state_expCost13 // /sigma.
+    rewrite /expectedCost expectedValue_timeAvg'.
+    rewrite 3!rat_to_R_mul => H2 H3; f_equal.
+    rewrite timeAvg_fun_big_sum'; clear pf.
+    rewrite /all_costs'/all_costs0/all_costs/= in H2|-*.
+    destruct ((clients m) i).2; simpl in *.
+    rewrite /all_costs'/all_costs0 /= in H3.    
+    destruct SPrevCosts.
+    { inversion H2; subst; simpl; try solve[rewrite rat_to_R0 //]. }
+    inversion H3; subst; simpl.
+    destruct SOutputs; try solve[simpl in H1 => //].
+    destruct SOutputs; try solve[simpl in H1 => //].
+    inversion H2; subst; simpl.
+    inversion H3; subst; simpl.
+    rewrite -H0 in H4; inversion H4; subst.
+    rewrite -H0 in H5; inversion H5; subst.
+    rewrite rat_to_R_plus /=; f_equal.
   Abort.    
 End machine_semantics.  
 

@@ -172,6 +172,10 @@ Lemma prod_distr_sum
   \sum_(f : {ffun I -> J}) \prod_i F i (f i).
 Proof. by apply: bigA_distr_bigA. Qed.
 
+Definition upd {A : finType} {T : Type}
+           (a : A) (t : T) (s : {ffun A -> T}) :=
+  finfun (fun b => if a==b then t else s b).
+
 Section product.
   Variable T : finType.
   Variable rty : numDomainType.
@@ -199,6 +203,50 @@ Section product.
   
   Definition prod_dist : dist [finType of type] rty :=
     @mkDist _ _ prod_pmf prod_pmf_dist.
+
+  Lemma expectedValue_marginal i g :
+    expectedValue
+      (f i)
+      [ffun a =>
+       expectedValue
+         prod_dist
+         (fun p => g i (upd i a p))] =
+    expectedValue prod_dist (g i).
+  Proof.
+    rewrite /expectedValue/expectedCondValue/prod_dist/=/prod_pmf.
+    have ->:
+    \sum_t
+      (f i) t *
+    [ffun a =>
+     \sum_t0
+      [ffun p : {ffun 'I_n -> T} => \prod_(i0 < n) (f i0) (p i0)] t0 *
+     g i (upd i a t0)] t =
+    \sum_t
+      (f i) t *
+      (\sum_t0
+        [ffun p : {ffun 'I_n -> T} => \prod_(i0 < n) (f i0) (p i0)] t0 *
+       g i (upd i t t0)).
+    { apply: congr_big => // x _; rewrite ffunE //. }
+    have ->:
+    \sum_t
+      (f i) t *
+      (\sum_t0
+        [ffun p : {ffun 'I_n -> T} =>
+         \prod_(i0 < n) (f i0) (p i0)] t0 * g i (upd i t t0)) =
+    \sum_t
+      (f i) t *
+    (\sum_(t0 : {ffun 'I_n -> T})
+      \prod_(i0 < n) (f i0) (t0 i0) * g i (upd i t t0)).
+    { apply: congr_big => // x _; f_equal.
+      apply: congr_big => // y _; rewrite ffunE //. }
+    have ->:
+    \sum_t [ffun p : {ffun 'I_n -> T} => \prod_(i0 < n) (f i0) (p i0)] t * g i t =
+    \sum_(t : {ffun 'I_n -> T}) (\prod_(i0 < n) (f i0) (t i0)) * g i t.
+    { apply: congr_big => // x _; rewrite ffunE //. }
+    set (h :=
+      fun t =>
+        (\sum_(t0 : {ffun 'I_n -> T}) \prod_(i0 < n) (f i0) (t0 i0) * g i (upd i t t0))).
+  Abort. (*TODO*)  
 End product.
 
 Section timeAvg.
@@ -246,6 +294,13 @@ Section timeAvg.
     apply: congr_big => // i _; rewrite ffunE.
     rewrite -!mulr_suml mulrA mulr1 -2!mulrA.
     by have ->: (n%:R^-1 * f i = f i / n%:R) by rewrite mulrC.
+  Qed.
+
+  Lemma expectedValue_timeAvg' f :
+    expectedValue timeAvg_dist f = (1/n%:R) * \sum_(i<n) \sum_t (s i t) * f t.
+  Proof.
+    rewrite expectedValue_timeAvg; f_equal.
+    by rewrite exchange_big.
   Qed.
 End timeAvg.
 
