@@ -168,10 +168,7 @@ Section machine_semantics.
       calculate their new cost vectors and reset [sent] to None (thus 
       acknowledging the send). *) 
   | MSExpectedCost :
-      forall f m m'
-        (FIXME: forall i,
-            (m.(clients) i).2.(SOutputs) =
-            map (fun (f : {ffun 'I_N -> dist A rat_realFieldType}) => f i) m.(hist)),
+      forall f m m',
         all_clients_have_sent m f ->
         (forall i, server_sent_cost_vector i f m m') ->
         m'.(hist) = [:: f & m.(hist)] ->
@@ -330,28 +327,61 @@ Section machine_semantics.
         outHistRel i fs ds ->
         outHistRel i [:: f & fs] [:: d & ds].
 
+  Definition head_dist (l : seq (dist A rat_realFieldType)) d :=
+    match l with
+    | nil => False
+    | d' :: _ => d=d'
+    end.
+  
   Inductive machineClientHistRel :
     'I_N ->
-    machine_state ->
+    state A ClientPkg unit ->
+    seq {ffun 'I_N -> dist A rat_realFieldType} -> 
     Prop :=
   | sentNone :
-      forall (i : 'I_N) m,
-        sent (m.(clients) i).2.(SOracleSt) = None ->
-        outHistRel i m.(hist) (m.(clients) i).2.(SOutputs) ->
-        machineClientHistRel i m
+      forall (i : 'I_N) s h,
+        sent s.(SOracleSt) = None ->
+        outHistRel i h s.(SOutputs) ->
+        machineClientHistRel i s h
   | sentSome :
-      forall (i : 'I_N) m d,
-        sent (m.(clients) i).2.(SOracleSt) = Some d ->
-        outHistRel i m.(hist) (behead (m.(clients) i).2.(SOutputs)) ->
-        machineClientHistRel i m.
+      forall (i : 'I_N) s h d,
+        sent s.(SOracleSt) = Some d -> 
+        head_dist s.(SOutputs) d ->
+        outHistRel i h (behead s.(SOutputs)) -> 
+        machineClientHistRel i s h.
 
   Lemma machine_step_machineClientHistRel m m' i :
     machine_step m m' ->
-    machineClientHistRel i m ->
-    machineClientHistRel i m'.
+    machineClientHistRel i (m.(clients) i).2 m.(hist) ->
+    machineClientHistRel i (m'.(clients) i).2 m'.(hist).
   Proof.
     inversion 1; subst.
-  Abort.    
+    { case Heq: (i0 == i).
+      { move: (eqP Heq) => Heq'; subst i0; clear Heq.
+        inversion 1; subst; last first.
+        { by rewrite H0 /= in H4; rewrite H1 in H4. }
+        rewrite /upd ffunE eq_refl /=.        
+        clear H H3; rewrite H0 /= in H4 H5; clear H0.
+        induction H2; try solve[constructor => //].
+        { constructor => //. 
+          by inversion Hrecv; subst; rewrite H2. }
+        { apply: sentSome => //.
+          inversion H; subst; rewrite H2 => //. }
+        move: (IHstep H4 H4 H5); inversion 1; subst.
+        { constructor => //. }
+        apply: sentSome => //.
+        apply: H.
+        apply: H0. }
+      by rewrite /= /upd ffunE Heq. }
+    inversion 1; subst.
+    { by move: (H0 i); move: H4; case: (clients m i) => c s /= ->; case. }
+    move: (H1 i); inversion 1; subst; apply: sentNone; first by rewrite H9.
+    rewrite H2; rewrite H9 /=; move: (H0 i); rewrite H8 /=; case => Hx Hy.
+    inversion H11; subst; rewrite -H17.
+    rewrite H8 /= in H4 H5 H6; clear - H4 H5 H6 Hy.
+    move: H5 H6; case: (SOutputs _) => // a l /= <-.
+    by rewrite H4 in Hy; inversion Hy; subst; constructor.
+  Qed.    
   
   Definition ffun_of_list A (l : list A) : {ffun 'I_(size l) -> A} :=
     finfun (fun i => tnth (in_tuple l) i).
