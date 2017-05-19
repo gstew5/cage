@@ -237,6 +237,16 @@ Section timeAvg.
 
   Definition timeAvg_dist : dist T rty := 
     @mkDist _ _ timeAvg_pmf timeAvg_pmf_dist.
+
+  Lemma expectedValue_timeAvg f :
+    expectedValue timeAvg_dist f = (1/n%:R) * \sum_t (\sum_(i<n) (s i t) * f t).
+  Proof.
+    rewrite /expectedValue/expectedCondValue/timeAvg_dist/=/timeAvg_pmf.
+    rewrite mulrC mulr_suml.
+    apply: congr_big => // i _; rewrite ffunE.
+    rewrite -!mulr_suml mulrA mulr1 -2!mulrA.
+    by have ->: (n%:R^-1 * f i = f i / n%:R) by rewrite mulrC.
+  Qed.
 End timeAvg.
 
 Section uniform.
