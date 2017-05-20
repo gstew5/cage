@@ -210,3 +210,43 @@ Proof.
   move: (forallP (@minP rty I xpredT f def H)); move/(_ i).
   by move/implyP; apply.
 Qed.
+
+Section min_lems.
+  Variables (rty : realFieldType) (I : finType).
+  
+  Lemma min_ext (p1 p2 : pred I) (f g : I -> rty) d1 d2 :
+    p1 =1 p2 -> 
+    f =1 g ->
+    d1 = d2 -> 
+    min p1 f d1 = min p2 g d2 .
+  Proof.
+    move => H1 H2 ->; rewrite /min.
+    have ->: arg_min p1 f d2 = arg_min p2 g d2.
+    { rewrite /arg_min/getOrd_sub.
+      have ->:
+        [seq x <- enum I | p1 x] =
+        [seq x <- enum I | p2 x].
+      { rewrite (eq_in_filter (a2:=p2)) => //. }
+      move: ([seq x <- _ | _]) d2; elim => // a l /= IH.
+      move => d2; rewrite !H2; case: (_ <= _) => //. }
+    by apply: H2.
+  Qed.
+
+  Lemma ler_const_inv (c x y : rat) :
+    0 < c ->    
+    ((c * x <= c * y) = (x <= y)).
+  Proof.
+    move => Hpos; rewrite -(ler_pdivl_mull _ _ Hpos) mulrA mulVf.
+    { by rewrite mul1r. }
+    by apply/eqP => H; rewrite H in Hpos.
+  Qed.    
+  
+  Lemma min_const (p : pred I) (f : I -> rat) (c : rat) d :
+    0 < c -> 
+    min p (fun x => c * f x) d = c * min p f d.
+  Proof.
+    move => Hpos; rewrite /min; f_equal; rewrite /arg_min/getOrd_sub.
+    move: ([seq x <- enum I | p x]) d; elim => // a l IH /= d.
+    rewrite (ler_const_inv _ _ Hpos). case: (f d <= f a) => //.
+  Qed.    
+End min_lems.    

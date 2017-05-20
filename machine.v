@@ -2,7 +2,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 
 Require Import QArith NArith.
-Require Import ProofIrrelevance.
+Require Import ProofIrrelevance FunctionalExtensionality. (*FIXME: don't need funext*)
 
 From mathcomp Require Import ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
@@ -133,11 +133,31 @@ Section machine_semantics.
   Section cost_vec.
     Variable f : {ffun 'I_N -> dist A rat_realFieldType}. 
 
+    Definition expUnilateral (i : 'I_N) (a : A) := 
+      \sum_(p : {ffun 'I_N -> A} | p i == a)
+        (\prod_(j : 'I_N | i!=j) f j (p j)) * (cost i p).
+      
     Definition cost_vec (i : 'I_N) : {ffun A -> rat} :=
-      [ffun a =>
-       \sum_(p : {ffun 'I_N -> A} | p i == a)
-        (\prod_(j : 'I_N | i!=j) f j (p j)) * (cost i p)].
+      [ffun a => expUnilateral i a].
 
+    Lemma marginal_unfold (F : {ffun 'I_N -> A} -> rat) i :
+      let P t (p : {ffun 'I_N -> A}) := p i == t in     
+      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2) (F p.2) =
+      \sum_(p : {ffun 'I_N -> A}) (F p).
+    Proof.
+      move => P.
+      set (G (x : A) y := F y).
+      have ->:
+       \sum_(p | P p.1 p.2) F p.2 =
+       \sum_(p | predT p.1 && P p.1 p.2) G p.1 p.2 by apply: eq_big.
+      rewrite -pair_big_dep /= /G /P.
+      have ->:
+       \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0) F j =
+       \sum_i0 \sum_(j : {ffun 'I_N -> A} | predT j && (j i == i0)) F j.
+      { by apply: eq_big. }
+      rewrite -partition_big //. 
+    Qed.      
+    
     Lemma cost_vec_unfold i :
       expectedValue (f i) [eta (cost_vec i)] =
       expectedValue (prod_dist f) [eta (cost) i].
@@ -215,25 +235,10 @@ Section machine_semantics.
       { apply: congr_big => // x Hx; rewrite H //. }
       
       clear F.
-      have H2:
-        forall (F : {ffun 'I_N -> A} -> rat),
-          \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2) (F p.2) =
-          \sum_(p : {ffun 'I_N -> A}) (F p).
-      { move => F.
-        set (G (x : A) y := F y).
-        have ->:
-          \sum_(p | P p.1 p.2) F p.2 =
-          \sum_(p | predT p.1 && P p.1 p.2) G p.1 p.2 by apply: eq_big.
-        rewrite -pair_big_dep /= /G /P.
-        have ->:
-          \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0) F j =
-          \sum_i0 \sum_(j : {ffun 'I_N -> A} | predT j && (j i == i0)) F j.
-        { by apply: eq_big. }
-        rewrite -partition_big //. }
       set (G (x : {ffun 'I_N -> A}) := \prod_(j < N) (f j) (x j) * (cost) i x).
       change (\sum_(p | P p.1 p.2) G p.2 =
               \sum_(p : {ffun 'I_N -> A}) \prod_(i0 < N) (f i0) (p i0) * (cost) i p).
-      by rewrite H2.
+      by rewrite marginal_unfold.
     Qed.
   End cost_vec.
     
@@ -500,6 +505,21 @@ Section machine_semantics.
         expectedCost i sigmaT <= 
         expectedUnilateralCost i sigmaT [ffun=> a] + eps.
 
+    Definition expectedUni i a :=
+      expectedValue
+        sigmaT
+        (fun t => (cost) i (upd i a t)).
+
+    Lemma expectedUni_Unilateral a i :
+      expectedUni i a = expectedUnilateralCost i sigmaT [ffun=> a].
+    Proof.
+      rewrite /expectedUni/expectedUnilateralCost.
+      rewrite /expectedValue/expectedCondValue.
+      apply: congr_big => // x _.
+      rewrite /upd /games.upd; f_equal; f_equal; apply/ffunP => y.
+      rewrite !ffunE; case: (i == y) => //.
+    Qed.      
+    
     Definition machine_regret_eps (eps : rat) : Prop :=
       forall i : 'I_N, client_regret_eps eps i.
   End regret.
@@ -605,7 +625,7 @@ Section machine_semantics.
     f_equal; apply: congr_big => // y _; rewrite ffunE //.
   Qed.    
 
-  Lemma state_expCost1_distHistRel i m (pf : 0 < (size (hist m))%:R) :    
+  Lemma state_expCost1_sigmaT i m (pf : 0 < (size (hist m))%:R) :    
     let: s := (m.(clients) i).2 in
     (0 < size (all_costs0 s))%N ->
     (0 < size (behead (SOutputs s)))%N ->
@@ -616,13 +636,7 @@ Section machine_semantics.
       (state_expCost1 (all_costs0 s) s) =
     rat_to_R (expectedCost i (sigmaT pf)).
   Proof.
-<<<<<<< HEAD
-    move => H H1; rewrite state_expCost13 // /sigmaT; clear H H1.
-    rewrite /expectedCost expectedValue_timeAvg.
-    rewrite 3!rat_to_R_mul => H1 H2; f_equal.
-  Abort.    
-=======
-    move => H H1; rewrite state_expCost13 // /sigma.
+    move => H H1; rewrite state_expCost13 // /sigmaT.
     rewrite /expectedCost expectedValue_timeAvg'.
     rewrite 3!rat_to_R_mul => H2 H3; f_equal.
     rewrite timeAvg_fun_big_sum'; clear pf.
@@ -643,7 +657,119 @@ Section machine_semantics.
     { by f_equal; rewrite cost_vec_unfold. }
     apply: IH => //.
   Qed.    
->>>>>>> c22cace7970804f2556e3576260c498fd6f37a3d
+
+  (*
+  Lemma OPT_sigmaT_min i m (pf : 0 < (size (hist m))%:R) :    
+    let: s := (m.(clients) i).2 in
+    (0 < size (all_costs0 s))%N ->
+    (0 < size (behead (SOutputs s)))%N ->
+    outHistRel i m.(hist) (behead s.(SOutputs)) -> 
+    distHistRel i m.(hist) (all_costs' s) ->
+    OPTR a0 s =
+    rat_to_R ((size (hist m))%:R * extrema.min xpredT (expectedUni pf i) a0).
+  Proof.
+    move => H H1 H2 H3.
+    rewrite /OPTR/OPT/astar/best_action.
+    rewrite /extrema.min.
+
+    have ->:
+      extrema.arg_min xpredT
+       (fun a : A => \sum_(c0 <- all_costs' ((clients m) i).2) c0 a) a0 =
+      extrema.arg_min xpredT (expectedUni (m:=m) pf i) a0.
+    { admit. }
+
+    move: (extrema.arg_min _ _ _) => x.
+    rewrite rat_to_R_mul rat_to_R_sum /expectedUni /sigmaT.
+    rewrite expectedValue_timeAvg rat_to_R_mul exchange_big /= rat_to_R_sum.
+    rewrite -Reals.Raxioms.Rmult_assoc.
+    have ->:
+      (Rdefinitions.Rmult
+         (rat_to_R (size (hist m))%:R)
+         (rat_to_R (1 / (size (hist m))%:R)) = 1%R).
+    { admit. }
+    rewrite Reals.Raxioms.Rmult_1_l.
+    clear pf.
+
+    rewrite /all_costs'/all_costs0/all_costs/= in H2|-*.
+    destruct ((clients m) i).2; simpl in *.
+    rewrite /all_costs'/all_costs0 /= in H3.
+    destruct SOutputs; try solve[simpl in H1 => //].
+    simpl in H2; clear H H1.
+    revert H2 H3.
+    move: (existT _ _).
+    rewrite /timeAvg_fun.
+
+    set (F c :=
+           (\sum_i0
+            (prod_dist (T:=A) (rty:=rat_realFieldType) (n:=N) c) i0 *
+            (cost) i (upd i x i0))).
+    have ->:
+     big_sum (index_enum (ordinal_finType (size (hist m))))
+     (fun c : 'I_(size (hist m)) =>
+      rat_to_R
+        (\sum_i0
+            [ffun i1 => prod_dist (T:=A) (rty:=rat_realFieldType) (n:=N)
+                          (tnth (in_tuple (hist m)) i1)] c i0 *
+         (cost) i (upd i x i0))) =
+     big_sum (index_enum (ordinal_finType (size (hist m))))
+             (fun c : 'I_(size (hist m)) => rat_to_R (F (tnth (in_tuple (hist m)) c))).
+    { apply: big_sum_ext => // y; rewrite /F; f_equal.
+      apply: congr_big => // z _; rewrite ffunE //. }
+    rewrite big_sum_index_enum.
+    
+    move: (hist m) SPrevCosts SOutputs; elim.
+
+    { move => SPrev SOuts; inversion 1; subst.
+      by destruct SPrev; try solve[inversion 1]; simpl. }
+
+    move => a l IH SPrev SOut; inversion 1; subst.
+    destruct SPrev; try solve[inversion 1]; simpl; inversion 1; subst.
+    f_equal; last first.
+    { apply: IH => //; apply: H4. }
+
+    f_equal.
+    rewrite /cost_vec /F ffunE.
+
+    rewrite /expUnilateral.
+    rewrite /prod_dist /= /prod_pmf.
+    have ->:
+     \sum_i0
+     [ffun p : {ffun 'I_N -> A} =>
+      \prod_(i1 < N) (a i1) (p i1)] i0 * (cost) i (upd i x i0) =
+     \sum_(i0 : {ffun 'I_N -> A})
+      (\prod_(i1 < N) (a i1) (i0 i1)) * (cost) i (upd i x i0).
+    { apply: congr_big => // y _; rewrite ffunE //. }
+  Admitted.
+  
+  Lemma OPT_sigmaT i m (pf : 0 < (size (hist m))%:R) :    
+    let: s := (m.(clients) i).2 in
+    (0 < size (all_costs0 s))%N ->
+    (0 < size (behead (SOutputs s)))%N ->
+    outHistRel i m.(hist) (behead s.(SOutputs)) -> 
+    distHistRel i m.(hist) (all_costs' s) ->
+    Rdefinitions.Rle
+      (Rdefinitions.Rmult
+         (rat_to_R (1/(size (hist m))%:R))
+         (OPTR a0 s))
+      (rat_to_R (expectedUnilateralCost i (sigmaT pf) [ffun=> a0])).
+  Proof.
+    move => H H1 H2 H3.
+    rewrite OPT_sigmaT_min => //.
+    rewrite !rat_to_R_mul rat_to_R1 !Reals.Raxioms.Rmult_1_l.
+    Require Import Reals.
+    rewrite -Reals.Raxioms.Rmult_assoc.
+    have Hneq: ((size (hist m))%:R != (0 : rat)).
+    { admit. }
+    rewrite rat_to_R_inv // Rinv_l; last first.
+    { admit. }
+    rewrite Rmult_1_l; apply: rat_to_R_le.
+    change
+      (extrema.min xpredT (expectedUni pf i) a0 <=
+       expectedUnilateralCost i (machine_semantics.sigmaT (m:=m) pf) [ffun=> a0]).
+    rewrite -expectedUni_Unilateral.
+    by apply: extrema.min_le.
+  Admitted.
+   *)
 End machine_semantics.  
 
 Section extract_oracle.
