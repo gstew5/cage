@@ -203,50 +203,6 @@ Section product.
   
   Definition prod_dist : dist [finType of type] rty :=
     @mkDist _ _ prod_pmf prod_pmf_dist.
-
-  Lemma expectedValue_marginal i g :
-    expectedValue
-      (f i)
-      [ffun a =>
-       expectedValue
-         prod_dist
-         (fun p => g i (upd i a p))] =
-    expectedValue prod_dist (g i).
-  Proof.
-    rewrite /expectedValue/expectedCondValue/prod_dist/=/prod_pmf.
-    have ->:
-    \sum_t
-      (f i) t *
-    [ffun a =>
-     \sum_t0
-      [ffun p : {ffun 'I_n -> T} => \prod_(i0 < n) (f i0) (p i0)] t0 *
-     g i (upd i a t0)] t =
-    \sum_t
-      (f i) t *
-      (\sum_t0
-        [ffun p : {ffun 'I_n -> T} => \prod_(i0 < n) (f i0) (p i0)] t0 *
-       g i (upd i t t0)).
-    { apply: congr_big => // x _; rewrite ffunE //. }
-    have ->:
-    \sum_t
-      (f i) t *
-      (\sum_t0
-        [ffun p : {ffun 'I_n -> T} =>
-         \prod_(i0 < n) (f i0) (p i0)] t0 * g i (upd i t t0)) =
-    \sum_t
-      (f i) t *
-    (\sum_(t0 : {ffun 'I_n -> T})
-      \prod_(i0 < n) (f i0) (t0 i0) * g i (upd i t t0)).
-    { apply: congr_big => // x _; f_equal.
-      apply: congr_big => // y _; rewrite ffunE //. }
-    have ->:
-    \sum_t [ffun p : {ffun 'I_n -> T} => \prod_(i0 < n) (f i0) (p i0)] t * g i t =
-    \sum_(t : {ffun 'I_n -> T}) (\prod_(i0 < n) (f i0) (t i0)) * g i t.
-    { apply: congr_big => // x _; rewrite ffunE //. }
-    set (h :=
-      fun t =>
-        (\sum_(t0 : {ffun 'I_n -> T}) \prod_(i0 < n) (f i0) (t0 i0) * g i (upd i t t0))).
-  Abort. (*TODO*)  
 End product.
 
 Section timeAvg.

@@ -130,25 +130,126 @@ Section machine_semantics.
       s.(SOracleSt).(received) = None /\ 
       s.(SOracleSt).(sent) = Some (f i).
 
+  Section cost_vec.
+    Variable f : {ffun 'I_N -> dist A rat_realFieldType}. 
+
+    Definition cost_vec (i : 'I_N) : {ffun A -> rat} :=
+      [ffun a =>
+       \sum_(p : {ffun 'I_N -> A} | p i == a)
+        (\prod_(j : 'I_N | i!=j) f j (p j)) * (cost i p)].
+
+    Lemma cost_vec_unfold i :
+      expectedValue (f i) [eta (cost_vec i)] =
+      expectedValue (prod_dist f) [eta (cost) i].
+    Proof.
+      rewrite /expectedValue/expectedCondValue/cost_vec.
+      have ->:
+      \sum_t
+      (f i) t *
+      [ffun a => \sum_(p : {ffun 'I_N -> A} | p i == a)
+        \prod_(j < N | i != j) (f j) (p j) * (cost) i p] t =
+      \sum_t
+      (\sum_(p : {ffun 'I_N -> A} | p i == t)
+        (f i) t * (\prod_(j < N | i != j) (f j) (p j) * (cost) i p)).
+      { by apply: congr_big => // x _; rewrite ffunE // big_distrr. }
+      rewrite /prod_dist/=/prod_pmf.
+      have ->:
+        \sum_t [ffun p : {ffun 'I_N -> A} =>
+                 \prod_(i0 < N) (f i0) (p i0)] t * (cost) i t =
+        \sum_(p : {ffun 'I_N -> A}) (\prod_(i0 < N) (f i0) (p i0)) * (cost) i p.
+      { apply: congr_big => // x _; rewrite ffunE //. }
+      set (F t (p : {ffun 'I_N -> A}) :=
+         (f i) t *
+         (\prod_(j < N | i != j) (f j) (p j) * (cost) i p)).
+      set (P t (p : {ffun 'I_N -> A}) := p i == t).
+      change
+        (\sum_(t | predT t) \sum_(p : {ffun 'I_N -> A} | P t p) (F t p) =
+         \sum_(p : {ffun 'I_N -> A}) \prod_(i0 < N) (f i0) (p i0) * (cost) i p).
+      rewrite pair_big_dep /= /F.
+      have ->:
+      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
+       (f i) p.1 *
+       (\prod_(j < N | i != j) (f j) (p.2 j) * (cost) i p.2) =
+      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
+       ((f i) p.1 * (\prod_(j < N | i != j) (f j) (p.2 j))) * (cost) i p.2.
+      { by apply: congr_big => // x _; rewrite mulrA. }
+
+      have H:
+        forall p : [finType of (A * {ffun 'I_N -> A})],
+          P p.1 p.2 -> 
+          (f i) p.1 * \prod_(j < N | i != j) (f j) (p.2 j) =
+          \prod_(j < N) (f j) (p.2 j).
+      { clear - i f => [][] x y /=; set (F j := (f j) x).
+        have ->: (f i) x = \prod_(j < N | j == i) (F j) by rewrite big_pred1_eq.
+        have ->:
+          \prod_(j < N | j == i) F j =
+          \prod_(j in [set x : 'I_N | x==i]) F j.
+        { by apply: congr_big => // z; rewrite in_set1. }
+        have ->:
+          \prod_(j < N | i != j) (f j) (y j) =
+          \prod_(j in [set~ i]) (f j) (y j).
+        { apply: congr_big => // z; rewrite in_setC1.
+          apply/negP; case H: (z == i) => /=; first by move: (eqP H) => ->.
+          move => H2; move: (eqP H2) => H3; rewrite H3 eq_refl in H => //. }
+        move => Heq.
+        have ->:
+          \prod_(j < N) (f j) (y j) =
+          \prod_(j in [predU (pred1 i) & [set~ i]]) (f j) (y j).
+        { apply: congr_big => // j; rewrite /in_mem /=.
+          case H: (j == i).
+          { by have ->: j \in pred1 i = true by rewrite /pred1 /in_mem /= H. }
+          have ->: j \in [set~ i] by rewrite in_setC1 H.
+          by rewrite orbC. }
+        rewrite bigU /=; last first.
+        { by rewrite disjoint1 in_setC1; apply/negP; rewrite eq_refl. }
+        f_equal.
+        apply: congr_big => //; first by move => j; rewrite in_set1.
+        move => j; rewrite in_set1; move/eqP => ->; rewrite /F.
+        by move: (eqP Heq) => ->. }
+
+      have ->:
+      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
+        (f i) p.1 * \prod_(j < N | i != j) (f j) (p.2 j) * (cost) i p.2 =
+      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
+        \prod_(j < N) (f j) (p.2 j) * (cost) i p.2.
+      { apply: congr_big => // x Hx; rewrite H //. }
+      
+      clear F.
+      have H2:
+        forall (F : {ffun 'I_N -> A} -> rat),
+          \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2) (F p.2) =
+          \sum_(p : {ffun 'I_N -> A}) (F p).
+      { move => F.
+        set (G (x : A) y := F y).
+        have ->:
+          \sum_(p | P p.1 p.2) F p.2 =
+          \sum_(p | predT p.1 && P p.1 p.2) G p.1 p.2 by apply: eq_big.
+        rewrite -pair_big_dep /= /G /P.
+        have ->:
+          \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0) F j =
+          \sum_i0 \sum_(j : {ffun 'I_N -> A} | predT j && (j i == i0)) F j.
+        { by apply: eq_big. }
+        rewrite -partition_big //. }
+      set (G (x : {ffun 'I_N -> A}) := \prod_(j < N) (f j) (x j) * (cost) i x).
+      change (\sum_(p | P p.1 p.2) G p.2 =
+              \sum_(p : {ffun 'I_N -> A}) \prod_(i0 < N) (f i0) (p i0) * (cost) i p).
+      by rewrite H2.
+    Qed.
+  End cost_vec.
+    
   Inductive server_sent_cost_vector
             (i : 'I_N) (f : {ffun 'I_N -> dist A rat_realFieldType})
     : machine_state -> machine_state -> Prop :=
   | mkAllClientsExpCost :
-      forall (m m' : machine_state) c s c' s' 
-             (cost_vec : {ffun A -> rat_realFieldType}),
+      forall (m m' : machine_state) c s c' s',
       m.(clients) i = (c,s) ->
       m'.(clients) i = (c',s') ->
       c=c' ->
       upto_oracle_eq s s' -> 
-      cost_vec =
-         finfun (fun a : A =>
-                   expectedValue
-                     (prod_dist f)
-                     (fun p => cost i (upd i a p))) ->
       (* acknowledge receipt of distribution *)
       s'.(SOracleSt).(sent) = None ->
       (* send new cost vector *)      
-      s'.(SOracleSt).(received) = Some cost_vec ->
+      s'.(SOracleSt).(received) = Some (cost_vec f i)->
       server_sent_cost_vector i f m m'. 
 
   Inductive machine_step : machine_state -> machine_state -> Prop :=
@@ -236,13 +337,7 @@ Section machine_semantics.
   | distHistRel_cons :
       forall (i : 'I_N) ds cs f,
         distHistRel i ds cs ->
-        let: c := 
-           finfun (fun a : A =>
-                   expectedValue
-                     (prod_dist f)
-                     (fun p => cost i (upd i a p)))
-        in
-        distHistRel i [:: f & ds] [:: c & cs].
+        distHistRel i [:: f & ds] [:: cost_vec f i & cs].
 
   Definition costvec_of_clientpkg (c : ClientPkg) : seq {ffun A -> rat} :=
     match c.(received) with
@@ -288,11 +383,12 @@ Section machine_semantics.
       by move/(_ i); rewrite H0 /=; rewrite (client_step_all_costs'_inv H2). }
     (*server step*)
     move => H3; move: (H1 i); inversion 1; subst.
-    move: (H3 i); rewrite H6 /= /costvec_of_clientpkg H11 /= H2 H5 /=.
+    move: (H3 i); rewrite H6 /= /costvec_of_clientpkg H10 /= H2 H5 /=.
     move: (H0 i); rewrite H5; case => -> Hsent /= Hx.
     constructor => //.
     inversion H8; subst; move: Hx; rewrite /all_costs'/all_costs0/all_costs.
-    move: (SCostsOk s); move: (SCostsOk s'); rewrite H7 H9 => pf1 pf2.
+    move: (SCostsOk s); move: (SCostsOk s').
+    rewrite H7 H11 => pf1 pf2.
     by have ->: pf1 = pf2 by apply: proof_irrelevance.
   Qed.
 
@@ -509,43 +605,6 @@ Section machine_semantics.
     f_equal; apply: congr_big => // y _; rewrite ffunE //.
   Qed.    
 
-  Lemma expectedValue_nested (f : {ffun 'I_N -> dist A rat_realFieldType}) i :
-    expectedValue (f i)
-     [eta [ffun a => expectedValue
-                       (prod_dist (T:=A) (rty:=rat_realFieldType) (n:=N) f)
-                       (fun p : {ffun 'I_N -> A} => (cost) i (upd i a p))]] =
-    expectedValue (prod_dist (T:=A) (rty:=rat_realFieldType) (n:=N) f)
-     [eta (cost) i].
-  Proof.
-    rewrite /expectedValue/expectedCondValue/prod_dist/=/prod_pmf.
-    have ->:
-     \sum_t
-      (f i) t *
-      [ffun a =>
-       \sum_t0
-        [ffun p : [finType of {ffun 'I_N -> A}] =>
-         \prod_(i0 < N) (f i0) (p i0)] t0 *
-       (cost) i (upd i a t0)] t =
-    \sum_t
-     (f i) t *
-     (\sum_(p : [finType of {ffun 'I_N -> A}])
-       \prod_(i0 < N) (f i0) (p i0) * (cost) i (upd i t p)).
-    { apply: congr_big => // x _; rewrite ffunE; f_equal.
-      have ->:
-        \sum_t0
-        [ffun p : {ffun 'I_N -> A} =>
-         \prod_(i0 < N) (f i0) (p i0)] t0 * (cost) i (upd i x t0) =        
-        \sum_(t0 : {ffun 'I_N -> A})
-         (\prod_(i0 < N) (f i0) (t0 i0)) * (cost) i (upd i x t0).
-      { apply: congr_big => // y _; rewrite ffunE //. }
-      by []. }
-    have ->:
-      \sum_t [ffun p : {ffun 'I_N -> A} =>
-            \prod_(i0 < N) (f i0) (p i0)] t * (cost) i t =
-      \sum_(t : {ffun 'I_N -> A}) (\prod_(i0 < N) (f i0) (t i0)) * (cost) i t.
-    { apply: congr_big => // x _; rewrite ffunE //. }
-  Abort.
-  
   Lemma state_expCost1_distHistRel i m (pf : 0 < (size (hist m))%:R) :    
     let: s := (m.(clients) i).2 in
     (0 < size (all_costs0 s))%N ->
@@ -563,18 +622,21 @@ Section machine_semantics.
     rewrite timeAvg_fun_big_sum'; clear pf.
     rewrite /all_costs'/all_costs0/all_costs/= in H2|-*.
     destruct ((clients m) i).2; simpl in *.
-    rewrite /all_costs'/all_costs0 /= in H3.    
-    destruct SPrevCosts.
-    { inversion H2; subst; simpl; try solve[rewrite rat_to_R0 //]. }
-    inversion H3; subst; simpl.
+    rewrite /all_costs'/all_costs0 /= in H3.
     destruct SOutputs; try solve[simpl in H1 => //].
-    destruct SOutputs; try solve[simpl in H1 => //].
-    inversion H2; subst; simpl.
-    inversion H3; subst; simpl.
-    rewrite -H0 in H4; inversion H4; subst.
-    rewrite -H0 in H5; inversion H5; subst.
+    simpl in H2; clear H H1.
+    revert H2 H3.
+    move: (existT _ _).
+    move: (hist m) SPrevCosts SOutputs; elim.
+    { move => SPrev SOuts; inversion 1; subst.
+      destruct SPrev; try solve[inversion 1]; simpl.
+      by rewrite rat_to_R0. }
+    move => a l IH SPrev SOut; inversion 1; subst.
+    destruct SPrev; try solve[inversion 1]; simpl; inversion 1; subst.
     rewrite rat_to_R_plus /=; f_equal.
-  Abort.    
+    { by f_equal; rewrite cost_vec_unfold. }
+    apply: IH => //.
+  Qed.    
 End machine_semantics.  
 
 Section extract_oracle.
