@@ -10,7 +10,7 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import dist weights numerics bigops games weightslang server.
+Require Import dist weights numerics bigops games weightslang server smooth.
 
 (** FIXME: This definition should replace [upto_oracle_eq] in weightslang.v *)
 Inductive upto_oracle_eq (A : finType) T T' chanty chanty'
@@ -395,14 +395,14 @@ Section machine_semantics.
                 prod_dist (tnth (in_tuple m.(hist)) i)).
     
     (* The time-averaged \sigma distribution *)
-    Definition sigma : dist [finType of {ffun 'I_N -> A}] rat_realFieldType
+    Definition sigmaT : dist [finType of {ffun 'I_N -> A}] rat_realFieldType
       := timeAvg_dist pf timeAvg_fun.
 
     (* Client i has regret at most \eps *)
     Definition client_regret_eps (eps : rat) (i : 'I_N) : Prop :=
       forall a : A,
-        expectedCost i sigma <= 
-        expectedUnilateralCost i sigma [ffun=> a] + eps.
+        expectedCost i sigmaT <= 
+        expectedUnilateralCost i sigmaT [ffun=> a] + eps.
 
     Definition machine_regret_eps (eps : rat) : Prop :=
       forall i : 'I_N, client_regret_eps eps i.
@@ -505,9 +505,9 @@ Section machine_semantics.
     Rdefinitions.Rmult
       (rat_to_R (1/(size (hist m))%:R))
       (state_expCost1 (all_costs0 s) s) =
-    rat_to_R (expectedCost i (sigma pf)).
+    rat_to_R (expectedCost i (sigmaT pf)).
   Proof.
-    move => H H1; rewrite state_expCost13 // /sigma; clear H H1.
+    move => H H1; rewrite state_expCost13 // /sigmaT; clear H H1.
     rewrite /expectedCost expectedValue_timeAvg.
     rewrite 3!rat_to_R_mul => H1 H2; f_equal.
   Abort.    
@@ -880,5 +880,66 @@ Section extract_oracle.
     rewrite Hq.
     apply: (mult_weights_epsilon_no_regret Hstep Hfinal H4).
   Qed.
-  
+
 End extract_oracle.
+
+Section regretBounds.
+
+  Local Open Scope ring_scope.
+  Variable A : finType.
+  Variable a0 : A.
+  Variable N : nat.
+  Variable m : machine_state A N.
+  Variable eps : rat.
+
+  Context `{HSmooth : smooth A N rat_realFieldType}.
+
+  Variable epsPos : 0 <= eps.
+  Variable histAx : (0:rat) < (size (m.(hist)))%:R.
+  Variable regretAxiom : machine_regret_eps histAx eps.
+  Lemma state_eCCE2 : eCCE2 eps (sigmaT histAx).
+  Proof.
+    rewrite/eCCE2 => i S.
+    move: (regretAxiom i). rewrite /client_regret_eps.
+    move => H1.
+    specialize (H1 (S i)).
+    have H2 :
+      (expectedUnilateralCost i (sigmaT (m:=m) histAx) [ffun=> S i] + eps =
+       expectedUnilateralCost i (sigmaT (m:=m) histAx) S + eps).
+    {
+      rewrite /expectedUnilateralCost. simpl. 
+      rewrite /expectedValue /expectedCondValue.
+      f_equal. apply eq_bigr => S' _. f_equal.
+      f_equal. apply ffunP => x. rewrite !ffunE.      
+      case H2: (i ==x); last by []. move/eqP: H2 => H2.
+      rewrite H2 //.
+    }
+    rewrite -H2. by [].
+  Qed.
+
+  Lemma ultBounds :
+  forall S',
+      optimal S' ->
+      ExpectedCost (sigmaT histAx) <=
+      ((lambda of A)/(1 - (mu of A))) * (Cost S') + ((N%:R) *eps)/(1- mu of A).
+  Proof.
+    move => S' H1.
+    pose proof (smooth_eCCE2 state_eCCE2 H1) as H2.
+    have H3: (lambda of A / (1 - mu of A) * Cost S' + N%:R * eps / (1 - mu of A) =
+      ((lambda of A * Cost S') + (N%:R * eps))/(1 - mu of A)).
+    {
+      rewrite [ N%:R * eps / (1 - mu of A)]mulrC
+              [lambda of A / (1 - mu of A)] mulrC -mulrA
+              -[(1 - mu of A)^-1 * (lambda of A * Cost S')+
+                (1 - mu of A)^-1 * (N%:R * eps)] mulrDr mulrC => //.
+    }
+    rewrite H3 ler_pdivl_mulr.
+    rewrite mulrDr mulr1. rewrite mulrN. rewrite -ler_subr_addr.
+    rewrite opprK -addrA
+      [N%:R * eps + ExpectedCost (sigmaT (m:=m) histAx) * mu of A] addrC addrA
+      [ExpectedCost (sigmaT (m:=m) histAx) * mu of A] mulrC => //.
+    rewrite ltr_subr_addr add0r.
+    apply mu_lt1.
+  Qed.
+
+End regretBounds.

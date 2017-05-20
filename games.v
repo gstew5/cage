@@ -304,6 +304,16 @@ Section gameDefs.
     forall (i : 'I_N) (t' : state N T),
       expectedCost i d <= expectedUnilateralCost i d t' + epsilon.
 
+  Lemma eCCE2_elim
+    (epsilon : rty) (d : dist [finType of state N T] rty) (H1 : eCCE2 epsilon d) :
+    forall (i : 'I_N) (t' : state N T),
+    expectedCost i d <= expectedUnilateralCost i d t' + epsilon.
+  Proof.
+    rewrite /eCCE2 in H1 => i t'.
+    by move: (H1 i t').
+  Qed.
+
+  (* Might only be true if opt <> 1*)
   Lemma eCCE_equiv (d : dist [finType of state N T] rty) :
     (exists eps1, eCCE eps1 d) <-> exists eps2, eCCE eps2 d.
   Proof.
@@ -315,6 +325,7 @@ Section gameDefs.
       admit.
     } 
   Admitted.
+    
     
   Definition eCCEb (epsilon : rty) (d : dist [finType of state N T] rty) : bool :=
     [forall i : 'I_N,

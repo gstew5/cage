@@ -402,6 +402,65 @@ Section SmoothLemmas.
       rewrite -[(1 + eps) * _ * _] mulrA //.
       by [].
   Qed.
-
+  
+  (* might be best to toss in numerics, but nbd either way *) 
+  Lemma iter_const_rty :
+    forall n (x :rty), iter n (+%R x) 0 = x*n%:R.
+  Proof.
+    induction n => x /=. rewrite mulr0 //.
+    rewrite IHn /= mulrS mulrDr mulr1 //.
+  Qed.
+     
+  Lemma smooth_eCCE2
+    (d : dist [finType of state N T] rty) (t' : state N T) (eps : rty) :
+    eCCE2 eps d ->
+    optimal t' ->
+    ExpectedCost d <= lambda of T * Cost t' + mu of T * ExpectedCost d + (N%:R)*eps.
+  Proof.
+    move => Hcce Hopt. 
+    have Hn : (\sum_(i : 'I_N) eps = N%:R * eps).
+    rewrite -[eps] mul1r -big_distrl mul1r => /=.
+    f_equal. rewrite big_const_ord iter_const_rty mul1r //.
+    have H2: ExpectedCost d
+          <= \sum_(i : 'I_N) expectedUnilateralCost i d t' +(N%:R * eps).
+    {
+      rewrite -Hn -big_split //=.
+      apply: ler_sum=> /= i _.
+      by apply: (eCCE2_elim Hcce)=> ? X; apply: Hval; apply: in_support.
+    }
+    apply: ler_trans; [apply: H2|].
+    rewrite ler_add2r expectedUnilateralCost_linear.
+    have H3:
+      expectedValue d
+        (fun t : {ffun 'I_N -> T} =>
+           \sum_(i < N) cost i (upd i t t'))
+    <= expectedValue d
+        (fun t : state N T => lambda of T * Cost t' + mu of T * Cost t).
+    { rewrite expectedValue_linear expectedValue_const /expectedValue.
+      have H3: \sum_t d t * (\sum_(i < N) cost i ((upd i t) t'))
+            <= expectedValue d (fun t => lambda of T * Cost t' + mu of T * Cost t).
+      { apply: ler_sum=> t _.
+        case Hgt0: (0 < d t); first by apply: ler_mull=> //; apply: smoothness_axiom.
+        have H3: d t = 0.
+        { move: (dist_positive d t)=> Hpos; rewrite ltr_def in Hgt0.
+          move: Hgt0; rewrite Hpos andbC /=; case Heq: (d t == 0)=> //= _.
+          by apply: (eqP Heq).
+        }
+        by rewrite H3 2!mul0r.
+      }
+      apply: ler_trans; first by apply: H3.
+      by rewrite expectedValue_linear expectedValue_const /expectedValue.
+    }
+    apply: ler_trans; first by apply: H3.
+    have H4:
+      expectedValue d
+        (fun t : {ffun 'I_N -> T} => lambda of T * Cost t' + mu of T * Cost t)
+    = lambda of T * Cost t' +
+      expectedValue d
+        (fun t : {ffun 'I_N -> T} => mu of T * Cost t).
+    { by rewrite expectedValue_linear expectedValue_const.
+    }
+    by rewrite H4 ExpectedCost_linear expectedValue_mull.
+  Qed.
 End SmoothLemmas.
 Print Assumptions smooth_CCE.
