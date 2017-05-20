@@ -172,6 +172,10 @@ Lemma prod_distr_sum
   \sum_(f : {ffun I -> J}) \prod_i F i (f i).
 Proof. by apply: bigA_distr_bigA. Qed.
 
+Definition upd {A : finType} {T : Type}
+           (a : A) (t : T) (s : {ffun A -> T}) :=
+  finfun (fun b => if a==b then t else s b).
+
 Section product.
   Variable T : finType.
   Variable rty : numDomainType.
@@ -246,6 +250,13 @@ Section timeAvg.
     apply: congr_big => // i _; rewrite ffunE.
     rewrite -!mulr_suml mulrA mulr1 -2!mulrA.
     by have ->: (n%:R^-1 * f i = f i / n%:R) by rewrite mulrC.
+  Qed.
+
+  Lemma expectedValue_timeAvg' f :
+    expectedValue timeAvg_dist f = (1/n%:R) * \sum_(i<n) \sum_t (s i t) * f t.
+  Proof.
+    rewrite expectedValue_timeAvg; f_equal.
+    by rewrite exchange_big.
   Qed.
 End timeAvg.
 
