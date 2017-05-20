@@ -318,14 +318,7 @@ Section gameDefs.
     (exists eps1, eCCE eps1 d) <-> exists eps2, eCCE eps2 d.
   Proof.
     split => Hcce. case:Hcce => eps Hcce.
-    {
-      admit.
-    }
-    {
-      admit.
-    } 
-  Admitted.
-    
+  Abort.
     
   Definition eCCEb (epsilon : rty) (d : dist [finType of state N T] rty) : bool :=
     [forall i : 'I_N,

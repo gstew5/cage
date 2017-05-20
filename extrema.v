@@ -213,6 +213,22 @@ Qed.
 
 Section min_lems.
   Variables (rty : realFieldType) (I : finType).
+
+  Lemma arg_min_ext (p1 p2 : pred I) (f g : I -> rty) d1 d2 :
+    p1 =1 p2 -> 
+    f =1 g ->
+    d1 = d2 -> 
+    arg_min p1 f d1 = arg_min p2 g d2 .
+  Proof.
+    move => H1 H2 ->.
+    rewrite /arg_min/getOrd_sub.
+    have ->:
+     [seq x <- enum I | p1 x] =
+     [seq x <- enum I | p2 x].
+     { rewrite (eq_in_filter (a2:=p2)) => //. }
+     move: ([seq x <- _ | _]) d2; elim => // a l /= IH.
+     move => d2; rewrite !H2; case: (_ <= _) => //. 
+  Qed.
   
   Lemma min_ext (p1 p2 : pred I) (f g : I -> rty) d1 d2 :
     p1 =1 p2 -> 
@@ -221,14 +237,7 @@ Section min_lems.
     min p1 f d1 = min p2 g d2 .
   Proof.
     move => H1 H2 ->; rewrite /min.
-    have ->: arg_min p1 f d2 = arg_min p2 g d2.
-    { rewrite /arg_min/getOrd_sub.
-      have ->:
-        [seq x <- enum I | p1 x] =
-        [seq x <- enum I | p2 x].
-      { rewrite (eq_in_filter (a2:=p2)) => //. }
-      move: ([seq x <- _ | _]) d2; elim => // a l /= IH.
-      move => d2; rewrite !H2; case: (_ <= _) => //. }
+    have ->: arg_min p1 f d2 = arg_min p2 g d2 by apply: arg_min_ext.
     by apply: H2.
   Qed.
 
@@ -240,13 +249,21 @@ Section min_lems.
     { by rewrite mul1r. }
     by apply/eqP => H; rewrite H in Hpos.
   Qed.    
+
+  Lemma arg_min_const (p : pred I) (f : I -> rat) (c : rat) d :
+    0 < c -> 
+    arg_min p (fun x => c * f x) d = arg_min p f d.
+  Proof.
+    move => Hpos; rewrite /arg_min/getOrd_sub.
+    move: ([seq x <- enum I | p x]) d; elim => // a l IH /= d.
+    rewrite (ler_const_inv _ _ Hpos). case: (f d <= f a) => //.
+  Qed.    
   
   Lemma min_const (p : pred I) (f : I -> rat) (c : rat) d :
     0 < c -> 
     min p (fun x => c * f x) d = c * min p f d.
   Proof.
-    move => Hpos; rewrite /min; f_equal; rewrite /arg_min/getOrd_sub.
-    move: ([seq x <- enum I | p x]) d; elim => // a l IH /= d.
-    rewrite (ler_const_inv _ _ Hpos). case: (f d <= f a) => //.
+    move => Hpos; rewrite /min; f_equal.
+    rewrite arg_min_const //.
   Qed.    
 End min_lems.    
