@@ -370,6 +370,26 @@ Proof.
   by rewrite Nat.compare_gt_iff.
 Qed.  
 
+Lemma int_to_Z_inj (a b : int) :
+  int_to_Z a = int_to_Z b ->
+  a = b.
+Proof.
+  rewrite /int_to_Z.
+  case a=>n; case b=>n0; move => H.
+  apply Nat2Z.inj_iff in H. auto.
+  have H1: (Zle 0 (Z.of_nat n)).
+  { apply Nat2Z.is_nonneg. }
+  have H2: (Zlt (Z.neg (Pos.of_succ_nat n0)) 0).
+  { apply Zlt_neg_0. }
+  omega.
+  have H1: (Zle 0 (Z.of_nat n0)).
+  { apply Nat2Z.is_nonneg. }
+  have H2: (Zlt (Z.neg (Pos.of_succ_nat n)) 0).
+  { apply Zlt_neg_0. }
+  omega.
+  inversion H. apply SuccNat2Pos.inj_iff in H1. auto.
+Qed.
+
 Lemma lt_int_to_Z (s r : int) :
   Zlt (int_to_Z s) (int_to_Z r) ->
   ltr s r.  
@@ -391,6 +411,14 @@ Proof.
   clear - H2.
   apply/ltP; omega.
 Qed.
+
+Lemma le_int_to_Z (s r : int) :
+  Zle (int_to_Z s) (int_to_Z r) ->
+  ler s r.  
+Proof.
+  move/Zle_lt_or_eq; case; first by move/lt_int_to_Z; apply/ltrW.
+  move/int_to_Z_inj => -> //.
+Qed.  
 
 Lemma int_to_Z_le (s r : int) :
   ler s r ->
@@ -460,26 +488,6 @@ Section rat_to_Q_lemmas.
     Zmult (int_to_Z a) (Z.pos (Pos.of_nat b)) = int_to_Z (a * Posz b).
   Proof.
     rewrite -int_to_Z_pos_of_nat //. by rewrite int_to_Z_mul.
-  Qed.
-
-  Lemma int_to_Z_inj (a b : int) :
-    int_to_Z a = int_to_Z b ->
-    a = b.
-  Proof.
-    rewrite /int_to_Z.
-    case a=>n; case b=>n0; move => H.
-    apply Nat2Z.inj_iff in H. auto.
-    have H1: (Zle 0 (Z.of_nat n)).
-    { apply Nat2Z.is_nonneg. }
-    have H2: (Zlt (Z.neg (Pos.of_succ_nat n0)) 0).
-    { apply Zlt_neg_0. }
-    omega.
-    have H1: (Zle 0 (Z.of_nat n0)).
-    { apply Nat2Z.is_nonneg. }
-    have H2: (Zlt (Z.neg (Pos.of_succ_nat n)) 0).
-    { apply Zlt_neg_0. }
-    omega.
-    inversion H. apply SuccNat2Pos.inj_iff in H1. auto.
   Qed.
 
   Lemma int_to_Z_inj_iff (a b : int) :
@@ -810,6 +818,23 @@ Section rat_to_R_lemmas.
     by apply: int_to_Z_le.
   Qed.
 
+  Lemma rat_to_R_le' (r s : rat) :
+    (rat_to_R r <= rat_to_R s)%R ->
+    le_rat r s.    
+  Proof.
+    rewrite /rat_to_R /rat_to_Q /=.
+    move/Rle_Qle.
+    case: r; case=> r1 r2 /= H1.
+    case: s; case=> s1 s2 /= H2.
+    rewrite /le_rat /numq /denq /= => H3.
+    rewrite /Qle in H3.
+    case: (andP H1)=> H1a _.
+    case: (andP H2)=> H2a _.
+    rewrite !posint_to_positive in H3=> //.
+    rewrite 2!int_to_Z_mul in H3.
+    by apply: le_int_to_Z.
+  Qed.
+  
   Lemma rat_to_R_plus (r s : rat) :
     rat_to_R (r + s) = (rat_to_R r + rat_to_R s)%R.
   Proof.

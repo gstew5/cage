@@ -130,6 +130,25 @@ Section machine_semantics.
       s.(SOracleSt).(received) = None /\ 
       s.(SOracleSt).(sent) = Some (f i).
 
+  (*FIXME: put in numerics*)
+  Lemma rat_to_R_opp_neq (n:nat) : rat_to_R n%:R = (-1)%R -> False.
+  Proof.
+    move => H.
+    suff: Rdefinitions.Rle 0 (rat_to_R n%:R).
+    { move => H2.
+      have H3: (Rdefinitions.Rlt (-1) 0).
+      { apply: Reals.RIneq.Ropp_lt_gt_0_contravar.
+        apply: Reals.RIneq.Rgt_lt.
+        apply: Reals.RIneq.Rlt_0_1. }
+      have H4: (Rdefinitions.Rlt (-1) (-1))%R.
+      { apply: Reals.RIneq.Rlt_le_trans; first by apply: H3.
+        rewrite -H; apply: H2. }
+      apply: (Reals.RIneq.Rlt_irrefl _ H4). }
+    rewrite -rat_to_R0; apply: rat_to_R_le.
+    change ((0:rat) <= n%:R).
+    apply: ler0n. 
+  Qed.    
+  
   Section cost_vec.
     Variable f : {ffun 'I_N -> dist A rat_realFieldType}. 
 
@@ -158,7 +177,7 @@ Section machine_semantics.
       rewrite -partition_big //. 
     Qed.      
 
-    (*FIME: the following two lemmas can be generalize go BigOp form*)
+    (*FIXME: the following two lemmas can be generalize go BigOp form*)
     Lemma prod_split (i : 'I_N) (y : {ffun 'I_N -> A}) :
       \prod_(j in [set i]) (f j) (y j) *
       \prod_(j in [set~ i]) (f j) (y j) = \prod_(j < N) (f j) (y j).
@@ -308,12 +327,17 @@ Section machine_semantics.
         m'.(hist) = [:: f & m.(hist)] ->
         machine_step m m'.
 
+  (** Final states are entered by running all clients to CSkip (MW 
+      clients have all sent) but not executing a server step. 
+      The clients' received cost vector buffers therefore remain empty. *)
   Inductive final_state : machine_state -> Prop :=
   | mkFinalState :
       forall m : machine_state,
         (forall (i : 'I_N),
             exists s,
-              m.(clients) i = (CSkip,s)) -> 
+              m.(clients) i = (CSkip,s) /\
+              (exists d, sent s.(SOracleSt) = Some d) /\
+              received s.(SOracleSt) = None) -> 
         final_state m.
 
   Inductive machine_step_plus : machine_state -> machine_state -> Prop :=
@@ -511,6 +535,16 @@ Section machine_semantics.
     move: H5 H6; case: (SOutputs _) => // a l /= <-.
     by rewrite H4 in Hy; inversion Hy; subst; constructor.
   Qed.    
+
+  Lemma machine_step_plus_machineClientHistRel m m' :
+    machine_step_plus m m' ->
+    (forall i, machineClientHistRel i (m.(clients) i).2 m.(hist)) ->
+    forall i, machineClientHistRel i (m'.(clients) i).2 m'.(hist).
+  Proof.    
+    induction 1; first by move => Hx i; apply: (machine_step_machineClientHistRel H).
+    move => Hx; apply: IHmachine_step_plus.
+    by move => i; apply: (machine_step_machineClientHistRel H).
+  Qed.
   
   Definition ffun_of_list A (l : list A) : {ffun 'I_(size l) -> A} :=
     finfun (fun i => tnth (in_tuple l) i).
@@ -855,7 +889,7 @@ Section machine_semantics.
     { apply: congr_big => // z _; f_equal; rewrite H //. }
     rewrite -mulr_suml dist_normalized mul1r //.
   Qed.    
-  
+    
   Lemma OPT_sigmaT_min i m (pf : 0 < (size (hist m))%:R) :    
     let: s := (m.(clients) i).2 in
     (0 < size (all_costs0 s))%N ->
@@ -923,7 +957,8 @@ Section machine_semantics.
         apply: H4. }
 
       have Hc : ((0 : rat) < 1 / (size (hist m))%:R).
-      { admit. } (*TODO: arithmetic*)
+      { apply: mulr_gt0 => //.
+        rewrite invr_gt0 //. }
       rewrite -(extrema.arg_min_const _ _ _ Hc).
       apply: extrema.arg_min_ext => //.
     }
@@ -940,13 +975,14 @@ Section machine_semantics.
       have Hr: (rat_to_R (size (hist m))%:R <> 0%R).
       { case: (size (hist m)) pf => // n _.
         rewrite mulrS rat_to_R_plus rat_to_R1.
-        move => H4.
-        admit. } (*TODO: arithmetic*)
+        move => H4; clear - H4.
+        apply RIneq.Rplus_opp_r_uniq in H4.
+        apply: rat_to_R_opp_neq; apply: H4. }
       rewrite rat_to_R_inv.
       { move: (rat_to_R (size (hist m))%:R) Hr => r.
         apply: RIneq.Rinv_r. }
       move: Hr; move: (size _) => n Hr.
-      admit. } (*TODO: arithmetic*)
+      by apply/negP; move/eqP => Heq; rewrite Heq rat_to_R0 in Hr. }
 
     rewrite Reals.Raxioms.Rmult_1_l.
     clear pf.
@@ -990,9 +1026,9 @@ Section machine_semantics.
 
     f_equal.
     rewrite cost_vec_unfold2 /F //.
-  Admitted. (*TODO: arithmetic*)
+  Qed.
   
-  Lemma OPT_sigmaT i m (pf : 0 < (size (hist m))%:R) :    
+  Lemma OPT_sigmaT i m (pf : 0 < (size (hist m))%:R) a :    
     let: s := (m.(clients) i).2 in
     (0 < size (all_costs0 s))%N ->
     (0 < size (behead (SOutputs s)))%N ->
@@ -1002,23 +1038,24 @@ Section machine_semantics.
       (Rdefinitions.Rmult
          (rat_to_R (1/(size (hist m))%:R))
          (OPTR a0 s))
-      (rat_to_R (expectedUnilateralCost i (sigmaT pf) [ffun=> a0])).
+      (rat_to_R (expectedUnilateralCost i (sigmaT pf) [ffun=> a])).
   Proof.
     move => H H1 H2 H3.
     rewrite OPT_sigmaT_min => //.
     rewrite !rat_to_R_mul rat_to_R1 !Reals.Raxioms.Rmult_1_l.
     rewrite -Reals.Raxioms.Rmult_assoc.
     have Hneq: ((size (hist m))%:R != (0 : rat)).
-    { admit. } (*TODO: arithmetic*)
+    { by apply: lt0r_neq0. }
     rewrite rat_to_R_inv // Reals.Raxioms.Rinv_l; last first.
-    { admit. } (*TODO: arithmetic*)
+    { move => Hneq'; move: (negP Hneq); apply.
+      by apply: (rat_to_R_0_center Hneq'). }
     rewrite Reals.Raxioms.Rmult_1_l; apply: rat_to_R_le.
     change
       (extrema.min xpredT (expectedUni pf i) a0 <=
-       expectedUnilateralCost i (machine_semantics.sigmaT (m:=m) pf) [ffun=> a0]).
+       expectedUnilateralCost i (machine_semantics.sigmaT (m:=m) pf) [ffun=> a]).
     rewrite -expectedUni_Unilateral.
     by apply: extrema.min_le.
-  Admitted. (*TODO: arithmetic*)
+  Qed.
 
 End machine_semantics.  
 
@@ -1358,7 +1395,7 @@ Section extract_oracle.
     case: (oracle_extractible H H1 Hx H2 H3 Hy) => sx' []Hmatch Hstep.
     have Hfinal: final_com c'.
     { inversion H1; subst.
-      case: (H0 i) => s0; rewrite H3; inversion 1; subst.
+      case: (H0 i) => s0; rewrite H3; case; inversion 1; subst.
       by constructor. }
     have Hz: all_costs0 s' = all_costs0 sx'.
     { inversion Hmatch; subst.
@@ -1390,6 +1427,125 @@ Section extract_oracle.
     apply: (mult_weights_epsilon_no_regret Hstep Hfinal H4).
   Qed.
 
+  Definition inv m := 
+    forall i,
+      distHistRel
+        i m.(hist)
+        (costvec_of_clientpkg (m.(clients) i).2.(SOracleSt) ++
+          all_costs' (m.(clients) i).2) /\
+      machineClientHistRel i (m.(clients) i).2 m.(hist).
+  
+  Lemma all_clients_bounded_regret
+        m m' nx (REGRET_BOUND : rat)
+        (*FIXME: [pf], [pf'], [Hnx] are provable from other facts, 
+          therefore unnecessary*)
+        (pf : 0 < (size (hist m'))%:R)
+        (pf' : forall i, (0 < size (behead (SOutputs ((clients m') i).2)))%N)
+        (Hnx: Tx nx = rat_to_R (size (hist m'))%:R) :
+    inv m -> 
+    machine_step_plus a0 m m' ->
+    final_state m' ->
+    (forall i, m.(clients) i = (mult_weights A nx,init_state A epsOk tt (init_ClientPkg A))) ->
+    (forall i, let: (c',s') := m'.(clients) i in (0 < size (all_costs' s'))%N) ->
+    (rat_to_R eps + ln size_A / (epsR * Tx nx) <= rat_to_R REGRET_BOUND)%R ->
+    @machine_regret_eps _ _ _ m' pf REGRET_BOUND.
+  Proof.      
+    move => Hinv Hstep Hfinal Hclients1 Hclients2 H i a.
+    apply: rat_to_R_le'; rewrite rat_to_R_plus.
+    case Hclient_i: (m'.(clients) i) => [c' s'].
+    have Hsize: (0 < size (all_costs' s'))%N.
+    { by move: (Hclients2 i); rewrite Hclient_i. }
+    move: (perclient_bounded_regret Hstep Hfinal (Hclients1 i) Hclient_i Hsize).
+    rewrite Hnx in H|-*.
+    have Hsize': (0 < size (all_costs0 ((clients m') i).2))%N.
+    { rewrite Hclient_i.
+      by clear - Hsize; rewrite /all_costs' size_map in Hsize. }
+    have Hsize'': (0 < size (behead (SOutputs ((clients m') i).2)))%N.
+    { apply: pf'. }
+    have Hinv': inv m'.
+    { move => j; split.
+      { apply: (machine_step_plus_histRel Hstep) => //.
+        by move => k; case: (Hinv k). }
+      apply: (machine_step_plus_machineClientHistRel Hstep).
+      by move => k; case: (Hinv k). }
+    have Hout:
+      outHistRel i (hist m') (behead (SOutputs ((clients m') i).2)).
+    { have [d Hsent]: exists d, sent (SOracleSt ((clients m') i).2) = Some d.
+      { inversion Hfinal; subst.
+        case: (H0 i) => x []; rewrite Hclient_i; inversion 1; subst => [][][]d p r.
+        by exists d. }
+      case: (Hinv' i) => _; inversion 1; subst => //.
+      rewrite Hsent in H0; inversion H0. }
+    have Hdist:
+      distHistRel (A:=A) i (hist m') (all_costs' ((clients m') i).2).
+    { case: (Hinv' i); rewrite /costvec_of_clientpkg.
+      inversion Hfinal; subst.
+      case: (H0 i) => x []; inversion 1; subst => [][][]d _; rewrite H2 => -> //. }
+    generalize (OPT_sigmaT a0 pf a Hsize' Hsize'' Hout Hdist); rewrite Hclient_i => /= Hopt.
+    generalize (state_expCost1_sigmaT pf Hsize' Hsize'' Hout Hdist) => Hstate.
+    move => Hbound.
+    
+    suff:
+      (rat_to_R (@expectedCost _ _ _ costClass i (sigmaT (m:=m') pf)) <=
+       rat_to_R (@expectedUnilateralCost _ _ _ costClass i (sigmaT (m:=m') pf) [ffun=> a]) +
+       epsR + ln (rat_to_R #|A|%:R) / (epsR * rat_to_R (size (hist m'))%:R))%R.
+    { move => Hx; apply: Rle_trans; first by apply: Hx.
+      rewrite Rplus_assoc; apply: Rplus_le_compat => //; apply: Rle_refl. }
+
+    rewrite -Hstate.    
+    suff:
+      ((rat_to_R (1 / (size (hist m'))%:R) *
+        state_expCost1 (all_costs0 ((clients m') i).2) ((clients m') i).2) -
+       rat_to_R (@expectedUnilateralCost _ _ _ costClass i (sigmaT (m:=m') pf) [ffun=> a]) <= 
+       epsR + ln (rat_to_R #|A|%:R) / (epsR * rat_to_R (size (hist m'))%:R))%R.
+    { move: (rat_to_R _) => X.
+      move: (state_expCost1 _ _) => Y.
+      move: (rat_to_R _) => Z.
+      move: (_ / _)%R => Q.
+      rewrite Rplus_assoc.
+      move: (epsR + Q)%R => W.
+      move: (X * Y)%R => R.
+      move => Hx; clear - Hx.
+      suff: (R - Z <= (Z + W) - Z)%R; first by apply: Rplus_le_reg_r.
+      apply: Rle_trans; first by apply: Hx.
+      rewrite /Rminus Rplus_assoc [(W + -_)%R]Rplus_comm.
+      rewrite -Rplus_assoc Rplus_opp_r Rplus_0_l.
+      apply: Rle_refl. }
+
+    suff:
+      (rat_to_R (1 / (size (hist m'))%:R) *
+       state_expCost1 (all_costs0 ((clients m') i).2) ((clients m') i).2 -
+       rat_to_R (1 / (size (hist m'))%:R) * OPTR a0 s' <=
+       epsR + ln (rat_to_R #|A|%:R) / (epsR * rat_to_R (size (hist m'))%:R))%R.
+    { move => Hx; apply: Rle_trans; last by apply: Hx.
+      apply: Rplus_le_compat_l.
+      apply: Ropp_ge_le_contravar.
+      apply: Rle_ge.
+      apply: Hopt. }
+
+    suff:
+      ((state_expCost1 (all_costs0 ((clients m') i).2) ((clients m') i).2 -
+        OPTR a0 s') / rat_to_R (size (hist m'))%:R <= 
+       epsR + ln (rat_to_R #|A|%:R) / (epsR * rat_to_R (size (hist m'))%:R))%R.
+    { move => Hx; apply: Rle_trans; last by apply: Hx.
+      rewrite rat_to_R_mul rat_to_R1 Rmult_1_l rat_to_R_inv; last first.
+      { by apply: lt0r_neq0. }
+      have ->:
+      (/ rat_to_R (size (hist m'))%:R *
+         state_expCost1 (all_costs0 ((clients m') i).2) ((clients m') i).2 -
+       / rat_to_R (size (hist m'))%:R * OPTR a0 s')%R =
+      ((state_expCost1 (all_costs0 ((clients m') i).2) ((clients m') i).2 -
+        OPTR a0 s') / rat_to_R (size (hist m'))%:R)%R.
+      { move: (rat_to_R _) => X.
+        move: (state_expCost1 _ _)%R => Y.
+        move: (OPTR _ _)%R => Z.
+        rewrite /Rminus /Rdiv Rmult_plus_distr_r.
+        by rewrite Rmult_comm [(/X * _)%R]Rmult_comm Ropp_mult_distr_l. }
+    apply: Rle_refl. }
+
+    apply: Rle_trans; last by apply: Hbound.
+    rewrite Hclient_i /=; apply: Rle_refl.
+  Qed.    
 End extract_oracle.
 
 Section regretBounds.
@@ -1406,6 +1562,7 @@ Section regretBounds.
   Variable epsPos : 0 <= eps.
   Variable histAx : (0:rat) < (size (m.(hist)))%:R.
   Variable regretAxiom : machine_regret_eps histAx eps.
+
   Lemma state_eCCE2 : eCCE2 eps (sigmaT histAx).
   Proof.
     rewrite/eCCE2 => i S.
