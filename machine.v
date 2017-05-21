@@ -721,29 +721,32 @@ Section machine_semantics.
               (finfun_of_finType (ordinal_finType N) A)
          | i1 i == x]).
     { apply: uniq_perm_eq.
-      { have ->:
-          [seq upd i x i1
-            | i1:{ffun 'I_N -> A} <- index_enum (finfun_of_finType (ordinal_finType N) A)
-            & i1 i == i0] =
-          [seq i1:{ffun 'I_N -> A} <- index_enum (finfun_of_finType (ordinal_finType N) A)
-          | i1 i == i0].
-        { admit. }
-        rewrite filter_index_enum.
-        apply: enum_uniq. }
+      { rewrite map_inj_in_uniq; first by apply: enum_uniq.
+        move => y z; rewrite 2!mem_filter; case/andP=> H1 H2; case/andP=> H3 H4.
+        move: (eqP H1) => H1'; subst i0; move: (eqP H3) => H3'.
+        move/ffunP => H5; apply/ffunP => q; move: (H5 q); rewrite !ffunE.
+        case H6: (i == q) => //.
+        move: (eqP H6) => H6'; subst q => //. }
       { rewrite filter_index_enum.
         apply: enum_uniq. }
       move =>y; apply/mapP; case H2: (y \in _).
       { rewrite mem_filter in H2.
         case: (andP H2); move/eqP => H3 H4; clear H2.
         exists (upd i i0 y).
-        { admit. }
-        admit. }
+        { rewrite mem_filter; apply/andP; split; first by rewrite ffunE eq_refl.
+          apply: mem_index_enum. }
+        have ->: upd i x (upd i i0 y) = upd i x y.
+        { apply/ffunP => q; rewrite !ffunE; case: (i == q) => //. }
+        apply/ffunP => q; rewrite ffunE; case H: (i == q) => //.
+        { move: (eqP H) => Heq; subst q => //. }}
       case => z.
       move => H3 H4; subst y.
       rewrite mem_filter in H3; case: (andP H3); move/eqP => H4 H5; clear H3; subst i0.
-      admit. }
+      rewrite mem_filter in H2; move: H2; rewrite andb_false_iff; case.
+      { rewrite ffunE eq_refl eq_refl //. }
+      by rewrite mem_index_enum. }
     apply: eq_big_perm => //.
-  Admitted.
+  Qed.
   
   Lemma sum_upd_lemma2 i i0 x (F : {ffun 'I_N -> A} -> {ffun 'I_N -> A} -> rat) :
     (forall f, F (upd i x f) (upd i x f) = F f (upd i x f)) ->     
