@@ -157,6 +157,51 @@ Section machine_semantics.
       { by apply: eq_big. }
       rewrite -partition_big //. 
     Qed.      
+
+    (*FIME: the following two lemmas can be generalize go BigOp form*)
+    Lemma prod_split (i : 'I_N) (y : {ffun 'I_N -> A}) :
+      \prod_(j in [set i]) (f j) (y j) *
+      \prod_(j in [set~ i]) (f j) (y j) = \prod_(j < N) (f j) (y j).
+    Proof.        
+      have ->:
+       \prod_(j < N) (f j) (y j) =
+       \prod_(j in [predU (pred1 i) & [set~ i]]) (f j) (y j).
+      { apply: congr_big => // j; rewrite /in_mem /=.
+        case H: (j == i).
+        { by have ->: j \in pred1 i = true by rewrite /pred1 /in_mem /= H. }
+        have ->: j \in [set~ i] by rewrite in_setC1 H.
+        by rewrite orbC. }
+      rewrite bigU /=; last first.
+      { by rewrite disjoint1 in_setC1; apply/negP; rewrite eq_refl. }
+      f_equal.
+      apply: congr_big => //; first by move => j; rewrite in_set1.
+    Qed.
+
+    Lemma sum_split (i : 'I_N) (y : {ffun 'I_N -> A}) :
+      \sum_(j in [set i]) (f j) (y j) +
+      \sum_(j in [set~ i]) (f j) (y j) = \sum_(j < N) (f j) (y j).
+    Proof.        
+      have ->:
+       \sum_(j < N) (f j) (y j) =
+       \sum_(j in [predU (pred1 i) & [set~ i]]) (f j) (y j).
+      { apply: congr_big => // j; rewrite /in_mem /=.
+        case H: (j == i).
+        { by have ->: j \in pred1 i = true by rewrite /pred1 /in_mem /= H. }
+        have ->: j \in [set~ i] by rewrite in_setC1 H.
+        by rewrite orbC. }
+      rewrite bigU /=; last first.
+      { by rewrite disjoint1 in_setC1; apply/negP; rewrite eq_refl. }
+      f_equal.
+      apply: congr_big => //; first by move => j; rewrite in_set1.
+    Qed.
+    (*END FIXME*)
+    
+    Lemma neqS (T : eqType) (z i : T) : (z!=i) = (i!=z).
+    Proof.
+      apply/negP; case H: (z == i) => /=.
+      by move: (eqP H) => -> /=; rewrite eq_refl.
+      by case H2: (i == z) => //; move: (eqP H2) => H2'; rewrite H2' eq_refl in H.
+    Qed.
     
     Lemma cost_vec_unfold i :
       expectedValue (f i) [eta (cost_vec i)] =
@@ -205,27 +250,10 @@ Section machine_semantics.
           \prod_(j < N | j == i) F j =
           \prod_(j in [set x : 'I_N | x==i]) F j.
         { by apply: congr_big => // z; rewrite in_set1. }
-        have ->:
-          \prod_(j < N | i != j) (f j) (y j) =
-          \prod_(j in [set~ i]) (f j) (y j).
-        { apply: congr_big => // z; rewrite in_setC1.
-          apply/negP; case H: (z == i) => /=; first by move: (eqP H) => ->.
-          move => H2; move: (eqP H2) => H3; rewrite H3 eq_refl in H => //. }
-        move => Heq.
-        have ->:
-          \prod_(j < N) (f j) (y j) =
-          \prod_(j in [predU (pred1 i) & [set~ i]]) (f j) (y j).
-        { apply: congr_big => // j; rewrite /in_mem /=.
-          case H: (j == i).
-          { by have ->: j \in pred1 i = true by rewrite /pred1 /in_mem /= H. }
-          have ->: j \in [set~ i] by rewrite in_setC1 H.
-          by rewrite orbC. }
-        rewrite bigU /=; last first.
-        { by rewrite disjoint1 in_setC1; apply/negP; rewrite eq_refl. }
-        f_equal.
-        apply: congr_big => //; first by move => j; rewrite in_set1.
-        move => j; rewrite in_set1; move/eqP => ->; rewrite /F.
-        by move: (eqP Heq) => ->. }
+        move => Hp; rewrite -(prod_split i); f_equal.
+        { apply: congr_big => // z; rewrite in_set1 /F; move/eqP => ->.
+          by move: Hp; rewrite /P; move/eqP => ->. }
+        by apply: congr_big => // z; rewrite in_setC1 neqS. }
 
       have ->:
       \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
@@ -657,14 +685,173 @@ Section machine_semantics.
     { by f_equal; rewrite cost_vec_unfold. }
     apply: IH => //.
   Qed.    
+  
+  Lemma sum_upd_lemma1 i i0 x (F : {ffun 'I_N -> A} -> {ffun 'I_N -> A} -> rat) :
+    (forall f, F (upd i x f) (upd i x f) = F f (upd i x f)) -> 
+    \sum_(f : {ffun 'I_N -> A} | f i == i0) F f (upd i x f) =
+    \sum_(f : {ffun 'I_N -> A} | f i == x) F f (upd i x f).
+  Proof.
+    move => Hf; case Hneq: (i0 == x); first by move: (eqP Hneq) => <-.
+    rewrite -big_filter.
+    rewrite -[\sum_(_ | _ i == x) _ _ _]big_filter.
+    have ->:
+     \sum_(i1 <-
+        [seq i1 : {ffun 'I_N -> A} <- index_enum
+             (finfun_of_finType (ordinal_finType N) A)
+        | i1 i == i0]) F i1 (upd i x i1) =
+      \sum_(i1 <- 
+        (map (upd i x)
+          [seq i1 : {ffun 'I_N -> A} <- index_enum
+               (finfun_of_finType (ordinal_finType N) A)
+          | i1 i == i0])) F i1 (upd i x i1).
+    { elim: (index_enum (finfun_of_finType (ordinal_finType N) A)).
+      { by rewrite !big_nil. }
+      move => a l IH /=; case: (a i == i0) => //=.
+      rewrite 2!big_cons; f_equal; last by apply: IH.
+      have ->: upd i x (upd i x a) = upd i x a.
+      { rewrite /upd; apply/ffunP => y; rewrite !ffunE; case: (i == y) => //. }
+        by rewrite Hf. }
+    have H2:
+      perm_eq 
+      (map (upd i x)
+         [seq i1 : {ffun 'I_N -> A} <- index_enum
+              (finfun_of_finType (ordinal_finType N) A)
+         | i1 i == i0])
+      ([seq i1 : {ffun 'I_N -> A} <- index_enum
+              (finfun_of_finType (ordinal_finType N) A)
+         | i1 i == x]).
+    { apply: uniq_perm_eq.
+      { have ->:
+          [seq upd i x i1
+            | i1:{ffun 'I_N -> A} <- index_enum (finfun_of_finType (ordinal_finType N) A)
+            & i1 i == i0] =
+          [seq i1:{ffun 'I_N -> A} <- index_enum (finfun_of_finType (ordinal_finType N) A)
+          | i1 i == i0].
+        { admit. }
+        rewrite filter_index_enum.
+        apply: enum_uniq. }
+      { rewrite filter_index_enum.
+        apply: enum_uniq. }
+      move =>y; apply/mapP; case H2: (y \in _).
+      { rewrite mem_filter in H2.
+        case: (andP H2); move/eqP => H3 H4; clear H2.
+        exists (upd i i0 y).
+        { admit. }
+        admit. }
+      case => z.
+      move => H3 H4; subst y.
+      rewrite mem_filter in H3; case: (andP H3); move/eqP => H4 H5; clear H3; subst i0.
+      admit. }
+    apply: eq_big_perm => //.
+  Admitted.
+  
+  Lemma sum_upd_lemma2 i i0 x (F : {ffun 'I_N -> A} -> {ffun 'I_N -> A} -> rat) :
+    (forall f, F (upd i x f) (upd i x f) = F f (upd i x f)) ->     
+    \sum_(f : {ffun 'I_N -> A} | f i == i0) (F f (upd i x f)) =
+    \sum_(f : {ffun 'I_N -> A} | f i == x) (F f f).
+  Proof.
+    move => Hf; rewrite sum_upd_lemma1 //.
+    apply: congr_big => // z; move/eqP => H; rewrite /upd -H; f_equal.
+    by apply/ffunP => y; rewrite ffunE; case H2: (i == y) => //; move: (eqP H2) ->.
+  Qed.
 
-  (* WIP
   Lemma cost_vec_unfold2 a i x :
     (cost_vec a i) x =
     \sum_i0
       (prod_pmf (T:=A) (rty:=rat_realFieldType) (n:=N) a) i0 *
       (cost) i (upd i x i0).
-  Admitted. (*TODO*)     
+  Proof.
+    rewrite /prod_pmf.
+    have ->:
+     \sum_i0
+     [ffun p : {ffun 'I_N -> A} =>
+      \prod_(i1 < N) (a i1) (p i1)] i0 * (cost) i (upd i x i0) =
+     \sum_(i0 : {ffun 'I_N -> A})
+      (\prod_(i1 < N) (a i1) (i0 i1)) * (cost) i (upd i x i0).
+    { apply: congr_big => // y _; rewrite ffunE //. }
+    rewrite /cost_vec ffunE /expUnilateral.
+    set (F (i0 : {ffun 'I_N -> A}) :=
+           \prod_(i1 < N) (a i1) (i0 i1) * (cost) i (upd i x i0)).
+    change
+      (\sum_(p : {ffun 'I_N -> A} | p i == x)
+        \prod_(j < N | i != j) (a j) (p j) * (cost) i p =
+       \sum_(i0 : {ffun 'I_N -> A}) F i0).
+    rewrite -(marginal_unfold F i) /F.
+    set (Q (x : A) (y : {ffun 'I_N -> A}) := y i == x).
+    have ->:
+     \sum_(p : [finType of (A * {ffun 'I_N -> A})] | p.2 i == p.1)
+      \prod_(i1 < N) (a i1) (p.2 i1) * (cost) i (upd i x p.2) =
+     \sum_(p : [finType of (A * {ffun 'I_N -> A})] | predT p.1 && (Q p.1 p.2))
+      \prod_(i1 < N) (a i1) (p.2 i1) * (cost) i (upd i x p.2).
+    { apply: congr_big => //. }
+    clear F.
+    set (F (p1:A) (p2:{ffun 'I_N -> A}) :=
+           \prod_(i1 < N) (a i1) (p2 i1) * (cost) i (upd i x p2)).
+    change
+      (\sum_(p : {ffun 'I_N -> A} | p i == x)
+        \prod_(j < N | i != j) (a j) (p j) * (cost) i p =
+       \sum_(p : [finType of (A * {ffun 'I_N -> A})] | predT p.1 && (Q p.1 p.2))
+        F p.1 p.2).
+    rewrite -pair_big_dep /= /F /Q.
+    have ->:
+     \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0)
+       \prod_(i1 < N) (a i1) (j i1) * (cost) i (upd i x j) =
+     \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0)
+       (\prod_(i1 in [set i]) (a i1) (j i1) * \prod_(i1 in [set~ i]) (a i1) (j i1)) *
+          (cost) i (upd i x j).
+    { apply: congr_big => // z _; apply: congr_big => // q; move/eqP => Heq.
+      rewrite -(prod_split a i) //. }
+    have ->:
+     \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0)
+       (\prod_(i1 in [set i]) (a i1) (j i1) * \prod_(i1 in [set~ i]) (a i1) (j i1)) *
+          (cost) i (upd i x j) = 
+     \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0)
+       (\prod_(i1 < N | i != i1) (a i1) (j i1) * (cost) i (upd i x j)) * a i i0.
+    { apply: congr_big => // z _; apply: congr_big => // q; move/eqP => Heq.
+      rewrite [_ * (a i) z]mulrC mulrA; f_equal; f_equal.
+      { by rewrite big_set1 Heq. }
+      by apply: congr_big => // r; rewrite in_setC1 neqS. }
+    have ->:
+      \sum_i0
+      \sum_(j : {ffun 'I_N -> A}| j i == i0)
+         \prod_(i1 < N | i != i1) (a i1) (j i1) * (cost) i (upd i x j) * (a i) i0 =
+     \sum_i0
+       ((a i) i0) *
+        \sum_(j : {ffun 'I_N -> A}| j i == i0)
+           \prod_(i1 < N | i != i1) (a i1) (j i1) * (cost) i (upd i x j).
+    { apply: congr_big => // z _.
+      rewrite -mulr_suml mulrC //. }
+    have H:
+      forall i0,
+      \sum_(j : {ffun 'I_N -> A} | j i == i0)
+        \prod_(i1 < N | i != i1) (a i1) (j i1) * (cost) i (upd i x j) =
+      \sum_(j : {ffun 'I_N -> A} | j i == x)
+        \prod_(i1 < N | i != i1) (a i1) (j i1) * (cost) i j.
+    { move => ix.
+      set (G (j0 j:{ffun 'I_N -> A}) :=
+             \prod_(i1 < N | i != i1) (a i1) (j0 i1) * (cost) i j).
+      have ->:
+        \sum_(j:{ffun 'I_N -> A} | j i == ix)
+          \prod_(i1 < N | i != i1) (a i1) (j i1) * (cost) i (upd i x j) =
+        \sum_(j:{ffun 'I_N -> A} | j i == ix) (G j (upd i x j)) by apply: congr_big.
+      rewrite sum_upd_lemma2 //.
+      move => f; rewrite /G; clear - f.
+      set (F1 i1 := (a i1) ((upd i x f) i1) * (cost) i (upd i x f)).
+      set (F2 i1 := (a i1) (f i1) * (cost) i (upd i x f)).
+      f_equal.
+      apply: eq_big => // y; rewrite /upd ffunE; case: (i == y) => //. }
+    have ->:
+      \sum_i0
+       ((a i) i0) *
+        (\sum_(j : {ffun 'I_N -> A}| j i == i0)
+         \prod_(i1 < N | i != i1) (a i1) (j i1) * (cost) i (upd i x j)) =
+      \sum_i0
+       ((a i) i0) *
+        (\sum_(j : {ffun 'I_N -> A}| j i == x)
+          \prod_(i1 < N | i != i1) (a i1) (j i1) * (cost) i j).
+    { apply: congr_big => // z _; f_equal; rewrite H //. }
+    rewrite -mulr_suml dist_normalized mul1r //.
+  Qed.    
   
   Lemma OPT_sigmaT_min i m (pf : 0 < (size (hist m))%:R) :    
     let: s := (m.(clients) i).2 in
@@ -829,7 +1016,7 @@ Section machine_semantics.
     rewrite -expectedUni_Unilateral.
     by apply: extrema.min_le.
   Admitted. (*TODO: arithmetic*)
-*)
+
 End machine_semantics.  
 
 Section extract_oracle.
