@@ -1373,7 +1373,8 @@ Section extract_oracle.
     let: eCost := state_expCost1 (all_costs0 s') s'
     in ((eCost - OPTR a0 s') / Tx nx <= rat_to_R eps + ln size_A / (epsR * Tx nx))%R.
   Proof.
-    move => H H1 H2 H3 H4.
+    move => H H1 H2 H3 Hsize.
+    
     have Hx: mult_weights A nx <> CSkip by [].
     move: H2; set s := init_state A (eps:=eps) epsOk tt (init_ClientPkg A) => H2.
     have Hy:
@@ -1402,9 +1403,9 @@ Section extract_oracle.
       inversion H0; subst.
       rewrite /all_costs0 /all_costs /=.
       move: (SCostsOk s') (SCostsOk sx').
-      rewrite -H5 => pf pf'.
+      rewrite -H4 => pf pf'.
       f_equal.
-      rewrite H6.
+      rewrite H5.
       case: (SPrevCosts _) => // a l.
       f_equal.
       f_equal.
@@ -1412,7 +1413,6 @@ Section extract_oracle.
     rewrite Hz.
     have Hw: all_costs' s' = all_costs' sx'.
     { by rewrite /all_costs' Hz. }
-    rewrite Hw in H4.    
     have Hu: OPTR a0 s' = OPTR a0 sx'.
     { by rewrite /OPTR /OPT Hw /astar Hw. }
     rewrite Hu.
@@ -1422,9 +1422,10 @@ Section extract_oracle.
     { rewrite /state_expCost1.
       inversion Hmatch; subst.
       inversion H0; subst.
-      by rewrite H9. }
+      by rewrite H8. }
     rewrite Hq.
-    apply: (mult_weights_epsilon_no_regret Hstep Hfinal H4).
+    rewrite Hw in Hsize.
+    apply: (mult_weights_epsilon_no_regret Hstep Hfinal Hsize).
   Qed.
 
   Definition inv m := 
@@ -1453,19 +1454,12 @@ Section extract_oracle.
     machine_step_plus a0 m m' ->
     final_state m' ->
     (forall i, m.(clients) i = (mult_weights A nx,init_state A epsOk tt (init_ClientPkg A))) ->
-    (forall i, let: (c',s') := m'.(clients) i in (0 < size (all_costs' s'))%N) ->
     (rat_to_R eps + ln size_A / (epsR * Tx nx) <= rat_to_R REGRET_BOUND)%R ->
     @machine_regret_eps _ _ _ m' pf REGRET_BOUND.
   Proof.      
-    move => Hstep Hfinal Hclients1 Hclients2 H i a.
+    move => Hstep Hfinal Hclients1 H i a.
     apply: rat_to_R_le'; rewrite rat_to_R_plus.
     case Hclient_i: (m'.(clients) i) => [c' s'].
-    have Hsize: (0 < size (all_costs' s'))%N.
-    { by move: (Hclients2 i); rewrite Hclient_i. }
-    move: (perclient_bounded_regret Hstep Hfinal (Hclients1 i) Hclient_i Hsize).
-    have Hsize': (0 < size (all_costs0 ((clients m') i).2))%N.
-    { rewrite Hclient_i.
-      by clear - Hsize; rewrite /all_costs' size_map in Hsize. }
 
     have Hinv: inv m.
     { move => ix; split.
@@ -1481,6 +1475,27 @@ Section extract_oracle.
         by move => k; case: (Hinv k). }
       apply: (machine_step_plus_machineClientHistRel Hstep).
       by move => k; case: (Hinv k). }
+
+    have Hclients2:
+      forall i, let: (c',s') := m'.(clients) i in (0 < size (all_costs' s'))%N.
+    { move => ix.
+      have Hdist:
+        distHistRel (A:=A) ix (hist m') (all_costs' ((clients m') ix).2).
+      { case: (Hinv' ix); rewrite /costvec_of_clientpkg.
+        inversion Hfinal; subst.
+        case: (H0 ix) => x []; inversion 1; subst => [][][]d _; rewrite H2 => -> //. }
+      destruct ((clients m') ix) eqn:Hclient_ix.
+      simpl in Hdist.
+      clear - pf Hdist; induction Hdist => //. }
+    
+    have Hsize: (0 < size (all_costs' s'))%N.
+    { by move: (Hclients2 i); rewrite Hclient_i. }
+
+
+    move: (perclient_bounded_regret Hstep Hfinal (Hclients1 i) Hclient_i Hsize).
+    have Hsize': (0 < size (all_costs0 ((clients m') i).2))%N.
+    { rewrite Hclient_i.
+      by clear - Hsize; rewrite /all_costs' size_map in Hsize. }
     
     have pf' : forall i, (0 < size (behead (SOutputs ((clients m') i).2)))%N.
     { move => ix; move: (Hclients1 ix).
