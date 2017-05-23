@@ -1710,6 +1710,8 @@ Section mwuBounds.
   Local Open Scope ring_scope.
   Variable A : finType. (* the strategy space... *)
   Variable a0 : A.      (* ...is inhabited. *)
+  Notation size_A := (rat_to_R #|A|%:R). (* the size of the strategy space *)
+  Variable nx : N.t.    (* #iterations *)
   Variable N : nat.     (* #players *)
   Variable m m' : machine_state A N. (* the initial and final states *)
   Variable INIT_HIST : hist m = [::].
@@ -1721,8 +1723,6 @@ Section mwuBounds.
   (* the result below holds for all rational 
        REGRET_BOUND >= etaR + ln size_A / (etaR * Tx nx) *)
   Variable REGRET_BOUND : rat. 
-  Notation size_A := (rat_to_R #|A|%:R).
-  Variable nx : N.t.
   Variable REGRET_BOUND_ok :
     (etaR + ln size_A / (etaR * Tx nx) <= rat_to_R REGRET_BOUND)%R.
   Variable Hclients :   (* all clients are running MWU *) 
@@ -1731,14 +1731,14 @@ Section mwuBounds.
       (mult_weights A nx,init_state A etaOk tt (init_ClientPkg A)).
   (* the game is smooth *)
   Context `{HSmooth : smooth A N rat_realFieldType}.
+  Variable Hstep : machine_step_plus a0 m m'.
   
   Lemma mwu_ultBounds :
-    machine_step_plus a0 m m' -> 
     forall S', optimal S' ->
     ExpectedCost (sigmaT FINAL_HIST) <=
     (lambda of A/(1 - mu of A)) * Cost S' + (N%:R*REGRET_BOUND)/(1 - mu of A).
   Proof.
-    move => Hstep S' Hopt; apply: ultBounds => //.
+    move => S' Hopt; apply: ultBounds => //.
     apply: (all_clients_bounded_regret INIT_HIST FINAL_HIST Hstep FINAL_STATE Hclients).
     apply: REGRET_BOUND_ok.
   Qed.
