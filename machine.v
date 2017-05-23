@@ -1648,7 +1648,6 @@ Section extract_oracle.
 End extract_oracle.
 
 Section regretBounds.
-
   Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A.
@@ -1658,7 +1657,6 @@ Section regretBounds.
 
   Context `{HSmooth : smooth A N rat_realFieldType}.
 
-  Variable epsPos : 0 <= eps.
   Variable histAx : (0:rat) < (size (m.(hist)))%:R.
   Variable regretAxiom : machine_regret_eps histAx eps.
 
@@ -1683,7 +1681,7 @@ Section regretBounds.
   Qed.
 
   Lemma ultBounds :
-  forall S',
+    forall S',
       optimal S' ->
       ExpectedCost (sigmaT histAx) <=
       ((lambda of A)/(1 - (mu of A))) * (Cost S') + ((N%:R) *eps)/(1- mu of A).
@@ -1706,5 +1704,42 @@ Section regretBounds.
     rewrite ltr_subr_addr add0r.
     apply mu_lt1.
   Qed.
-
 End regretBounds.
+
+Section mwuBounds.
+  Local Open Scope ring_scope.
+  Variable A : finType. (* the strategy space... *)
+  Variable a0 : A.      (* ...is inhabited. *)
+  Variable N : nat.     (* #players *)
+  Variable m m' : machine_state A N. (* the initial and final states *)
+  Variable INIT_HIST : hist m = [::].
+  Variable FINAL_HIST : (0:rat) < (size (m'.(hist)))%:R.
+  Variable FINAL_STATE : final_state m'.
+  Variable eta : rat.   (* the MWU exploration parameter *)
+  Variable etaOk : 0 < eta <= 1/2%:R.    
+  Notation etaR := (rat_to_R eta).
+  (* the result below holds for all rational 
+       REGRET_BOUND >= etaR + ln size_A / (etaR * Tx nx) *)
+  Variable REGRET_BOUND : rat. 
+  Notation size_A := (rat_to_R #|A|%:R).
+  Variable nx : N.t.
+  Variable REGRET_BOUND_ok :
+    (etaR + ln size_A / (etaR * Tx nx) <= rat_to_R REGRET_BOUND)%R.
+  Variable Hclients :   (* all clients are running MWU *) 
+    forall i,
+      m.(clients) i =
+      (mult_weights A nx,init_state A etaOk tt (init_ClientPkg A)).
+  (* the game is smooth *)
+  Context `{HSmooth : smooth A N rat_realFieldType}.
+  
+  Lemma mwu_ultBounds :
+    machine_step_plus a0 m m' -> 
+    forall S', optimal S' ->
+    ExpectedCost (sigmaT FINAL_HIST) <=
+    (lambda of A/(1 - mu of A)) * Cost S' + (N%:R*REGRET_BOUND)/(1 - mu of A).
+  Proof.
+    move => Hstep S' Hopt; apply: ultBounds => //.
+    apply: (all_clients_bounded_regret INIT_HIST FINAL_HIST Hstep FINAL_STATE Hclients).
+    apply: REGRET_BOUND_ok.
+  Qed.
+End mwuBounds.
