@@ -1434,15 +1434,22 @@ Section extract_oracle.
         (costvec_of_clientpkg (m.(clients) i).2.(SOracleSt) ++
           all_costs' (m.(clients) i).2) /\
       machineClientHistRel i (m.(clients) i).2 m.(hist).
+
+  Lemma INR_rat_to_R (n : nat) : INR n = rat_to_R n%:R.
+  Proof.
+    elim: n; first by rewrite /= rat_to_R0.
+    move => n IH; rewrite S_INR.
+    have ->: rat_to_R n.+1%:R = rat_to_R (n%:R + 1).
+    { have ->: (n.+1 = n + 1)%N by rewrite addnC.
+      by rewrite natrD. }
+    rewrite IH rat_to_R_plus rat_to_R1 //.
+  Qed.    
   
   Lemma all_clients_bounded_regret
-        m m' nx (REGRET_BOUND : rat)
-        (*FIXME: [pf], [pf'], [Hnx] are provable from other facts, 
-          therefore unnecessary*)
-        (pf : 0 < (size (hist m'))%:R)
-        (pf' : forall i, (0 < size (behead (SOutputs ((clients m') i).2)))%N)
-        (Hnx: Tx nx = rat_to_R (size (hist m'))%:R) :
-    inv m -> 
+        m m' nx
+        (REGRET_BOUND : rat)
+        (INIT_HIST : hist m = [::])
+        (pf : 0 < (size (hist m'))%:R) :
     machine_step_plus a0 m m' ->
     final_state m' ->
     (forall i, m.(clients) i = (mult_weights A nx,init_state A epsOk tt (init_ClientPkg A))) ->
@@ -1450,24 +1457,46 @@ Section extract_oracle.
     (rat_to_R eps + ln size_A / (epsR * Tx nx) <= rat_to_R REGRET_BOUND)%R ->
     @machine_regret_eps _ _ _ m' pf REGRET_BOUND.
   Proof.      
-    move => Hinv Hstep Hfinal Hclients1 Hclients2 H i a.
+    move => Hstep Hfinal Hclients1 Hclients2 H i a.
     apply: rat_to_R_le'; rewrite rat_to_R_plus.
     case Hclient_i: (m'.(clients) i) => [c' s'].
     have Hsize: (0 < size (all_costs' s'))%N.
     { by move: (Hclients2 i); rewrite Hclient_i. }
     move: (perclient_bounded_regret Hstep Hfinal (Hclients1 i) Hclient_i Hsize).
-    rewrite Hnx in H|-*.
     have Hsize': (0 < size (all_costs0 ((clients m') i).2))%N.
     { rewrite Hclient_i.
       by clear - Hsize; rewrite /all_costs' size_map in Hsize. }
-    have Hsize'': (0 < size (behead (SOutputs ((clients m') i).2)))%N.
-    { apply: pf'. }
+
+    have Hinv: inv m.
+    { move => ix; split.
+      { move: (Hclients1 ix); destruct ((clients m) ix); inversion 1; subst => /=.
+        rewrite INIT_HIST; constructor. }
+      move: (Hclients1 ix); destruct ((clients m) ix); inversion 1; subst => /=.
+      rewrite INIT_HIST; constructor => //.
+      constructor. }
+    
     have Hinv': inv m'.
     { move => j; split.
       { apply: (machine_step_plus_histRel Hstep) => //.
         by move => k; case: (Hinv k). }
       apply: (machine_step_plus_machineClientHistRel Hstep).
       by move => k; case: (Hinv k). }
+    
+    have pf' : forall i, (0 < size (behead (SOutputs ((clients m') i).2)))%N.
+    { move => ix; move: (Hclients1 ix).
+      have Hout:
+        outHistRel ix (hist m') (behead (SOutputs ((clients m') ix).2)).
+      { have [d Hsent]: exists d, sent (SOracleSt ((clients m') ix).2) = Some d.
+        { inversion Hfinal; subst.
+          inversion Hfinal; subst; case: (H1 ix) => sx' [] => Hix.          
+          case: (H0 ix) => x []; rewrite Hix; inversion 1; subst => [][][]d p r.
+          by exists d. }
+        case: (Hinv' ix) => _; inversion 1; subst => //.
+        rewrite Hsent in H0; inversion H0. }
+      clear - Hout pf; induction Hout => //. }
+    
+    have Hsize'': (0 < size (behead (SOutputs ((clients m') i).2)))%N.
+    { apply: pf'. }
     have Hout:
       outHistRel i (hist m') (behead (SOutputs ((clients m') i).2)).
     { have [d Hsent]: exists d, sent (SOracleSt ((clients m') i).2) = Some d.
@@ -1481,6 +1510,61 @@ Section extract_oracle.
     { case: (Hinv' i); rewrite /costvec_of_clientpkg.
       inversion Hfinal; subst.
       case: (H0 i) => x []; inversion 1; subst => [][][]d _; rewrite H2 => -> //. }
+
+    have Hnx': size (hist m') = size (all_costs' ((clients m') i).2).
+    { clear - Hdist; induction Hdist => //.
+      by simpl; rewrite IHHdist. }
+
+    have Hnx2: Tx nx = rat_to_R (size (all_costs' ((clients m') i).2))%:R.    
+    { destruct ((clients m) i) eqn:Hclient_i0; simpl in *.
+      set (sx :=
+             mkState
+               (SCostsOk s)
+               (SPrevCosts s)
+               (SWeightsOk s)
+               (SEpsilonOk s)
+               (SOutputs s)
+               (SChan s)
+               tt).
+      have Hmatch: match_states s sx by constructor.
+      have Hnskip: c <> CSkip.
+      { move => Hskip; move: (Hclients1 i); rewrite Hclient_i0; subst c; inversion 1. }
+      case: (oracle_extractible Hstep Hfinal Hnskip Hclient_i0 Hclient_i Hmatch).
+      move => sx'; case => Hmatch' Hstep'.
+      have Hsx: sx = init_state A (eps:=eps) epsOk tt tt.
+      { inversion Hmatch; subst; unfold sx; clear Hmatch.
+        inversion H0; subst; clear H0.
+        move: (Hclients1 i); rewrite Hclient_i0; inversion 1; subst; simpl in *.
+        rewrite /init_state; f_equal. }
+      rewrite Hsx in Hstep'.
+      have Hsize3 : (0 < size (all_costs s'))%N.
+      { clear - Hsize; rewrite /all_costs'/all_costs0 in Hsize; move: Hsize.
+        move: (all_costs s') => l; rewrite size_map size_removelast.
+        move/ltP => H; apply/ltP; omega. }
+      have Hfinal': final_com c'.
+      { inversion Hfinal; subst.
+        case: (H0 i) => s0; rewrite Hclient_i; case; inversion 1; subst => _.
+        constructor. }
+      have Hc: c = mult_weights A nx.
+      { by move: (Hclients1 i); rewrite Hclient_i0; inversion 1; subst. }
+      rewrite Hc in Hstep'.
+      move: (@mult_weights_T
+               _ _ _ _
+               extractClientOracle _ epsOk nx _ _ _ _ Hsize3 Hstep' Hfinal').
+      rewrite /num_costs /Tx; move/INR_eq => <-.
+      have ->: all_costs' sx' = all_costs' ((clients m') i).2.
+      { rewrite Hclient_i /=; inversion Hmatch'; subst.
+        inversion H0; subst; rewrite /all_costs'/all_costs0/all_costs.
+        f_equal; f_equal; rewrite H2; clear - H1.
+        move: (SCostsOk sx'); move: (SCostsOk s').
+        rewrite H1 => pf1 pf2; f_equal; f_equal; apply: proof_irrelevance. }
+      apply: INR_rat_to_R. }
+
+    have Hnx3: Tx nx = rat_to_R (size (hist m'))%:R.
+    { by rewrite Hnx2 Hnx'. }
+    
+    rewrite Hnx3 in H|-*.
+    
     generalize (OPT_sigmaT a0 pf a Hsize' Hsize'' Hout Hdist); rewrite Hclient_i => /= Hopt.
     generalize (state_expCost1_sigmaT pf Hsize' Hsize'' Hout Hdist) => Hstate.
     move => Hbound.
