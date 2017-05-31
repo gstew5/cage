@@ -86,6 +86,18 @@ Module Vector (B : BOUND) (P : PAYLOAD).
   Definition map0 (f : Ix.t -> P.t -> P.t) (m : t) : t :=
     M.mapi f m.
 
+  (* a slow map that doesn't assume anything *)
+  Definition map_s (f : Ix.t -> P.t -> P.t) (m : t) : t :=
+    List.fold_right (fun i acc =>
+                       match M.find i m with
+                       | None =>
+                         let v := f i P.t0 in
+                         if P.eq0 v then acc else M.add i v acc
+                       | Some v =>
+                         let v' := f i v in
+                         if P.eq0 v' then acc else M.add i v' acc
+                       end) (M.empty _) (enumerate Ix.t).
+
   (* assumes f i P.t0 t = t *)  
   Definition fold0 T (f : Ix.t -> P.t -> T -> T) (m : t) (t0 : T) : T :=
     M.fold f m t0.
@@ -157,7 +169,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     { rewrite MProps.F.add_eq_o => //; inversion 1; subst.
       apply/negP => H4; apply: H2; case: (P.eq0P k) H4 => //. }
     by rewrite MProps.F.add_neq_o => //; apply: H.
-  Qed.    
+  Qed.
 
   (* map0 is only sparse if (f t = P.t0 -> t = P.t0) *)
   Lemma map0_sparse m f :
@@ -175,16 +187,178 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     { move => H3; move/(_ H3) => H4; subst a; elimtype False.
       by rewrite H3 /nonzero /= in H'; move: (H' erefl); case: (P.eq0P P.t0). }
     by move => H2 H3; apply/negP; move: H2; case: (P.eq0P (f i a)).
-  Qed.    
-  
+  Qed.
+
+  Lemma add_eq_val i a m y v :
+    N.eq (Ix.val a) (Ix.val i) ->
+    M.find (elt:=P.t) i (M.add a v m) = Some y ->
+    y = v.
+  Proof.
+    rewrite MProps.F.add_o. move => H0 H1.
+    destruct (M.E.eq_dec) => //. inversion H1 => //.
+  Qed.
+
+  (* map_s preserves [SPARSITY_INVARIANT] *)
+  Lemma map_s_sparse m f :
+    sparse m ->
+    sparse (map_s f m).
+  Proof.
+    rewrite /sparse /map_s. move => H0 i.
+    rewrite /foldr; move: (enumerate Ix.t) => l.
+    induction l => // /=.
+    { move => y H1. destruct (M.find (elt:=P.t) a m) as [t0|t0].
+      { case H3: (P.eq0 (f a t0)); rewrite H3 in H1. apply IHl => //.
+        { destruct (M.E.eq_dec i a).
+          { (* case [i == a]: implies y = f a t0 which is nonzero from H3. *)
+            have H4: (y = f a t0).
+            { apply M.E.eq_sym in e; apply: (add_eq_val e); apply H1. }
+            rewrite H4 /nonzero H3 => //. }
+          { (* case [i <> a]: goal directly follows from IH and H1. *)
+            apply IHl. rewrite MProps.F.add_neq_o in H1 => //.
+            by apply compile.M.Raw.Proofs.L.PX.MO.neq_sym. } } }
+      { case H3: (P.eq0 (f a P.t0)); rewrite H3 in H1. apply IHl => //.
+        { destruct (M.E.eq_dec i a).
+          { (* case [i == a]: implies y = f a t0 which is nonzero from H3. *)
+            have H4: (y = f a P.t0).
+            { apply M.E.eq_sym in e; apply: (add_eq_val e); apply H1. }
+            rewrite H4 /nonzero H3 => //. }
+          { (* case [i <> a]: goal directly follows from IH and H1. *)
+            apply IHl. rewrite MProps.F.add_neq_o in H1 => //.
+            by apply compile.M.Raw.Proofs.L.PX.MO.neq_sym. } } } }
+  Qed.
+
+  (* map_s works correctly for the 4 cases:
+     1) zero mapped to zero
+     2) nonzero mapped to zero
+     3) zero mapped to nonzero
+     4) nonzero mapped to nonzero *)
+
+  (* zero -> zero *)
+  Lemma map_s_correct_zz m f i :
+    f i P.t0 = P.t0 -> M.find i m = None ->
+    M.find i (map_s f m) = None.
+  Proof.
+    move => H0 H1. rewrite /map_s. move: (enumerate Ix.t) => l.
+    induction l => // /=.
+    case H4: (M.find (elt:=P.t) a m).
+    { case H5: (P.eq0 (f a _)) => //.
+      { destruct (M.E.eq_dec i a). 
+        { have H6: (M.find (elt:=P.t) i m = M.find (elt:=P.t) a m).
+          { apply MProps.F.find_o => //. }
+          rewrite H6 in H1. rewrite H1 in H4 => //. }
+        { rewrite MProps.F.add_neq_o => //.
+          apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+    { case H5: (P.eq0 (f a P.t0)) => //.
+      { move: (Ix.eqP i a) => [eqP0 eqP1].
+        destruct (Ix.eq_dec i a).
+        { apply eqP1 in e. subst. rewrite H0 in H5.
+          destruct (P.eq0P P.t0) => //. }
+        { rewrite MProps.F.add_neq_o => //.
+          apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+  Qed.
+
+  (* nonzero -> zero *)
+  Lemma map_s_correct_nz m f i x :
+    f i x = P.t0 -> x <> P.t0 -> M.find i m = Some x ->
+    M.find i (map_s f m) = None.
+  Proof.
+    move => H0 H1 H2. rewrite /map_s. move: (enumerate Ix.t) => l.
+    induction l => // /=.
+    case H4: (M.find (elt:=P.t) a m).
+    { case H5: (P.eq0 (f a _)) => //.
+      { move: (Ix.eqP i a) => [eqP0 eqP1].
+        destruct (Ix.eq_dec i a).
+        { apply eqP1 in e; subst.
+          rewrite H2 in H4. inversion H4; subst. rewrite H0 in H5.
+          destruct (P.eq0P P.t0) => //. }
+        { rewrite MProps.F.add_neq_o => //.
+          apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+    { case H5: (P.eq0 (f a P.t0)) => //.
+      { subst. move: (Ix.eqP i a) => [eqP0 eqP1].
+        destruct (Ix.eq_dec i a).
+        { apply eqP1 in e; subst. rewrite H4 in H2 => //. }
+        { rewrite MProps.F.add_neq_o => //.
+          apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+  Qed.
+
+  (* zero -> nonzero *)
+  Lemma map_s_correct_zn m f i y :
+    f i P.t0 = y -> y <> P.t0 -> M.find i m = None ->
+    M.find i (map_s f m) = Some y.
+  Proof.
+    move => H0 H1 H2. rewrite /map_s.
+    move: (Ix.enum_ok_obligation_2 i) => H3.
+    induction (enumerate Ix.t) => // /=.
+    { case H4: (M.find a m).
+      { case H5: (P.eq0 (f a _)) => //.
+        { move: (Ix.eqP i a) => [eqP0 eqP1].
+          destruct (Ix.eq_dec i a).
+          { apply eqP1 in e; subst. rewrite H2 in H4 => //. }
+          { apply IHl. destruct H3 => //. subst. destruct n => //. } }
+        { move: (Ix.eqP i a) => [eqP0 eqP1].
+          destruct (Ix.eq_dec i a).
+          { apply eqP1 in e; subst. rewrite H2 in H4 => //. }
+          { rewrite MProps.F.add_neq_o => //.
+            apply IHl. destruct H3 => //. subst. destruct n => //.
+            apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+      { case H5: (P.eq0 (f a _)) => //.
+        { move: (Ix.eqP i a) => [eqP0 eqP1].
+          destruct (Ix.eq_dec i a).
+          { apply eqP1 in e; subst. destruct (P.eq0P (f a P.t0)) => //. }
+          { apply IHl. destruct H3 => //. subst. destruct n => //. } }
+        { move: (Ix.eqP i a) => [eqP0 eqP1].
+          destruct (Ix.eq_dec i a).
+          { apply eqP1 in e; subst. apply MProps.F.add_eq_o => //. }
+          { rewrite MProps.F.add_neq_o => //.
+            apply IHl. destruct H3 => //. subst. destruct n => //.
+            apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } } }
+  Qed.
+
+  (* nonzero -> nonzero *)
+  Lemma map_s_correct_nn m f i x y :
+    f i x = y -> y <> P.t0 -> x <> P.t0 -> M.find i m = Some x ->
+    M.find i (map_s f m) = Some y.
+  Proof.
+    move => H0 H1 H2 H3. rewrite /map_s.
+    move: (Ix.enum_ok_obligation_2 i) => H4.
+    induction (enumerate Ix.t) => // /=.
+    { case H5: (M.find a m).
+      { case H6: (P.eq0 (f a _)) => //.
+        { move: (Ix.eqP i a) => [eqP0 eqP1].
+          destruct (Ix.eq_dec i a).
+          { apply eqP1 in e; subst. rewrite H3 in H5. inversion H5.
+            rewrite -H0 in H6. destruct (P.eq0P (f a x)) => //. }
+          { apply IHl. destruct H3 => //. subst. destruct H4 => //.
+            destruct n. apply eqP0 => //. } }
+        { move: (Ix.eqP i a) => [eqP0 eqP1].
+          destruct (Ix.eq_dec i a).
+          { apply eqP1 in e; subst. rewrite H5 in H3; inversion H3; subst.
+            apply MProps.F.add_eq_o => //. }
+          { rewrite MProps.F.add_neq_o => //.
+            apply IHl. destruct H4 => //. subst. destruct n => //.
+            apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+      { case H6: (P.eq0 (f a _)) => //.
+        { move: (Ix.eqP i a) => [eqP0 eqP1].
+          destruct (Ix.eq_dec i a).
+          { apply eqP1 in e; subst. rewrite H5 in H3 => //. }
+          { destruct H4; subst. destruct n => //. apply IHl => //. } }
+        { move: (Ix.eqP i a) => [eqP0 eqP1].
+          destruct (Ix.eq_dec i a).
+          { apply eqP1 in e; subst. rewrite H3 in H5 => //. }
+          { rewrite MProps.F.add_neq_o => //.
+            apply IHl. destruct H4; subst. destruct n => //. apply H.
+            apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } } }
+  Qed.
+
   (* REFINEMENT PROOFS *)
+
   Definition ty := {ffun 'I_n -> P.u}. (* high-level vectors *)
 
   Definition upd i p (f : ty) : ty :=
     [ffun i' => if i == i' then p else f i'].
   
   Lemma Ix_of_Ordinal_lem x :
-    (x < n)%N -> 
+    (x < n)%N ->
     (N.to_nat (N.of_nat x) < n)%N.
   Proof. by rewrite Nat2N.id. Qed.
   
@@ -212,7 +386,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     rewrite Nat2N.id => pf1 pf2.
     f_equal.
     apply: proof_irrelevance.
-  Qed.    
+  Qed.
 
   Lemma rev_enumerate_enum :
     List.rev (List.map Ordinal_of_Ix (enumerate Ix.t)) =
@@ -223,12 +397,12 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     Permutation
       (List.map Ordinal_of_Ix (enumerate Ix.t))
       (enum 'I_n).
-  Proof. 
+  Proof.
     apply: Permutation_trans.
     apply: Permutation_rev.
     rewrite rev_enumerate_enum.
     apply: Permutation_refl.
-  Qed.    
+  Qed.
   
   (* the representation invariant *)
   Definition match_vecs (v : t) (f : ty) : Prop :=
@@ -240,7 +414,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     Lemma match_vecs_get i :
       get i v = P.t_of_u (f (Ordinal_of_Ix i)).
     Proof. by apply: pf. Qed.
-
+    
     Lemma match_vecs_set i p :
       match_vecs (set i p v) (upd (Ordinal_of_Ix i) (P.u_of_t p) f).
     Proof.
@@ -309,7 +483,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       elim: l tx => // a l IH /= tx; f_equal => //.
       case: a => av apf; move: (Ix_of_Ordinal_lem _); rewrite N2Nat.id => pfix /=.
       by f_equal; apply: proof_irrelevance.
-    Qed.    
+    Qed.
 
     (* foldr and fold0 are equivalent assuming the composition operator is 
        symmetric, associative, and preserves zeros *)
