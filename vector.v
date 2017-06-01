@@ -231,7 +231,8 @@ Module Vector (B : BOUND) (P : PAYLOAD).
      1) zero mapped to zero
      2) nonzero mapped to zero
      3) zero mapped to nonzero
-     4) nonzero mapped to nonzero *)
+     4) nonzero mapped to nonzero
+     These results are combined in the overall proof [map_s_correct]. *)
 
   (* zero -> zero *)
   Lemma map_s_correct_zz m f i :
@@ -348,6 +349,37 @@ Module Vector (B : BOUND) (P : PAYLOAD).
           { rewrite MProps.F.add_neq_o => //.
             apply IHl. destruct H4; subst. destruct n => //. apply H.
             apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } } }
+  Qed.    
+
+  (* Overall correctness of map_s. It seems like [sparse m] shouldn't be
+     necessary for this proof but it makes it easier. *)
+  Lemma map_s_correct m f i y :
+    sparse m -> f i (get i m) = y -> get i (map_s f m) = y.
+  Proof.
+    remember (get i m) as x. move: Heqx. rewrite /get.
+    destruct (P.eq0P x); destruct (P.eq0P y) => H1 Hsparse H2.
+    { case H3: (M.find i m). rewrite H3 in H1.
+      { apply Hsparse in H3; subst. rewrite /nonzero in H3.
+        apply negb_true_iff in H3; subst. destruct (P.eq0P P.t0) => //. }
+      { case H4: (M.find i (map_s f m)).
+        { have H5: (M.find i (map_s f m) = None).
+          { apply map_s_correct_zz; subst => //. }
+          rewrite H4 in H5 => //. }
+        { by []. } } }
+    { case H3: (M.find i m); rewrite H3 in H1.
+      { apply Hsparse in H3; subst. apply negb_true_iff in H3; subst.
+        destruct (P.eq0P P.t0) => //. }
+      { have H5: (M.find i (map_s f m) = Some y).
+        { apply map_s_correct_zn; subst => //. }
+        case H4: (M.find i (map_s f m)); rewrite H4 in H5;
+          inversion H5 => //. } }
+    { case H3: (M.find i m); rewrite H3 in H1; symmetry in H1; subst => //.
+        move: (@map_s_correct_nz m f i x) => Hcorrect;
+        apply Hcorrect in H2 => //; rewrite H2 => //. }
+    { case H3: (M.find i m); rewrite H3 in H1.
+      { rewrite -H1 in H3. move: (@map_s_correct_nn m f i x y) => Hcorrect.
+        apply Hcorrect in H2 => //. rewrite H2 => //. }
+      { exfalso; apply n => //. } }
   Qed.
 
   (* REFINEMENT PROOFS *)
@@ -1064,7 +1096,7 @@ Module DVector (B : BOUND).
   Qed.
   
   Definition dot_product (v1 v2 : Vec.t) : DRed.t :=
-    sum1 (Vec.map0 (fun ix d1 => (d1 * Vec.get ix v2)%DRed) v1). 
+    sum1 (Vec.map0 (fun ix d1 => (d1 * Vec.get ix v2)%DRed) v1).
   
   Definition linf_norm (v : Vec.t) : DRed.t :=
     Vec.fold0
