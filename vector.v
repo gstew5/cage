@@ -88,7 +88,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
 
   (* auxiliary function for map_s. makes proofs easier. *)
   Definition map_s_aux (f : Ix.t -> P.t -> P.t) (m : t) l : t :=
-        List.fold_right (fun i acc =>
+    List.fold_right (fun i acc =>
                        match M.find i m with
                        | None =>
                          let v := f i P.t0 in
@@ -216,8 +216,8 @@ Module Vector (B : BOUND) (P : PAYLOAD).
             have H4: (y = f a t0).
             { apply M.E.eq_sym in e.
               apply (@add_eq_val i a (map_s_aux f m l) (f a t0)) in e. 
-              rewrite H1 in e; inversion e => //. }
-            rewrite H4 /nonzero H3 => //. }
+              by rewrite H1 in e; inversion e. }
+            by rewrite H4 /nonzero H3. }
           { (* case [i <> a]: goal directly follows from IH and H1. *)
             apply IHl. rewrite MProps.F.add_neq_o in H1 => //.
             by apply compile.M.Raw.Proofs.L.PX.MO.neq_sym. } } }
@@ -227,8 +227,8 @@ Module Vector (B : BOUND) (P : PAYLOAD).
             have H4: (y = f a P.t0).
             { apply M.E.eq_sym in e.
               apply (@add_eq_val i a (map_s_aux f m l) (f a P.t0)) in e.
-              rewrite H1 in e; inversion e => //. }
-            rewrite H4 /nonzero H3 => //. }
+              by rewrite H1 in e; inversion e. }
+            by rewrite H4 /nonzero H3. }
           { (* case [i <> a]: goal directly follows from IH and H1. *)
             apply IHl. rewrite MProps.F.add_neq_o in H1 => //.
             by apply compile.M.Raw.Proofs.L.PX.MO.neq_sym. } } } }
@@ -252,17 +252,17 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     { case H5: (P.eq0 (f a _)) => //.
       { destruct (M.E.eq_dec i a).
         { have H6: (M.find (elt:=P.t) i m = M.find (elt:=P.t) a m).
-          { apply MProps.F.find_o => //. }
-          rewrite H6 in H1. rewrite H1 in H4 => //. }
+          { by apply MProps.F.find_o. }
+          by rewrite H6 in H1; rewrite H1 in H4. }
         { rewrite MProps.F.add_neq_o => //.
-          apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+          by apply compile.M.Raw.Proofs.L.PX.MO.neq_sym. } } }
     { case H5: (P.eq0 (f a P.t0)) => //.
       { move: (Ix.eqP i a) => [eqP0 eqP1].
         destruct (Ix.eq_dec i a).
         { apply eqP1 in e. subst. rewrite H0 in H5.
-          destruct (P.eq0P P.t0) => //. }
+          by destruct (P.eq0P P.t0). }
         { rewrite MProps.F.add_neq_o => //.
-          apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+          by apply compile.M.Raw.Proofs.L.PX.MO.neq_sym. } } }
   Qed.
 
   (* zero -> nonzero *)
@@ -298,6 +298,7 @@ Module Vector (B : BOUND) (P : PAYLOAD).
             apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } } }
   Qed.
 
+  (* nonzero -> zero *)
   Lemma map_s_correct_nz m f i x :
     f i x = P.t0 -> M.find i m = Some x -> get i (map_s f m) = P.t0.
   Proof.
@@ -309,17 +310,18 @@ Module Vector (B : BOUND) (P : PAYLOAD).
         destruct (Ix.eq_dec i a).
         { apply eqP1 in e; subst.
           rewrite H2 in H4. inversion H4; subst. rewrite H0 in H5.
-          destruct (P.eq0P P.t0) => //. }
-        { rewrite /get. rewrite MProps.F.add_neq_o => //.
-          apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+          by destruct (P.eq0P P.t0). }
+        { rewrite /get MProps.F.add_neq_o => //.
+          by apply compile.M.Raw.Proofs.L.PX.MO.neq_sym. } } }
     { case H5: (P.eq0 (f a P.t0)) => //.
       { subst. move: (Ix.eqP i a) => [eqP0 eqP1].
         destruct (Ix.eq_dec i a).
-        { apply eqP1 in e; subst. rewrite H4 in H2 => //. }
-        { rewrite /get. rewrite MProps.F.add_neq_o => //.
-          apply compile.M.Raw.Proofs.L.PX.MO.neq_sym => //. } } }
+        { by apply eqP1 in e; subst; rewrite H4 in H2. }
+        { rewrite /get MProps.F.add_neq_o => //.
+          by apply compile.M.Raw.Proofs.L.PX.MO.neq_sym. } } }
   Qed.
 
+  (* nonzero -> nonzero *)
   Lemma map_s_correct_nn m f i x :
     nonzero (f i x) -> M.find i m = Some x -> get i (map_s f m) = f i x.
   Proof.
@@ -331,31 +333,30 @@ Module Vector (B : BOUND) (P : PAYLOAD).
       { destruct (Ix.eq_dec i a).
         { apply eqP1 in e; subst.
           rewrite H1 in H4. inversion H4; symmetry in H3; subst.
-          destruct (P.eq0P (f a x)) => //. rewrite e in H0.
-          rewrite /nonzero in H0. apply negb_true_iff in H0.
-          destruct (P.eq0P P.t0) => //. }
+          destruct (P.eq0P (f a x)) => //.
+          rewrite e /nonzero in H0. apply negb_true_iff in H0.
+          by destruct (P.eq0P P.t0). }
         { apply IHl. apply in_inv in H2. destruct H2; subst => //.
-          exfalso. apply n. apply eqP0 => //. } }
+          by exfalso; apply n; apply eqP0. } }
       { destruct (Ix.eq_dec i a).
-        { apply eqP1 in e; subst. rewrite H4 in H1. inversion H1; subst.
-          clear H1 eqP0 eqP1 H2. rewrite /get.
-          rewrite add_eq_val => //. }
+        { apply eqP1 in e; subst. rewrite H4 in H1.
+          by inversion H1; subst; rewrite /get add_eq_val. }
         { rewrite /get. apply compile.M.Raw.Proofs.L.PX.MO.neq_sym in n.
           rewrite MProps.F.add_neq_o => //.
           apply IHl. apply in_inv in H2. destruct H2 => //.
-          subst. exfalso. apply n. apply eqP0 => //. } } }
+          by subst; exfalso; apply n; apply eqP0. } } }
     { case H5: (P.eq0 (f a P.t0)) => //.
       { destruct (Ix.eq_dec i a).
-        { apply eqP1 in e; subst. rewrite H4 in H1; inversion H1. }
+        { by apply eqP1 in e; subst; rewrite H4 in H1; inversion H1. }
         { apply in_inv in H2. destruct H2; subst.
-          { exfalso. apply n; apply eqP0 => //. }
-          { apply IHl => //. } } }
+          { by exfalso; apply n; apply eqP0. }
+          { by apply IHl. } } }
       { destruct (Ix.eq_dec i a).
-        { apply eqP1 in e; subst. rewrite H4 in H1; inversion H1. }
+        { by apply eqP1 in e; subst; rewrite H4 in H1; inversion H1. }
         { apply in_inv in H2. destruct H2; subst.
-          { exfalso. apply n; apply eqP0 => //. }
+          { by exfalso; apply n; apply eqP0. }
           { rewrite /get. apply compile.M.Raw.Proofs.L.PX.MO.neq_sym in n.
-            rewrite MProps.F.add_neq_o => //. apply IHl => //. } } } }
+            by rewrite MProps.F.add_neq_o => //; apply IHl. } } } }
   Qed.
 
   (* Overall correctness of map_s *)
@@ -366,14 +367,14 @@ Module Vector (B : BOUND) (P : PAYLOAD).
     remember (M.find i m) as x. destruct x.
     { destruct (P.eq0P (f i t0)).
       { subst. rewrite (@map_s_correct_nz m f i t0) => //.
-        rewrite /get -Heqx => //. }
-      { rewrite /get in Heqy. rewrite -Heqx in Heqy. rewrite Heqy.
+        by rewrite /get -Heqx. }
+      { rewrite /get -Heqx in Heqy. rewrite Heqy.
         apply map_s_correct_nn => //. apply negb_true_iff.
-        destruct (P.eq0P (f i t0)) => //. } }
-    { rewrite /get -Heqx in Heqy. rewrite Heqy.
-      rewrite /get. destruct (P.eq0P (f i P.t0)).
-      { rewrite e. rewrite map_s_correct_zz => //. }
-      { rewrite (@map_s_correct_zn m f i (f i P.t0)) => //. } }
+        by destruct (P.eq0P (f i t0)). } }
+    { rewrite /get -Heqx in Heqy. rewrite Heqy /get.
+      destruct (P.eq0P (f i P.t0)).
+      { by rewrite e map_s_correct_zz. }
+      { by rewrite (@map_s_correct_zn m f i (f i P.t0)). } }
   Qed.
 
   (* REFINEMENT PROOFS *)
