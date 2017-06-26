@@ -1345,6 +1345,18 @@ Section weights_noregret.
     apply: (rat_to_R_Acard_ge1 a0).
   Qed.
 
+  Lemma size_A_gt0 : (0 < ln (rat_to_R #|A|%:R))%R.
+  Proof.
+    case H: size_A_ge0 => // [x].
+    rewrite -ln_1.
+    apply: ln_increasing.
+    { apply: Rlt_0_1. }
+    rewrite -rat_to_R1.
+    apply: rat_to_R_lt.
+    move: cardA_ge2.
+    by rewrite -(@ltr_nat rat_numDomainType).
+  Qed.
+
   Lemma T_neq0 : (T <> 0)%R.
   Proof.
     move => H; move: T_gt0; rewrite H.
@@ -1406,88 +1418,163 @@ Section weights_noregret.
     by rewrite H; clear H; apply: Rle_refl.
   Qed.
 
-  (** We get a tighter bound by assuming a bit more about epsilon and T: 
-      Namely, let eps = some v s.t. v*v = (ln n)/T AND 0 < v <= 1/2. *)
+  Variable r : R. (* the error term *)
+  Variable r_ok : (r <> -1)%R. (* => (1+r) <> 0 *)
+  Notation vR := (rat_to_R eps).
+  Variable vR_ok : (vR = (1 + r) * sqrt (ln size_A / T))%R.
 
-  Variable v : rat.
-  Notation vR := (rat_to_R v).
-  Variable vR_ok : (vR*vR = ln size_A / T)%R.
-  Variable eps_v : eps = v.
-  
-  Lemma weights_noregret' :
-    (expCostsR <= OPTR + 2 * sqrt (T * ln size_A))%R.
+  Lemma r1_neq0 : (1 + r <> 0)%R.
   Proof.
-    apply: Rle_trans; first by apply: weights_noregret.
-    rewrite /epsR eps_v.
-    set (OPTR' := rat_to_R (\sum_(c <- cs) c astar)).
-    set (vR' := Qreals.Q2R (rat_to_Q v)).
-    suff: (vR' * T + (ln size_A) / vR' <= 2 * sqrt (T * ln size_A))%R.
-    { set (size_A' := rat_to_R #|A|%:R).    
-      move => H; rewrite Rplus_assoc; apply: Rplus_le_compat.
-      by apply: Rle_refl.
-      by apply: H. }
-    set (size_A' := rat_to_R #|A|%:R).
-    have HvR_pos: (0 < vR)%R.
-    { rewrite -rat_to_R0; apply: rat_to_R_lt; rewrite -eps_v.
-      by case: (andP eps_range). }
-    apply: (Rmult_le_reg_l vR) => //.
-    rewrite Rmult_plus_distr_l -Rmult_assoc.
-    rewrite sqrt_mult_alt; last by left; apply: T_gt0.
-    rewrite vR_ok.
-    rewrite /Rdiv Rmult_assoc Rinv_l; last first.
-    { move: T_gt0 => H H2; rewrite H2 in H.
-      by move: (Rnot_lt0 0); rewrite Rmult_0_l. }
-    rewrite Rmult_1_r.
-    rewrite -Rmult_assoc Rmult_comm.
-    have ->: (/vR' * (vR * ln size_A') = ln size_A')%R.
-    { rewrite Rmult_comm [Rmult vR _]Rmult_comm Rmult_assoc Rinv_r; last first.
-      { move => H; rewrite H in HvR_pos.
-        by move: (Rnot_lt0 0); rewrite Rmult_0_l. }
-      by rewrite Rmult_1_r. }
-    have ->: (vR * (2 * (sqrt T * sqrt (ln size_A'))) = 2 * ln size_A')%R.
-    { rewrite -Rmult_assoc [Rmult vR 2]Rmult_comm Rmult_assoc.
-      have ->: (vR * (sqrt T * sqrt (ln size_A')) = ln size_A')%R.
-      { have <-: (sqrt (ln (rat_to_R #|A|%:R) / T) = vR)%R.
-        { rewrite -vR_ok sqrt_square => //.
-          by left. }
-        move: size_A_ge0 T_neq0 Tinv_ge0 T_ge0 => Hx Hy Hz Hw.
-        rewrite sqrt_mult => //.
-        rewrite Rmult_assoc -[Rmult (sqrt (/T)) _]Rmult_assoc.
-        rewrite -sqrt_mult => //.
-        rewrite Rinv_l => //.
-        rewrite sqrt_1 Rmult_1_l -sqrt_mult => //.
-        rewrite sqrt_square => //. }
-      by []. }
-    by rewrite RIneq.double; apply: Rle_refl.
+    rewrite -(Rplus_opp_l r); move/Rplus_eq_reg_r => H.
+    move: r_ok; rewrite H Ropp_involutive //.
+  Qed.    
+
+  Lemma sqrt_Rinv (a : R) (Hlt : (0 < a)%R) : (sqrt (/a) = /sqrt a)%R.
+  Proof.
+    have ->: (/a = 1 / a)%R by rewrite /Rdiv Rmult_1_l.
+    have ->: (/sqrt a = 1 / sqrt a)%R by rewrite /Rdiv Rmult_1_l.
+    by rewrite sqrt_div_alt // sqrt_1.
+  Qed.
+  
+  Lemma sqrt_Rinv_mult (a : R) (Hlt : (0 < a)%R) : (sqrt (/a) * a = sqrt a)%R.
+  Proof.                                                     
+    have ->: (sqrt (/a) * a = sqrt (/a) * (sqrt a * sqrt a))%R.
+    { rewrite sqrt_sqrt //.
+      apply: Rlt_le => //. }
+    have Hle: (0 <= a)%R.
+    { by apply: Rlt_le. }
+    rewrite -Rmult_assoc -sqrt_mult //.
+    { rewrite -Rinv_l_sym.
+      { rewrite sqrt_1 Rmult_1_l //. }
+      suff: (0 <> a)%R.
+      { by move => H H2; rewrite H2 in H; apply: H. } 
+      by apply: Rlt_not_eq. }
+    apply: Rlt_le; apply: Rinv_0_lt_compat => //. 
   Qed.
 
-  Lemma perstep_weights_noregret' :
-    ((expCostsR - OPTR) / T <= 2 * sqrt (ln size_A / T))%R.
+  Lemma sqrt_mult_Rinv (a : R) (Hlt : (0 < a)%R) : (sqrt a * (/a) = sqrt (/a))%R.
+  Proof.                                                     
+    have ->: (sqrt a * (/a) = sqrt a * (sqrt (/a) * sqrt (/a)))%R.
+    { rewrite sqrt_sqrt //.
+      apply: Rlt_le => //.
+      by apply: Rinv_0_lt_compat. }
+    have Hle: (0 <= a)%R.
+    { by apply: Rlt_le. }
+    have Hle_inv: (0 <= /a)%R.
+    { by apply: Rlt_le; apply: Rinv_0_lt_compat. }
+    rewrite -Rmult_assoc -sqrt_mult // -Rinv_r_sym.
+    { rewrite sqrt_1 Rmult_1_l //. }
+    by move => H; rewrite H in Hlt; apply Rlt_irrefl in Hlt.
+  Qed.
+  
+  Lemma weights_noregret' :
+    (expCostsR <=
+     OPTR + (1+r) * sqrt (T*ln size_A) + sqrt (T*ln size_A) / (1+r))%R.
   Proof.
-    have H0: (expCostsR - OPTR <= 2 * sqrt (T * ln size_A))%R.
-    { have H1: (expCostsR - OPTR <= OPTR + 2 * sqrt (T * ln size_A) - OPTR)%R.
-      { rewrite /Rminus; apply: Rplus_le_compat_r; apply: weights_noregret'. }
-      apply: Rle_trans; first by apply: H1.
-      rewrite /Rminus Rplus_comm -Rplus_assoc.
-      by rewrite [(- _ + _)%R]Rplus_comm Rplus_opp_r Rplus_0_l; apply: Rle_refl. }
-    have H1: ((expCostsR - OPTR) / T <= (2 * sqrt (T * ln size_A)) / T)%R.
-    { rewrite /Rdiv; apply: Rmult_le_compat_r => //.
-      by apply: Rlt_le; apply: Tinv_gt0. }
-    clear H0; apply: Rle_trans; first by apply: H1. clear H1.
-    rewrite /Rdiv.
-    move: size_A_ge0 T_neq0 Tinv_ge0 T_ge0 => Hx Hy Hz Hw.    
-    have ->: (/T = sqrt (/T) * sqrt (/T))%R.
-    { rewrite -sqrt_mult => //.
-      rewrite sqrt_square => //. }
-    rewrite sqrt_mult => //.
-    rewrite Rmult_assoc [Rmult (sqrt T) _]Rmult_comm Rmult_assoc.
-    rewrite -[Rmult (sqrt T) _]Rmult_assoc.
-    rewrite -[Rmult (sqrt T) _]sqrt_mult => //.
-    rewrite Rinv_r => //; rewrite sqrt_1 Rmult_1_l.
-    rewrite -sqrt_mult => //.
-    rewrite -sqrt_mult => //.
-    have ->: (sqrt (/T * /T) = /T)%R.
-    { rewrite sqrt_square => //. }
-    by apply: Rle_refl.
+    apply: Rle_trans; first by apply: weights_noregret.
+    rewrite /epsR.
+    set (OPTR' := rat_to_R (\sum_(c <- cs) c astar)).
+    suff:
+      (vR * T + (ln size_A) / vR <=
+       (1+r) * sqrt (T*ln size_A) + sqrt (T*ln size_A) / (1+r)
+       )%R.
+    { set (size_A' := rat_to_R #|A|%:R).
+      rewrite Rplus_assoc.
+      move => H; rewrite Rplus_assoc; apply: Rplus_le_compat.
+      by apply: Rle_refl.
+      apply: Rle_trans; last by apply: H.
+      by apply: Rle_refl. }
+    rewrite vR_ok.    
+    set (size_A' := rat_to_R #|A|%:R).
+    set (a := (1+r)%R).
+    have size_A'_ge0 : (0 <= ln size_A')%R.
+    { apply: size_A_ge0. }
+    move: T_ge0 => T_ge0.
+    rewrite /Rdiv !sqrt_mult_alt //.
+    have ->:
+      (a * (sqrt (ln size_A') * sqrt (/ T)) * T =
+       a * (sqrt T * sqrt (ln size_A')))%R.
+    { rewrite Rmult_assoc; f_equal.
+      rewrite Rmult_assoc.
+      have ->: (sqrt (/T) * T = sqrt T)%R.
+      { apply: sqrt_Rinv_mult.
+        apply: T_gt0. }
+      by rewrite Rmult_comm. }
+    have ->:
+      (ln size_A' * / (a * (sqrt (ln size_A') * sqrt (/ T))) =
+       sqrt T * sqrt (ln size_A') * / a)%R.
+    { rewrite Rinv_mult_distr.
+      { rewrite Rinv_mult_distr.
+        { have ->: (/sqrt(/T) = sqrt T)%R.
+          { rewrite sqrt_Rinv.
+            { rewrite Rinv_involutive //.
+              rewrite -sqrt_0 => H; apply sqrt_inj in H => //.
+              { by apply: T_neq0. }
+              apply: Rle_refl. }
+            apply: T_gt0. }
+          rewrite Rmult_comm.
+          rewrite Rmult_assoc.
+          have ->:
+           (/sqrt (ln size_A') * sqrt T * ln size_A' =
+            sqrt T * sqrt (ln size_A'))%R.
+          { rewrite Rmult_comm -Rmult_assoc -sqrt_Rinv.
+            { rewrite [(ln _ * _)%R]Rmult_comm sqrt_Rinv_mult.
+              { rewrite Rmult_comm //. }
+              apply: size_A_gt0. }
+            apply: size_A_gt0. }
+          by rewrite Rmult_comm. }
+        { rewrite -sqrt_0 => H; apply sqrt_inj in H => //.
+          { by move: size_A_gt0; move/Rlt_not_eq; rewrite H. }
+          by apply: Rle_refl. }
+        rewrite -sqrt_0 => H; apply sqrt_inj in H.
+        { move: Tinv_gt0; rewrite H; apply/Rlt_irrefl. }
+        { apply: Tinv_ge0. }
+        apply: Rle_refl. }
+      { apply: r1_neq0. }
+      rewrite -sqrt_mult //.
+      { rewrite -sqrt_0 => H; apply sqrt_inj in H => //.
+        { apply Rmult_integral in H; case: H => H.
+          { by move: size_A_gt0; rewrite H; move/Rlt_irrefl. }
+          by move: Tinv_gt0; rewrite H; move/Rlt_irrefl. }
+        { apply: Rle_mult_inv_pos => //.
+          apply: T_gt0. }
+        apply: Rle_refl. }
+      apply: Tinv_ge0. }
+    apply: Rle_refl.
+  Qed.
+
+  Lemma Rle_minus_const (rx r1 r2 : R) : (r1 <= r2 -> r1 - rx <= r2 - rx)%R.
+  Proof. by apply: Rplus_le_compat_r. Qed.
+
+  Lemma Rle_div_const (rx r1 r2 : R) (rxinv_ge : (0 <= /rx)%R) :
+    (r1 <= r2 -> r1/rx <= r2/rx)%R.
+  Proof. by apply: Rmult_le_compat_r. Qed.
+  
+  Lemma perstep_weights_noregret' :
+    ((expCostsR - OPTR) / T <=
+     (1+r) * sqrt (ln size_A / T) + sqrt (ln size_A / T) / (1+r))%R.
+  Proof.
+    move: weights_noregret'.
+    set (OPTR := rat_to_R _).
+    set (lnA := ln (rat_to_R _)).
+    set (x := (1 + r)%R).
+    move/(Rle_minus_const OPTR).
+    move/(@Rle_div_const T _ _ Tinv_ge0) => H.
+    apply: Rle_trans; first by apply: H.
+    rewrite Rplus_comm [(OPTR + _)%R]Rplus_comm -Rplus_assoc.
+    set (y := (sqrt (T*lnA) / x + x*(sqrt (T*lnA)))%R).
+    have ->: (y + OPTR - OPTR = y)%R.
+    { rewrite /Rminus Rplus_assoc Rplus_opp_r Rplus_0_r //. }
+    move: T_ge0 Tinv_ge0 T_gt0 size_A_ge0 => H0 H1 H2 H3.
+    rewrite /y !sqrt_mult //.
+    rewrite /Rdiv Rmult_plus_distr_r.
+    rewrite Rmult_comm -2![(/T * (_ * _))%R]Rmult_assoc.
+    rewrite [(/T * _)%R]Rmult_comm sqrt_mult_Rinv //.
+    rewrite Rplus_comm; apply: Rplus_le_compat; last first.
+    { rewrite Rmult_assoc [(sqrt lnA * _)%R]Rmult_comm -Rmult_assoc Rmult_comm.
+      rewrite Rmult_assoc; apply: Rle_refl. }
+    rewrite [(x * _)%R]Rmult_comm Rmult_comm -2!Rmult_assoc.
+    rewrite [(/T * _)%R]Rmult_comm sqrt_mult_Rinv //.
+    rewrite Rmult_comm [(sqrt (/T) * _)%R]Rmult_comm; apply: Rle_refl.
   Qed.    
 End weights_noregret.
