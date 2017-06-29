@@ -1,16 +1,17 @@
 #!/usr/bin/python
 
+from __future__ import division # enable python3 division of integers
 import sys
 import re
 import math
 
-# Given the output of [./mwu.native], calculate 
+# Given the output of [./mwu.native], calculate
 # the client's regret at each iteration t=0..T-1.
 #
 # USAGE: ./calcregret.py [infile] [outfile] [epsilon] 
 
 infile = sys.argv[1]
-outfile = sys.argv[2] 
+outfile = sys.argv[2]
 epsilon = float(sys.argv[3])
 f = open(infile, 'r')
 of = open(outfile, 'a')
@@ -28,21 +29,23 @@ for line in f:
     if processing_costs:
         costs = re.sub("[,]", " ", line).split()
         if costs[0] == "Weights": processing_costs = False
-        else: costs_tbl[t-1][costs[0]] = float(costs[1])
+        else: costs_tbl[t-1][costs[0]] = float(int(costs[1]) /
+                                               int(costs[2]))
 
     if processing_weights:
         weights = re.sub("[,]", " ", line).split()
         if weights[0] == "Generated": processing_weights = False
         else:
-            weights_tbl[t][weights[0]] = float(weights[1])
+            weights_tbl[t][weights[0]] = float(int(weights[1]) /
+                                               int(weights[2]))
         
-    words = re.sub("[^\w]", " ", line).split()        
+    words = re.sub("[^\w]", " ", line).split()
     if words[0] == "Received": processing_costs = True
     if words[0] == "Weights":
         weights_tbl[t] = {}
-        processing_weights = True    
+        processing_weights = True
     if words[0] == "Chose":
-        chosen_tbl[t] = words[2]        
+        chosen_tbl[t] = words[2]
         t = t + 1
         costs_tbl[t-1] = {}
 

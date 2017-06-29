@@ -65,13 +65,14 @@ Extract Constant eprint_ZdivPos =>
          | Zneg p -> Big_int.minus_big_int (int_of_positive p)) in 
     (*let shrink n = 
       Big_int.shift_right_big_int n (Sys.word_size*(Big_int.num_digits_big_int n - 1)) in*)
-    let shrink n = n in
+    let shrink n = n in    
     let num = Big_int.float_of_big_int (shrink (int_of_Z n)) in
     let den = Big_int.float_of_big_int (shrink (int_of_positive p)) in
-    (*Printf.eprintf ""%F [%F / %F]"" (num /. den) num den;*)
-    Printf.eprintf ""%F"" (num /. den);
+    (* Printf.eprintf ""%F [%F / %F]"" (num /. den) num den; *)
+    Printf.eprintf ""%s, %s"" (Big_int.string_of_big_int (int_of_Z n)) (Big_int.string_of_big_int (int_of_positive p));
+    (* Printf.eprintf ""%F"" (num /. den); *)
     flush stderr;
-    s".
+     s".
 
 Definition eprint_nat (T : Type) (n : nat) (t : T) : T := 
   eprint_Z (Z.of_nat n) t.
