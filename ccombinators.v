@@ -1251,12 +1251,13 @@ Section scalarCompilable.
     rewrite /scalar_val.
     have ->: (rat_to_Q (projT1 dyadic_scalar_val) == D_to_Q dyadic_scalar_val)%Q.
     { by rewrite dyadic_rat_to_Q. }
-    apply Qmult_le_l => //.
+    rewrite Qmult_comm [Qmult (D_to_Q _) _]Qmult_comm.
+    apply Qmult_le_compat_r => //.
     have H3 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
     rewrite -H3.
     have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
     { by apply: dyadic_rat_to_Q. }
-    apply lt_rat_to_Q => //.
+    apply le_rat_to_Q => //.
   Qed.
 
   Global Instance scalar_cgame

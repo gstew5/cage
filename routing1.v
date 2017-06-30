@@ -1,4 +1,4 @@
-Set Implicit Arguments.
+Set  Implicit Arguments.
 Unset Strict Implicit.
 
 Require Import QArith.
@@ -216,15 +216,16 @@ Module RValues <: BoolableOrderedAffineType.
   Definition scalar := D_to_dyadic_rat 1.
   Lemma scalar_pos : 0 < projT1 scalar.
   Proof. by []. Qed.
-  Definition bias := D_to_dyadic_rat 1.
-  Lemma bias_pos : 0 < projT1 scalar.
-  Proof. by []. Qed.  
+  (* Definition bias := D_to_dyadic_rat 1. *)
+  Definition bias := D_to_dyadic_rat 0.
+  Lemma bias_pos : 0 <= projT1 bias.
+  Proof. by []. Qed.
   Definition a0 := RNo.
 End RValues.
 Module R' := OrderedAffine RValues.
 
 Module PUnit <: MyOrderedType := OrderedUnit.
-Module P1 <: MyOrderedType := OrderedProd PUnit R10.
+Module P1 <: MyOrderedType := OrderedProd PUnit R'.
 Module P2 <: MyOrderedType := OrderedProd P1 R10.
 Module P3 <: MyOrderedType := OrderedProd P2 R'.
 
@@ -239,14 +240,14 @@ Section T. Local Open Scope nat_scope.
 Definition T (n : nat) : Type :=
   match n with
   | O => Unit
-  | 1 => R10.t           
+  | 1 => R'.t
   | 2 => R10.t
   | 3 => R'.t
   | _ => Unit
   end.
 Existing Instances R'.boolable R10.boolable R'.Pred.boolable R10.Pred.boolable.
 Instance BoolableT n : Boolable (T n) :=
-  match n with 
+  match n with
   | O => _
   | 1 => _
   | 2 => _
@@ -255,9 +256,9 @@ Instance BoolableT n : Boolable (T n) :=
   end.
 
 Instance EqT n : Eq (T n) :=
-  match n with 
+  match n with
   | O => _
-  | 1 => R10.eq'
+  | 1 => R'.eq'
   | 2 => R10.eq'
   | 3 => R'.eq'
   | _ => _
@@ -266,7 +267,7 @@ Instance EqT n : Eq (T n) :=
 Program Instance EqDecT n : @Eq_Dec _ (@EqT n) :=
   match n with
   | O => UnitEqDec
-  | 1 => R10.eq_dec'
+  | 1 => R'.eq_dec'
   | 2 => R10.eq_dec'
   | 3 => R'.eq_dec'
   | _ => _
@@ -278,7 +279,7 @@ Qed.
 Next Obligation.
   destruct H2; split; auto.
   destruct H2; split; auto.
-Qed.  
+Qed.
 
 Existing Instances R'.boolableUnit R10.boolableUnit.
 Instance BoolableUnitT n : BoolableUnit (@BoolableT n) :=
@@ -291,10 +292,11 @@ Instance BoolableUnitT n : BoolableUnit (@BoolableT n) :=
   end.
 
 End T.
-  
+
 Definition num_players : nat := 5.
-Definition num_iters : N.t := 50.
-Definition eps : D := Dmake 69 9. (*eps ~ 0.135*)
+Definition num_iters : N.t := 300.
+(* Definition eps : D := Dmake 69 9. (*eps ~ 0.135*) *)
+Definition eps : D := Dmake 1 1.
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.
@@ -304,7 +306,7 @@ Module P3Scalar <: OrderedScalarType.
   Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
   Local Open Scope ring_scope.
   Lemma scal_pos : 0 < projT1 scal.
-  Proof. by []. Qed.                     
+  Proof. by []. Qed.
 End P3Scalar.
 
 Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
@@ -319,9 +321,9 @@ Module P <: OrderedPredType.
     elimtype False; move {H}; apply: pf; apply RValues.eq_refl'.
   Qed.
 
-  Definition a0 : P3Scaled.t.     
+  Definition a0 : P3Scaled.t.
   Proof.
-   Ltac solve_r r := 
+   Ltac solve_r r :=
       try solve[
       exists (Wrap _ r, (Wrap _ (Wrap _ r)));
         rewrite /R'.t /R'.SimplPred.pred /R'.Pred.pred
@@ -329,13 +331,13 @@ Module P <: OrderedPredType.
                 apply: RValues_eq_dec_refl].
     repeat split.
     solve_r RYes. solve_r RNo. solve_r RNo. 
-  Defined.    
+  Defined.
   Lemma a0_pred : pred a0.
   Proof. by vm_compute. Qed.
 End P.
 Module P3Scaled' <: MyOrderedType := OrderedSigma P.
 
-Notation t := (P3Scaled'.t). 
+Notation t := (P3Scaled'.t).
 
 Require Import smooth.
 
@@ -359,37 +361,40 @@ Check lambda of t : rat.
 Check mu of t : rat.
 Goal 0 <= (lambda of scalar (rty:=[realFieldType of rat]) scalar_val
   R'.Pred.Scaled.SimplScalarType.t).
-Proof. apply: lambda_axiom. Qed.  
+Proof. apply: lambda_axiom. Qed.
 Goal 0 <= (lambda of t). Proof. apply: lambda_axiom. Qed.*)
 
 Lemma P3Scaled'_lambda_53 : lambda of t = (5%:R/3%:R).
-Proof. by []. Qed.                                            
+Proof. by []. Qed.
 
 Lemma P3Scaled'_mu_13 : mu of t = (1%:R/3%:R).
-Proof. by []. Qed.                                            
+Proof. by []. Qed.
 
-Lemma P3Scaled'_smooth_aux N : 
-  forall x x' : (t ^ N)%type,
-    \sum_(i : 'I_N) cost i (upd i x x') <=
-    (lambda of t * Cost x' + mu of t * Cost x : rat).
-Proof. apply: smoothness_axiom. Qed.
+(* Lemma P3Scaled'_smooth_aux N : *)
+(*   forall x x' : (t ^ N)%type, *)
+(*     \sum_(i : 'I_N) cost i (upd i x x') <= *)
+(*     (lambda of t * Cost x' + mu of t * Cost x : rat). *)
+(* Proof. apply: smoothness_axiom. Qed. *)
 
-Lemma P3Scaled'_smooth N :
-  forall x x' : (t ^ N)%type,
-    \sum_(i : 'I_N) cost i (upd i x x') <=
-    5%:R/3%:R * Cost x' + 1%:R/3%:R * Cost x.
-Proof.
-  rewrite -P3Scaled'_lambda_53 -P3Scaled'_mu_13.
-  apply: P3Scaled'_smooth_aux.
-Qed.  
-                                      
+(* Lemma P3Scaled'_smooth N : *)
+(*   forall x x' : (t ^ N)%type, *)
+(*     \sum_(i : 'I_N) cost i (upd i x x') <= *)
+(*     5%:R/3%:R * Cost x' + 1%:R/3%:R * Cost x. *)
+(* Proof. *)
+(*   rewrite -P3Scaled'_lambda_53 -P3Scaled'_mu_13. *)
+(*   apply: P3Scaled'_smooth_aux. *)
+(* Qed. *)
+
 Module Conf : CONFIG.
-  Module A := P3Scaled'.                
+  Module A := P3Scaled'.
   Definition num_players := num_players.
   Definition num_rounds : N.t := num_iters.
   Definition epsilon := eps.
-End Conf.  
-  
+
+  Eval compute in (@ccostmax_fun num_players P3.t (P3.cost_max num_players)).
+  Eval compute in (@ccostmax_fun num_players P3Scaled.t (P3Scaled.cost_max num_players)).
+End Conf.
+
 Module Client := Client_of_CONFIG Conf.
 Module Server := Server_of_CONFIG Conf.
 

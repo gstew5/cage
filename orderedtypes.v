@@ -458,7 +458,7 @@ Module Type OrderedScalarType.
   Parameter scal : dyadic_rat.
   Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
   Local Open Scope ring_scope.
-  Parameter scal_pos : 0 < projT1 scal.
+  Parameter scal_pos : 0 <= projT1 scal.
 End OrderedScalarType.
 
 Module Type BoolableOrderedScalarType.
@@ -579,9 +579,9 @@ Module Type BoolableOrderedAffineType.
   Include BoolableMyOrderedType.
   Parameter scalar : dyadic_rat.
   Local Open Scope ring_scope.
-  Parameter scalar_pos : 0 < projT1 scalar.
+  Parameter scalar_pos : 0 <= projT1 scalar.
   Parameter bias : dyadic_rat.
-  Parameter bias_pos : 0 < projT1 bias. (*FIXME*)
+  Parameter bias_pos : 0 <= projT1 bias. (*FIXME*)
 End BoolableOrderedAffineType.
 
 Module ScalarType_of_OrderedAffineType (A : BoolableOrderedAffineType)
@@ -931,7 +931,7 @@ Module MyOrdNatDepProps (B : BOUND).
     { rewrite (ltn_predK (m:=0)) => //. }
     symmetry in H.
     by apply: (enumerate_rec_total _ (gt0_pred_lt n pf) x H).
-  Qed.    
+  Qed.
 
   Program Instance enum_ok : @Enum_ok t enumerable.
   Next Obligation.
@@ -940,7 +940,7 @@ Module MyOrdNatDepProps (B : BOUND).
   Qed.
   Next Obligation.
     rewrite /enumerable_fun /enumerable.
-    apply: enumerate_t_total.    
+    apply: enumerate_t_total.
   Qed.
 
   Definition Ordinal_of_t (x : t) :=
@@ -1001,6 +1001,5 @@ Module MyOrdNatDepProps (B : BOUND).
     have ->: (n.-1.+1 = n).
     { move: (ltP pf) => Hx; omega. }
     by [].
-  Qed.    
-End MyOrdNatDepProps.       
-  
+  Qed.
+End MyOrdNatDepProps.

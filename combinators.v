@@ -1133,7 +1133,7 @@ Instance DyadicScalarInstance `(DyadicScalarClass)
 
 Class ScalarAxiomClass (rty : realFieldType)
       `(ScalarClass rty)
-  : Type := scalar_axiom : 0 < scalar_val.
+  : Type := scalar_axiom : 0 <= scalar_val.
 
 Global Instance scalarCostInstance
          (N : nat) (rty : realFieldType) (A : finType)
@@ -1153,7 +1153,6 @@ Program Instance scalarCostAxiomInstance
       (@scalarCostInstance N rty _ _ _).
 Next Obligation.
   rewrite /(cost) /scalarCostInstance mulr_ge0=> //.
-  by apply: ltrW.
 Qed.
 
 Instance scalarCostMaxInstance (N : nat) (rty : realFieldType) (A : Type)
@@ -1233,7 +1232,7 @@ Next Obligation.
   rewrite -3!mulr_sumr.
   rewrite mulrA [lambda of A * _]mulrC -mulrA.
   rewrite [mu of A * _]mulrA [mu of A * _]mulrC -mulrA.
-  rewrite -mulrDr; apply: ler_mull=> //.
+  rewrite -mulrDr. apply: ler_pmul => //. apply sumr_ge0 => //.
   by rewrite unwrap_ffun_simpl unwrap_eta; apply: smoothness_axiom.
 Qed.
 
