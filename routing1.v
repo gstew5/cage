@@ -204,30 +204,44 @@ Module R10Values <: BoolableOrderedAffineType.
   Local Open Scope ring_scope.
   Lemma scalar_pos : 0 < projT1 scalar.
   Proof. by []. Qed.
-  Definition bias := D_to_dyadic_rat (Dmake 20 1).
-  Lemma bias_pos : 0 < projT1 scalar.
+  (* Definition bias := D_to_dyadic_rat (Dmake 20 1). *)
+  (* Definition bias := D_to_dyadic_rat (Dmake 6 1). *)
+  Definition bias := D_to_dyadic_rat 0.
+  Lemma bias_pos : 0 <= projT1 scalar.
   Proof. by []. Qed.  
   Definition a0 := RNo.
 End R10Values.
 Module R10 := OrderedAffine R10Values.
 
-Module RValues <: BoolableOrderedAffineType.
+(* Module R0Values <: BoolableOrderedAffineType. *)
+(*   Include R.                     *)
+(*   Definition scalar := D_to_dyadic_rat 1. *)
+(*   Lemma scalar_pos : 0 < projT1 scalar. *)
+(*   Proof. by []. Qed. *)
+(*   (* Definition bias := D_to_dyadic_rat 1. *) *)
+(*   Definition bias := D_to_dyadic_rat 0. *)
+(*   Lemma bias_pos : 0 <= projT1 bias. *)
+(*   Proof. by []. Qed. *)
+(*   Definition a0 := RNo. *)
+(* End R0Values. *)
+(* Module R0 := OrderedAffine R0Values. *)
+
+Module R1Values <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat 1.
   Lemma scalar_pos : 0 < projT1 scalar.
   Proof. by []. Qed.
-  (* Definition bias := D_to_dyadic_rat 1. *)
   Definition bias := D_to_dyadic_rat 0.
   Lemma bias_pos : 0 <= projT1 bias.
   Proof. by []. Qed.
   Definition a0 := RNo.
-End RValues.
-Module R' := OrderedAffine RValues.
+End R1Values.
+Module R1 := OrderedAffine R1Values.
 
 Module PUnit <: MyOrderedType := OrderedUnit.
-Module P1 <: MyOrderedType := OrderedProd PUnit R'.
+Module P1 <: MyOrderedType := OrderedProd PUnit R1.
 Module P2 <: MyOrderedType := OrderedProd P1 R10.
-Module P3 <: MyOrderedType := OrderedProd P2 R'.
+Module P3 <: MyOrderedType := OrderedProd P2 R1.
 
 Inductive Empty_type :=.
 Instance EmptyTypeBoolable : Boolable Empty_type :=
@@ -240,12 +254,13 @@ Section T. Local Open Scope nat_scope.
 Definition T (n : nat) : Type :=
   match n with
   | O => Unit
-  | 1 => R'.t
+  | 1 => R1.t
   | 2 => R10.t
-  | 3 => R'.t
+  | 3 => R1.t
   | _ => Unit
   end.
-Existing Instances R'.boolable R10.boolable R'.Pred.boolable R10.Pred.boolable.
+Existing Instances R1.boolable R10.boolable R1.Pred.boolable
+         R10.Pred.boolable.
 Instance BoolableT n : Boolable (T n) :=
   match n with
   | O => _
@@ -258,30 +273,30 @@ Instance BoolableT n : Boolable (T n) :=
 Instance EqT n : Eq (T n) :=
   match n with
   | O => _
-  | 1 => R'.eq'
+  | 1 => R1.eq'
   | 2 => R10.eq'
-  | 3 => R'.eq'
+  | 3 => R1.eq'
   | _ => _
   end.
 
 Program Instance EqDecT n : @Eq_Dec _ (@EqT n) :=
   match n with
   | O => UnitEqDec
-  | 1 => R'.eq_dec'
+  | 1 => R1.eq_dec'
   | 2 => R10.eq_dec'
-  | 3 => R'.eq_dec'
+  | 3 => R1.eq_dec'
   | _ => _
   end.
 Next Obligation.
   do 4 (destruct n; simpl;
-  try solve[apply UnitEqDec|apply R10.eq_dec'|apply R'.eq_dec']).
+  try solve[apply UnitEqDec|apply R10.eq_dec'|apply R1.eq_dec']).
 Qed.
 Next Obligation.
   destruct H2; split; auto.
   destruct H2; split; auto.
 Qed.
 
-Existing Instances R'.boolableUnit R10.boolableUnit.
+Existing Instances R1.boolableUnit R10.boolableUnit.
 Instance BoolableUnitT n : BoolableUnit (@BoolableT n) :=
   match n with
   | O => _
@@ -296,7 +311,9 @@ End T.
 Definition num_players : nat := 5.
 Definition num_iters : N.t := 300.
 (* Definition eps : D := Dmake 69 9. (*eps ~ 0.135*) *)
-Definition eps : D := Dmake 1 1.
+(* Definition eps : D := Dmake 1 1. *)
+(* Definition eps : D := Dmake 54 9. (* ~ 0.105 *) *)
+Definition eps : D := Dmake 1 4. (* ~ 0.0625 *)
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.
@@ -307,6 +324,7 @@ Module P3Scalar <: OrderedScalarType.
   Local Open Scope ring_scope.
   Lemma scal_pos : 0 < projT1 scal.
   Proof. by []. Qed.
+  (* Eval compute in (rat_to_Q scal). *)
 End P3Scalar.
 
 Module P3Scaled <: MyOrderedType := OrderedScalar P3Scalar.
@@ -315,10 +333,10 @@ Module P <: OrderedPredType.
   Include P3Scaled.
   Definition pred (p : P3Scaled.t) : bool :=
     @isValidPath 3 T BoolableT BoolableUnitT 0 1 top (unwrap p).
-  Lemma RValues_eq_dec_refl x : RValues.eq_dec' x x.
+  Lemma RValues_eq_dec_refl x : R1Values.eq_dec' x x.
   Proof.
-    case H: (RValues.eq_dec' x x) => [pf|pf] => //.
-    elimtype False; move {H}; apply: pf; apply RValues.eq_refl'.
+    case H: (R1Values.eq_dec' x x) => [pf|pf] => //.
+    elimtype False; move {H}; apply: pf; apply R1Values.eq_refl'.
   Qed.
 
   Definition a0 : P3Scaled.t.
@@ -326,7 +344,7 @@ Module P <: OrderedPredType.
    Ltac solve_r r :=
       try solve[
       exists (Wrap _ r, (Wrap _ (Wrap _ r)));
-        rewrite /R'.t /R'.SimplPred.pred /R'.Pred.pred
+        rewrite /R1.t /R1.SimplPred.pred /R1.Pred.pred
                 /affinePredInstance /=;
                 apply: RValues_eq_dec_refl].
     repeat split.
