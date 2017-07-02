@@ -51,6 +51,8 @@ Class game (T : finType) (N : nat) (rty : realFieldType)
       (costMaxAxiomClass : CostMaxAxiomClass costClass costMaxClass)
   : Type := {}.
 
+Notation "'gameOf' " := (@game _ _ _ _ _ _ _) (at level 30).
+
 (***********************)
 (** Negative cost game *)
 
@@ -313,13 +315,65 @@ Section gameDefs.
     by move: (H1 i t').
   Qed.
 
-  (* Might only be true if opt <> 1*)
-  Lemma eCCE_equiv (d : dist [finType of state N T] rty) :
-    (exists eps1, eCCE eps1 d) <-> exists eps2, eCCE eps2 d.
+  (* FixMe: Consider a better place to put this *)
+  Lemma costmax_UnilaterCost_sup i (d : dist [finType of state N T] rty) t:
+    expectedUnilateralCost i d t <= costmax_fun.
   Proof.
-    split => Hcce. case:Hcce => eps Hcce.
-  Abort.
-    
+    rewrite /expectedUnilateralCost /expectedValue /expectedCondValue.
+    have H: \sum_t1 d t1 * (cost) i ((upd i t1) t) <= \sum_t costmax_fun * d t.
+    {
+      apply ler_sum => t' _. rewrite [costmax_fun * _] mulrC.
+      apply ler_pmul. apply dist_positive. apply costAxiomClass.
+      apply lerr. apply costMaxAxiomClass.
+    }
+    apply: ler_trans. apply H.
+    have H' : \sum_t1 costmax_fun * d t1 = costmax_fun.
+    {
+      rewrite -big_distrr //=.
+      rewrite dist_normalized mulr1 //.
+    }
+    rewrite H'. apply lerr.
+  Qed.
+
+  Lemma eCCE2_of_eCCE (d : dist [finType of state N T] rty) (eps1 eps2 : rty)
+    (pf : 0 <= eps1) (eps2_value : eps2 = eps1 * costmax_fun):
+    eCCE eps1 d -> eCCE2 eps2 d.
+  Proof.
+    move => H i t'. rewrite /eCCE in H. rewrite eps2_value.
+    apply: ler_trans; first by apply (H i t').
+    rewrite mulrDl mul1r ler_add //= ler_pmul //=.
+    rewrite /expectedUnilateralCost.
+    rewrite /expectedValue /expectedCondValue.
+    apply big_ind; first by apply lerr. apply Num.Internals.addr_ge0.
+    move => i' _. rewrite mulr_ge0 //=. apply dist_positive.
+    apply costmax_UnilaterCost_sup.
+  Qed.
+
+  Lemma eCCE_of_eCCE2 (d : dist [finType of state N T] rty) (eps1 eps2 : rty)
+    (pf : 0 <= eps2) (cost_min : rty)
+    (cost_min_pos : 0 <= cost_min) (cost_min_is_min : forall i s, cost_min <= (cost) i s)
+    (eps1_value : eps1 = eps2 * cost_min):
+    eCCE2 eps1 d -> eCCE eps2 d.
+  Proof.
+    move => H i t'. rewrite /eCCE2 in H.
+    apply: ler_trans; first by apply (H i t').
+    rewrite mulrDl mul1r ler_add //=. rewrite eps1_value.
+    rewrite ler_pmul //=.
+    rewrite /expectedUnilateralCost /expectedValue /expectedCondValue.
+    have H': \sum_t cost_min * d t <= \sum_t1 d t1 * (cost) i ((upd i t1) t').
+    {
+      apply ler_sum => t _. rewrite [cost_min * _] mulrC.
+      rewrite ler_pmul //=. apply dist_positive.
+    }
+    apply: ler_trans; last first. apply H'.
+    have H'' : \sum_t1 cost_min * d t1 = cost_min.
+    {
+      rewrite -big_distrr //=.
+      rewrite dist_normalized mulr1 //.
+    }
+    rewrite H''. apply lerr.
+  Qed.
+
   Definition eCCEb (epsilon : rty) (d : dist [finType of state N T] rty) : bool :=
     [forall i : 'I_N,
        [forall t' : state N T,
