@@ -350,20 +350,26 @@ Section gameDefs.
   Qed.
 
   Lemma eCCE_of_eCCE2 (d : dist [finType of state N T] rty) (eps1 eps2 : rty)
-    (pf : 0 <= eps2) (cost_min : rty)
-    (cost_min_pos : 0 <= cost_min) (cost_min_is_min : forall i s, cost_min <= (cost) i s)
-    (eps1_value : eps1 = eps2 * cost_min):
-    eCCE2 eps1 d -> eCCE eps2 d.
+    (pf : 0 <= eps2)
+    (cost_min : rty)
+    (cost_min_pos : 0 < cost_min) (cost_min_is_min : forall i s, cost_min <= (cost) i s)
+    (eps1_value : eps1 = eps2 /cost_min):
+    eCCE2 eps2 d -> eCCE eps1 d.
   Proof.
     move => H i t'. rewrite /eCCE2 in H.
     apply: ler_trans; first by apply (H i t').
     rewrite mulrDl mul1r ler_add //=. rewrite eps1_value.
-    rewrite ler_pmul //=.
+    rewrite -mulrA. rewrite -[eps2] mulr1.
+    rewrite ler_pmul //. rewrite ler01 //.
+    rewrite mulr1 lerr //.
+    move: (@ler_pmulr rty (cost_min^-1 * expectedUnilateralCost i d t')
+            cost_min cost_min_pos) => H0.
+    rewrite -H0 mulrA GRing.mulfV. rewrite mul1r.
     rewrite /expectedUnilateralCost /expectedValue /expectedCondValue.
     have H': \sum_t cost_min * d t <= \sum_t1 d t1 * (cost) i ((upd i t1) t').
     {
       apply ler_sum => t _. rewrite [cost_min * _] mulrC.
-      rewrite ler_pmul //=. apply dist_positive.
+      rewrite ler_pmul //=. apply dist_positive. apply ltrW. by [].
     }
     apply: ler_trans; last first. apply H'.
     have H'' : \sum_t1 cost_min * d t1 = cost_min.
@@ -372,6 +378,9 @@ Section gameDefs.
       rewrite dist_normalized mulr1 //.
     }
     rewrite H''. apply lerr.
+    move: (@ltr_def rty 0 cost_min) => H1.
+    rewrite H1 in cost_min_pos. move/andP: cost_min_pos => H2.
+    inversion H2; by [].
   Qed.
 
   Definition eCCEb (epsilon : rty) (d : dist [finType of state N T] rty) : bool :=
