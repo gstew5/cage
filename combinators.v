@@ -514,7 +514,7 @@ Module SingletonGameTest. Section singletonGameTest.
 End singletonGameTest. End SingletonGameTest.
 
 Instance singletonLambdaInstance (A : Type)
-  : @LambdaClass (singleton A) rat_realFieldType| 0 := 5%:R/3%:R.
+  : @LambdaClass (singleton A) rat_realFieldType| 0 := 1.
 
 Program Instance singletonLambdaAxiomInstance
         (A : Type)
@@ -522,7 +522,7 @@ Program Instance singletonLambdaAxiomInstance
 
 Instance singletonMuInstance
          (A : Type)
-  : @MuClass (singleton A) rat_realFieldType| 0 := 1%:R/3%:R.
+  : @MuClass (singleton A) rat_realFieldType| 0 := 0.
 
 Instance singletonMuAxiomInstance
         (A : Type)
