@@ -1,2 +1,2 @@
-true: package(core,async,batteries)
+true: package(zarith)
 true: thread,debug

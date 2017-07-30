@@ -40,7 +40,7 @@ Extract Constant ax_send =>
    Marshal.to_channel out_chan a [];
    flush out_chan;
    Printf.eprintf ""Sent value...""; prerr_newline ();
-   Pair (sd, ())".
+   (sd, ())".
 
 Axiom ax_recv : forall IN : Type, ax_st_ty -> ax_chan -> (IN * ax_st_ty).
 Extract Constant ax_recv =>
@@ -51,7 +51,7 @@ Extract Constant ax_recv =>
    let cost_vector = Marshal.from_channel in_chan in
    close_in in_chan;
    Printf.eprintf ""Received cost vector...""; prerr_newline ();
-   Pair (cost_vector, ())".
+   (cost_vector, ())".
 
 (*MOVE*)
 Axiom seq : forall (A B : Type) (a : A) (f : A -> B), B.

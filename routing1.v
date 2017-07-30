@@ -419,5 +419,9 @@ Module Server := Server_of_CONFIG Conf.
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
 
+(* Note: this includes ExtrOcamlBasic as well (for using  OCaml's
+   built-in list, prod, etc.) *)
+Require Import ExtrOcamlZBigInt.
+
 Extraction "runtime/mwu.ml" Client.mwu.
 Extraction "runtime/server.ml" Server.run.

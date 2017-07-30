@@ -139,7 +139,7 @@ Extract Constant server_init =>
    Unix.setsockopt sd Unix.SO_REUSEADDR true;
    Unix.bind sd (Unix.ADDR_INET (Unix.inet_addr_any, 13337));
    Unix.listen sd (int_of_nat num_players);
-   Pair (sd, ())".
+   (sd, ())".
 
 (* Blocking server receive *)
 Axiom server_recv : forall A : Type, result -> chan -> (list (A*D) * chan * result).
@@ -150,7 +150,7 @@ Extract Constant server_recv =>
    let in_chan = Unix.in_channel_of_descr service_socket in
    let o = Marshal.from_channel in_chan in
    let _ = Printf.eprintf ""Received a value ""; flush stderr in
-   Pair (Pair (o, service_socket), ())".
+   ((o, service_socket), ())".
 
 (* Server send *)
 Axiom server_send :
