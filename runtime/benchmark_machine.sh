@@ -1,8 +1,10 @@
 # EPSILON=0.135
 # ETA=0.105
 # ETA_IDEAL=0.10481470739 # ideal value of eta
-ETA=0.0625
-ETA_IDEAL=0.06051479953
+# ETA=0.0625
+# ETA_IDEAL=0.06051479953
+ETA=0.03125
+ETA_IDEAL=0.03314532076
 REGRET_OUTFILE=out
 SOCIAL_OUTFILE=social
 CLIENTS=5
@@ -41,6 +43,7 @@ for i in $(seq 1 $ROUNDS); do
     pkill -f ./server.native
     # kill all clients
     pkill -f ./mwu.native
+    sleep 0.1s
 done
 
 # Calculate and record regret to $OUTFILE.
