@@ -1063,7 +1063,7 @@ Section weights.
     rewrite /subSeqs.
     move: (CMAX_seq_subSeqs_of _)=> pf4.
     apply: congr_big=> //.
-    f_equal.
+    f_equal. move => _ pf_eq //=. rewrite pf_eq //. 
     apply: proof_irrelevance.
   Qed.
 

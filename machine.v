@@ -1374,7 +1374,7 @@ Section extract_oracle.
     in ((eCost - OPTR a0 s') / Tx nx <= rat_to_R eps + ln size_A / (epsR * Tx nx))%R.
   Proof.
     move => H H1 H2 H3 Hsize.
-    
+    Check mult_weights_epsilon_no_regret.
     have Hx: mult_weights A nx <> CSkip by [].
     move: H2; set s := init_state A (eps:=eps) epsOk tt (init_ClientPkg A) => H2.
     have Hy:
@@ -1460,7 +1460,6 @@ Section extract_oracle.
     move => Hstep Hfinal Hclients1 H i a.
     apply: rat_to_R_le'; rewrite rat_to_R_plus.
     case Hclient_i: (m'.(clients) i) => [c' s'].
-
     have Hinv: inv m.
     { move => ix; split.
       { move: (Hclients1 ix); destruct ((clients m) ix); inversion 1; subst => /=.

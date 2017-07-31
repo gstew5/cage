@@ -190,15 +190,16 @@ Proof.
   apply: payoffSmoothnessAxiomInstance => //.
 Qed.
 
-Instance negative_cost_smooth_of_payoff_smooth
-         `(p_smooth : payoff_smooth)
-  : negative_cost_smooth _
+Instance negative_cost_smooth_of_payoff_smooth `(p_smooth : payoff_smooth)
+  : negative_cost_smooth  
+     (negativeCostSmoothnessAxiomInstance_of_payoffSmoothnessAxiomInstance
+            _)
   :=
-    (Build_negative_cost_smooth
-       (negativeCostSmoothnessAxiomInstance_of_payoffSmoothnessAxiomInstance
-          _)
-    ).
-
+(@Build_negative_cost_smooth pT pN rty _ _
+        (negative_cost_game_of_payoff_game _ _ _ _)
+        _ _
+        _ (negativeCostMuAxiomInstance_of_payoffMuAxiomInstance _ _ _))
+        (negativeCostSmoothnessAxiomInstance_of_payoffSmoothnessAxiomInstance _).
 (** End Payoff smooth -> negative cost smooth *)
 (**********************************************)
 
