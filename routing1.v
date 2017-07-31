@@ -309,11 +309,12 @@ Instance BoolableUnitT n : BoolableUnit (@BoolableT n) :=
 End T.
 
 Definition num_players : nat := 5.
-Definition num_iters : N.t := 300.
+Definition num_iters : N.t := 1000.
 (* Definition eps : D := Dmake 69 9. (*eps ~ 0.135*) *)
 (* Definition eps : D := Dmake 1 1. *)
 (* Definition eps : D := Dmake 54 9. (* ~ 0.105 *) *)
-Definition eps : D := Dmake 1 4. (* ~ 0.0625 *)
+(* Definition eps : D := Dmake 1 4. (* 0.0625 *) *)
+Definition eps : D := Dmake 1 5. (* 0.03125 ~ 0.03314532076 *)
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.
