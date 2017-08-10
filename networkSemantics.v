@@ -97,6 +97,6 @@ Section NetworkSemantics.
       (network_desc n).(recv) (snd p) (w.(localState) n) = (st, ps, es) ->
       network_step w (mkWorld (upd_localState n st w.(localState))
                               (l1 ++ l2 ++ ps) (w.(trace) ++ es)
-                              (upd_initNodes n w.(initNodes))).
+                              w.(initNodes)).
 
 End NetworkSemantics.
