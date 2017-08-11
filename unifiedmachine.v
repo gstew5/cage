@@ -11,6 +11,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import dist weights numerics bigops games weightslang smooth networkSemantics.
+Require Import machine.
 
 Section machine_semantics.
 
@@ -64,7 +65,7 @@ Section machine_semantics.
   Definition machine_packet := (machine_node * machine_msg)%type.
 
   (* The type used by the server to build the trace *)
-  Definition machine_event := {ffun 'I_N -> dist A rat_realFieldType}.
+  Definition machine_event := {ffun 'I_N -> (dist A rat_realFieldType)}.
 
   Definition machine_pkg := NodePkg machine_node machine_packet machine_event.
 
@@ -87,6 +88,24 @@ Section machine_semantics.
     move => s. rewrite /all_clients_received.
     admit.
   Admitted.
+
+  Definition dist_of_all_clients (S : serverState) (pf : all_clients_received S) :
+    {ffun 'I_N -> dist A rat_realFieldType}.
+  Proof.
+    apply finfun. intros.
+    remember (S.(received) X) as t.
+    destruct t. exact d. specialize (pf X). SearchAbout support_for.
+    rewrite supportE in pf. rewrite Heqt in pf. 
+    move/eqP: pf. intros H. congruence.
+  Defined.
+
+  Definition cost_vectors (f : {ffun 'I_N -> dist A rat_realFieldType}) :
+    list machine_packet :=
+  map
+    (fun n =>
+      (client_n n,
+      (scMsg (cost_vec f n))))
+    (enum 'I_N).
 
   (* A function for updating the received field of a server state *)
   Definition upd {A : finType} {T : Type}
@@ -118,11 +137,13 @@ Section machine_semantics.
     match msg with
     | csMsg (msg', cNum) =>
         let st' := (mkServerState (upd cNum (Some msg') (st.(received)))) in
-        if all_clients_received_dec st'            
-        then ( mkServerState (finfun (fun x => None))
-             , nil (* fix me: should send cost vectors*)
-             , nil (*fix me : should record distributions for current round *)) 
-        else (st', nil, nil)
+        match all_clients_received_dec st' with
+        | left pf =>
+            (mkServerState (finfun (fun x => None))
+            , cost_vectors (dist_of_all_clients pf)
+            , (dist_of_all_clients pf)::nil) 
+        | _ => (st', nil, nil)
+        end
     | scMsg msg' => (mkServerState (finfun (fun x => None)), nil, nil)
     end.
 
@@ -137,7 +158,6 @@ Section machine_semantics.
   (** Client node definitons **)  
   Variable clientState : Type.
   
-
   Variable clientPreInit : clientState.
 
   Variable clientInit :
