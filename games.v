@@ -257,9 +257,32 @@ Section gameDefs.
     by rewrite -exchange_big=> /=; apply/congr_big=> //= i _; rewrite mulr_sumr.
   Qed.
 
+  Definition expectedCondCost
+             (i : 'I_N)
+             (d : dist [finType of state N T] rty)
+             (t_i : T) :=
+    expectedCondValue
+      d
+      (fun t : state N T => cost i t)
+      [pred tx : state N T | tx i == t_i].
+  
   Definition upd (i : 'I_N) :=
     [fun t t' : (T ^ N)%type =>
        finfun (fun j => if i == j then t' j else t j)].
+
+  (** This second version of update takes a value of type [T] rather 
+      than a complete state as its second parameter. *)
+  Definition upd1 (i : 'I_N) :=
+    [fun t : (T ^ N)%type =>
+       [fun t_i' : T => 
+          finfun (fun j => if i == j then t_i' else t j)]].
+
+  Lemma upd1_upd i (t t' : T^N) : upd1 i t (t' i) = upd i t t'.
+  Proof.
+    rewrite /upd1 /upd /=; apply/ffunP => x; rewrite 2!ffunE.
+    case Heq: (i == x) => //.
+    by move: (eqP Heq) => ->.
+  Qed.      
   
   (** The expected cost of an i-unilateral deviation to strategy [t'] *)
   Definition expectedUnilateralCost
@@ -277,6 +300,17 @@ Section gameDefs.
     by rewrite -exchange_big=> /=; apply/congr_big=> //= i _; rewrite mulr_sumr.
   Qed.
 
+  (** The expected cost of an i-unilateral deviation to strategy [t' i], 
+      conditioned on current i-strategy equal [t_i]. *)
+  Definition expectedUnilateralCondCost
+             (i : 'I_N)
+             (d : dist [finType of state N T] rty)
+             (t_i t_i' : T) :=
+    expectedCondValue
+      d
+      (fun t : state N T => cost i (upd1 i t t_i'))
+      [pred tx : state N T | tx i == t_i].
+  
   (** \epsilon-Approximate Coarse Correlated Equilibria
       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
       The expected cost of a unilateral deviation to state (t' i) is greater
@@ -427,8 +461,105 @@ Section gameDefs.
     
   Lemma CCEP d : reflect (CCE d) (CCEb d).
   Proof. apply: eCCEP. Qed.
+
+  (** \epsilon-Approximate Correlated Equilibria
+      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+      The expected cost of a unilateral deviation to state (t' i), 
+      conditioned on current strategy (t i), is no greater than 
+       \epsilon plus the expected cost of distribution [d].
+
+      NOTES: 
+      - [t' i] must be a valid move for [i] from [t i].
+   *)
+  Definition eCE (epsilon : rty) (d : dist [finType of state N T] rty) : Prop :=
+    forall (i : 'I_N) (t_i t_i' : T),
+      expectedCondCost i d t_i <= expectedUnilateralCondCost i d t_i t_i' + epsilon.
+
+  Definition eCEb (epsilon : rty) (d : dist [finType of state N T] rty) : bool :=
+    [forall i : 'I_N,
+      [forall t_i : T,
+        [forall t_i' : T, 
+          expectedCondCost i d t_i <= expectedUnilateralCondCost i d t_i t_i' + epsilon]]].
+
+  Lemma eCE_eCEb eps d : eCE eps d <-> eCEb eps d.
+  Proof.
+    split.
+    { move=> H1; apply/forallP=> x; apply/forallP=> y; apply/forallP=> z; apply/implyP=> H2.
+      by move: (H1 x y z) => H3; move: (H2 H3). }
+    move => H1 x y z; move: (forallP H1).
+    by move/(_ x)/forallP/(_ y)/forallP/(_ z).
+  Qed.    
+    
+  Lemma eCEP eps d : reflect (eCE eps d) (eCEb eps d).
+  Proof.
+    move: (eCE_eCEb eps d); case H1: (eCEb eps d).
+    by move=> H2; constructor; rewrite H2.
+    by move=> H2; constructor; rewrite H2.
+  Qed.
   
-  (** Mixed Nash Equilibria
+  Definition CE (d : dist [finType of state N T] rty) : Prop := eCE 0 d.
+
+  Definition CEb (d : dist [finType of state N T] rty) : bool := eCEb 0 d.
+
+  Lemma CE_CEb d : CE d <-> CEb d.
+  Proof. apply: eCE_eCEb. Qed.
+    
+  Lemma CEP d : reflect (CE d) (CEb d).
+  Proof. apply: eCEP. Qed.
+
+  Lemma marginal_unfold (F : {ffun 'I_N -> T} -> rty) i :
+    let P t (p : {ffun 'I_N -> T}) := p i == t in     
+    \sum_(p : [finType of (T * {ffun 'I_N -> T})] | P p.1 p.2) (F p.2) =
+    \sum_(p : {ffun 'I_N -> T}) (F p).
+  Proof.
+    move => P.
+    set (G (x : T) y := F y).
+    have ->:
+      \sum_(p | P p.1 p.2) F p.2 =
+      \sum_(p | predT p.1 && P p.1 p.2) G p.1 p.2 by apply: eq_big.
+    rewrite -pair_big_dep /= /G /P.
+    have ->:
+         \sum_i0 \sum_(j : {ffun 'I_N -> T} | j i == i0) F j =
+    \sum_i0 \sum_(j : {ffun 'I_N -> T} | predT j && (j i == i0)) F j.
+    { by apply: eq_big. }
+    rewrite -partition_big //. 
+  Qed.      
+  
+  Lemma sum1_sum (f : state N T -> rty) i :
+    \sum_(ti : T) \sum_(t : state N T | [pred tx | tx i == ti] t) f t =
+    \sum_t f t.
+  Proof. by rewrite -(marginal_unfold f i) pair_big_dep //. Qed.
+  
+  Lemma CE_CCE d : CE d -> CCE d.
+  Proof.
+    move => Hx i t_i'; rewrite /CE in Hx; move: (Hx i).
+    rewrite /expectedUnilateralCost /expectedUnilateralCondCost
+            /expectedCost /expectedCondCost /expectedValue /expectedCondValue.
+    move => Hy.
+    rewrite addr0.
+    have Hz:
+      \sum_(ti : T) \sum_(t : state N T | [pred tx | tx i == ti] t) d t * (cost) i t <=
+      \sum_(ti : T) (\sum_(t : state N T | [pred tx | tx i == ti] t) d t * (cost) i (upd i t t_i')).
+    { apply: ler_sum => tx _ //.
+      move: (Hy tx (t_i' i)) => Hw.
+      apply: ler_trans.
+      { by apply: Hw; move => t <- Hs; apply: H2. }
+      rewrite addr0.
+      apply: ler_sum => x; move/eqP => H2.
+      rewrite upd1_upd; apply: lerr. }
+    have ->: \sum_t d t * (cost) i t =
+             \sum_ti \sum_(t : state N T | [pred tx | tx i == ti] t) d t * (cost) i t.
+    { by rewrite -(sum1_sum _ i). }
+    have ->:
+      \sum_t d t * (cost) i (((upd i) t) t_i') =
+      \sum_ti \sum_(t : state N T | [pred tx | tx i == ti] t)
+         d t * (cost) i (((upd i) t) t_i').
+    { by rewrite -(sum1_sum _ i). }
+    rewrite mul1r.
+    by apply: Hz.
+  Qed.
+
+(** Mixed Nash Equilibria
       ~~~~~~~~~~~~~~~~~~~~~
       The expected cost of a unilateral deviation to state (t' i) is greater
       or equal to the expected cost of distribution [d]. 
@@ -441,14 +572,14 @@ Section gameDefs.
         support of [d].
    *)
   Definition MNE (f : {ffun 'I_N -> dist T rty}) : Prop :=
-    CCE (prod_dist f).
+    CE (prod_dist f).
   
   Definition MNEb (f : {ffun 'I_N -> dist T rty}) : bool :=
-    CCEb (prod_dist f).
+    CEb (prod_dist f).
 
   Lemma MNE_MNEb d : MNE d <-> MNEb d.
-  Proof. by apply: CCE_CCEb. Qed.
+  Proof. by apply: CE_CEb. Qed.
     
   Lemma MNEP d : reflect (MNE d) (MNEb d).
-  Proof. by apply: CCEP. Qed.
+  Proof. by apply: CEP. Qed.
 End gameDefs.
