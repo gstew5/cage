@@ -221,7 +221,12 @@ Section intermediateSemantics.
       (fun (a : packet nodeINT msgINT) (acc : list msgINT) =>
         match a with (dest, msg) => if (nodeINTDec dest serverID) then (msg::acc) else acc
         end)
-      nil l. 
+      nil l.
+
+  (* Here's a different definition that could maybe end up being more
+     convenient since there are some lemmas about map and filter. *)
+  (* Definition msgToServerList (l : list (packet nodeINT msgINT)) : list msgINT := *)
+  (*   map snd (filter (fun a => nodeINTDec (fst a) serverID) l). *)
 
   (* All clients have sent correctly if all packets in flight :
       1.) Have origin information
