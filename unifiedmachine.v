@@ -82,12 +82,40 @@ Section machine_semantics.
   Definition all_clients_received (S : serverState) :=
     forall x, x \in support_for None (S.(received)).
 
+  Lemma list_all_dec (X : Type) (P : X -> Prop) :
+    (forall a, decidable (P a)) -> forall l, decidable (forall a, List.In a l -> P a).
+  Proof.
+    clear. move=> H0 l.
+    induction l.
+    { simpl. left. move=> a F. contradiction. }
+    { simpl. move: (H0 a) => H0a. destruct H0a.
+      { destruct IHl.
+        { left. move=> a0 [H1|H2]. subst. assumption.
+          apply p0; assumption. }
+        { right. move=> Contra. apply n. move=> a0 Hla0.
+          have H1: (a = a0 \/ List.In a0 l).
+          { right; assumption. }
+          specialize (Contra a0 H1); assumption. } }
+      { right. move=> Contra. specialize (Contra a).
+        have H1: (a = a \/ List.In a l) by left.
+        apply Contra in H1. congruence. } }
+  Qed.
+
   Definition all_clients_received_dec : forall S,
     {all_clients_received S} + {~ all_clients_received S}.
   Proof.
-    move => s. rewrite /all_clients_received.
-    admit.
-  Admitted.
+    move=> s. rewrite /all_clients_received. clear.
+    have in_dec: (forall x, decidable (x \in None.-support (received s))).
+    { move=> x. destruct (x \in None.-support (received s)).
+      { by left. }
+      { by right. } }
+    move: (list_all_dec in_dec (enum 'I_N)) => H0.
+    destruct H0.
+    { left => x. apply i. move: (enumP x) => H0. clear -H0.
+      apply ccombinators.list_in_iff.
+      by rewrite enumT. }
+    { right => Contra. apply n => a H0. apply Contra. }
+  Qed.
 
   Definition dist_of_all_clients (S : serverState) (pf : all_clients_received S) :
     {ffun 'I_N -> dist A rat_realFieldType}.
