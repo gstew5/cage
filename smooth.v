@@ -22,7 +22,7 @@ Class LambdaClass (lT : Type) (rty : realFieldType)
 Notation "'lambda' 'of' T" := (@lambda_val T _ _) (at level 30).
 
 Instance finCloneLambdaInstance (lT : finType) rty `(H : LambdaClass lT rty) :
-  @LambdaClass [finType of lT] rty :=
+  @LambdaClass [finType of lT] rty |99 :=
   @lambda_val _ _ H.
 
 Class LambdaAxiomClass (lT : Type) (rty : realFieldType)
@@ -34,7 +34,7 @@ Class MuClass (mT : Type) (rty : realFieldType)
 Notation "'mu' 'of' T" := (@mu_val T _ _) (at level 30).
 
 Instance finCloneMuInstance (lT : finType) rty `(H : MuClass lT rty) :
-  @MuClass [finType of lT] rty :=
+  @MuClass [finType of lT] rty | 99 :=
   @mu_val _ _ H.
 
 Class MuAxiomClass (mT : Type) (rty : realFieldType)
@@ -189,17 +189,15 @@ Proof.
   rewrite 2!sum_opp_D sum_opp_D_upd ler_oppl mulrNN opprD mulrN opprK.
   apply: payoffSmoothnessAxiomInstance => //.
 Qed.
-
-Instance negative_cost_smooth_of_payoff_smooth `(p_smooth : payoff_smooth)
-  : negative_cost_smooth  
-     (negativeCostSmoothnessAxiomInstance_of_payoffSmoothnessAxiomInstance
-            _)
+Instance negative_cost_smooth_of_payoff_smooth
+         `(p_smooth : payoff_smooth)
+  : negative_cost_smooth _
   :=
-(@Build_negative_cost_smooth pT pN rty _ _
-        (negative_cost_game_of_payoff_game _ _ _ _)
-        _ _
-        _ (negativeCostMuAxiomInstance_of_payoffMuAxiomInstance _ _ _))
-        (negativeCostSmoothnessAxiomInstance_of_payoffSmoothnessAxiomInstance _).
+    (Build_negative_cost_smooth
+       (negativeCostSmoothnessAxiomInstance_of_payoffSmoothnessAxiomInstance
+          _)
+    ).
+
 (** End Payoff smooth -> negative cost smooth *)
 (**********************************************)
 
