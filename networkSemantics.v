@@ -1,5 +1,5 @@
 Section NetworkSemantics.
-  
+Set Implicit Arguments.  
   Variable node  : Type. (* The type of node identifiers *)
   Variable msg   : Type. (* The type of messages (packet payload) *)
   Variable event : Type. (* The type of events recorded in the trace *)
@@ -64,7 +64,7 @@ Section NetworkSemantics.
              (ls : localStateTy)
     : localStateTy :=
     fun n' => match node_dec n n' with
-           | left pf => eq_state n n' pf s
+           | left pf => @eq_state n n' pf s
            | right _ => ls n'
            end.
 
@@ -155,19 +155,23 @@ Section intermediateSemantics.
   (* A description of the network *)
   Definition nodePkgINT := NodePkg nodeINT msgINT eventINT. 
   Variable network_descINT : nodeINT -> nodePkgINT.
-  Definition WorldINT := World _ _ _ network_descINT.
+  Definition WorldINT := World network_descINT.
   (* A predicate defining if all nodes in a world state are uninitialized *)
   Definition nodesUninit (w : WorldINT) : Prop :=
-    forall n, (initNodes _ _ _ _ w) n  = false.
+    forall n, (initNodes w) n  = false.
 
 (** Information re: initalization **)
+  (* The state produced by initializing a node *)
+  Definition initStateNode (n : nodeINT) :=
+    fst (fst (init (network_descINT n) n)).
+
   (* The messages produced by initializing a node *)
   Definition initMsgNode (n : nodeINT) :=
-    snd (fst (((init _ _ _) (network_descINT n)) n)).
+    snd (fst (init (network_descINT n) n)).
 
   (* The events produced by initializing a node *)
   Definition initEventNode (n : nodeINT) :=
-    snd (((init _ _ _) (network_descINT n)) n).
+    snd ((init (network_descINT n)) n).
 
   (* All initialization messages can be built by applying initMsgNode to each client
       and the server node *)
@@ -189,7 +193,7 @@ Section intermediateSemantics.
 
     (* Predicate denoting msgs originating from a client *)
   Inductive msgFromClient p (pf : msgHasOriginInfo p) : Prop :=
-  | clientSent : forall n, msgOrigin _ pf = clientID n -> msgFromClient p pf.
+  | clientSent : forall n, msgOrigin pf = clientID n -> msgFromClient pf.
 
     (* Predicate denoting lists of packets which all have origin info *)
   Definition onlyPacketsWithOrigin (l : list (packet nodeINT msgINT)) :=
@@ -197,7 +201,7 @@ Section intermediateSemantics.
 
     (*Predicate denoting lists with packets which originate from clients *)
   Definition onlyPacketsFromClient l (pf : onlyPacketsWithOrigin l) : Prop :=
-    forall x mem_pf, msgFromClient _ (pf x mem_pf).
+    forall x mem_pf, msgFromClient (pf x mem_pf).
 
   (* For a list of packets, this generates a list of 'I_Ns corresponding to
       the orgins of those packets with origin information *)
@@ -207,7 +211,7 @@ Section intermediateSemantics.
     | a::l' =>
         match (msgHasOriginInfoDec (snd a)) with
         | left pf =>
-            match (msgOrigin _ pf) with
+            match (msgOrigin pf) with
             | serverID => clientsInFlightList l'
             | clientID n => n :: (clientsInFlightList l')
             end
@@ -240,10 +244,10 @@ Section intermediateSemantics.
   Inductive allClientsSentCorrectly : (WorldINT) -> Prop :=
   | msgListOk :
         forall w
-          (pf : onlyPacketsWithOrigin (inFlight _ _ _ _ w)),
-      onlyPacketsToServer ((inFlight _ _ _ _ w)) ->
-      onlyPacketsFromClient _ pf ->
-      clientsInFlightList (inFlight _ _ _ _ w) = enum 'I_N ->
+          (pf : onlyPacketsWithOrigin (inFlight w)),
+      onlyPacketsToServer ((inFlight w)) ->
+      onlyPacketsFromClient pf ->
+      clientsInFlightList (inFlight w) = enum 'I_N ->
       allClientsSentCorrectly w.
 
   (* Given a server state s and message/event buffers ml el, this functions updates the 
@@ -252,7 +256,7 @@ Section intermediateSemantics.
   Definition updateServerAcc :=
     fun m t =>
       let '(s, ml, el) := t in
-      let '(s', ml', el') := ((recv nodeINT msgINT eventINT (network_descINT serverID)) m s) in
+      let '(s', ml', el') := ((recv (network_descINT serverID)) m s) in
         (s', ml++ml', el++el').
 
   (* Folding over a list of messages to the server using updateServerAcc with empty buffers*)
@@ -262,92 +266,135 @@ Section intermediateSemantics.
   Inductive network_stepINT : WorldINT -> WorldINT -> Prop :=
   (* All nodes can move from unitialized to initialized *)
   | batchInitStep : forall w1 w2,
-      (forall n, (initNodes _ _ _ _ w1) n = false) ->
-      (forall n, (initNodes _ _ _ _ w2) n = true) ->
-      (inFlight _ _ _ _ w1 = nil) -> 
-      (inFlight _ _ _ _ w2 = initMsg) ->
-      (trace _ _ _ _ w1 = nil) ->
-      (trace _ _ _ _ w2 = initEvent) ->
-      (forall n, (localState _ _ _ _ w2) n =
-                 (fst (fst (((init _ _ _) (network_descINT n)) n)))) -> 
+      (forall n, (initNodes w1) n = false) ->
+      (forall n, (initNodes w2) n = true) ->
+      (inFlight w1 = nil) -> 
+      (inFlight w2 = initMsg) ->
+      (trace w1 = nil) ->
+      (trace w2 = initEvent) ->
+      (forall n, (localState w2) n =
+                 (fst (fst ((init (network_descINT n)) n)))) -> 
         network_stepINT w1 w2
   (* Clients can progress identically to the semantics above *)
   | clientPacketStep : forall (w : WorldINT) (n : 'I_N)
                  (p : packet nodeINT msgINT)
                  (l1 l2 : list (packet nodeINT msgINT))
-                 (st : (state _ _ _) (network_descINT (clientID n)))
+                 (st : state (network_descINT (clientID n)))
                  (ps : list (packet nodeINT msgINT))
                  (es : list eventINT),
-    (initNodes _ _ _ _ w) (clientID n) = true -> 
-    inFlight _ _ _ _ w = l1 ++ (p :: l2) ->
+    (initNodes w) (clientID n) = true -> 
+    inFlight w = l1 ++ (p :: l2) ->
     fst p = (clientID n) ->
-    recv _ _ _ (network_descINT (clientID n)) (snd p)
-      ((localState _ _ _ _) w (clientID n)) =
+    recv (network_descINT (clientID n)) (snd p)
+      (localState w (clientID n)) =
     (st, ps, es) -> 
       network_stepINT w
-        (mkWorld _ _ _ _
-          (upd_localState _ _ _ nodeINTDec network_descINT (clientID n) st
-            (localState _ _ _ _ w))
+        (mkWorld
+          (upd_localState nodeINTDec (clientID n) st
+            (localState w))
           (l1 ++ l2 ++ ps)
-          ((trace _ _ _ _ w) ++ es)
-          (initNodes _ _ _ _ w))
+          ((trace w) ++ es)
+          (initNodes w))
   (* The server can step only when all clients have sent and their messages are sitting
       in the environment *)
   | serverPacketStep : forall (w : WorldINT)
-                  (st st': (state _ _ _) (network_descINT (serverID)))
+                  (st st': state (network_descINT (serverID)))
                   (l l' : list (packet nodeINT msgINT))
                   (e' : list eventINT),
-    (initNodes _ _ _ _ w) serverID = true ->
+    (initNodes w) serverID = true ->
     allClientsSentCorrectly w ->
-    (inFlight _ _ _ _ w) = l ->
+    (inFlight w) = l ->
     updateServerList st (msgToServerList l) = (st', l', e') ->
       network_stepINT w
-        (mkWorld _ _ _ _
-          (upd_localState _ _ _ nodeINTDec network_descINT serverID st
-            (localState _ _ _ _ w))
+        (mkWorld 
+          (upd_localState nodeINTDec serverID st
+            (localState w))
           l'
-          ((trace _ _ _ _ w) ++ e')
-          (initNodes _ _ _ _ w)).
+          ((trace w) ++ e')
+          (initNodes w)).
 
   Section refinement.
 
-    (* We need some way to evaluate which messages the server
-        has processed in a single round *)
-    Variable clientMessageReceived :
-      (state _ _ _) (network_descINT (serverID)) -> 'I_N -> bool.
+    (* The type of 'information' sent from clients to the server *)
+    Variable clientServerInfoType : Type.
 
+    (* From packets sent from clients to the server, we can recover this information *)
+    Variable clientServerInfo_fromMessage :
+      forall (p : packet nodeINT msgINT) (hasOrigin : msgHasOriginInfo (snd p))
+             n (pf1 :msgOrigin hasOrigin = clientID n) (pf2 : fst p = serverID),
+    clientServerInfoType.
 
-    (* For the current round, a client has sent a message if either the server
-        has processed a message from the client, or there's a message originating
-        from the client in flight *)
-    Definition clientHasSentMessage : WorldINT -> 'I_N -> bool :=
-      fun w n =>
-        clientMessageReceived (((localState _ _ _ _) w) serverID) n ||
-        (n \in clientsInFlightList ((inFlight _ _ _ _ ) w)).
+    (* For a given list of packets and a client, this attempts to produce a
+        clientServerInfoType corresponding to a message from the client and
+        in the list of packets *)
+    Program Fixpoint clientServerInfo_messageList
+      (l : list (packet nodeINT msgINT)) (n : 'I_N) : option clientServerInfoType :=
+    match l with
+    | nil => None
+    | (n',m)::l' => 
+        match msgHasOriginInfoDec m with
+        | left pf1 =>
+            match nodeINTDec (msgOrigin pf1) (clientID n) with
+            | left pf2 => match nodeINTDec n' serverID with
+              | left pf3 => Some (clientServerInfo_fromMessage (n',m) _ _)
+              | _ => None
+              end
+            | _ => None
+            end
+        | _ => clientServerInfo_messageList l' n
+        end
+    end.
+
+    (* From the server state we might also recover the information relating to
+        a particular client's message earlier in the round *)
+    Variable clientServerInfo_fromServer : 
+      (network_descINT serverID).(state) -> 'I_N -> option clientServerInfoType.
+
+    (* Produces the information associated with a given client in the current round
+        by first examining the set of inFlight messages and then the server state *) 
+    Definition clientInfo_fromWorld (W : WorldINT) : 'I_N -> option clientServerInfoType :=
+      fun n => match clientServerInfo_messageList (W.(inFlight)) n with
+      | Some m => Some m
+      | None => clientServerInfo_fromServer (W.(localState) serverID) n
+      end.
 
     (* we'll probably need some hypotheses showing when clients can send messages
         - only once per round, only to server, clients only add one message to stack *)
 
-      (* The 'information' sent from clients to the server *)
-    Variable clientServerMsgType : Type.
-  
-    (* It should be the case that if a client has sent a message, the information
-        of either the inFlight message or the information stored by the server can be
-        extracted *)
-    Variable clientMsgInfo :
-      forall w n, (clientHasSentMessage w n = true) -> clientServerMsgType.
+    (** Some assumptions about the operation of the clients **)
 
-    (* If a client has sent a message this returns Some x where x corresponds
-        to the information inFlight or in the server, otherwise it returns None *)
-    Program Definition clientMsgInfoState w : 'I_N -> option clientServerMsgType :=
-      fun n => match clientHasSentMessage w n with
-      | true => Some (clientMsgInfo w n _)
-      | false =>  None
-      end.
+    (* Initalizaion of a client adds only one message to inFlight *)
+    Hypothesis clientInitSize : forall n, {m | (initMsgNode (clientID n)) = m::nil}.
+
+    (* All messages from a client init have origin information *)
+    Hypothesis clientInitHasOrigin :
+      forall n p, List.In p (initMsgNode (clientID n)) -> msgHasOriginInfo (snd p).
+
+    (* All messages from a client init have that client as the origin of the msg *)
+    Hypothesis clientInitOriginIsClient :
+      forall n p pf, msgOrigin (@clientInitHasOrigin n p pf) = clientID n.
+
+    (* All messages from a client init are directed to the server *)
+    Hypothesis clientInitSentToServer : 
+      forall n p, List.In p (initMsgNode (clientID n)) -> fst p = serverID.
+
+    (* Bundling these bits together, we can establish the information sent by
+         the client during initalization *)
+    Program Definition clientInit (n : 'I_N) : clientServerInfoType :=
+      clientServerInfo_fromMessage (proj1_sig (clientInitSize n))
+        (clientInitOriginIsClient n _ _) (clientInitSentToServer n _ _).
+    Next Obligation.
+      case: (clientInitSize n) => p pf //=. rewrite pf.
+      left => //.
+    Qed.
+    Next Obligation.
+      case: (clientInitSize n) => p pf //=. rewrite pf.
+      left => //.
+    Qed.
 
     Definition preInitWorld : WorldINT :=
-      mkWorld _ _ _ _
-        (fun n => (pre_init _ _ _ (network_descINT n)))
+      mkWorld
+        (fun n => pre_init (network_descINT n))
         nil
         nil
         (fun _ => false).
@@ -356,32 +403,47 @@ Section intermediateSemantics.
     (* If any client has been uninitialized at the low level,
         it matches with the preInitWorld at the intermediate level *)
     | unInitMatch : forall WLOW n,
-            (initNodes _ _ _ _ WLOW) n = false ->
+            (* Some node is uninitalized *)
+            WLOW.(initNodes) n = false ->
+            (* Any intialized clients are in their inital state *)
+            (forall n', WLOW.(initNodes) (clientID n') = true ->
+              WLOW.(localState) (clientID n') = initStateNode (clientID n')) -> 
+            (* Any uninitalized nodes are in their preinit state *)
+            (forall n', WLOW.(initNodes) n' = false ->
+              WLOW.(localState) n' = pre_init (network_descINT n')) ->
+            (* If a client is uninitalized, there's no information about it*)
+            (forall n', WLOW.(initNodes) (clientID n') = false ->
+              clientInfo_fromWorld WLOW n' = None) ->
+            (* If a client is initalized, the information from its init message
+                can be recovered *)
+            (forall n', WLOW.(initNodes) (clientID n') = true ->
+              clientInfo_fromWorld WLOW n' = Some (clientInit n')) ->
           Match preInitWorld WLOW
+
     | postInitMatch : forall WINT WLOW,
-            (forall n, ((localState _ _ _ _) WINT) (clientID n) =
-                       ((localState _ _ _ _) WLOW) (clientID n)) ->
-            (forall n, (initNodes _ _ _ _ WINT) n = true) ->
-            (forall n, (initNodes _ _ _ _ WLOW) n = true) ->
-            (forall n, clientMsgInfoState WINT n = clientMsgInfoState WLOW n) ->
-            (trace _ _ _ _ WINT = trace _ _ _ _ WLOW) -> 
+            (forall n, (localState WINT) (clientID n) =
+                       (localState WLOW) (clientID n)) ->
+            (forall n, (initNodes WINT) n = true) ->
+            (forall n, (initNodes WLOW) n = true) ->
+            (forall n, clientInfo_fromWorld WINT n = clientInfo_fromWorld WLOW n) ->
+            (trace WINT = trace WLOW) -> 
           Match WINT WLOW.
 
     Definition countUninit : WorldINT -> nat :=
       fun w =>
         foldr
-          (fun n acc => if ((initNodes _ _ _ _) w) n then acc else 1+acc)
+          (fun n acc => if (initNodes w) n then acc else 1+acc)
           0
           (serverID::(map clientID (enum 'I_N))).
 
     Definition world_measure : WorldINT -> nat :=
-      fun w => 2*(countUninit w) + (length (inFlight _ _ _ _ w)).
+      fun w => 2*(countUninit w) + (length (inFlight w)).
 
-    Lemma INTsimulatesLOW : forall WINT WINT',
-        network_stepINT WINT WINT' ->
-        forall WLOW, Match WINT WLOW ->
-        (exists WLOW', (network_step_plus _ _ _ nodeINTDec _) WLOW WLOW' /\ Match WINT' WLOW')
-        \/ (exists WLOW', world_measure WLOW' < world_measure WLOW /\ Match WINT WLOW').
+    Lemma INTsimulatesLOW : forall WLOW WLOW',
+        (network_step_plus nodeINTDec WLOW WLOW') ->
+        forall WINT, Match WINT WLOW ->
+        (exists WINT', network_stepINT WINT WINT' /\ Match WINT' WLOW')
+        \/ (world_measure WLOW' < world_measure WLOW /\ Match WINT WLOW').
     Proof.
       admit.
     Admitted.
