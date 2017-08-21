@@ -16,35 +16,14 @@ Definition eprint_natchar : forall (T : Type) (n : N), T -> T := fun T n t => t.
 (** Raises an exception if [n >= 256]. *)
 Extract Constant eprint_natchar =>
  "fun n s ->  
-    let rec int_of_positive p = 
-      (match p with 
-         | XI p' -> 2 * (int_of_positive p') + 1
-         | XO p' -> 2 * (int_of_positive p')
-         | XH -> 1) in
-    let int_of_N n = 
-      (match n with
-         | N0 -> 0
-         | Npos p -> int_of_positive p) in
-    Printf.eprintf ""%c"" (Char.chr (int_of_N n)); 
+    Printf.eprintf ""%c"" (Char.chr (Big.to_int n)); 
     flush stderr; 
     s".
 
 Definition eprint_Z : forall (T : Type) (z : Z), T -> T := fun T z t => t.
 Extract Constant eprint_Z =>
  "fun z s -> 
-    let two = Big_int.big_int_of_int 2 in
-    let rec int_of_positive p = 
-      (match p with 
-         | XI p' -> Big_int.succ_big_int (Big_int.mult_big_int two (int_of_positive p'))
-         | XO p' -> Big_int.mult_big_int two (int_of_positive p')
-         | XH -> Big_int.unit_big_int) in
-    let int_of_Z z = 
-      (match z with 
-         | Z0 -> Big_int.zero_big_int
-         | Zpos p -> int_of_positive p
-         | Zneg p -> Big_int.minus_big_int (int_of_positive p)) in 
-    Printf.eprintf 
-      ""%f"" (Big_int.float_of_big_int (int_of_Z z));
+    Printf.eprintf ""%f"" float_of_int (Big.to_int z);
     flush stderr;
     s".
 
@@ -52,27 +31,13 @@ Definition eprint_ZdivPos :
   forall (T : Type) (n : Z) (p : positive), T -> T := fun T z p t => t.
 Extract Constant eprint_ZdivPos =>
  "fun n p s -> 
-    let two = Big_int.big_int_of_int 2 in
-    let rec int_of_positive p = 
-      (match p with 
-         | XI p' -> Big_int.succ_big_int (Big_int.mult_big_int two (int_of_positive p'))
-         | XO p' -> Big_int.mult_big_int two (int_of_positive p')
-         | XH -> Big_int.unit_big_int) in
-    let int_of_Z z = 
-      (match z with 
-         | Z0 -> Big_int.zero_big_int
-         | Zpos p -> int_of_positive p
-         | Zneg p -> Big_int.minus_big_int (int_of_positive p)) in 
-    (*let shrink n = 
-      Big_int.shift_right_big_int n (Sys.word_size*(Big_int.num_digits_big_int n - 1)) in*)
-    let shrink n = n in    
-    let num = Big_int.float_of_big_int (shrink (int_of_Z n)) in
-    let den = Big_int.float_of_big_int (shrink (int_of_positive p)) in
+    (* let num = float_of_int (Big.to_int n) in *)
+    (* let den = float_of_int (Big.to_int p) in *)
     (* Printf.eprintf ""%F [%F / %F]"" (num /. den) num den; *)
-    Printf.eprintf ""%s, %s"" (Big_int.string_of_big_int (int_of_Z n)) (Big_int.string_of_big_int (int_of_positive p));
+    Printf.eprintf ""%s, %s"" (Big.to_string n) (Big.to_string p);
     (* Printf.eprintf ""%F"" (num /. den); *)
     flush stderr;
-     s".
+    s".
 
 Definition eprint_nat (T : Type) (n : nat) (t : T) : T := 
   eprint_Z (Z.of_nat n) t.

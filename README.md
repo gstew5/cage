@@ -15,6 +15,7 @@ An introduction to the research ideas underlying Cage (in the form of a technica
 * Coq 8.5
 * Ssreflect 1.6
 * OCaml (>= 4.02.1)
+* Zarith OCaml library (>= 1.5)
 
 ## Build Instructions
 

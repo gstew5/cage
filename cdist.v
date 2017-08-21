@@ -642,52 +642,26 @@ Extract Constant init_rand_state => "()".
 
 Axiom rand : rand_state -> (D*rand_state). (*in range [0,1]*)
 Extract Constant rand =>
- "fun _ -> 
-  let rec z_of_ocamlint i =
-    let zzero = Z0 in
-    let zone = Zpos XH in
-    let ztwo = Zpos (XO XH) in
-    if i = 0 then zzero
-    else if i mod 2 = 0 then Z.mul ztwo (z_of_ocamlint (i/2))
-    else Z.add (Z.mul ztwo (z_of_ocamlint (i/2))) zone
-  in  
+ "fun _ ->
   let _ = Random.self_init () in
   let d = Random.int 256 in
-  let zn = z_of_ocamlint d in 
-  let peight = XO (XO (XO XH)) in
-  let q = { num = zn; den = peight } 
+  let zn = Big.of_int d in
+  let peight = Big.of_int 8 in
+  let q = { num = zn; den = peight }
   in
   Printf.eprintf ""Generated random r = %d"" d; prerr_newline ();
-  Pair (q, ())".
+  (q, ())".
 
 (** PRECONDITION: [rand_range t n]: n is Npos p for some p *)
 Axiom rand_range : rand_state -> N.t -> (N.t*rand_state). (*in range [0,size-1]*)
 Extract Constant rand_range =>
- "fun _ size -> 
-  let rec ocamlint_of_pos p =
-    (match p with 
-       | XH -> 1
-       | XO p' -> 2 * ocamlint_of_pos p'
-       | XI p' -> 2 * ocamlint_of_pos p' + 1)
-  in 
-  let rec n_of_ocamlint i =
-    let nzero = N0 in
-    let none = Npos XH in
-    let ntwo = Npos (XO XH) in
-    if i = 0 then N0
-    else if i mod 2 = 0 then N.mul ntwo (n_of_ocamlint (i/2))
-    else N.add (N.mul ntwo (n_of_ocamlint (i/2))) none
-  in
-  let ocamlint_of_n n = 
-    (match n with 
-       | N0 -> 0
-       | Npos p -> ocamlint_of_pos p)
-  in 
+ "fun _ size ->
   let _ = Random.self_init () in
-  let d = Random.int (ocamlint_of_n size) 
+  let d = Random.int (Big.to_int size)
   in
   Printf.eprintf ""Generated in-range random i = %d"" d; prerr_newline ();
-  Pair (n_of_ocamlint d, ())".
+  (Big.of_int d, ())".
+
 Axiom rand_range_ok :
   forall t n,
     let (n', t') := rand_range t n in 
