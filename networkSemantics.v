@@ -116,7 +116,8 @@ Section intermediateSemantics.
   From mathcomp Require Import ssreflect.ssreflect.
   From mathcomp Require Import all_ssreflect.
   From mathcomp Require Import all_algebra.
-  From mathcomp Require Import perm.
+  Require Import Sorting.Permutation.
+
   Variable N : nat.
 
   (* Our network consists of two types of nodes
@@ -125,7 +126,7 @@ Section intermediateSemantics.
   Inductive nodeINT :=
   | serverID : nodeINT
   | clientID : 'I_N -> nodeINT.
-  
+
   Lemma nodeINTDec : forall n1 n2 : nodeINT,
     {n1 = n2} + {n1 <> n2}.
   Proof.
@@ -138,6 +139,13 @@ Section intermediateSemantics.
       - left; subst => //.
       - right => Hcontra. inversion Hcontra. congruence.
   Qed.
+
+  Definition isClient : nodeINT -> bool :=
+  fun (n : nodeINT) =>
+  match n with
+  | clientID _ => true
+  | serverID => false
+  end. 
 
   (* The types of events and messages passed around *)
   Variable msgINT : Type.
@@ -152,6 +160,13 @@ Section intermediateSemantics.
       sending node *)
   Variable msgOrigin : forall m, msgHasOriginInfo m -> nodeINT.
 
+  (* Failable version of msgOrigin *)
+  Definition msgOrigin_opt m : option nodeINT :=
+    match msgHasOriginInfoDec m with
+    | left pf => Some (msgOrigin pf)
+    | _ => None
+    end.
+
   (* A description of the network *)
   Definition nodePkgINT := NodePkg nodeINT msgINT eventINT. 
   Variable network_descINT : nodeINT -> nodePkgINT.
@@ -159,6 +174,34 @@ Section intermediateSemantics.
   (* A predicate defining if all nodes in a world state are uninitialized *)
   Definition nodesUninit (w : WorldINT) : Prop :=
     forall n, (initNodes w) n  = false.
+
+  (* Since nodes are finite, we can determine if all nodes are initalized, or
+      if there's some uninitalized node *)
+
+  (* Auxillary lemma for clients *)
+  Lemma clientsInitOrWitness (w : WorldINT) :
+    (forall n, initNodes w (clientID n) = true) \/
+    exists n, initNodes w (clientID n) = false.
+  Proof.
+    case_eq [forall n, initNodes w (clientID n)] => H.    
+    move/forallP: H => H. left. by [].
+    right. have H' : ~~[forall n, initNodes w (clientID n)].
+    { rewrite H. by []. }
+    rewrite negb_forall in H'. move/existsP: H' => H'.
+    destruct H' as [x H'']. exists x.
+    apply Bool.negb_true_iff. by [].
+  Qed.
+
+  Lemma nodesInitOrWitness (w : WorldINT) :
+    (forall n, initNodes w n) \/
+    exists n, initNodes w n = false.
+  Proof.
+    case: (clientsInitOrWitness w) => H; last first.
+    - right. destruct H as [n H]. exists (clientID n). by [].
+    - case_eq (initNodes w serverID) => H'; last first.
+      right. exists serverID. by []. left. intros n.
+      induction n. exact H'. apply H.
+  Qed.
 
 (** Information re: initalization **)
   (* The state produced by initializing a node *)
@@ -184,6 +227,21 @@ Section intermediateSemantics.
     (initEventNode (serverID))++
       foldr (fun n l =>  l ++ (initEventNode (clientID n))) nil (enum 'I_N).
 
+  (* State of the world pre initalization *)
+  Definition preInitWorld : WorldINT :=
+    mkWorld
+      (fun n => pre_init (network_descINT n))
+      nil
+      nil
+      (fun _ => false).
+
+  (* State of the world prior to the server taking a single big step *)
+  Definition postInitWorld : WorldINT :=
+    mkWorld
+      (fun n => initStateNode n)
+      initMsg
+      initEvent
+      (fun n => true).
   
   (** Information re: the state of packets on the network **)
 
@@ -265,7 +323,9 @@ Section intermediateSemantics.
 
   Inductive network_stepINT : WorldINT -> WorldINT -> Prop :=
   (* All nodes can move from unitialized to initialized *)
-  | batchInitStep : forall w1 w2,
+  | batchInitStep : network_stepINT preInitWorld postInitWorld
+      (* Old Definition:
+      forall w1 w2,
       (forall n, (initNodes w1) n = false) ->
       (forall n, (initNodes w2) n = true) ->
       (inFlight w1 = nil) -> 
@@ -274,7 +334,8 @@ Section intermediateSemantics.
       (trace w2 = initEvent) ->
       (forall n, (localState w2) n =
                  (fst (fst ((init (network_descINT n)) n)))) -> 
-        network_stepINT w1 w2
+        network_stepINT w1 w2 *)
+
   (* Clients can progress identically to the semantics above *)
   | clientPacketStep : forall (w : WorldINT) (n : 'I_N)
                  (p : packet nodeINT msgINT)
@@ -319,31 +380,92 @@ Section intermediateSemantics.
     Variable clientServerInfoType : Type.
 
     (* From packets sent from clients to the server, we can recover this information *)
-    Variable clientServerInfo_fromMessage :
+    Variable clientServerInfo_recoverable :
       forall (p : packet nodeINT msgINT) (hasOrigin : msgHasOriginInfo (snd p))
              n (pf1 :msgOrigin hasOrigin = clientID n) (pf2 : fst p = serverID),
     clientServerInfoType.
 
+    (* Tests a generic packet to produce a clientServerInfoType originating from
+        clientID n *)
+    Definition clientServerInfo_fromPacket (p : packet nodeINT msgINT) n
+      : option clientServerInfoType :=
+    match msgHasOriginInfoDec p.2 with
+    | left pf1 =>
+        match nodeINTDec (msgOrigin pf1) (clientID n) with
+        | left pf2 => match nodeINTDec p.1 serverID with
+          | left pf3 => Some (@clientServerInfo_recoverable p pf1 n pf2 pf3)
+          | _ => None
+          end
+        | _ => None
+        end
+    | _ => None
+    end.
+
     (* For a given list of packets and a client, this attempts to produce a
         clientServerInfoType corresponding to a message from the client and
         in the list of packets *)
-    Program Fixpoint clientServerInfo_messageList
+    Definition clientServerInfo_messageList
       (l : list (packet nodeINT msgINT)) (n : 'I_N) : option clientServerInfoType :=
-    match l with
-    | nil => None
-    | (n',m)::l' => 
-        match msgHasOriginInfoDec m with
-        | left pf1 =>
-            match nodeINTDec (msgOrigin pf1) (clientID n) with
-            | left pf2 => match nodeINTDec n' serverID with
-              | left pf3 => Some (clientServerInfo_fromMessage (n',m) _ _)
-              | _ => None
-              end
-            | _ => None
-            end
-        | _ => clientServerInfo_messageList l' n
-        end
-    end.
+    foldl (fun (o : option clientServerInfoType) p =>
+            if o then o else (clientServerInfo_fromPacket p n)) None l.
+
+    (* A further extension of msgOrigin_opt that only succeeds only for messages generated
+        by clients *)
+    Definition msgOriginClient_opt m :=
+      match (msgOrigin_opt m) with
+      | Some n => if isClient n then Some n else None
+      | _ => None
+      end.
+
+    (* The results of clientServerInfo_messageList over the permutation of a list
+       should be equivalent provided each client only has at most one message in
+       in the list (the NoDup restriction imposed on l1_fil *)
+
+
+    Lemma filterPreservesPerm : 
+      forall A (l1 l2 : list A) f, Permutation l1 l2 ->
+        Permutation (filter f l1) (filter f l2).
+    Proof.
+      move => A l1 l2 f perm.
+      induction perm.
+     + by [].
+      + simpl. case: (f x).
+        - apply perm_skip. apply IHperm.
+        - apply IHperm.
+      + simpl. case (f x); case (f y); try solve [by constructor].
+        - apply Permutation_refl.
+      + apply (perm_trans IHperm1 IHperm2).
+    Qed.
+
+    Lemma mapPreservesPerm :
+      forall A B (l1 l2 : list A) (f : A -> B), Permutation l1 l2 -> 
+        Permutation (map f l1) (map f l2).
+    Proof.
+      move => A B l1 l2 f perm.
+      induction perm; try solve [by constructor].
+      apply (perm_trans IHperm1 IHperm2).
+    Qed.
+
+    Lemma clientServerInfo_messageList_perm (l1 l2 : list (packet nodeINT msgINT)) :
+      let l1_fil := (List.filter isSome
+                      (map msgOriginClient_opt 
+                        (map (fun x => x.2) l1))) in 
+      List.NoDup l1_fil -> Permutation l1 l2 ->
+      forall n, clientServerInfo_messageList l1 n = clientServerInfo_messageList l2 n.
+    Proof.
+      move => l1_fil no_dup1 perm n.
+      set l2_fil := (List.filter isSome
+                      (map msgOriginClient_opt 
+                        (map (fun x => x.2) l2))).
+      have perm' : Permutation l1_fil l2_fil.
+      {
+        apply filterPreservesPerm.
+        apply mapPreservesPerm. apply mapPreservesPerm.
+        apply perm. 
+      }
+      have noDup2 : List.NoDup l2_fil by apply (Permutation_NoDup perm' no_dup1).
+      admit.
+    Admitted.
 
     (* From the server state we might also recover the information relating to
         a particular client's message earlier in the round *)
@@ -366,6 +488,9 @@ Section intermediateSemantics.
     (* Initalizaion of a client adds only one message to inFlight *)
     Hypothesis clientInitSize : forall n, {m | (initMsgNode (clientID n)) = m::nil}.
 
+    (* Initalization of a server adds no messages to inFlight *)
+    Hypothesis serverInitSize : initMsgNode serverID = nil.
+
     (* All messages from a client init have origin information *)
     Hypothesis clientInitHasOrigin :
       forall n p, List.In p (initMsgNode (clientID n)) -> msgHasOriginInfo (snd p).
@@ -381,7 +506,7 @@ Section intermediateSemantics.
     (* Bundling these bits together, we can establish the information sent by
          the client during initalization *)
     Program Definition clientInit (n : 'I_N) : clientServerInfoType :=
-      clientServerInfo_fromMessage (proj1_sig (clientInitSize n))
+      clientServerInfo_recoverable (proj1_sig (clientInitSize n))
         (clientInitOriginIsClient n _ _) (clientInitSentToServer n _ _).
     Next Obligation.
       case: (clientInitSize n) => p pf //=. rewrite pf.
@@ -392,17 +517,10 @@ Section intermediateSemantics.
       left => //.
     Qed.
 
-    Definition preInitWorld : WorldINT :=
-      mkWorld
-        (fun n => pre_init (network_descINT n))
-        nil
-        nil
-        (fun _ => false).
-
     Inductive Match : WorldINT -> WorldINT -> Prop :=
     (* If any client has been uninitialized at the low level,
         it matches with the preInitWorld at the intermediate level *)
-    | unInitMatch : forall WLOW n,
+    | preInitMatch : forall WLOW n,
             (* Some node is uninitalized *)
             WLOW.(initNodes) n = false ->
             (* Any intialized clients are in their inital state *)
@@ -439,14 +557,151 @@ Section intermediateSemantics.
     Definition world_measure : WorldINT -> nat :=
       fun w => 2*(countUninit w) + (length (inFlight w)).
 
+    (* An initalization step at the low level decreases countUninit by 1 *)
+    Lemma initStep_countUninit : forall w n st ps es, 
+      initNodes w n = false ->  
+      init (network_descINT n) n = (st, ps, es) ->
+      countUninit
+        {|
+         localState := upd_localState nodeINTDec  n st (localState w);
+         inFlight := (inFlight w ++ ps)%list;
+         trace := (trace w ++ es)%list;
+         initNodes := upd_initNodes nodeINTDec n (initNodes w) |} + 1 =
+      countUninit w.
+    Proof.
+      rewrite /countUninit.
+      move => w n.
+      case: n. move => st ps es H1 H2. simpl. rewrite/ upd_initNodes.
+      + intros. destruct nodeINTDec; last first. by congruence.      
+        rewrite H1. rewrite addnC. f_equal.
+        rewrite !foldr_map /foldr. induction (Finite.enum (ordinal_finType N)).
+        by []. rewrite -IHl. destruct (initNodes w (clientID a)).
+        destruct nodeINTDec; last first. by congruence. by [].
+        destruct nodeINTDec; last first. by congruence. inversion e0.
+      + intros. simpl. admit.
+    Admitted.
+
+   (* A server initalization step at the low level does not increase
+      the inFlight count at all *)
+    Lemma initStep_countInFlight_server : forall w st ps es,
+      initNodes w serverID = false ->  
+      init (network_descINT serverID) serverID = (st, ps, es) ->
+      length (inFlight w) =
+      length (inFlight {|
+         localState := upd_localState nodeINTDec serverID st (localState w);
+         inFlight := (inFlight w ++ ps)%list;
+         trace := (trace w ++ es)%list;
+         initNodes := upd_initNodes nodeINTDec serverID (initNodes w) |}).
+    Proof.
+      move => w st ps es H1 H2. move: serverInitSize => H3.
+        rewrite /initMsgNode in H3. rewrite H2 in H3. simpl in H3.
+        rewrite H3 => //=. rewrite List.app_nil_r. by [].
+    Qed.
+    (* A client initalization step at the low level increases inFlight
+        count by one *)
+    Lemma initStep_countInFlight_client : forall w n st ps es,
+      initNodes w (clientID n) = false ->  
+      init (network_descINT (clientID n)) (clientID n) = (st, ps, es) ->
+      length (inFlight w) + 1 =
+      length (inFlight {|
+         localState := upd_localState nodeINTDec (clientID n) st (localState w);
+         inFlight := (inFlight w ++ ps)%list;
+         trace := (trace w ++ es)%list;
+         initNodes := upd_initNodes nodeINTDec (clientID n) (initNodes w) |}).
+    Proof.
+      move => w n. move: (clientInitSize n) => H3. move => st ps es H1 H2.
+         destruct H3. rewrite /initMsgNode in e. rewrite H2 in e.
+         simpl in e. rewrite e //=. rewrite List.app_length //=.
+    Qed.
+
     Lemma INTsimulatesLOW : forall WLOW WLOW',
         (network_step_plus nodeINTDec WLOW WLOW') ->
         forall WINT, Match WINT WLOW ->
         (exists WINT', network_stepINT WINT WINT' /\ Match WINT' WLOW')
         \/ (world_measure WLOW' < world_measure WLOW /\ Match WINT WLOW').
     Proof.
-      admit.
+      (* induction over the transition+ from WLOW to WLOW'*) 
+      induction 1 as [WLOW WLOW' HStep | (* fill me in for trans_step *) ].
+      (* single step of transition+ *)
+      + induction HStep as
+          [WLOW n st ps es initN initEq |
+           (* fill me in for packet step *)].
+        (* We moved from WLOW by an initalization step *)
+        - set WLOW' := {|
+                    localState := upd_localState nodeINTDec n st (localState WLOW);
+                    inFlight := (inFlight WLOW ++ ps)%list;
+                    trace := (trace WLOW ++ es)%list;
+                    initNodes := upd_initNodes nodeINTDec n (initNodes WLOW) |}.
+          (* Does WLOW' have any uninitalized nodes?*)
+          case: (nodesInitOrWitness WLOW') => WLOW'_initH WINT MatchH.
+          * (* All nodes have initalized, this is the state immediatly before the
+              server's first big step *)
+            induction MatchH; last first.
+            by congruence. (* Since there are uninitialized components, we know
+              that we had to take an initalization step *)
+            { left. eexists. split.
+              - apply batchInitStep.
+              - apply postInitMatch.
+                { move => n'. rewrite /postInitWorld /WLOW' /initStateNode /upd_localState /=.
+                  case: (nodeINTDec n (clientID n')) => eqN ; subst => /=.
+                  * rewrite initEq. by [].
+                  * rewrite H0. by [].
+                    case_eq (initNodes WLOW (clientID n')) => initH. by [].
+                    specialize (WLOW'_initH (clientID n')). rewrite <- WLOW'_initH.
+                    rewrite <- initH. rewrite /WLOW' /upd_initNodes /=.
+                    case: (nodeINTDec n (clientID n')) => initH'. congruence. by[].
+                }
+                { rewrite /preInitWorld => n'. by []. }
+                { by []. }
+                { move => n'.
+                  rewrite /postInitWorld /WLOW' /clientInfo_fromWorld /=.
+                  generalize dependent n => n. case: n.
+                  (* If n is the server *)
+                  + move => st initN initEq WLOW' WLOW'_initH.
+                    have Hps : ps = [::].
+                    { rewrite <- serverInitSize.
+                      rewrite /initMsgNode initEq. by [].
+                    }
+                    rewrite Hps List.app_nil_r. admit.
+                  + move => n st initN initEq WLOW' WLOW'_initH.  
+                    move: (clientInitSize n).
+                    admit.
+                }
+                { (* Show trace equivalence, probably need to assume that nothing
+                      sends trace messages on initalization, or weaken equaility *)
+                  admit. }
+            }
+          *  (* A client remains uninitalized *)
+              induction MatchH; last first.
+              by congruence. (* Uninitalized components restrict
+                  the match just like above *)
+              { right. split.
+                  (* Show that the measure decreases *)
+                - rewrite /world_measure.
+                  have H' : (countUninit WLOW' + 1 = countUninit WLOW).
+                  { apply initStep_countUninit; by []. }
+                  generalize dependent n => n.
+                  case: n; intros.
+                  * have H'' : length (inFlight WLOW) = length (inFlight WLOW').
+                    apply initStep_countInFlight_server; by []. rewrite -H' H''.
+                    rewrite mulnDr -addnA ltn_add2l -{1}[length (inFlight WLOW')]
+                            add0n ltn_add2r. by []. 
+                  * have H'' : length (inFlight WLOW) + 1 = length (inFlight WLOW').
+                    apply initStep_countInFlight_client; by []. rewrite -H' -H''.
+                    rewrite mulnDr -addnA ltn_add2l {1} addnC ltn_add2r. by [].
+                  (* Establish match relation with initWorld *)
+                - destruct WLOW'_initH as [n' WLOW'_initH].
+                  apply preInitMatch with (n := n').
+                  { by []. }
+                  { move => n''. admit. }
+                  { move => n''. admit. }
+                  { move => n''. admit. }
+                  { move => n''. admit. }
+              }
+        (* We moved from WLOW by a node step *)
+        - admit.
+      (* Transitive component of + relation *)
+      + admit.
     Admitted.
-
   End refinement.
 End intermediateSemantics.
