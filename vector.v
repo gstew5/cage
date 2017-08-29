@@ -11,6 +11,7 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
 Require Import strings compile orderedtypes dyadic numerics.
+Require Import listlemmas maplemmas.
 
 (** Dyadic-valued sparse vectors, implemented as balanced binary trees *)
 
@@ -25,31 +26,6 @@ Module Type PAYLOAD.
   Parameter t_of_u : u -> t.
   Parameter t_of_u_t : forall t, t_of_u (u_of_t t) = t.
 End PAYLOAD.  
-
-(* TODO: Move *)
-Lemma map_list_map A B (f : A -> B) l : List.map f l = map f l.
-Proof. by elim: l. Qed.
-
-Lemma Permutation_NoDup_map_inj A B (f : A -> B) (l l' : seq A) (H : injective f) :
-  NoDup l ->
-  NoDup l' -> 
-  Permutation (List.map f l) (List.map f l') ->
-  Permutation l l'.
-Proof.
-  move => H1 H2 H3; apply: NoDup_Permutation => //.
-  move => x; split => Hin.
-  { have Hin': In (f x) (List.map f l) by apply: in_map.
-    suff: In (f x) (List.map f l').
-    { by rewrite in_map_iff; case => xx; case; move/H => <-. }
-    apply: Permutation_in; first by apply: H3.
-    apply: Hin'. }
-  have Hin': In (f x) (List.map f l') by apply: in_map.
-  suff: In (f x) (List.map f l).
-  { by rewrite in_map_iff; case => xx; case; move/H => <-. }
-  apply: Permutation_in; first by apply: (Permutation_sym H3).
-  apply: Hin'.
-Qed.
-(* END TODO *)
 
 Module Vector (B : BOUND) (P : PAYLOAD).
   Module Ix := MyOrdNatDepProps B. (* the indices *)

@@ -9,6 +9,7 @@ Require Import Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
 Require Import strings compile combinators ccombinators numerics dyadic.
+Require Import listlemmas maplemmas.
 (* Boolability is important to our construction of affine games,
       however, it is non-essential and problematic for more advanced
       games (e.g. the routing games shown in routing.v)
@@ -706,51 +707,6 @@ Module MyOrdNatDep (B : BOUND) <: MyOrderedType.
   Instance cost_instance (n : nat) : CCostClass n t := fun _ _ => 0%D.
   Instance cost_max (n : nat) : CCostMaxClass n t := 0%D.
 End MyOrdNatDep.  
-
-Lemma app_cons A (l1 l2 : list A) x y :
-  l1 ++ [:: x] = y :: l2 ->
-  (l1=nil /\ l2=nil /\ x=y) \/ 
-  exists l1',
-    [/\ l1 = y :: l1' 
-      & l2 = l1' ++ [:: x]].
-Proof.
-  elim: l1 l2 => //.
-  { by move => l2 /=; inversion 1; subst; left. }
-  move => a l1 /= IH l2; inversion 1; subst; right.
-  exists l1; split => //.
-Qed.
-
-Lemma rev_nil A (l : list A) : List.rev l = nil -> l=nil.
-Proof.
-  elim: l => // a l IH /= H.
-  by elimtype False; apply (app_cons_not_nil (List.rev l) nil a).
-Qed.    
-
-Lemma rev_cons' A (l1 l2 : list A) x :
-  List.rev l1 = x :: l2 ->
-  exists l1', [/\ l1=l1' ++ [:: x] & List.rev l1'=l2].
-Proof.                
-  elim: l1 l2 => // a l1' IH l2 /= H.
-  apply app_cons in H; case: H.
-  { case => H1 []H2 H3; subst.
-    exists nil; split => //=.
-    have ->: l1' = [::].
-    { clear - H1; elim: l1' H1 => //= a l IH H.
-      elim: (List.rev l) H => //. }
-    by []. }
-  case => l1'' [] H1 ->.
-  case: (IH _ H1) => lx [] H2 H3; subst.
-  exists (a::lx); split => //.
-Qed.
-
-Lemma map_inj A B (f : A -> B) (l1 l2 : list A) (H : injective f) :
-  List.map f l1 = List.map f l2 -> l1=l2.
-Proof.
-  elim: l1 l2; first by case.
-  move => a l1' IH; case => // b l2' /=; inversion 1; subst; f_equal.
-  { by apply: H. }
-  by apply: IH.
-Qed.
   
 Module MyOrdNatDepProps (B : BOUND).
   Module M := MyOrdNatDep B. Include M.

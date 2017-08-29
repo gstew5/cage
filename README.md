@@ -12,10 +12,33 @@ An introduction to the research ideas underlying Cage (in the form of a technica
 
 ## Prerequisites
 
-* Coq 8.5
-* Ssreflect 1.6
+* Coq 8.6
+* Ssreflect 1.6.1
 * OCaml (>= 4.02.1)
 * Zarith OCaml library (>= 1.5)
+
+#### The prerequisites can be acquired using the package manager [OPAM](https://opam.ocaml.org/)
+The following steps were done with the aptitude package manager.
+
+
+#### To install and setup OPAM, the following steps are to be taken:
+```
+apt-get install opam
+opam init
+opam switch 4.02.3
+eval `opam config env`
+```
+
+#### Once OPAM is setup with OCaml (>= 4.02.1):
+```
+opam install coq.8.6
+opam repo add coq-released https://coq.inria.fr/opam/released
+opam install coq-mathcomp-ssreflect.1.6.1
+apt-get install libgmp-dev
+opam install zarith
+opam install coq-mathcomp-algebra
+```
+
 
 ## Build Instructions
 

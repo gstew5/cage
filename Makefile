@@ -122,7 +122,10 @@ VFILES:=bigops.v\
   strings.v\
   machine.v\
   staging.v\
-  vector.v
+  vector.v\
+  listlemmas.v\
+  maplemmas.v\
+  subsettypes.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
