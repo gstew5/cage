@@ -10,8 +10,8 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import dist weights numerics bigops games weightslang smooth networkSemantics.
-Require Import machine.
+Require Import dist weights numerics bigops games weightslang smooth.
+Require Import machine networkSemantics listlemmas.
 
 Section machine_semantics.
 
@@ -82,18 +82,6 @@ Section machine_semantics.
   Definition all_clients_received (S : serverState) :=
     forall x, x \in support_for None (S.(received)).
 
-  Lemma list_all_dec (X : Type) (P : X -> Prop) :
-    (forall a, decidable (P a)) -> forall l, decidable (forall a, List.In a l -> P a).
-  Proof.
-    clear. move=> H0 l. induction l => /=.
-    { by left. }
-    { move: (H0 a) => H0a. destruct H0a.
-      { destruct IHl.
-        { by left; move=> a0 [H1|H2]; subst; auto. }
-        { by right; auto.  } }
-      { by right; auto. } }
-  Qed.
-
   Definition all_clients_received_dec : forall S,
     {all_clients_received S} + {~ all_clients_received S}.
   Proof.
@@ -102,7 +90,7 @@ Section machine_semantics.
     { move=> x; destruct (x \in _); by [left|right]. }
     move: (list_all_dec in_dec (enum 'I_N)) => H0.
     destruct H0; auto.
-    { by left => x; apply i, ccombinators.list_in_iff; rewrite enumT. }
+    { by left => x; apply i, list_in_iff; rewrite enumT. }
   Qed.
 
   Definition dist_of_all_clients (S : serverState) (pf : all_clients_received S) :
@@ -134,7 +122,7 @@ Section machine_semantics.
 
   (* On initialization, the server just waits *)
   Definition serverInit :
-    unit -> (serverState * list machine_packet * list machine_event) :=
+    machine_node -> (serverState * list machine_packet * list machine_event) :=
   fun _ => ( mkServerState (finfun (fun x => None))
            , nil
            , nil).
@@ -177,7 +165,7 @@ Section machine_semantics.
   Variable clientPreInit : clientState.
 
   Variable clientInit :
-    unit -> (clientState * list machine_packet * list machine_event).
+    machine_node -> (clientState * list machine_packet * list machine_event).
   
   Variable clientRecv :
     machine_msg ->
@@ -202,14 +190,14 @@ Section machine_semantics.
   end.
   
   Definition initStateMWU :
-    (localStateTy machine_node machine_msg machine_event network_descMWU) :=
+    (localStateTy network_descMWU) :=
   fun node => match node with
   | server => serverPreInit
   | client_n _ => clientPreInit
   end.
 
   Definition initWorldMWU :
-    World machine_node machine_msg machine_event network_descMWU :=
+    World network_descMWU :=
     {| localState := initStateMWU ;
        inFlight  := nil ;
        trace     := nil ;

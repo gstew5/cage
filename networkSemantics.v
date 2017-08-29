@@ -1,4 +1,4 @@
-Require Import ccombinators.
+Require Import listlemmas.
 
 Section NetworkSemantics.
 Set Implicit Arguments.  
@@ -434,31 +434,6 @@ Section intermediateSemantics.
        should be equivalent provided each client only has at most one message in
        in the list (the NoDup restriction imposed on l1_fil *)
 
-
-    Lemma filterPreservesPerm : 
-      forall A (l1 l2 : list A) f, Permutation l1 l2 ->
-        Permutation (filter f l1) (filter f l2).
-    Proof.
-      move => A l1 l2 f perm.
-      induction perm.
-     + by [].
-      + simpl. case: (f x).
-        - apply perm_skip. apply IHperm.
-        - apply IHperm.
-      + simpl. case (f x); case (f y); try solve [by constructor].
-        - apply Permutation_refl.
-      + apply (perm_trans IHperm1 IHperm2).
-    Qed.
-
-    Lemma mapPreservesPerm :
-      forall A B (l1 l2 : list A) (f : A -> B), Permutation l1 l2 -> 
-        Permutation (map f l1) (map f l2).
-    Proof.
-      move => A B l1 l2 f perm.
-      induction perm; try solve [by constructor].
-      apply (perm_trans IHperm1 IHperm2).
-    Qed.
-
     Lemma clientServerInfo_messageList_perm (l1 l2 : list (packet nodeINT msgINT)) :
       let l1_fil := (List.filter isSome
                       (map msgOriginClient_opt 
@@ -566,11 +541,6 @@ Section intermediateSemantics.
     Definition world_measure : WorldINT -> nat :=
       fun w => 2*(countUninit w) + (length (inFlight w)).
 
-    Lemma nodup_cons_notin (A : Type) (a : A) (l : list A) :
-      List.NoDup (a :: l) ->
-      ~ List.In a l.
-    Proof. clear. move=> H. inversion H; auto. Qed.
-
     Lemma count_upd_notin_same (A : Type) (pred : A -> bool) (l : list A) (a : A) (b : bool)
           (a_dec : forall x y : A, {x = y} + {x <> y}) :
       ~ List.In a l ->
@@ -608,106 +578,11 @@ Section intermediateSemantics.
         simpl. rewrite -IHl. by rewrite addnA. }
     Qed.
 
-    Lemma not_in_cons (A : eqType) (a a0 : A) (l : list A) :
-      a <> a0 ->
-      a \notin l ->
-      a \notin a0 :: l.
-    Proof.
-      clear. move=> H0 H1.
-      rewrite in_cons. apply /negP => /orP [H2 | H3].
-      move: H2 => /eqP H2. congruence. rewrite H3 in H1. inversion H1.
-    Qed.
-
-    Lemma list_notin_iff (A : eqType) (a : A) (l : list A) :
-      ~ List.In a l <-> a \notin l.
-    Proof.
-      split => H0.
-      { induction l; auto.
-        simpl in H0.
-        apply Decidable.not_or in H0. destruct H0 as [H0 H1].
-        apply IHl in H1. apply not_in_cons; auto. }
-      { move=> Contra. apply ccombinators.list_in_iff in Contra.
-        by rewrite Contra in H0. }
-    Qed.
-
-    Lemma nodup_uniq (A : eqType) (l : list A) :
-      List.NoDup l <-> uniq l = true.
-    Proof.
-      split => H0.
-      { induction l; auto.
-        simpl. apply /andP. split. inversion H0; subst. apply IHl in H3.
-        induction H0; subst; auto. simpl. apply list_notin_iff; auto.
-        inversion H0; subst. by apply IHl in H3. }
-      { induction l.
-        { apply List.NoDup_nil. }
-        { simpl in H0. move: H0 => /andP [H0 H1]. constructor.
-          { by apply list_notin_iff. }
-          { by apply IHl. } } }
-    Qed.
-
-    Lemma map_nodup (A B : eqType) (f : A -> B) (l : list A)
-          (inj : injective f) :
-      List.NoDup l ->
-      List.NoDup (map f l).
-    Proof.
-      move=> H0.
-      apply nodup_uniq in H0. rewrite nodup_uniq.
-      rewrite map_inj_uniq; auto.
-    Qed.
-
-    Lemma map_in (A B : eqType) (f : A -> B) (a : A) (l : list A)
-          (inj : injective f) :
-      List.In a l ->
-      List.In (f a) (map f l).
-    Proof.
-      clear. move=> H0.
-      induction l.
-      { inversion H0. }
-      { simpl in *. destruct H0 as [H0 | H1].
-        { by subst; left. }
-        { by right; apply IHl. } }
-    Qed.
-
     Lemma serverID_neq_map_client l :
       ~ List.In serverID (map clientID l).
     Proof.
       clear. induction l; auto.
       move=> [H0 | H1]; auto. congruence.
-    Qed.
-
-    Lemma enumP_uniq (T : eqType) (l : list T) :
-      Finite.axiom (T:=T) l -> uniq l.
-    Proof.
-      clear. rewrite /Finite.axiom => H0.
-      apply count_mem_uniq. move=> x. specialize (H0 x).
-      induction l; auto.
-      simpl in *. destruct (a == x) eqn:Heqax.
-      { simpl in *. have H1: (count_mem x l = 0) by auto.
-        rewrite H0. rewrite in_cons. rewrite eq_sym in Heqax.
-        by rewrite Heqax. }
-      { simpl in *. rewrite add0n. rewrite add0n in H0. rewrite in_cons.
-      rewrite eq_sym in Heqax. rewrite Heqax. simpl. by apply IHl. }
-    Qed.
-
-    Lemma count_mem_1_in (A : eqType) (a : A) (l : list A) :
-      count_mem a l = 1 ->
-      a \in l.
-    Proof.
-      clear. move=> H0.
-      induction l. inversion H0.
-      simpl in *. rewrite in_cons. destruct (a == a0) eqn:Heq; auto.
-      rewrite eq_sym in H0. rewrite Heq in H0. simpl in *.
-      rewrite add0n in H0. by apply IHl.
-    Qed.
-
-    Lemma ordinal_in_enum (n : nat) (i : 'I_n) :
-      i \in Finite.enum (ordinal_finType n).
-    Proof.
-      clear.
-      move: (mem_ord_enum i) => H0.
-      move: enumP => enumP. specialize (enumP (ordinal_finType n)).
-      rewrite /Finite.axiom in enumP.
-      specialize (enumP i). by apply count_mem_1_in.
     Qed.
 
     (* This shouldn't be strictly necessary but it's convenient at the moment. *)
@@ -742,8 +617,7 @@ Section intermediateSemantics.
           { move=> i j H1. by inversion H1. } } }
       { destruct n. by left. simpl. right.
         apply map_in. move=> i j H1. by inversion H1.
-        apply list_in_iff. rewrite enumT.
-        apply ordinal_in_enum. }
+        apply list_in_finType_enum. }
       { by rewrite H. }
       { rewrite /upd_initNodes. apply functional_extensionality => x.
         by destruct (nodeINTDec n x); auto. }
