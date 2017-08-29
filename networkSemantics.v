@@ -1,3 +1,5 @@
+Require Import ccombinators.
+
 Section NetworkSemantics.
 Set Implicit Arguments.  
   Variable node  : Type. (* The type of node identifiers *)
@@ -139,6 +141,17 @@ Section intermediateSemantics.
       - left; subst => //.
       - right => Hcontra. inversion Hcontra. congruence.
   Qed.
+  
+  Lemma nodeINT_eqP : Equality.axiom nodeINTDec.
+  Proof.
+    rewrite /Equality.axiom.
+    case; case. 
+    { destruct nodeINTDec. left; auto. congruence. }
+    { move=> i. destruct nodeINTDec. congruence. right; auto. }
+    { move=> m i y. destruct nodeINTDec. left; auto. right; auto. }
+  Qed.
+  Definition nodeINT_eqMixin := EqMixin nodeINT_eqP.
+  Canonical nodeINT_eqType := Eval hnf in EqType nodeINT nodeINT_eqMixin.
 
   Definition isClient : nodeINT -> bool :=
   fun (n : nodeINT) =>
@@ -455,7 +468,7 @@ Section intermediateSemantics.
     Proof.
       move => l1_fil no_dup1 perm n.
       set l2_fil := (List.filter isSome
-                      (map msgOriginClient_opt 
+                      (map msgOriginClient_opt
                         (map (fun x => x.2) l2))).
       have perm' : Permutation l1_fil l2_fil.
       {
@@ -548,18 +561,161 @@ Section intermediateSemantics.
           Match WINT WLOW.
 
     Definition countUninit : WorldINT -> nat :=
-      fun w =>
-        foldr
-          (fun n acc => if (initNodes w) n then acc else 1+acc)
-          0
-          (serverID::(map clientID (enum 'I_N))).
+      fun w => count (fun n => negb (initNodes w n)) (serverID::(map clientID (enum 'I_N))).
 
     Definition world_measure : WorldINT -> nat :=
       fun w => 2*(countUninit w) + (length (inFlight w)).
 
+    Lemma nodup_cons_notin (A : Type) (a : A) (l : list A) :
+      List.NoDup (a :: l) ->
+      ~ List.In a l.
+    Proof. clear. move=> H. inversion H; auto. Qed.
+
+    Lemma count_upd_notin_same (A : Type) (pred : A -> bool) (l : list A) (a : A) (b : bool)
+          (a_dec : forall x y : A, {x = y} + {x <> y}) :
+      ~ List.In a l ->
+      count (fun a' : A => if a_dec a a' then b else pred a') l = count pred l.
+    Proof.
+      clear. move=> H0.
+      induction l; auto. simpl in *.
+      apply Decidable.not_or in H0. destruct H0 as [H0 H1].
+      destruct (a_dec a a0); auto. congruence.
+    Qed.
+
+    Lemma update_count_minus_1 (A : Type) (pred pred' : A -> bool) (l : list A) (a : A)
+          (a_dec : forall x y : A, {x = y} + {x <> y}) :
+      List.NoDup l ->
+      List.In a l ->
+      pred a = true ->
+      (pred' = fun a' : A => if a_dec a a' then false else pred a') ->
+      count pred' l + 1 = count pred l.
+    Proof.
+      move=> H0 H1 H2 H3.
+      induction l. inversion H1.
+      simpl. destruct (a_dec a a0); subst.
+      { destruct (a_dec a0 a0); auto.
+        { simpl. clear e.
+          have H3: (~ List.In a0 l).
+          { by apply nodup_cons_notin. }
+          have ->: (count (fun a' : A => if is_left (a_dec a0 a') then false else pred a') l =
+                    count pred l).
+          { by apply count_upd_notin_same. }
+          rewrite H2. simpl. rewrite add0n. apply addnC. }
+        { congruence. } }
+      { simpl in *. destruct H1. congruence.
+        apply List.NoDup_cons_iff in H0. destruct H0 as [H0 H1].
+        specialize (IHl H1 H). destruct (a_dec a a0). congruence.
+        simpl. rewrite -IHl. by rewrite addnA. }
+    Qed.
+
+    Lemma not_in_cons (A : eqType) (a a0 : A) (l : list A) :
+      a <> a0 ->
+      a \notin l ->
+      a \notin a0 :: l.
+    Proof.
+      clear. move=> H0 H1.
+      rewrite in_cons. apply /negP => /orP [H2 | H3].
+      move: H2 => /eqP H2. congruence. rewrite H3 in H1. inversion H1.
+    Qed.
+
+    Lemma list_notin_iff (A : eqType) (a : A) (l : list A) :
+      ~ List.In a l <-> a \notin l.
+    Proof.
+      split => H0.
+      { induction l; auto.
+        simpl in H0.
+        apply Decidable.not_or in H0. destruct H0 as [H0 H1].
+        apply IHl in H1. apply not_in_cons; auto. }
+      { move=> Contra. apply ccombinators.list_in_iff in Contra.
+        by rewrite Contra in H0. }
+    Qed.
+
+    Lemma nodup_uniq (A : eqType) (l : list A) :
+      List.NoDup l <-> uniq l = true.
+    Proof.
+      split => H0.
+      { induction l; auto.
+        simpl. apply /andP. split. inversion H0; subst. apply IHl in H3.
+        induction H0; subst; auto. simpl. apply list_notin_iff; auto.
+        inversion H0; subst. by apply IHl in H3. }
+      { induction l.
+        { apply List.NoDup_nil. }
+        { simpl in H0. move: H0 => /andP [H0 H1]. constructor.
+          { by apply list_notin_iff. }
+          { by apply IHl. } } }
+    Qed.
+
+    Lemma map_nodup (A B : eqType) (f : A -> B) (l : list A)
+          (inj : injective f) :
+      List.NoDup l ->
+      List.NoDup (map f l).
+    Proof.
+      move=> H0.
+      apply nodup_uniq in H0. rewrite nodup_uniq.
+      rewrite map_inj_uniq; auto.
+    Qed.
+
+    Lemma map_in (A B : eqType) (f : A -> B) (a : A) (l : list A)
+          (inj : injective f) :
+      List.In a l ->
+      List.In (f a) (map f l).
+    Proof.
+      clear. move=> H0.
+      induction l.
+      { inversion H0. }
+      { simpl in *. destruct H0 as [H0 | H1].
+        { by subst; left. }
+        { by right; apply IHl. } }
+    Qed.
+
+    Lemma serverID_neq_map_client l :
+      ~ List.In serverID (map clientID l).
+    Proof.
+      clear. induction l; auto.
+      move=> [H0 | H1]; auto. congruence.
+    Qed.
+
+    Lemma enumP_uniq (T : eqType) (l : list T) :
+      Finite.axiom (T:=T) l -> uniq l.
+    Proof.
+      clear. rewrite /Finite.axiom => H0.
+      apply count_mem_uniq. move=> x. specialize (H0 x).
+      induction l; auto.
+      simpl in *. destruct (a == x) eqn:Heqax.
+      { simpl in *. have H1: (count_mem x l = 0) by auto.
+        rewrite H0. rewrite in_cons. rewrite eq_sym in Heqax.
+        by rewrite Heqax. }
+      { simpl in *. rewrite add0n. rewrite add0n in H0. rewrite in_cons.
+      rewrite eq_sym in Heqax. rewrite Heqax. simpl. by apply IHl. }
+    Qed.
+
+    Lemma count_mem_1_in (A : eqType) (a : A) (l : list A) :
+      count_mem a l = 1 ->
+      a \in l.
+    Proof.
+      clear. move=> H0.
+      induction l. inversion H0.
+      simpl in *. rewrite in_cons. destruct (a == a0) eqn:Heq; auto.
+      rewrite eq_sym in H0. rewrite Heq in H0. simpl in *.
+      rewrite add0n in H0. by apply IHl.
+    Qed.
+
+    Lemma ordinal_in_enum (n : nat) (i : 'I_n) :
+      i \in Finite.enum (ordinal_finType n).
+    Proof.
+      clear.
+      move: (mem_ord_enum i) => H0.
+      move: enumP => enumP. specialize (enumP (ordinal_finType n)).
+      rewrite /Finite.axiom in enumP.
+      specialize (enumP i). by apply count_mem_1_in.
+    Qed.
+
+    (* This shouldn't be strictly necessary but it's convenient at the moment. *)
+    Require Import FunctionalExtensionality.
+
     (* An initalization step at the low level decreases countUninit by 1 *)
-    Lemma initStep_countUninit : forall w n st ps es, 
-      initNodes w n = false ->  
+    Lemma initStep_countUninit : forall w n st ps es,
+      initNodes w n = false ->
       init (network_descINT n) n = (st, ps, es) ->
       countUninit
         {|
@@ -570,16 +726,28 @@ Section intermediateSemantics.
       countUninit w.
     Proof.
       rewrite /countUninit.
-      move => w n.
-      case: n. move => st ps es H1 H2. simpl. rewrite/ upd_initNodes.
-      + intros. destruct nodeINTDec; last first. by congruence.      
-        rewrite H1. rewrite addnC. f_equal.
-        rewrite !foldr_map /foldr. induction (Finite.enum (ordinal_finType N)).
-        by []. rewrite -IHl. destruct (initNodes w (clientID a)).
-        destruct nodeINTDec; last first. by congruence. by [].
-        destruct nodeINTDec; last first. by congruence. inversion e0.
-      + intros. simpl. admit.
-    Admitted.
+      intros.
+      have ->: (initNodes
+       {|
+       localState := upd_localState nodeINTDec n st (localState w);
+       inFlight := (inFlight w ++ ps)%list;
+       trace := (trace w ++ es)%list;
+       initNodes := upd_initNodes nodeINTDec n (initNodes w) |} =
+                  upd_initNodes nodeINTDec n (initNodes w)) by [].
+      apply update_count_minus_1 with (a:=n) (a_dec:=nodeINTDec).
+      { apply List.NoDup_cons.
+        { apply serverID_neq_map_client. }
+        { rewrite nodup_uniq. rewrite map_inj_uniq.
+          { rewrite enumT. apply enumP_uniq, enumP. }
+          { move=> i j H1. by inversion H1. } } }
+      { destruct n. by left. simpl. right.
+        apply map_in. move=> i j H1. by inversion H1.
+        apply list_in_iff. rewrite enumT.
+        apply ordinal_in_enum. }
+      { by rewrite H. }
+      { rewrite /upd_initNodes. apply functional_extensionality => x.
+        by destruct (nodeINTDec n x); auto. }
+    Qed.
 
    (* A server initalization step at the low level does not increase
       the inFlight count at all *)
