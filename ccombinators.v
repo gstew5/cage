@@ -17,6 +17,7 @@ Import GRing.Theory Num.Def Num.Theory.
 Require Import strings.
 Require Import extrema dist numerics bigops dyadic.
 Require Import games compile smooth christodoulou combinators.
+Require Import listlemmas maplemmas subsettypes.
 
 Local Open Scope ring_scope.
 
@@ -317,28 +318,6 @@ Proof.
   rewrite count_map => /=.
   rewrite -!sum1_count => //.
 Qed.
-
-Lemma list_in_iff {X : eqType} (x : X) (l : list X) :
-  x \in l <-> List.In x l.
-Proof.
-  split.
-  { elim: l.
-    - move => H. inversion H.
-    - move => a l IHl H. rewrite in_cons in H.
-      move: H => /orP [H | H].
-      + simpl. left. move: H => /eqP H. by rewrite H.
-      + right. by apply IHl. }
-  { elim: l.
-    - move => H. inversion H.
-    - move => a l IHl H.
-      case: H => H; rewrite in_cons; apply /orP.
-      + left. rewrite H //.
-      + right. by apply IHl. }
-Qed.
-
-Lemma list_in_finType_enum {X : finType} (x : X) :
-    List.In x (enum X).
-  Proof. by apply list_in_iff, mem_enum. Qed.
 
 Lemma N_of_nat_of_bin x :
   N.of_nat (nat_of_bin x) = x.
@@ -675,97 +654,6 @@ Instance sigmaCCostMaxInstance (N : nat) (A : Type)
   : @CCostMaxClass N {x : A | the_pred x} := ccostMaxInstance.
 
 Section sigmaCompilable.
-  Definition to_sigma A (f : A -> bool) (x : A) : option {x : A | f x} :=
-    (match f x return f x = _ -> option {x : A | f x} with
-     | false => fun _ => None
-     | true => fun pf => Some (exist f x pf)
-     end) erefl.
-
-  Fixpoint filter_sigma A (f : A -> bool) (l : seq A) : seq {x : A | f x} :=
-    match l with
-    | nil => nil
-    | h :: t =>
-      match to_sigma f h with
-      | Some x => x :: filter_sigma f t
-      | None => filter_sigma f t
-      end
-    end.
-
-  Lemma to_sigma_true_Some A (f : A -> bool) x :
-    f x = true ->
-    exists x', to_sigma f x = Some x'.
-  Proof.
-    rewrite /to_sigma.
-    move: (exist (fun x0 => f x0) x).
-    case: (f x) => //.
-    by move => s pf; exists (s erefl).
-  Qed.
-
-  Lemma to_sigma_inj (A : finType) (f : A -> bool) a b :
-    to_sigma f a = Some b ->
-    a = proj1_sig b.
-  Proof.
-    rewrite /to_sigma.
-    have H: forall pf', (proj1_sig (exist (fun x => f x) a pf') = a) by [].
-    move: H.
-    move: (exist (fun x => f x) a).
-    case: (f a) => // s H; case.
-    by rewrite -(H (erefl true)) => ->.
-  Qed.
-
-  Lemma to_sigma_None_false A (f : A -> bool) (a : A) :
-    to_sigma f a = None ->
-    f a = false.
-  Proof.
-    move=> H. destruct (f a) eqn:Hf => //.
-    have H0: (exists a', to_sigma f a = some a').
-    { by apply to_sigma_true_Some, Hf. }
-    destruct H0 as [a']. rewrite H in H0. inversion H0.
-  Qed.
-
-  Lemma mem_seq_filter
-        (A : finType) (f : A -> bool) (x : A) (x' : {x : A | f x}) l :
-    to_sigma f x = Some x' ->
-    mem_seq (filter_sigma f l) x' ->
-    mem_seq l x.
-  Proof.
-    move=> H0 H1. induction l. inversion H1.
-    simpl in H1. destruct (to_sigma f a) eqn:Hs.
-    move: H1=> /orP [H1 | H1]. apply /orP. left. 
-    move: H1=> /eqP H1. subst.
-    apply to_sigma_inj in Hs. apply to_sigma_inj in H0. subst => //.
-    apply /orP. right. apply IHl; assumption.
-    apply /orP. right. apply IHl; assumption.
-  Qed.
-
-  Lemma projT1_inj A (f : A -> bool) (a b : {x : A | f x}) :
-    proj1_sig a = proj1_sig b ->
-    a = b.
-  Proof.
-    case: a; case: b=> /= x p x0 p0 H.
-    by subst; f_equal; apply proof_irrelevance.
-  Qed.
-
-  Lemma projT1_pred_true A (f : A -> bool) (a : A) (b : {x : A | f x}) :
-    a = proj1_sig b ->
-    f a = true.
-  Proof. by case: b=> /= x H0 H1; rewrite H1 H0. Qed.
-
-  Lemma list_in_filter_sigma
-        (A : finType) (f : A -> bool) (x : {x : A | f x}) (l : seq A) :
-    List.In (proj1_sig x) l ->
-    List.In x (filter_sigma f l).
-  Proof.
-    move=> H. induction l. inversion H.
-    simpl. simpl in H. destruct H as [H | H].
-    - destruct (to_sigma f a) eqn:Hs.
-      + simpl. apply to_sigma_inj in Hs. left. rewrite H in Hs.
-        apply projT1_inj in Hs. by rewrite Hs.
-      + apply projT1_pred_true in H. apply to_sigma_None_false in Hs.
-        congruence.
-    - destruct (to_sigma f a) eqn:Hs; try right; apply IHl; assumption.
-  Qed.
-
   Global Instance sigmaEnumerableInstance (A : Type)
            (enumerableInstance : Enumerable A)
            (predInstance : PredClass A)
@@ -878,24 +766,6 @@ End sigmaCompilable.
   Product Games are compilable 
  ***************************************)
 
-Lemma allpairs_list_prod (A B : eqType) (l1 : seq A) (l2 : seq B) :
-  [seq (a, b) | a <- l1, b <- l2] = List.list_prod l1 l2.
-Proof.
-  elim: l1 l2 => // a l IH l2 /=; rewrite IH.
-  have ->: [seq (a, b) | b <- l2] = List.map [eta pair a] l2.
-  { move {IH l}; elim: l2 => //. }
-  by [].
-Qed.
-
-Lemma list_prod_uniq (A B : eqType) (l1 : seq A) (l2 : seq B) :
-  uniq l1 ->
-  uniq l2 ->
-  uniq (List.list_prod l1 l2).
-Proof.
-  move => H1 H2; move: (allpairs_uniq H1 H2 (f:=fun a b => (a,b))).
-  by rewrite -allpairs_list_prod; apply; case => x y; case => z w.
-Qed.
-
 Instance prodEnumerableInstance (aT bT : Type)
          (enumerableA : Enumerable aT)
          (enumerableB : Enumerable bT)
@@ -928,38 +798,6 @@ Instance prodRefineTypeInstance (aT bT : finType)
          `(refineTypeAxiomInstanceA : RefineTypeAxiomClass aT)
          `(refineTypeAxiomInstanceB : RefineTypeAxiomClass bT)
   : @RefineTypeClass [finType of aT*bT]  _ _.
-
-Definition map_split {aT bT : Type} (m : M.t (aT*bT)) :=
-    M.fold (fun i r acc =>
-              match r with
-              | (a, b) =>
-                (M.add i a acc.1, M.add i b acc.2)
-              end)
-           m (M.empty aT, M.empty bT).
-  
-Lemma map_split_spec (aT bT : Type) i (a : aT) (b : bT) m :
-  M.find i m = Some (a, b) ->
-  M.find i (map_split m).1 = Some a /\
-  M.find i (map_split m).2 = Some b.
-Proof.
-  { rewrite /map_split. apply MProps.fold_rec_weak.
-    { move => mo m' a' H0 H1 H2.
-      have H3: (forall (k : M.key) (e : (aT*bT)),
-                   M.MapsTo k e mo <-> M.MapsTo k e m').
-      { by apply MProps.F.Equal_mapsto_iff; apply H0. }
-      apply M.find_2 in H2. apply H3 in H2. apply M.find_1 in H2.
-      apply H1. apply H2. }
-    { move => H. inversion H. }
-    { move => k e a' m' H0 IH. case: e. move => a0 b0 H2 /=.
-      rewrite MProps.F.add_o. case: (MProps.F.eq_dec k i) => H3 //.
-      rewrite MProps.F.add_eq_o in H2; auto. inversion H2.
-      split. auto. rewrite MProps.F.add_eq_o //.
-      split. apply IH. rewrite MProps.F.add_neq_o in H2.
-      apply H2. apply H3.
-      rewrite MProps.F.add_neq_o. apply IH.
-      rewrite MProps.F.add_neq_o in H2.
-      apply H2. apply H3. apply H3. } }
-Qed.
 
 Instance prodCCostInstance
        N 
