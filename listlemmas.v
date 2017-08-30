@@ -116,7 +116,6 @@ Proof.
   apply: Hin'.
 Qed.
 
-
 Lemma filterPreservesPerm : 
   forall A (l1 l2 : list A) f,
     Permutation l1 l2 ->
@@ -168,19 +167,18 @@ Proof.
   rewrite map_inj_uniq; auto.
 Qed.
 
-    Lemma map_in (A B : eqType) (f : A -> B) (a : A) (l : list A)
-          (inj : injective f) :
-      List.In a l ->
-      List.In (f a) (map f l).
-    Proof.
-      clear. move=> H0.
-      induction l.
-      { inversion H0. }
-      { simpl in *. destruct H0 as [H0 | H1].
-        { by subst; left. }
-        { by right; apply IHl. } }
-    Qed.
-
+Lemma map_in (A B : eqType) (f : A -> B) (a : A) (l : list A)
+      (inj : injective f) :
+  List.In a l ->
+  List.In (f a) (map f l).
+Proof.
+  clear. move=> H0.
+  induction l.
+  { inversion H0. }
+  { simpl in *. destruct H0 as [H0 | H1].
+    { by subst; left. }
+    { by right; apply IHl. } }
+Qed.
 
 (*****************)
 (** Decidability *)
@@ -265,3 +263,83 @@ Proof.
   rewrite eq_sym in H0. rewrite Heq in H0. simpl in *.
   rewrite add0n in H0. by apply IHl.
 Qed.
+
+Lemma sorted_path (A : eqType) (a : A) (l : list A) (ord : rel A) :
+  sorted ord (a :: l) ->
+  path ord a l.
+Proof. by move=> H0; induction l; auto. Qed.
+
+Lemma pmap_sorted (A B : eqType) (f : A -> option B)
+      (ordA : rel A) (ordB : rel B)
+      (mono : forall x y, ordA x y -> match f x, f y with
+                                | None, _ => true
+                                | _, None => true
+                                | Some x', Some y' => ordB x' y'
+                                end)
+      (l : list A)
+      (mem : forall x, List.In x l -> f x <> None):
+  sorted ordA l ->
+  sorted ordB (pmap f l).
+Proof.
+  move=> H0. induction l; auto.
+  simpl. destruct (f a) eqn:Hfa.
+  { 
+    destruct l; auto. simpl in H0. simpl in IHl. simpl.
+    move: H0 => /andP [H0 H1].
+    destruct (f s0) eqn:Hfs0.
+    { simpl. apply /andP. split.
+      { apply mono in H0. rewrite Hfa in H0.
+        rewrite Hfs0 in H0. assumption. }
+      { apply IHl. 
+        move=> x [H2|H2]. 
+        subst. specialize (mem x). simpl in mem.
+        have H2: (a = x \/ x = x \/ List.In x l).
+        { by right; left. }
+        by apply mem in H2.
+        have H3: (a = x \/ s0 = x \/ List.In x l).
+        { by right; right. }
+        specialize (mem x). simpl in mem. by apply mem in H3.
+        assumption. } }
+    { specialize (mem s0). simpl in mem.
+      have H2: (a = s0 \/ s0 = s0 \/ List.In s0 l) by right; left.
+      apply mem in H2. congruence. } }
+  { specialize (mem a). simpl in mem.
+    have H1: (a = a \/ List.In a l) by left.
+    apply mem in H1. congruence. }
+Qed.
+
+(** enum 'I_N is sorted... *)
+Section ordEnumSorted.
+  Variable N : nat.
+  
+  Lemma enum_ord_enum : enum 'I_N = ord_enum N.
+  Proof. 
+    by rewrite enumT; rewrite Finite.EnumDef.enumDef.
+  Qed.
+    
+  Lemma ord_enum_sorted : sorted (fun i j => leq (nat_of_ord i) (nat_of_ord j))
+                             (enum 'I_N).
+  Proof.
+    rewrite enum_ord_enum. simpl. rewrite /ord_enum.
+    apply pmap_sorted with (ordA := leq).
+    move=> x y H0. rewrite /insub. simpl. destruct idP; auto. destruct idP; auto.
+    { move=> x H0. rewrite /insub. destruct idP. move=> Contra. congruence.
+      apply list_in_iff in H0.
+      rewrite mem_iota in H0.
+      exfalso. apply n. simpl in H0. by rewrite add0n in H0. }
+    { by apply iota_sorted. }
+  Qed.
+
+  Lemma ord_enum_sorted_lt : sorted (fun i j => ltn (nat_of_ord i) (nat_of_ord j))
+                                (enum 'I_N).
+  Proof.
+    rewrite enum_ord_enum. simpl. rewrite /ord_enum.
+    apply pmap_sorted with (ordA := ltn).
+    move=> x y H0. rewrite /insub. simpl. destruct idP; auto. destruct idP; auto.
+    { move=> x H0. rewrite /insub. destruct idP. move=> Contra. congruence.
+      apply list_in_iff in H0.
+      rewrite mem_iota in H0.
+      exfalso. apply n. simpl in H0. by rewrite add0n in H0. }
+    { by apply iota_ltn_sorted. }
+  Qed.
+End ordEnumSorted.
