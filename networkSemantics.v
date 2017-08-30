@@ -398,6 +398,13 @@ Section intermediateSemantics.
              n (pf1 :msgOrigin hasOrigin = clientID n) (pf2 : fst p = serverID),
     clientServerInfoType.
 
+    (* While the ability to recover the information relies on proofs, the actual
+        construction is irrelevant *)
+    Hypothesis clientServerInfo_PI : 
+      forall p n pf1 pf2 pf3 pf1' pf2' pf3',
+        @clientServerInfo_recoverable p pf1 n pf2 pf3 =
+        @clientServerInfo_recoverable p pf1' n pf2' pf3'.
+
     (* Tests a generic packet to produce a clientServerInfoType originating from
         clientID n *)
     Definition clientServerInfo_fromPacket (p : packet nodeINT msgINT) n
@@ -451,6 +458,7 @@ Section intermediateSemantics.
         apply mapPreservesPerm. apply mapPreservesPerm.
         apply perm. 
       }
+      rewrite /clientServerInfo_messageList.
       have noDup2 : List.NoDup l2_fil by apply (Permutation_NoDup perm' no_dup1).
       admit.
     Admitted.
@@ -472,7 +480,6 @@ Section intermediateSemantics.
         - only once per round, only to server, clients only add one message to stack *)
 
     (** Some assumptions about the operation of the clients **)
-
     (* Initalizaion of a client adds only one message to inFlight *)
     Hypothesis clientInitSize : forall n, {m | (initMsgNode (clientID n)) = m::nil}.
 
@@ -485,17 +492,23 @@ Section intermediateSemantics.
 
     (* All messages from a client init have that client as the origin of the msg *)
     Hypothesis clientInitOriginIsClient :
-      forall n p pf, msgOrigin (@clientInitHasOrigin n p pf) = clientID n.
+      forall n p (pf : msgHasOriginInfo (snd p)), List.In p (initMsgNode (clientID n)) ->
+        msgOrigin pf = clientID n.
 
     (* All messages from a client init are directed to the server *)
     Hypothesis clientInitSentToServer : 
-      forall n p, List.In p (initMsgNode (clientID n)) -> fst p = serverID.
+      forall n p, List.In p (initMsgNode (clientID n)) -> fst p = serverID.    
 
     (* Bundling these bits together, we can establish the information sent by
          the client during initalization *)
     Program Definition clientInit (n : 'I_N) : clientServerInfoType :=
       clientServerInfo_recoverable (proj1_sig (clientInitSize n))
-        (clientInitOriginIsClient n _ _) (clientInitSentToServer n _ _).
+        (clientInitOriginIsClient n _ _ _) (clientInitSentToServer n _ _).
+    Next Obligation.
+      apply (clientInitHasOrigin n).
+      case: (clientInitSize n) => p pf //=. rewrite pf.
+      left => //.
+    Qed.
     Next Obligation.
       case: (clientInitSize n) => p pf //=. rewrite pf.
       left => //.
@@ -656,6 +669,72 @@ Section intermediateSemantics.
          simpl in e. rewrite e //=. rewrite List.app_length //=.
     Qed.
 
+Check size_enum_ord.
+Check size.
+
+    Lemma foldSearchUniq : forall A B (f : A -> option B) (l : list A) x,
+      foldl (fun (o : option B) p =>
+        if o then o else f p) (Some x) l = Some x.
+    Proof.
+      induction l.
+      move => x. by [].
+      move => x. rewrite -{2}IHl.
+      compute. by [].
+    Qed.
+
+    Lemma clientInit_uniq : 
+      forall A B (f : A-> option B) (l : list A) x,
+        filter (fun y => isSome (f y)) l = [::x] ->
+        foldl (fun (o : option B) p =>
+          if o then o else f p) None l = f x.
+    Proof.
+      move => A B f.
+      induction l => x H.
+      + inversion H.
+      + case_eq (f a).
+        - move => b faEq. simpl in H. rewrite faEq in H. compute in H.
+          have Ha : a = x by [ destruct [seq y <- l | f y]; inversion H; by[]].
+          subst. rewrite faEq -(foldSearchUniq f l b).
+          unfold foldl. simpl.
+          fold (foldl (fun (o : option B) p => if o then o else f p)).
+          rewrite faEq. by [].
+          move => Ha. simpl in H. rewrite Ha in H. simpl in H. apply IHl in H.
+          rewrite -H. simpl. rewrite Ha. by [].
+    Qed.
+
+    Lemma clientInitMessage :
+      forall n, clientServerInfo_messageList initMsg n = Some (clientInit n).
+    Proof.
+      move => n. rewrite /clientServerInfo_messageList.
+      case: (clientInitSize n) => nP pf.
+      rewrite (@clientInit_uniq _ _ _ _ nP).
+      + rewrite /clientServerInfo_fromPacket /clientInit.
+        have nPHasOrigin : (msgHasOriginInfo nP.2).
+        apply (clientInitHasOrigin n nP). rewrite pf. left. by [].
+        destruct (msgHasOriginInfoDec nP.2); last first. by congruence.
+        have nPOrigin : msgOrigin m = clientID n.
+        apply clientInitOriginIsClient.
+        move: (clientInitHasOrigin n nP) => nP_origin.
+        rewrite pf. left => //.
+        destruct nodeINTDec; last first. congruence.
+        have nPDestination : (nP.1 = serverID).
+        apply (clientInitSentToServer n). rewrite pf. left => //.
+        destruct nodeINTDec; last by congruence.
+        rewrite /clientInit. simpl.
+        f_equal.
+        erewrite clientServerInfo_PI.
+        have H1 : nP = sval (clientInitSize n). destruct (clientInitSize n).
+        simpl. rewrite pf in e1. inversion e1 => //. dependent rewrite H1.
+        apply clientServerInfo_PI.
+      + rewrite /initMsg. admit.
+      Unshelve.
+        apply (clientInitHasOrigin n).
+        rewrite pf. left => //.
+        simpl.
+        apply (clientInitOriginIsClient n). rewrite pf. left => //. 
+        apply (clientInitSentToServer n). rewrite pf. left => //.
+    Admitted.
+
     Lemma INTsimulatesLOW : forall WLOW WLOW',
         (network_step_plus nodeINTDec WLOW WLOW') ->
         forall WINT, Match WINT WLOW ->
@@ -704,7 +783,11 @@ Section intermediateSemantics.
                     { rewrite <- serverInitSize.
                       rewrite /initMsgNode initEq. by [].
                     }
-                    rewrite Hps List.app_nil_r. admit.
+                    rewrite Hps List.app_nil_r.
+                    (*
+                    have H_rr : (clientServerInfo_messageList initMsg n') =
+                                (clientServerInfo_messageList (inFlight WLOW) n').
+                    apply clientServerInfo_messageList_perm. *) admit.
                   + move => n st initN initEq WLOW' WLOW'_initH.  
                     move: (clientInitSize n).
                     admit.
@@ -735,9 +818,25 @@ Section intermediateSemantics.
                 - destruct WLOW'_initH as [n' WLOW'_initH].
                   apply preInitMatch with (n := n').
                   { by []. }
-                  { move => n''. admit. }
-                  { move => n''. admit. }
-                  { move => n''. admit. }
+                  { move => n'' Hinit.
+                    rewrite /WLOW' /upd_localState => /=.
+                    case: (nodeINTDec n (clientID n'')) => Hupd.
+                    subst. simpl. rewrite /initStateNode.
+                    rewrite initEq => //. apply H0.
+                    rewrite /WLOW' in Hinit. simpl in Hinit.
+                    rewrite /upd_initNodes in Hinit.
+                    destruct (nodeINTDec n (clientID n'')); first by congruence. by [].
+                  }
+                  { move => n'' Hinit. rewrite /WLOW' /upd_localState /=.
+                    case: (nodeINTDec n n'') => Hupd. subst.
+                    - move: Hinit => Hcontra. rewrite /WLOW' in Hcontra. simpl in Hcontra.
+                      rewrite /upd_initNodes in Hcontra.
+                      destruct (nodeINTDec n'' n''); by congruence.
+                    - rewrite H1; first by []. rewrite /WLOW' in Hinit. simpl in Hinit.
+                      rewrite -Hinit /upd_initNodes. destruct (nodeINTDec n n''); last by [].
+                      congruence.
+                  }
+                  { move => n'' Hinit. admit. }
                   { move => n''. admit. }
               }
         (* We moved from WLOW by a node step *)
