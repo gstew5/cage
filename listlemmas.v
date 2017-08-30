@@ -308,6 +308,43 @@ Proof.
     apply mem in H1. congruence. }
 Qed.
 
+Lemma nodup_false_1 (A : Type) (a : A) (l1 l2 : list A) :
+  ~ NoDup (a :: l1 ++ a :: l2).
+Proof.
+  move=> Contra. apply (@NoDup_remove _ (a :: l1) l2 a) in Contra.
+  by destruct Contra as [H0 H1]; apply H1; left.
+Qed.
+
+Lemma uniq_excision (A : eqType) (a : A) (l : list A) :
+  NoDup l ->
+  List.In a l ->
+  exists l1 l2,
+    l = l1 ++ (a :: l2) /\
+    (forall a', (List.In a' l1 -> a' <> a) /\
+           (List.In a' l2 -> a' <> a)).
+Proof.
+  move=> H0 H1. induction l.
+  { inversion H1. }
+  { simpl in *. destruct H1 as [H1|H2].
+    { subst. exists [::], l. split; auto.
+      move=> a'. split.
+      { move=> Contra; auto. }
+      { move=> H1. apply NoDup_cons_iff in H0. destruct H0 as [H0 H0'].
+        move=> Contra. subst. congruence. } }
+    { inversion H0; subst. specialize (IHl H4 H2).
+      destruct IHl as [l1 [l2 [H5 H6]]].
+      exists (a0 :: l1), l2. split.
+      { simpl. by rewrite H5. }
+      { move=> a'. specialize (H6 a'). destruct H6 as [H6 H7].
+        split.
+        { move=> H8. simpl in H8. destruct H8 as [H8|H8].
+          { destruct (a == a') eqn:Haa';
+              move: Haa' => /eqP => Haa'; auto; subst.
+            by exfalso; apply nodup_false_1 with (a:=a') (l1:=l1) (l2:=l2). }
+          { by apply H6. } }
+        { move=> H1. by apply H7. } } } }
+Qed.
+
 (** enum 'I_N is sorted... *)
 Section ordEnumSorted.
   Variable N : nat.
@@ -342,4 +379,21 @@ Section ordEnumSorted.
       exfalso. apply n. simpl in H0. by rewrite add0n in H0. }
     { by apply iota_ltn_sorted. }
   Qed.
+
+  Lemma ord_enum_uniq : uniq (enum 'I_N).
+  Proof. by apply enumP_uniq; rewrite enumT; apply enumP. Qed.
+  
+  (** Surgery on an ordinal enumeration *)
+  Lemma ord_enum_excision :
+    forall n, exists l1 l2,
+        (enum 'I_N) = l1 ++ (n :: l2) /\
+        (forall n', (List.In n' l1 -> n' <> n) /\
+               (List.In n' l2 -> n' <> n)).
+  Proof.
+    move=> n.
+    apply uniq_excision.
+    - by apply nodup_uniq, enum_uniq.
+    - by apply list_in_finType_enum.
+  Qed.
+
 End ordEnumSorted.
