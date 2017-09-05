@@ -72,6 +72,19 @@ Proof.
       { by apply IHl. } } }
 Qed.
 
+Lemma nodup_uniq_false (A : eqType) (l : list A) :
+  ~ List.NoDup l <-> uniq l = false.
+Proof.
+  split; move=> H0.
+  { induction l.
+    { by exfalso; apply H0, NoDup_nil. }
+    { simpl. apply /andP. move=> [Contra1 Contra2].
+      apply H0. constructor.
+      { by rewrite list_notin_iff; auto. }
+      { by apply nodup_uniq; auto. } } }
+  { by move=> Contra; apply nodup_uniq in Contra; congruence. }
+Qed.
+
 (**************************)
 (** List.list_prod lemmas *)
 
@@ -99,7 +112,7 @@ Qed.
 Lemma Permutation_NoDup_map_inj A B (f : A -> B) (l l' : seq A) (H : injective f) :
   NoDup l ->
   NoDup l' -> 
-  Permutation (List.map f l) (List.map f l') ->
+  Permutation (map f l) (map f l') ->
   Permutation l l'.
 Proof.
   move => H1 H2 H3; apply: NoDup_Permutation => //.
@@ -193,6 +206,58 @@ Proof.
       { by left; move=> a0 [H1|H2]; subst; auto. }
       { by right; auto.  } }
     { by right; auto. } }
+Qed.
+
+(** all and Forall *)
+
+Lemma all_app (A : Type) (l1 l2 : list A) (pred : A -> bool) :
+  all pred (l1 ++ l2) <-> all pred l1 /\ all pred l2.
+Proof.
+  split; move=> H0.
+  { induction l1; split; auto.
+    { simpl in *. move: H0 => /andP [H0 H1]. apply /andP.
+      by apply IHl1 in H1; destruct H1 as [H1 H2]; split; auto. }
+    { simpl in H0. move: H0 => /andP [H0 H1].
+      by apply IHl1 in H1; destruct H1 as [H1 H2]; auto. } }
+  { induction l1.
+    { by destruct H0. }
+    { simpl in *. destruct H0 as [H0 H1]. move: H0 => /andP [H0 H2].
+      by apply /andP; split; auto. } }
+Qed.
+
+Lemma all_flatten (A : Type) (l : list (list A)) (pred : A -> bool) :
+  all (fun l' => all pred l') l ->
+  all pred (flatten l).
+Proof.
+  move=> H0.
+  induction l; auto.
+  { by apply all_app; move: H0 => /andP [H0 H1]; split; auto. }
+Qed.
+
+Lemma all_Forall_true_iff (A : Type) (l : list A) (pred : A -> bool) :
+  all pred l = true <-> Forall pred l.
+Proof.
+  split; move=> H0.
+  { induction l.
+    { by apply Forall_nil. }
+    { simpl in H0. move: H0 => /andP [H0 H1]. apply Forall_cons; auto. } }
+  { induction l; auto.
+    by simpl in *; inversion H0; subst; apply /andP; auto. }
+Qed.
+
+Lemma all_Forall_false_iff (A : Type) (l : list A) (pred : A -> bool) :
+  all pred l = false <-> ~ Forall pred l.
+Proof.
+  split; move=> H0.
+  { destruct l.
+    { by simpl in H0; congruence. }
+    { move=> Contra. simpl in *. inversion Contra; subst.
+      apply all_Forall_true_iff in H3. rewrite H3 in H0.
+      by move: H0 => /andP H0; apply H0; split. } }
+  { destruct l.
+    { by exfalso; apply H0. }
+    { simpl. apply /andP => Contra. destruct Contra as [Contra1 Contra2].
+      by apply H0; constructor; auto; apply all_Forall_true_iff. } }
 Qed.
 
 (*********)
@@ -315,7 +380,7 @@ Proof.
   by destruct Contra as [H0 H1]; apply H1; left.
 Qed.
 
-Lemma uniq_excision (A : eqType) (a : A) (l : list A) :
+Lemma NoDup_excision (A : eqType) (a : A) (l : list A) :
   NoDup l ->
   List.In a l ->
   exists l1 l2,
@@ -345,8 +410,34 @@ Proof.
         { move=> H1. by apply H7. } } } }
 Qed.
 
-(** enum 'I_N is sorted... *)
-Section ordEnumSorted.
+Lemma forall_split_iff (A : Type) (P Q : A -> Prop) :
+  (forall a, P a /\ Q a) <->
+  (forall a, P a) /\ (forall a, Q a).
+Proof.
+  split => H0.
+  { by split => a; destruct (H0 a). }
+  { by move=> a; destruct H0 as [H0 H1]; split. }
+Qed.
+
+Lemma NoDup_excision' (A : eqType) (a : A) (l : list A) :
+  NoDup l ->
+  List.In a l ->
+  exists l1 l2,
+    l = l1 ++ (a :: l2) /\
+    Forall (fun a' => a' != a) l1 /\ Forall (fun a' => a' != a) l2.
+Proof.
+  move=> H0 H1. move: (NoDup_excision H0 H1) => [l1 [l2 [H2 H3]]].
+  exists l1, l2. split; auto. apply forall_split_iff in H3. destruct H3 as [H3 H4].
+  split.
+  { apply Forall_forall in H3.
+    apply Forall_impl with (P:=(fun a' : A => a' <> a)); auto.
+    { by move=> a0 H5; apply /eqP. } }
+  { apply Forall_impl with (P:=(fun a' : A => a' <> a)).
+    { by move=> a0 H5; apply /eqP. }
+    by apply Forall_forall. } 
+Qed.
+
+Section ordEnum.
   Variable N : nat.
   
   Lemma enum_ord_enum : enum 'I_N = ord_enum N.
@@ -354,6 +445,7 @@ Section ordEnumSorted.
     by rewrite enumT; rewrite Finite.EnumDef.enumDef.
   Qed.
     
+  (** enum 'I_N is sorted... *)
   Lemma ord_enum_sorted : sorted (fun i j => leq (nat_of_ord i) (nat_of_ord j))
                              (enum 'I_N).
   Proof.
@@ -391,9 +483,22 @@ Section ordEnumSorted.
                (List.In n' l2 -> n' <> n)).
   Proof.
     move=> n.
-    apply uniq_excision.
+    apply NoDup_excision.
     - by apply nodup_uniq, enum_uniq.
     - by apply list_in_finType_enum.
   Qed.
 
-End ordEnumSorted.
+  Lemma ord_enum_excision' :
+    forall n, exists l1 l2,
+        (enum 'I_N) = l1 ++ (n :: l2) /\
+        all (fun n' => n' != n) l1 /\ all (fun n' => n' != n) l2.
+  Proof.
+    move=> n.
+    move: (enum_uniq 'I_N) => H0. apply nodup_uniq in H0.
+    move: (NoDup_excision') => H.
+    move: (@list_in_finType_enum [finType of 'I_N] n) => H1. simpl in *.
+    specialize (H _ n (enum 'I_N) H0 H1).
+    destruct H as [l1 [l2 [H [H' H'']]]].
+    by exists l1, l2; split; auto; split; apply all_Forall_true_iff.
+  Qed.    
+End ordEnum.
