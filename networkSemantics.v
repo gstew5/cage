@@ -485,6 +485,44 @@ Section intermediateSemantics.
        should be equivalent provided each client only has at most one message in
        in the list (the NoDup restriction imposed on l1_fil *)
 
+    Lemma filter_list_filter (A : Type) (l : list A) (pred : A -> bool) :
+      List.filter pred l = filter pred l.
+    Proof. by auto. Qed.
+
+    Lemma Permutation_size (A : Type) (l1 l2 : list A) :
+      Permutation l1 l2 ->
+      size l1 = size l2.
+    Proof.
+      induction 1; auto.
+      { simpl. by rewrite IHPermutation. }
+      { by rewrite IHPermutation1. }
+    Qed.
+
+    Lemma size_1_perm_eq (A : Type) (l1 l2 : list A) :
+      size l1 <= 1 ->
+      Permutation l1 l2 ->
+      l1 = l2.
+    Proof.
+      move=> H0 H1.
+      induction H1; auto.
+      { rewrite IHPermutation; auto. }
+      { inversion H0. }
+      { rewrite IHPermutation1; auto. rewrite IHPermutation2; auto.
+        apply Permutation_size in H1_. by rewrite -H1_. }
+    Qed.
+
+    Lemma perm_filter_le_1_eq (A : Type) (l1 l2 : list A) (pred : A -> bool) :
+      count pred l1 <= 1 ->
+      Permutation l1 l2 ->
+      List.filter pred l1 = List.filter pred l2.
+    Proof.
+      move=> H0 H1.  
+      rewrite !filter_list_filter.
+      move: (filterPreservesPerm pred H1) => Hperm.
+      rewrite -size_filter in H0. 
+      apply size_1_perm_eq; auto.
+    Qed.
+    
     (* Will need to be shown, but not currently used *)
     Lemma clientServerInfo_messageList_perm (l1 l2 : list (packet nodeINT msgINT)) :
       let l1_fil := (List.filter isSome
@@ -505,7 +543,14 @@ Section intermediateSemantics.
       }
       rewrite /clientServerInfo_messageList.
       have noDup2 : List.NoDup l2_fil by apply (Permutation_NoDup perm' no_dup1).
-      admit.
+      rewrite -!filter_list_filter -!map_list_map.
+      have H0: (count isSome (List.map (clientServerInfo_fromPacket^~ n) l1) <= 1).
+      { admit. }
+      move: (@perm_filter_le_1_eq
+               _ (List.map (clientServerInfo_fromPacket^~ n) l1)
+               (List.map (clientServerInfo_fromPacket^~ n) l2) isSome H0
+               (Permutation_map _ perm)) => H2.
+      by rewrite H2.
     Admitted.
 
     (* From the server state we might also recover the information relating to
