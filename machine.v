@@ -49,12 +49,26 @@ Proof.
   by rewrite -H10.
 Qed.  
 
-Section machine_semantics.
+(** The general machine semantics in which the server is parameterized as 
+    a relation with the following type:  
+
+    serverCostRel
+    : forall {A : finType} {N : nat} (costInstance : CostClass N rat_realFieldType A),
+      {ffun 'I_N -> dist A rat_realFieldType} -> 'I_N -> {ffun A -> rat}.
+*)
+
+Section general_machine_semantics.
   Local Open Scope ring_scope.  
   Variable A : finType.
   Variable a0 : A.
   Variable N : nat.
   Context `{Hgame : game A N rat_realFieldType}.
+
+  Variable
+    serverCostRel
+    : forall {A : finType} {N : nat} (costInstance : CostClass N rat_realFieldType A),
+      {ffun 'I_N -> dist A rat_realFieldType} -> 'I_N -> {ffun A -> rat}.
+  Arguments serverCostRel {A N costInstance} f i.
   
   Record ClientPkg : Type :=
     mkClientPkg
@@ -148,146 +162,6 @@ Section machine_semantics.
     change ((0:rat) <= n%:R).
     apply: ler0n. 
   Qed.    
-  
-  Section cost_vec.
-    Variable f : {ffun 'I_N -> dist A rat_realFieldType}. 
-
-    Definition expUnilateral (i : 'I_N) (a : A) := 
-      \sum_(p : {ffun 'I_N -> A} | p i == a)
-        (\prod_(j : 'I_N | i!=j) f j (p j)) * (cost i p).
-      
-    Definition cost_vec (i : 'I_N) : {ffun A -> rat} :=
-      [ffun a => expUnilateral i a].
-
-    Lemma marginal_unfold (F : {ffun 'I_N -> A} -> rat) i :
-      let P t (p : {ffun 'I_N -> A}) := p i == t in     
-      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2) (F p.2) =
-      \sum_(p : {ffun 'I_N -> A}) (F p).
-    Proof.
-      move => P.
-      set (G (x : A) y := F y).
-      have ->:
-       \sum_(p | P p.1 p.2) F p.2 =
-       \sum_(p | predT p.1 && P p.1 p.2) G p.1 p.2 by apply: eq_big.
-      rewrite -pair_big_dep /= /G /P.
-      have ->:
-       \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0) F j =
-       \sum_i0 \sum_(j : {ffun 'I_N -> A} | predT j && (j i == i0)) F j.
-      { by apply: eq_big. }
-      rewrite -partition_big //. 
-    Qed.      
-
-    (*FIXME: the following two lemmas can be generalize go BigOp form*)
-    Lemma prod_split (i : 'I_N) (y : {ffun 'I_N -> A}) :
-      \prod_(j in [set i]) (f j) (y j) *
-      \prod_(j in [set~ i]) (f j) (y j) = \prod_(j < N) (f j) (y j).
-    Proof.        
-      have ->:
-       \prod_(j < N) (f j) (y j) =
-       \prod_(j in [predU (pred1 i) & [set~ i]]) (f j) (y j).
-      { apply: congr_big => // j; rewrite /in_mem /=.
-        case H: (j == i).
-        { by have ->: j \in pred1 i = true by rewrite /pred1 /in_mem /= H. }
-        have ->: j \in [set~ i] by rewrite in_setC1 H.
-        by rewrite orbC. }
-      rewrite bigU /=; last first.
-      { by rewrite disjoint1 in_setC1; apply/negP; rewrite eq_refl. }
-      f_equal.
-      apply: congr_big => //; first by move => j; rewrite in_set1.
-    Qed.
-
-    Lemma sum_split (i : 'I_N) (y : {ffun 'I_N -> A}) :
-      \sum_(j in [set i]) (f j) (y j) +
-      \sum_(j in [set~ i]) (f j) (y j) = \sum_(j < N) (f j) (y j).
-    Proof.        
-      have ->:
-       \sum_(j < N) (f j) (y j) =
-       \sum_(j in [predU (pred1 i) & [set~ i]]) (f j) (y j).
-      { apply: congr_big => // j; rewrite /in_mem /=.
-        case H: (j == i).
-        { by have ->: j \in pred1 i = true by rewrite /pred1 /in_mem /= H. }
-        have ->: j \in [set~ i] by rewrite in_setC1 H.
-        by rewrite orbC. }
-      rewrite bigU /=; last first.
-      { by rewrite disjoint1 in_setC1; apply/negP; rewrite eq_refl. }
-      f_equal.
-      apply: congr_big => //; first by move => j; rewrite in_set1.
-    Qed.
-    (*END FIXME*)
-    
-    Lemma neqS (T : eqType) (z i : T) : (z!=i) = (i!=z).
-    Proof.
-      apply/negP; case H: (z == i) => /=.
-      by move: (eqP H) => -> /=; rewrite eq_refl.
-      by case H2: (i == z) => //; move: (eqP H2) => H2'; rewrite H2' eq_refl in H.
-    Qed.
-    
-    Lemma cost_vec_unfold i :
-      expectedValue (f i) [eta (cost_vec i)] =
-      expectedValue (prod_dist f) [eta (cost) i].
-    Proof.
-      rewrite /expectedValue/expectedCondValue/cost_vec.
-      have ->:
-      \sum_t
-      (f i) t *
-      [ffun a => \sum_(p : {ffun 'I_N -> A} | p i == a)
-        \prod_(j < N | i != j) (f j) (p j) * (cost) i p] t =
-      \sum_t
-      (\sum_(p : {ffun 'I_N -> A} | p i == t)
-        (f i) t * (\prod_(j < N | i != j) (f j) (p j) * (cost) i p)).
-      { by apply: congr_big => // x _; rewrite ffunE // big_distrr. }
-      rewrite /prod_dist/=/prod_pmf.
-      have ->:
-        \sum_t [ffun p : {ffun 'I_N -> A} =>
-                 \prod_(i0 < N) (f i0) (p i0)] t * (cost) i t =
-        \sum_(p : {ffun 'I_N -> A}) (\prod_(i0 < N) (f i0) (p i0)) * (cost) i p.
-      { apply: congr_big => // x _; rewrite ffunE //. }
-      set (F t (p : {ffun 'I_N -> A}) :=
-         (f i) t *
-         (\prod_(j < N | i != j) (f j) (p j) * (cost) i p)).
-      set (P t (p : {ffun 'I_N -> A}) := p i == t).
-      change
-        (\sum_(t | predT t) \sum_(p : {ffun 'I_N -> A} | P t p) (F t p) =
-         \sum_(p : {ffun 'I_N -> A}) \prod_(i0 < N) (f i0) (p i0) * (cost) i p).
-      rewrite pair_big_dep /= /F.
-      have ->:
-      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
-       (f i) p.1 *
-       (\prod_(j < N | i != j) (f j) (p.2 j) * (cost) i p.2) =
-      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
-       ((f i) p.1 * (\prod_(j < N | i != j) (f j) (p.2 j))) * (cost) i p.2.
-      { by apply: congr_big => // x _; rewrite mulrA. }
-      
-      have H:
-        forall p : [finType of (A * {ffun 'I_N -> A})],
-          P p.1 p.2 -> 
-          (f i) p.1 * \prod_(j < N | i != j) (f j) (p.2 j) =
-          \prod_(j < N) (f j) (p.2 j).
-      { clear - i f => [][] x y /=; set (F j := (f j) x).
-        have ->: (f i) x = \prod_(j < N | j == i) (F j) by rewrite big_pred1_eq.
-        have ->:
-          \prod_(j < N | j == i) F j =
-          \prod_(j in [set x : 'I_N | x==i]) F j.
-        { by apply: congr_big => // z; rewrite in_set1. }
-        move => Hp; rewrite -(prod_split i); f_equal.
-        { apply: congr_big => // z; rewrite in_set1 /F; move/eqP => ->.
-          by move: Hp; rewrite /P; move/eqP => ->. }
-        by apply: congr_big => // z; rewrite in_setC1 neqS. }
-
-      have ->:
-      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
-        (f i) p.1 * \prod_(j < N | i != j) (f j) (p.2 j) * (cost) i p.2 =
-      \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
-        \prod_(j < N) (f j) (p.2 j) * (cost) i p.2.
-      { apply: congr_big => // x Hx; rewrite H //. }
-      
-      clear F.
-      set (G (x : {ffun 'I_N -> A}) := \prod_(j < N) (f j) (x j) * (cost) i x).
-      change (\sum_(p | P p.1 p.2) G p.2 =
-              \sum_(p : {ffun 'I_N -> A}) \prod_(i0 < N) (f i0) (p i0) * (cost) i p).
-      by rewrite marginal_unfold.
-    Qed.
-  End cost_vec.
     
   Inductive server_sent_cost_vector
             (i : 'I_N) (f : {ffun 'I_N -> dist A rat_realFieldType})
@@ -301,7 +175,7 @@ Section machine_semantics.
       (* acknowledge receipt of distribution *)
       s'.(SOracleSt).(sent) = None ->
       (* send new cost vector *)      
-      s'.(SOracleSt).(received) = Some (cost_vec f i)->
+      s'.(SOracleSt).(received) = Some (serverCostRel f i)->
       server_sent_cost_vector i f m m'. 
 
   Inductive machine_step : machine_state -> machine_state -> Prop :=
@@ -394,7 +268,7 @@ Section machine_semantics.
   | distHistRel_cons :
       forall (i : 'I_N) ds cs f,
         distHistRel i ds cs ->
-        distHistRel i [:: f & ds] [:: cost_vec f i & cs].
+        distHistRel i [:: f & ds] [:: serverCostRel f i & cs].
 
   Definition costvec_of_clientpkg (c : ClientPkg) : seq {ffun A -> rat} :=
     match c.(received) with
@@ -685,40 +559,8 @@ Section machine_semantics.
     rewrite rat_to_R_sum /timeAvg_fun /expectedValue/expectedCondValue.
     symmetry; rewrite -big_sum_index_enum; apply: big_sum_ext => // x.
     f_equal; apply: congr_big => // y _; rewrite ffunE //.
-  Qed.    
+  Qed.
 
-  Lemma state_expCost1_sigmaT i m (pf : 0 < (size (hist m))%:R) :    
-    let: s := (m.(clients) i).2 in
-    (0 < size (all_costs0 s))%N ->
-    (0 < size (behead (SOutputs s)))%N ->
-    outHistRel i m.(hist) (behead s.(SOutputs)) -> 
-    distHistRel i m.(hist) (all_costs' s) -> 
-    Rdefinitions.Rmult
-      (rat_to_R (1/(size (hist m))%:R))
-      (state_expCost1 (all_costs0 s) s) =
-    rat_to_R (expectedCost i (sigmaT pf)).
-  Proof.
-    move => H H1; rewrite state_expCost13 // /sigmaT.
-    rewrite /expectedCost expectedValue_timeAvg'.
-    rewrite 3!rat_to_R_mul => H2 H3; f_equal.
-    rewrite timeAvg_fun_big_sum'; clear pf.
-    rewrite /all_costs'/all_costs0/all_costs/= in H2|-*.
-    destruct ((clients m) i).2; simpl in *.
-    rewrite /all_costs'/all_costs0 /= in H3.
-    destruct SOutputs; try solve[simpl in H1 => //].
-    simpl in H2; clear H H1.
-    revert H2 H3.
-    move: (existT _ _).
-    move: (hist m) SPrevCosts SOutputs; elim.
-    { move => SPrev SOuts; inversion 1; subst.
-      destruct SPrev; try solve[inversion 1]; simpl.
-      by rewrite rat_to_R0. }
-    move => a l IH SPrev SOut; inversion 1; subst.
-    destruct SPrev; try solve[inversion 1]; simpl; inversion 1; subst.
-    rewrite rat_to_R_plus /=; f_equal.
-    { by f_equal; rewrite cost_vec_unfold. }
-    apply: IH => //.
-  Qed.    
   
   Lemma sum_upd_lemma1 i i0 x (F : {ffun 'I_N -> A} -> {ffun 'I_N -> A} -> rat) :
     (forall f, F (upd i x f) (upd i x f) = F f (upd i x f)) -> 
@@ -791,9 +633,200 @@ Section machine_semantics.
     apply: congr_big => // z; move/eqP => H; rewrite /upd -H; f_equal.
     by apply/ffunP => y; rewrite ffunE; case H2: (i == y) => //; move: (eqP H2) ->.
   Qed.
+  
+End general_machine_semantics.
 
-  Lemma cost_vec_unfold2 a i x :
-    (cost_vec a i) x =
+(** The server cost vector specific to multiplayer no-regret games in which 
+    each client runs MWU *)
+
+Section mwu_cost_vec.
+  Local Open Scope ring_scope.  
+  Variable A : finType.
+  Variable a0 : A.
+  Variable N : nat.
+  Context `{Hgame : game A N rat_realFieldType}.
+  
+  Variable f : {ffun 'I_N -> dist A rat_realFieldType}. 
+
+  Definition expUnilateral (i : 'I_N) (a : A) := 
+    \sum_(p : {ffun 'I_N -> A} | p i == a)
+     (\prod_(j : 'I_N | i!=j) f j (p j)) * (cost i p).
+      
+  Definition mwu_cost_vec (i : 'I_N) : {ffun A -> rat} :=
+    [ffun a => expUnilateral i a].
+  
+  Lemma marginal_unfold (F : {ffun 'I_N -> A} -> rat) i :
+    let P t (p : {ffun 'I_N -> A}) := p i == t in     
+    \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2) (F p.2) =
+    \sum_(p : {ffun 'I_N -> A}) (F p).
+  Proof.
+    move => P.
+    set (G (x : A) y := F y).
+    have ->:
+         \sum_(p | P p.1 p.2) F p.2 =
+    \sum_(p | predT p.1 && P p.1 p.2) G p.1 p.2 by apply: eq_big.
+    rewrite -pair_big_dep /= /G /P.
+    have ->:
+         \sum_i0 \sum_(j : {ffun 'I_N -> A} | j i == i0) F j =
+    \sum_i0 \sum_(j : {ffun 'I_N -> A} | predT j && (j i == i0)) F j.
+    { by apply: eq_big. }
+    rewrite -partition_big //. 
+  Qed.      
+
+  (*FIXME: the following two lemmas can be generalize go BigOp form*)
+  Lemma prod_split (i : 'I_N) (y : {ffun 'I_N -> A}) :
+    \prod_(j in [set i]) (f j) (y j) *
+    \prod_(j in [set~ i]) (f j) (y j) = \prod_(j < N) (f j) (y j).
+  Proof.        
+    have ->:
+         \prod_(j < N) (f j) (y j) =
+    \prod_(j in [predU (pred1 i) & [set~ i]]) (f j) (y j).
+    { apply: congr_big => // j; rewrite /in_mem /=.
+      case H: (j == i).
+      { by have ->: j \in pred1 i = true by rewrite /pred1 /in_mem /= H. }
+      have ->: j \in [set~ i] by rewrite in_setC1 H.
+        by rewrite orbC. }
+    rewrite bigU /=; last first.
+    { by rewrite disjoint1 in_setC1; apply/negP; rewrite eq_refl. }
+    f_equal.
+    apply: congr_big => //; first by move => j; rewrite in_set1.
+  Qed.
+  
+  Lemma sum_split (i : 'I_N) (y : {ffun 'I_N -> A}) :
+    \sum_(j in [set i]) (f j) (y j) +
+    \sum_(j in [set~ i]) (f j) (y j) = \sum_(j < N) (f j) (y j).
+  Proof.        
+    have ->:
+         \sum_(j < N) (f j) (y j) =
+    \sum_(j in [predU (pred1 i) & [set~ i]]) (f j) (y j).
+    { apply: congr_big => // j; rewrite /in_mem /=.
+      case H: (j == i).
+      { by have ->: j \in pred1 i = true by rewrite /pred1 /in_mem /= H. }
+      have ->: j \in [set~ i] by rewrite in_setC1 H.
+        by rewrite orbC. }
+    rewrite bigU /=; last first.
+    { by rewrite disjoint1 in_setC1; apply/negP; rewrite eq_refl. }
+    f_equal.
+    apply: congr_big => //; first by move => j; rewrite in_set1.
+  Qed.
+  (*END FIXME*)
+  
+  Lemma neqS (T : eqType) (z i : T) : (z!=i) = (i!=z).
+  Proof.
+    apply/negP; case H: (z == i) => /=.
+    by move: (eqP H) => -> /=; rewrite eq_refl.
+    by case H2: (i == z) => //; move: (eqP H2) => H2'; rewrite H2' eq_refl in H.
+  Qed.
+  
+  Lemma mwu_cost_vec_unfold i :
+    expectedValue (f i) [eta (mwu_cost_vec i)] =
+    expectedValue (prod_dist f) [eta (cost) i].
+  Proof.
+    rewrite /expectedValue/expectedCondValue/mwu_cost_vec.
+    have ->:
+     \sum_t
+     (f i) t *
+     [ffun a => \sum_(p : {ffun 'I_N -> A} | p i == a)
+                \prod_(j < N | i != j) (f j) (p j) * (cost) i p] t =
+     \sum_t
+      (\sum_(p : {ffun 'I_N -> A} | p i == t)
+        (f i) t * (\prod_(j < N | i != j) (f j) (p j) * (cost) i p)).
+   { by apply: congr_big => // x _; rewrite ffunE // big_distrr. }
+   rewrite /prod_dist/=/prod_pmf.
+   have ->:
+      \sum_t [ffun p : {ffun 'I_N -> A} =>
+               \prod_(i0 < N) (f i0) (p i0)] t * (cost) i t =
+      \sum_(p : {ffun 'I_N -> A}) (\prod_(i0 < N) (f i0) (p i0)) * (cost) i p.
+   { apply: congr_big => // x _; rewrite ffunE //. }
+   set (F t (p : {ffun 'I_N -> A}) :=
+          (f i) t *
+          (\prod_(j < N | i != j) (f j) (p j) * (cost) i p)).
+   set (P t (p : {ffun 'I_N -> A}) := p i == t).
+   change
+     (\sum_(t | predT t) \sum_(p : {ffun 'I_N -> A} | P t p) (F t p) =
+      \sum_(p : {ffun 'I_N -> A}) \prod_(i0 < N) (f i0) (p i0) * (cost) i p).
+   rewrite pair_big_dep /= /F.
+   have ->:
+        \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
+        (f i) p.1 *
+   (\prod_(j < N | i != j) (f j) (p.2 j) * (cost) i p.2) =
+   \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
+    ((f i) p.1 * (\prod_(j < N | i != j) (f j) (p.2 j))) * (cost) i p.2.
+   { by apply: congr_big => // x _; rewrite mulrA. }
+   
+   have H:
+     forall p : [finType of (A * {ffun 'I_N -> A})],
+       P p.1 p.2 -> 
+       (f i) p.1 * \prod_(j < N | i != j) (f j) (p.2 j) =
+       \prod_(j < N) (f j) (p.2 j).
+   { clear - i f => [][] x y /=; set (F j := (f j) x).
+     have ->: (f i) x = \prod_(j < N | j == i) (F j) by rewrite big_pred1_eq.
+     have ->:
+          \prod_(j < N | j == i) F j =
+     \prod_(j in [set x : 'I_N | x==i]) F j.
+     { by apply: congr_big => // z; rewrite in_set1. }
+     move => Hp; rewrite -(prod_split i); f_equal.
+     { apply: congr_big => // z; rewrite in_set1 /F; move/eqP => ->.
+         by move: Hp; rewrite /P; move/eqP => ->. }
+       by apply: congr_big => // z; rewrite in_setC1 neqS. }
+   
+   have ->:
+   \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
+   (f i) p.1 * \prod_(j < N | i != j) (f j) (p.2 j) * (cost) i p.2 =
+   \sum_(p : [finType of (A * {ffun 'I_N -> A})] | P p.1 p.2)
+    \prod_(j < N) (f j) (p.2 j) * (cost) i p.2.
+   { apply: congr_big => // x Hx; rewrite H //. }
+   
+   clear F.
+   set (G (x : {ffun 'I_N -> A}) := \prod_(j < N) (f j) (x j) * (cost) i x).
+   change (\sum_(p | P p.1 p.2) G p.2 =
+           \sum_(p : {ffun 'I_N -> A}) \prod_(i0 < N) (f i0) (p i0) * (cost) i p).
+     by rewrite marginal_unfold.
+  Qed.
+End mwu_cost_vec.
+
+Section mwu_machine_semantics.
+  Local Open Scope ring_scope.  
+  Variable A : finType.
+  Variable a0 : A.
+  Variable N : nat.
+  Context `{Hgame : game A N rat_realFieldType}.
+  
+  Lemma state_expCost1_sigmaT i m (pf : 0 < (size (hist m))%:R) :    
+    let: s := (m.(clients) i).2 in
+    (0 < size (all_costs0 s))%N ->
+    (0 < size (behead (SOutputs s)))%N ->
+    outHistRel i m.(hist) (behead s.(SOutputs)) -> 
+    distHistRel mwu_cost_vec i m.(hist) (all_costs' s) -> 
+    Rdefinitions.Rmult
+      (rat_to_R (1/(size (hist m))%:R))
+      (state_expCost1 (all_costs0 s) s) =
+    rat_to_R (expectedCost i (sigmaT pf)).
+  Proof.
+    move => H H1; rewrite state_expCost13 // /sigmaT.
+    rewrite /expectedCost expectedValue_timeAvg'.
+    rewrite 3!rat_to_R_mul => H2 H3; f_equal.
+    rewrite timeAvg_fun_big_sum'; clear pf.
+    rewrite /all_costs'/all_costs0/all_costs/= in H2|-*.
+    destruct ((clients m) i).2; simpl in *.
+    rewrite /all_costs'/all_costs0 /= in H3.
+    destruct SOutputs; try solve[simpl in H1 => //].
+    simpl in H2; clear H H1.
+    revert H2 H3.
+    move: (existT _ _).
+    move: (hist m) SPrevCosts SOutputs; elim.
+    { move => SPrev SOuts; inversion 1; subst.
+      destruct SPrev; try solve[inversion 1]; simpl.
+      by rewrite rat_to_R0. }
+    move => a l IH SPrev SOut; inversion 1; subst.
+    destruct SPrev; try solve[inversion 1]; simpl; inversion 1; subst.
+    rewrite rat_to_R_plus /=; f_equal.
+    { by f_equal; rewrite mwu_cost_vec_unfold. }
+    apply: IH => //.
+  Qed.    
+
+  Lemma mwu_cost_vec_unfold2 a i x :
+    (mwu_cost_vec a i) x =
     \sum_i0
       (prod_pmf (T:=A) (rty:=rat_realFieldType) (n:=N) a) i0 *
       (cost) i (upd i x i0).
@@ -806,7 +839,7 @@ Section machine_semantics.
      \sum_(i0 : {ffun 'I_N -> A})
       (\prod_(i1 < N) (a i1) (i0 i1)) * (cost) i (upd i x i0).
     { apply: congr_big => // y _; rewrite ffunE //. }
-    rewrite /cost_vec ffunE /expUnilateral.
+    rewrite /mwu_cost_vec ffunE /expUnilateral.
     set (F (i0 : {ffun 'I_N -> A}) :=
            \prod_(i1 < N) (a i1) (i0 i1) * (cost) i (upd i x i0)).
     change
@@ -895,7 +928,7 @@ Section machine_semantics.
     (0 < size (all_costs0 s))%N ->
     (0 < size (behead (SOutputs s)))%N ->
     outHistRel i m.(hist) (behead s.(SOutputs)) -> 
-    distHistRel i m.(hist) (all_costs' s) ->
+    distHistRel mwu_cost_vec i m.(hist) (all_costs' s) ->
     OPTR a0 s =
     rat_to_R ((size (hist m))%:R * extrema.min xpredT (expectedUni pf i) a0).
   Proof.
@@ -948,7 +981,7 @@ Section machine_semantics.
         move => a l IH x SPrev SOut; inversion 1; subst.
         inversion 1; subst.
         rewrite !big_cons /=; f_equal.
-        { apply: cost_vec_unfold2. }
+        { apply: mwu_cost_vec_unfold2. }
         destruct SPrev; try solve[inversion H6].
         simpl in H6.
         inversion H6; subst. clear H6.
@@ -1025,7 +1058,7 @@ Section machine_semantics.
     { apply: IH => //; apply: H4. }
 
     f_equal.
-    rewrite cost_vec_unfold2 /F //.
+    rewrite mwu_cost_vec_unfold2 /F //.
   Qed.
   
   Lemma OPT_sigmaT i m (pf : 0 < (size (hist m))%:R) a :    
@@ -1033,7 +1066,7 @@ Section machine_semantics.
     (0 < size (all_costs0 s))%N ->
     (0 < size (behead (SOutputs s)))%N ->
     outHistRel i m.(hist) (behead s.(SOutputs)) -> 
-    distHistRel i m.(hist) (all_costs' s) ->
+    distHistRel mwu_cost_vec i m.(hist) (all_costs' s) ->
     Rdefinitions.Rle
       (Rdefinitions.Rmult
          (rat_to_R (1/(size (hist m))%:R))
@@ -1052,12 +1085,12 @@ Section machine_semantics.
     rewrite Reals.Raxioms.Rmult_1_l; apply: rat_to_R_le.
     change
       (extrema.min xpredT (expectedUni pf i) a0 <=
-       expectedUnilateralCost i (machine_semantics.sigmaT (m:=m) pf) [ffun=> a]).
+       expectedUnilateralCost i (sigmaT (m:=m) pf) [ffun=> a]).
     rewrite -expectedUni_Unilateral.
     by apply: extrema.min_le.
   Qed.
 
-End machine_semantics.  
+End mwu_machine_semantics.
 
 Section extract_oracle.
   Local Open Scope ring_scope.  
@@ -1228,7 +1261,7 @@ Section extract_oracle.
   Context `{Hgame : game A N rat_realFieldType}.  
 
   Lemma oracle_extractible_step m m' (i : 'I_N) c s c' s' sx :
-    machine_step a0 m m' ->
+    machine_step a0 mwu_cost_vec m m' ->
     m.(clients) i = (c,s) ->
     m'.(clients) i = (c',s') ->
     match_states s sx ->
@@ -1279,7 +1312,7 @@ Section extract_oracle.
   Qed.      
 
   Lemma oracle_extractible_aux m m' (i : 'I_N) c s c' s' sx :
-    machine_step_plus a0 m m' ->
+    machine_step_plus a0 mwu_cost_vec m m' ->
     final_state m' ->
     m.(clients) i = (c,s) ->
     m'.(clients) i = (c',s') ->
@@ -1338,7 +1371,7 @@ Section extract_oracle.
   Qed.
 
   Lemma oracle_extractible m m' (i : 'I_N) c s c' s' sx :
-    machine_step_plus a0 m m' ->
+    machine_step_plus a0 mwu_cost_vec m m' ->
     final_state m' ->
     c<>CSkip -> 
     m.(clients) i = (c,s) ->
@@ -1365,7 +1398,7 @@ Section extract_oracle.
   Notation epsR := (rat_to_R eps).  
   
   Lemma perclient_bounded_regret m m' (i : 'I_N) c' s' nx :
-    machine_step_plus a0 m m' ->
+    machine_step_plus a0 mwu_cost_vec m m' ->
     final_state m' ->
     m.(clients) i = (mult_weights A nx,init_state A epsOk tt (init_ClientPkg A)) ->
     m'.(clients) i = (c',s') ->
@@ -1430,7 +1463,7 @@ Section extract_oracle.
 
   Definition inv m := 
     forall i,
-      distHistRel
+      distHistRel mwu_cost_vec
         i m.(hist)
         (costvec_of_clientpkg (m.(clients) i).2.(SOracleSt) ++
           all_costs' (m.(clients) i).2) /\
@@ -1451,7 +1484,7 @@ Section extract_oracle.
         (REGRET_BOUND : rat)
         (INIT_HIST : hist m = [::])
         (pf : 0 < (size (hist m'))%:R) :
-    machine_step_plus a0 m m' ->
+    machine_step_plus a0 mwu_cost_vec m m' ->
     final_state m' ->
     (forall i, m.(clients) i = (mult_weights A nx,init_state A epsOk tt (init_ClientPkg A))) ->
     (rat_to_R eps + ln size_A / (epsR * Tx nx) <= rat_to_R REGRET_BOUND)%R ->
@@ -1479,7 +1512,7 @@ Section extract_oracle.
       forall i, let: (c',s') := m'.(clients) i in (0 < size (all_costs' s'))%N.
     { move => ix.
       have Hdist:
-        distHistRel (A:=A) ix (hist m') (all_costs' ((clients m') ix).2).
+        distHistRel (A:=A) mwu_cost_vec ix (hist m') (all_costs' ((clients m') ix).2).
       { case: (Hinv' ix); rewrite /costvec_of_clientpkg.
         inversion Hfinal; subst.
         case: (H0 ix) => x []; inversion 1; subst => [][][]d _; rewrite H2 => -> //. }
@@ -1520,7 +1553,7 @@ Section extract_oracle.
       case: (Hinv' i) => _; inversion 1; subst => //.
       rewrite Hsent in H0; inversion H0. }
     have Hdist:
-      distHistRel (A:=A) i (hist m') (all_costs' ((clients m') i).2).
+      distHistRel (A:=A) mwu_cost_vec i (hist m') (all_costs' ((clients m') i).2).
     { case: (Hinv' i); rewrite /costvec_of_clientpkg.
       inversion Hfinal; subst.
       case: (H0 i) => x []; inversion 1; subst => [][][]d _; rewrite H2 => -> //. }
@@ -1730,7 +1763,7 @@ Section mwuBounds.
       (mult_weights A nx,init_state A etaOk tt (init_ClientPkg A)).
   (* the game is smooth *)
   Context `{HSmooth : smooth A N rat_realFieldType}.
-  Variable Hstep : machine_step_plus a0 m m'.
+  Variable Hstep : machine_step_plus a0 mwu_cost_vec m m'.
   
   Lemma mwu_ultBounds :
     forall S', optimal S' ->

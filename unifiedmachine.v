@@ -108,7 +108,7 @@ Section machine_semantics.
   map
     (fun n =>
       (client_n n,
-      (scMsg (cost_vec f n))))
+      (scMsg (mwu_cost_vec f n))))
     (enum 'I_N).
 
   (* A function for updating the received field of a server state *)
