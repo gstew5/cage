@@ -126,7 +126,9 @@ VFILES:=bigops.v\
   vector.v\
   listlemmas.v\
   maplemmas.v\
-  subsettypes.v
+  subsettypes.v\
+  unifiedmachine.v\
+  networkSemantics.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))
