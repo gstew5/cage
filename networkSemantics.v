@@ -9,9 +9,10 @@ Set Implicit Arguments.
   (** Node identifiers have decidable equality *)
   Variable node_dec : forall x y : node, {x = y} + {x <> y}.
 
-  (** A packet is a message addressed to a node *)
-  Definition packet := (node * msg)%type.
-  
+  (** A packet is a message addressed to a node with information about it's origin *)
+  Definition packet := (node * msg * node)%type.
+  (** Origin, message, source *)
+
   (** A node package is:
       state       - the type of the node's private state
       init        - the node's initialization function
@@ -96,8 +97,8 @@ Set Implicit Arguments.
                    (ps : list packet) (es : list event),
       w.(initNodes) n = true -> 
       w.(inFlight) = l1 ++ (p :: l2) ->
-      fst p = n ->
-      (network_desc n).(recv) (snd p) (w.(localState) n) = (st, ps, es) ->
+      fst (fst p) = n ->
+      (network_desc n).(recv) (snd (fst p)) (w.(localState) n) = (st, ps, es) ->
       network_step w (mkWorld (upd_localState n st w.(localState))
                               (l1 ++ l2 ++ ps) (w.(trace) ++ es)
                               w.(initNodes)).
@@ -261,37 +262,45 @@ Section intermediateSemantics.
       initEvent
       (fun n => true).
   
+(** Information re: the receipt of messages by nodes *)
+  Definition recvStateNode (n : nodeINT) (m : msgINT) (w : WorldINT) :
+    state (network_descINT n) :=
+      (recv (network_descINT n) m (w.(localState) n)).1.1. 
+
+  Definition recvMsgNode (n : nodeINT) (m : msgINT) (w : WorldINT) :
+    seq (packet nodeINT msgINT) :=
+      (recv (network_descINT n) m (w.(localState) n)).1.2.
+ 
+  Definition recvEventNode (n : nodeINT) (m : msgINT) (w : WorldINT) :
+    seq eventINT :=
+      (recv (network_descINT n) m (w.(localState) n)).2.
+ 
   (** Information re: the state of packets on the network **)
 
+    Definition packetFromClient : packet nodeINT msgINT -> Prop :=
+    fun n => match n with (_, _, o) =>
+      match o with
+      | serverID => False
+      | clientID _ => True
+      end
+    end.
+
     (* Predicate denoting lists of packets directed to the server *)
+  Definition onlyPacketsFromClient (l : list (packet nodeINT msgINT)) :=
+    forall x, List.In x l -> packetFromClient x.
+
   Definition onlyPacketsToServer (l : list (packet nodeINT msgINT)) :=
-    forall x, List.In x l -> fst x = serverID.
-
-    (* Predicate denoting msgs originating from a client *)
-  Inductive msgFromClient p (pf : msgHasOriginInfo p) : Prop :=
-  | clientSent : forall n, msgOrigin pf = clientID n -> msgFromClient pf.
-
-    (* Predicate denoting lists of packets which all have origin info *)
-  Definition onlyPacketsWithOrigin (l : list (packet nodeINT msgINT)) :=
-    forall x, List.In x l -> msgHasOriginInfo (snd x).
-
-    (*Predicate denoting lists with packets which originate from clients *)
-  Definition onlyPacketsFromClient l (pf : onlyPacketsWithOrigin l) : Prop :=
-    forall x mem_pf, msgFromClient (pf x mem_pf).
+    forall x, List.In x l -> fst (fst x) = serverID.
 
   (* For a list of packets, this generates a list of 'I_Ns corresponding to
       the orgins of those packets with origin information *)
   Fixpoint clientsInFlightList (l : list (packet nodeINT msgINT)) : list 'I_N :=
-    match l with
+    match l with 
     | nil => nil
-    | a::l' =>
-        match (msgHasOriginInfoDec (snd a)) with
-        | left pf =>
-            match (msgOrigin pf) with
-            | serverID => clientsInFlightList l'
-            | clientID n => n :: (clientsInFlightList l')
-            end
-        | right _ => clientsInFlightList l'
+    | a::l' => 
+        match a.2 with
+        | serverID => clientsInFlightList l'
+        | clientID n => n :: (clientsInFlightList l')
         end
     end.
 
@@ -299,7 +308,7 @@ Section intermediateSemantics.
   Definition msgToServerList (l : list (packet nodeINT msgINT)) : list msgINT :=
     foldr
       (fun (a : packet nodeINT msgINT) (acc : list msgINT) =>
-        match a with (dest, msg) => if (nodeINTDec dest serverID) then (msg::acc) else acc
+        match a with (dest, msg, source) => if (nodeINTDec dest serverID) then (msg::acc) else acc
         end)
       nil l.
 
@@ -309,20 +318,18 @@ Section intermediateSemantics.
   (*   map snd (filter (fun a => nodeINTDec (fst a) serverID) l). *)
 
   (* All clients have sent correctly if all packets in flight :
-      1.) Have origin information
-      2.) Are directed to the server
-      3.) Originate from a client
-      4.) The list of originating clients = 'I_N
+      1.) Are directed to the server
+      2.) Originate from a client
+      3.) The list of originating clients = 'I_N
     This last guys is weird, but since we can impose determinism
     in the intermediate semantics, this equality means that
     each client has sent and sent only once *)
 
   Inductive allClientsSentCorrectly : (WorldINT) -> Prop :=
   | msgListOk :
-        forall w
-          (pf : onlyPacketsWithOrigin (inFlight w)),
+        forall w,
       onlyPacketsToServer ((inFlight w)) ->
-      onlyPacketsFromClient pf ->
+      onlyPacketsFromClient (inFlight w) ->
       clientsInFlightList (inFlight w) = enum 'I_N ->
       allClientsSentCorrectly w.
 
@@ -363,8 +370,8 @@ Section intermediateSemantics.
                  (es : list eventINT),
     (initNodes w) (clientID n) = true -> 
     inFlight w = l1 ++ (p :: l2) ->
-    fst p = (clientID n) ->
-    recv (network_descINT (clientID n)) (snd p)
+    fst (fst p) = (clientID n) ->
+    recv (network_descINT (clientID n)) (snd (fst p))
       (localState w (clientID n)) =
     (st, ps, es) -> 
       network_stepINT w
@@ -386,7 +393,7 @@ Section intermediateSemantics.
     updateServerList st (msgToServerList l) = (st', l', e') ->
       network_stepINT w
         (mkWorld 
-          (upd_localState nodeINTDec serverID st
+          (upd_localState nodeINTDec serverID st'
             (localState w))
           l'
           ((trace w) ++ e')
@@ -399,30 +406,20 @@ Section intermediateSemantics.
 
     (* From packets sent from clients to the server, we can recover this information *)
     Variable clientServerInfo_recoverable :
-      forall (p : packet nodeINT msgINT) (hasOrigin : msgHasOriginInfo (snd p))
-             n (pf1 :msgOrigin hasOrigin = clientID n) (pf2 : fst p = serverID),
-    clientServerInfoType.
-
-    (* While the ability to recover the information relies on proofs, the actual
-        construction is irrelevant *)
-    Hypothesis clientServerInfo_PI : 
-      forall p n pf1 pf2 pf3 pf1' pf2' pf3',
-        @clientServerInfo_recoverable p pf1 n pf2 pf3 =
-        @clientServerInfo_recoverable p pf1' n pf2' pf3'.
+      forall (p : packet nodeINT msgINT) n
+             (pf1 : snd p = clientID n)
+             (pf2 : fst (fst p) = serverID),
+      clientServerInfoType.
 
     (* Tests a generic packet to produce a clientServerInfoType originating from
         clientID n *)
     Definition clientServerInfo_fromPacket (p : packet nodeINT msgINT) n
       : option clientServerInfoType :=
-    match msgHasOriginInfoDec p.2 with
-    | left pf1 =>
-        match nodeINTDec (msgOrigin pf1) (clientID n) with
-        | left pf2 => match nodeINTDec p.1 serverID with
-          | left pf3 => Some (@clientServerInfo_recoverable p pf1 n pf2 pf3)
-          | _ => None
-          end
-        | _ => None
-        end
+    match nodeINTDec (snd p) (clientID n) with
+    | left pf1 => match nodeINTDec (fst (fst p)) serverID with
+      | left pf2 => Some (@clientServerInfo_recoverable p n pf1 pf2)
+      | _ => None
+      end
     | _ => None
     end.
 
@@ -435,13 +432,7 @@ Section intermediateSemantics.
     | nil => None
     | x::_ => x
     end.
-(*
-      (l : list (packet nodeINT msgINT)) (n : 'I_N) : option clientServerInfoType :=
 
-
-    foldl (fun (o : option clientServerInfoType) p =>
-            if o then o else (clientServerInfo_fromPacket p n)) None l.
-*)
     (* A further extension of msgOrigin_opt that only succeeds only for messages generated
         by clients *)
     Definition msgOriginClient_opt m :=
@@ -485,45 +476,8 @@ Section intermediateSemantics.
        should be equivalent provided each client only has at most one message in
        in the list (the NoDup restriction imposed on l1_fil *)
 
-    Lemma filter_list_filter (A : Type) (l : list A) (pred : A -> bool) :
-      List.filter pred l = filter pred l.
-    Proof. by auto. Qed.
+    (* Will need to be shown, but not currently used
 
-    Lemma Permutation_size (A : Type) (l1 l2 : list A) :
-      Permutation l1 l2 ->
-      size l1 = size l2.
-    Proof.
-      induction 1; auto.
-      { simpl. by rewrite IHPermutation. }
-      { by rewrite IHPermutation1. }
-    Qed.
-
-    Lemma size_1_perm_eq (A : Type) (l1 l2 : list A) :
-      size l1 <= 1 ->
-      Permutation l1 l2 ->
-      l1 = l2.
-    Proof.
-      move=> H0 H1.
-      induction H1; auto.
-      { rewrite IHPermutation; auto. }
-      { inversion H0. }
-      { rewrite IHPermutation1; auto. rewrite IHPermutation2; auto.
-        apply Permutation_size in H1_. by rewrite -H1_. }
-    Qed.
-
-    Lemma perm_filter_le_1_eq (A : Type) (l1 l2 : list A) (pred : A -> bool) :
-      count pred l1 <= 1 ->
-      Permutation l1 l2 ->
-      List.filter pred l1 = List.filter pred l2.
-    Proof.
-      move=> H0 H1.  
-      rewrite !filter_list_filter.
-      move: (filterPreservesPerm pred H1) => Hperm.
-      rewrite -size_filter in H0. 
-      apply size_1_perm_eq; auto.
-    Qed.
-    
-    (* Will need to be shown, but not currently used *)
     Lemma clientServerInfo_messageList_perm (l1 l2 : list (packet nodeINT msgINT)) :
       let l1_fil := (List.filter isSome
                       (map msgOriginClient_opt 
@@ -543,15 +497,8 @@ Section intermediateSemantics.
       }
       rewrite /clientServerInfo_messageList.
       have noDup2 : List.NoDup l2_fil by apply (Permutation_NoDup perm' no_dup1).
-      rewrite -!filter_list_filter -!map_list_map.
-      have H0: (count isSome (List.map (clientServerInfo_fromPacket^~ n) l1) <= 1).
-      { admit. }
-      move: (@perm_filter_le_1_eq
-               _ (List.map (clientServerInfo_fromPacket^~ n) l1)
-               (List.map (clientServerInfo_fromPacket^~ n) l2) isSome H0
-               (Permutation_map _ perm)) => H2.
-      by rewrite H2.
-    Admitted.
+      admit.
+    Admitted. *)
 
     (* From the server state we might also recover the information relating to
         a particular client's message earlier in the round *)
@@ -581,18 +528,13 @@ Section intermediateSemantics.
       forall n, clientServerInfo_fromServer (initStateNode serverID) n =
                 clientServerInfo_fromServer (pre_initStateNode serverID) n.
 
-    (* All messages from a client init have origin information *)
-    Hypothesis clientInitHasOrigin :
-      forall n p, List.In p (initMsgNode (clientID n)) -> msgHasOriginInfo (snd p).
-
-    (* All messages from a client init have that client as the origin of the msg *)
-    Hypothesis clientInitOriginIsClient :
-      forall n p (pf : msgHasOriginInfo (snd p)), List.In p (initMsgNode (clientID n)) ->
-        msgOrigin pf = clientID n.
+    (* All messages from initialization show their actual origin *)
+    Hypothesis nodeInitOriginIsClient :
+      forall n p, List.In p (initMsgNode n) -> p.2 = n.
 
     (* All messages from a client init are directed to the server *)
     Hypothesis clientInitSentToServer : 
-      forall n p, List.In p (initMsgNode (clientID n)) -> fst p = serverID.    
+      forall n p, List.In p (initMsgNode (clientID n)) -> fst (fst p) = serverID.    
 
     Hypothesis nodeInitTrace : 
       forall n, (initEventNode n) = [::].
@@ -601,12 +543,7 @@ Section intermediateSemantics.
          the client during initalization *)
     Program Definition clientInit (n : 'I_N) : clientServerInfoType :=
       clientServerInfo_recoverable (proj1_sig (clientInitSize n))
-        (clientInitOriginIsClient n _ _ _) (clientInitSentToServer n _ _).
-    Next Obligation.
-      apply (clientInitHasOrigin n).
-      case: (clientInitSize n) => p pf //=. rewrite pf.
-      left => //.
-    Qed.
+        (@nodeInitOriginIsClient (clientID n) _ _) (clientInitSentToServer n _ _).
     Next Obligation.
       case: (clientInitSize n) => p pf //=. rewrite pf.
       left => //.
@@ -616,6 +553,27 @@ Section intermediateSemantics.
       left => //.
     Qed.
 
+  (** Some assumptions about the behavior of nodes during recv **)
+
+    (* Clients only communicate with the server *)
+    Hypothesis clientRecvSentToServer :
+      forall n m w p, List.In p (recvMsgNode (clientID n) m w) ->
+        fst (fst p) = serverID.
+
+    (* A client only produces one packet upon receipt *)
+    Hypothesis clientRecvSize : 
+      forall n m w, {p | recvMsgNode (clientID n) m w = [::p]} .
+    
+    (* Any packet sent from a client reveals the client as its origin *) 
+    Hypothesis clientRecvOriginIsClient :
+      forall n m w p ,
+        List.In p (recvMsgNode (clientID n) m w) -> p.2 = clientID n.
+
+    (* The server only communicates with clients *)
+    Hypothesis serverRecvSentToClient :
+      forall m w p, List.In p (recvMsgNode serverID m w) ->
+        exists n, fst (fst p) = clientID n.
+  
     Inductive Match : WorldINT -> WorldINT -> Prop :=
     (* For valid low-level world states, if any client has been uninitialized ,
         it should match with the preInitWorld at the intermediate level *)
@@ -645,6 +603,8 @@ Section intermediateSemantics.
             (forall n, (initNodes WINT) n = true) ->
             (forall n, (initNodes WLOW) n = true) ->
             (forall n, clientInfo_fromWorld WINT n = clientInfo_fromWorld WLOW n) ->
+            (forall p n, List.In p WLOW.(inFlight) -> fst (fst p) = clientID n ->
+              List.In p WINT.(inFlight)) ->
             (trace WINT = trace WLOW) -> 
           Match WINT WLOW.
 
@@ -796,6 +756,7 @@ Section intermediateSemantics.
       rewrite H. fold (@flatten B). rewrite flatten_rewrite. by [].
     Qed.
 
+(** Proofs below still need to be reworked for new packet definition *)
     Lemma bleh': 
       forall l n, (forall n', List.In n' l -> n' <> n) ->
         [seq x <- flatten
