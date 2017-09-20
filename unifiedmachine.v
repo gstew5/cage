@@ -62,7 +62,7 @@ Section machine_semantics.
   | csMsg : clientServerMsgType -> machine_msg
   | scMsg : serverClientMsgType -> machine_msg.
 
-  Definition machine_packet := (machine_node * machine_msg)%type.
+  Definition machine_packet := (machine_node * machine_msg * machine_node)%type.
 
   (* The type used by the server to build the trace *)
   Definition machine_event := {ffun 'I_N -> (dist A rat_realFieldType)}.
@@ -108,7 +108,8 @@ Section machine_semantics.
   map
     (fun n =>
       (client_n n,
-      (scMsg (mwu_cost_vec f n))))
+      (scMsg (mwu_cost_vec f n)),
+      server))
     (enum 'I_N).
 
   (* A function for updating the received field of a server state *)
@@ -135,9 +136,10 @@ Section machine_semantics.
   *)
   Definition serverRecv :
     machine_msg ->
+    machine_node -> 
     serverState ->
       (serverState * list machine_packet * list machine_event) :=
-  fun msg st =>
+  fun msg origin st =>
     match msg with
     | csMsg (msg', cNum) =>
         let st' := (mkServerState (upd cNum (Some msg') (st.(received)))) in
@@ -169,6 +171,7 @@ Section machine_semantics.
   
   Variable clientRecv :
     machine_msg ->
+    machine_node ->
     clientState -> 
       (clientState * list machine_packet * list machine_event).
 

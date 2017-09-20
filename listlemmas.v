@@ -373,6 +373,85 @@ Proof.
     apply mem in H1. congruence. }
 Qed.
 
+Lemma length_size (A : Type) (l : list A) :
+  length l = size l.
+Proof. by []. Qed.
+
+Lemma forall_length_pmap (A B : Type) (f : A -> option B)
+      (l : list A) :
+  List.Forall (fun a => isSome (f a)) l ->
+  length (pmap f l) = length l.
+Proof.
+  rewrite 2!length_size.
+  rewrite size_pmap.
+  move=> H0. apply all_Forall_true_iff in H0.
+  rewrite all_count in H0.
+    by move: H0 => /eqP.
+Qed.
+
+Lemma all_filter_eq (A : Type) (l : list A) (f : A -> bool) :
+  all f l -> filter f l = l.
+Proof.
+  move=> H0. apply all_Forall_true_iff in H0.
+  induction l; auto.
+  simpl. inversion H0; subst; simpl.
+    by rewrite H2 IHl.
+Qed.
+
+Lemma in_filter_in (A : Type) (a : A) (l : list A) (f : A -> bool) :
+  List.In a (filter f l) ->
+  List.In a l.
+Proof.
+  move=> H0.
+  induction l; auto.
+  simpl in *. destruct (f a0).
+  { destruct H0 as [H0|H0].
+    { by [left | right; apply IHl]. }
+    { by right; apply IHl. } }
+  { by right; apply IHl. }
+Qed.
+
+Lemma exists_filter_exists (A : Type) (l : list A) (f : A -> bool) (P : A -> Prop) :
+  List.Exists P (filter f l) ->
+  List.Exists P l.
+Proof.
+  move=> H0. apply List.Exists_exists. apply List.Exists_exists in H0.
+  destruct H0 as [x H0]. exists x. destruct H0. split; auto.
+    by eapply in_filter_in; eauto.
+Qed.
+
+Lemma in_pmap_inv (A B : Type) (a : A) (b : B) (f : B -> option A) (l : list B) :
+  List.In a (pmap f (b :: l)) ->
+  f b = Some a \/ List.In a (pmap f l).
+Proof.
+  simpl => H0. rewrite /Option.apply in H0. destruct (f b) eqn:Hb; auto.
+  { by destruct H0 as [H0 | H0]; subst; auto. }
+Qed.
+
+Lemma in_pmap_exists (A B : Type) (a : A) (l : list B) (f : B -> option A) :
+  List.In a (pmap f l) ->
+  exists b, List.In b l /\ f b = Some a.
+Proof.
+  move=> H0. induction l.
+  { inversion H0. }
+  { rename a0 into b.
+    apply in_pmap_inv in H0. destruct H0.
+    { exists b. split; auto. by constructor. }
+    { apply IHl in H. destruct H as [b' [H0 H1]].
+      exists b'. split; by auto; right. } }
+Qed.
+
+Lemma forall_exists_conj (A : Type) (l : list A) (P Q : A -> Prop) :
+  List.Forall Q l ->
+  List.Exists P l ->
+  List.Exists (fun a => P a /\ Q a) l.
+Proof.
+  rewrite List.Forall_forall. rewrite 2!List.Exists_exists.
+  move=> H0 [x [H1 H2]].
+  specialize (H0 x H1).
+  exists x. by split.
+Qed.
+
 Lemma nodup_false_1 (A : Type) (a : A) (l1 l2 : list A) :
   ~ NoDup (a :: l1 ++ a :: l2).
 Proof.
