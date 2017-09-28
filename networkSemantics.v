@@ -124,18 +124,37 @@ Section intermediateSemantics.
   From mathcomp Require Import ssreflect.ssreflect.
   From mathcomp Require Import all_ssreflect.
   From mathcomp Require Import all_algebra.
-  Require Import Sorting.Permutation.
-
-  Variable N : nat.
-
+  Require Import compile. (* For enumerable class *)
+  
   (* Our network consists of two types of nodes
       - a server
-      - some finite number of clients *)
-  Inductive nodeINT :=
-  | serverID : nodeINT
-  | clientID : 'I_N -> nodeINT.
+      - clients parameterized by some type A *)
+  Inductive nodeINT (A : Type) :=
+  | serverID : nodeINT A 
+  | clientID : A -> nodeINT A.
 
-  Lemma nodeINTDec : forall n1 n2 : nodeINT,
+  (* We assume that A is:
+      - enumerable (finite)
+      - has decidable equilty *)
+      
+  Variable A : Type.
+  Variable AEnum : Enumerable A.
+  Variable AEnum_OK : @Enum_ok A AEnum.
+  Variable ADec : forall a1 a2 : A, {a1 = a2} + {a1 <> a2}.
+
+  (* Some SSR stuff to make the proofs re: A easier *)
+  Lemma A_eqP : Equality.axiom ADec.
+  Proof.
+    rewrite /Equality.axiom.
+    move => x y.
+    destruct (ADec x y); constructor; by [].
+  Qed.
+
+  Definition A_eqMixin := EqMixin A_eqP.
+  Canonical A_eqType :=
+    Eval hnf in EqType A A_eqMixin.
+
+  Lemma nodeINTDec : forall (n1 n2 : nodeINT A),
     {n1 = n2} + {n1 <> n2}.
   Proof.
     intros.
@@ -143,24 +162,19 @@ Section intermediateSemantics.
     + left; auto.
     + right. intros H. inversion H.
     + right. intros H. inversion H.
-    + case: (eqVneq o o0); [move =>  H | move/eqP => H].
-      - left; subst => //.
-      - right => Hcontra. inversion Hcontra. congruence.
+    + destruct (ADec a a0); [left | right]; congruence.
   Qed.
   
   Lemma nodeINT_eqP : Equality.axiom nodeINTDec.
   Proof.
     rewrite /Equality.axiom.
-    case; case. 
-    { destruct nodeINTDec. left; auto. congruence. }
-    { move=> i. destruct nodeINTDec. congruence. right; auto. }
-    { move=> m i y. destruct nodeINTDec. left; auto. right; auto. }
+    move => x y; destruct nodeINTDec; constructor; by [].
   Qed.
   Definition nodeINT_eqMixin := EqMixin nodeINT_eqP.
-  Canonical nodeINT_eqType := Eval hnf in EqType nodeINT nodeINT_eqMixin.
+  Canonical nodeINT_eqType := Eval hnf in EqType (nodeINT A) nodeINT_eqMixin.
 
-  Definition isClient : nodeINT -> bool :=
-  fun (n : nodeINT) =>
+  Definition isClient : nodeINT A -> bool :=
+  fun (n : nodeINT A) =>
   match n with
   | clientID _ => true
   | serverID => false
@@ -170,9 +184,46 @@ Section intermediateSemantics.
   Variable msgINT : Type.
   Variable eventINT : Type.
 
+  (** We assume messages have decidable equality *)
+  Variable msgINTDec : forall x y : msgINT, {x = y} + {x <> y}.
+
+  Lemma msgINT_eqP : Equality.axiom msgINTDec.
+  Proof.
+    rewrite /Equality.axiom.
+    move => x y. destruct (msgINTDec x y).
+    { constructor. by []. }
+    { constructor. by []. }
+  Qed.
+
+  Definition msgINT_eqMixin := EqMixin msgINT_eqP.
+  Canonical msgINT_eqType := Eval hnf in EqType msgINT msgINT_eqMixin.
+
+  (* From this, we can set up de. equality for packets built from nodeINT and msgINT *)
+  Lemma packetINTDec : forall x y : packet (nodeINT A) msgINT, {x = y} + {x <> y}.
+  Proof.
+    case; case; move => s p d;
+    case; case; move => s' p' d'.
+    destruct (nodeINTDec s s');
+    destruct (nodeINTDec d d');
+    destruct (msgINTDec p p');
+    try solve [right; congruence].
+    left; congruence.
+  Qed.
+
+  Lemma packetINT_eqP : Equality.axiom packetINTDec.
+  Proof.
+    rewrite /Equality.axiom.
+    move => x y.
+    destruct (packetINTDec x y); constructor; by [].
+  Qed.
+
+  Definition packetINT_eqMixin := EqMixin packetINT_eqP.
+  Canonical packetINT_eqType :=
+    Eval hnf in EqType (packet (nodeINT A) msgINT) packetINT_eqMixin.
+
   (* A description of the network *)
-  Definition nodePkgINT := NodePkg nodeINT msgINT eventINT. 
-  Variable network_descINT : nodeINT -> nodePkgINT.
+  Definition nodePkgINT := NodePkg (nodeINT A) msgINT eventINT. 
+  Variable network_descINT : (nodeINT A) -> nodePkgINT.
   Definition WorldINT := World network_descINT.
   (* A predicate defining if all nodes in a world state are uninitialized *)
   Definition nodesUninit (w : WorldINT) : Prop :=
@@ -186,14 +237,14 @@ Section intermediateSemantics.
     (forall n, initNodes w (clientID n) = true) \/
     exists n, initNodes w (clientID n) = false.
   Proof.
-    case_eq [forall n, initNodes w (clientID n)] => H.    
+(*    case: [forall n, initNodes w (clientID n)] => H.    
     move/forallP: H => H. left. by [].
     right. have H' : ~~[forall n, initNodes w (clientID n)].
     { rewrite H. by []. }
     rewrite negb_forall in H'. move/existsP: H' => H'.
     destruct H' as [x H'']. exists x.
-    apply Bool.negb_true_iff. by [].
-  Qed.
+    apply Bool.negb_true_iff. by []. *)
+  Admitted.
 
   Lemma nodesInitOrWitness (w : WorldINT) :
     (forall n, initNodes w n) \/
@@ -201,39 +252,39 @@ Section intermediateSemantics.
   Proof.
     case: (clientsInitOrWitness w) => H; last first.
     - right. destruct H as [n H]. exists (clientID n). by [].
-    - case_eq (initNodes w serverID) => H'; last first.
-      right. exists serverID. by []. left. intros n.
+    - case_eq (initNodes w (serverID A)) => H'; last first.
+      right. exists (serverID A). by []. left. intros n.
       induction n. exact H'. apply H.
   Qed.
 
 (** Information re: initalization **)
 
   (* The preinitalization state of a node *)
-  Definition pre_initStateNode (n : nodeINT) :=
+  Definition pre_initStateNode (n : nodeINT A) :=
     pre_init (network_descINT n).
 
   (* The state produced by initializing a node *)
-  Definition initStateNode (n : nodeINT) :=
+  Definition initStateNode (n : nodeINT A) :=
     fst (fst (init (network_descINT n) n)).
 
   (* The messages produced by initializing a node *)
-  Definition initMsgNode (n : nodeINT) :=
+  Definition initMsgNode (n : nodeINT A) :=
     snd (fst (init (network_descINT n) n)).
 
   (* The events produced by initializing a node *)
-  Definition initEventNode (n : nodeINT) :=
+  Definition initEventNode (n : nodeINT A) :=
     snd ((init (network_descINT n)) n).
 
   (* All initialization messages can be built by applying initMsgNode to each client
       and the server node *)
   Definition initMsg :=
-    (initMsgNode (serverID))++
-      foldr (fun n l =>  l ++ (initMsgNode (clientID n))) nil (enum 'I_N).
+    (initMsgNode (serverID A))++
+      foldr (fun n l =>  l ++ (initMsgNode (clientID n))) nil (enumerate A).
 
   (* We can do the same for events *)
   Definition initEvent :=
-    (initEventNode (serverID))++
-      foldr (fun n l =>  l ++ (initEventNode (clientID n))) nil (enum 'I_N).
+    (initEventNode (serverID A))++
+      foldr (fun n l =>  l ++ (initEventNode (clientID n))) nil (enumerate A).
 
   (* State of the world pre initalization *)
   Definition preInitWorld : WorldINT :=
@@ -252,27 +303,27 @@ Section intermediateSemantics.
       (fun n => true).
   
 (** Information re: the receipt of messages by nodes *)
-  Definition recvStateNode (n o : nodeINT) (m : msgINT) (w : WorldINT) :
+  Definition recvStateNode (n o : nodeINT A) (m : msgINT) (w : WorldINT) :
     state (network_descINT n) :=
       (recv (network_descINT n) m o (w.(localState) n)).1.1. 
 
-  Definition recvMsgNode (n o: nodeINT) (m : msgINT) (w : WorldINT) :
-    seq (packet nodeINT msgINT) :=
+  Definition recvMsgNode (n o: nodeINT A) (m : msgINT) (w : WorldINT) :
+    seq (packet (nodeINT A) msgINT) :=
       (recv (network_descINT n) m o (w.(localState) n)).1.2.
  
-  Definition recvEventNode (n o : nodeINT) (m : msgINT) (w : WorldINT) :
+  Definition recvEventNode (n o : (nodeINT A)) (m : msgINT) (w : WorldINT) :
     seq eventINT :=
       (recv (network_descINT n) m o (w.(localState) n)).2.
  
   (** Information re: the state of packets on the network **)
 
-    Definition packetFromClient (pkt : packet nodeINT msgINT) :=
+    Definition packetFromClient (pkt : packet (nodeINT A) msgINT) :=
     match origin_of pkt with
     | clientID _ => True
     | _          => False
     end.    
 
-    Definition packetFromClientb (pkt : packet nodeINT msgINT) :=
+    Definition packetFromClientb (pkt : packet (nodeINT A) msgINT) :=
     match origin_of pkt with
     | clientID _ => true
     | _          => false
@@ -287,15 +338,15 @@ Section intermediateSemantics.
     Qed.
 
     (* Predicate denoting lists of packets directed to the server *)
-  Definition onlyPacketsFromClient (l : list (packet nodeINT msgINT)) :=
+  Definition onlyPacketsFromClient (l : list (packet (nodeINT A) msgINT)) :=
     forall x, List.In x l -> packetFromClient x.
 
-  Definition onlyPacketsToServer (l : list (packet nodeINT msgINT)) :=
-    forall x, List.In x l -> fst (fst x) = serverID.
+  Definition onlyPacketsToServer (l : list (packet (nodeINT A) msgINT)) :=
+    forall x, List.In x l -> fst (fst x) = serverID A.
 
   (* For a list of packets, this generates a list of 'I_Ns corresponding to
       the orgins of those packets with origin information *)
-  Fixpoint clientsInFlightList (l : list (packet nodeINT msgINT)) : list 'I_N :=
+  Fixpoint clientsInFlightList (l : list (packet (nodeINT A) msgINT)) : list A :=
     match l with 
     | nil => nil
     | a::l' => 
@@ -317,10 +368,9 @@ Section intermediateSemantics.
 
   (* Here's a different definition that could maybe end up being more
      convenient since there are some lemmas about map and filter. *)
-  (* Definition msgToServerList (l : list (packet nodeINT msgINT)) : list msgINT := *)
-  (*   map (@msg_of _ _) (filter (fun pkt => nodeINTDec (dest_of pkt) serverID) l). *)
-  Definition msgToServerList (l : list (packet nodeINT msgINT)) : list (packet nodeINT msgINT) :=
-    filter (fun pkt => nodeINTDec (dest_of pkt) serverID) l.
+  Definition msgToServerList
+    (l : list (packet (nodeINT A) msgINT)) : list (packet (nodeINT A) msgINT) :=
+  filter (fun pkt => nodeINTDec (dest_of pkt) (serverID A)) l.
 
 
   (* All clients have sent correctly if all packets in flight :
@@ -336,16 +386,16 @@ Section intermediateSemantics.
         forall w,
       onlyPacketsToServer ((inFlight w)) ->
       onlyPacketsFromClient (inFlight w) ->
-      clientsInFlightList (inFlight w) = enum 'I_N ->
+      clientsInFlightList (inFlight w) = enumerate A ->
       allClientsSentCorrectly w.
 
   (* Given a server state s and message/event buffers ml el, this functions updates the 
       state s under reciept of packet p from node n to s' and adds the produced
       messages and events to the end of the message buffers *) 
   Definition updateServerAcc :=
-    fun (p : packet nodeINT msgINT) t =>
+    fun (p : packet (nodeINT A) msgINT) t =>
       let '(s, ml, el) := t in
-      let '(s', ml', el') := ((recv (network_descINT serverID))
+      let '(s', ml', el') := ((recv (network_descINT (serverID A)))
                                 (snd (fst p)) (snd p) s) in
         (s', ml++ml', el++el').
 
@@ -369,11 +419,11 @@ Section intermediateSemantics.
         network_stepINT w1 w2 *)
 
   (* Clients can progress identically to the semantics above *)
-  | clientPacketStep : forall (w : WorldINT) (n : 'I_N)
-                 (p : packet nodeINT msgINT)
-                 (l1 l2 : list (packet nodeINT msgINT))
+  | clientPacketStep : forall (w : WorldINT) (n : A)
+                 (p : packet (nodeINT A) msgINT)
+                 (l1 l2 : list (packet (nodeINT A) msgINT))
                  (st : state (network_descINT (clientID n)))
-                 (ps : list (packet nodeINT msgINT))
+                 (ps : list (packet (nodeINT A) msgINT))
                  (es : list eventINT),
     (initNodes w) (clientID n) = true -> 
     inFlight w = l1 ++ (p :: l2) ->
@@ -391,16 +441,16 @@ Section intermediateSemantics.
   (* The server can step only when all clients have sent and their messages are sitting
       in the environment *)
   | serverPacketStep : forall (w : WorldINT)
-                  (st st': state (network_descINT (serverID)))
-                  (l l' : list (packet nodeINT msgINT))
+                  (st st': state (network_descINT (serverID A)))
+                  (l l' : list (packet (nodeINT A) msgINT))
                   (e' : list eventINT),
-    (initNodes w) serverID = true ->
+    (initNodes w) (serverID A) = true ->
     allClientsSentCorrectly w ->
     (inFlight w) = l ->
     updateServerList st (msgToServerList l) = (st', l', e') ->
       network_stepINT w
         (mkWorld 
-          (upd_localState nodeINTDec serverID st'
+          (upd_localState nodeINTDec (serverID A) st'
             (localState w))
           l'
           ((trace w) ++ e')
@@ -413,25 +463,25 @@ Section intermediateSemantics.
 
     (* From packets sent from clients to the server, we can recover this information *)
     Variable clientServerInfo_recoverable :
-      (packet nodeINT msgINT) -> clientServerInfoType.
+      (packet (nodeINT A) msgINT) -> clientServerInfoType.
 
     (* Tests a generic packet to produce a clientServerInfoType originating from
         clientID n *)
-    Definition clientServerInfo_fromPacket (p : packet nodeINT msgINT) n
+    Definition clientServerInfo_fromPacket (p : packet (nodeINT A) msgINT) n
       : option clientServerInfoType :=
     match nodeINTDec (snd p) (clientID n) with
-    | left pf1 => match nodeINTDec (fst (fst p)) serverID with
+    | left pf1 => match nodeINTDec (fst (fst p)) (serverID A) with
       | left pf2 => Some (@clientServerInfo_recoverable p)
       | _ => None
       end
     | _ => None
-    end.	
+    end.
 
     (* For a given list of packets and a client, this attempts to produce a
         clientServerInfoType corresponding to a message from the client and
         in the list of packets *)
     Definition clientServerInfo_messageList
-      (l : list (packet nodeINT msgINT)) (n : 'I_N) : option clientServerInfoType :=
+      (l : list (packet (nodeINT A) msgINT)) (n : A) : option clientServerInfoType :=
     match filter isSome (map (fun p => clientServerInfo_fromPacket p n) l) with
     | nil => None
     | x::_ => x
@@ -500,14 +550,33 @@ Section intermediateSemantics.
     (* From the server state we might also recover the information relating to
         a particular client's message earlier in the round *)
     Variable clientServerInfo_fromServer : 
-      (network_descINT serverID).(state) -> 'I_N -> option clientServerInfoType.
+      (network_descINT (serverID A)).(state) -> A -> option clientServerInfoType.
+
+    (* When the server state reveals information from all clients except one,
+        then the receipt of a message from the missing client will end the round *)  
+    Definition serverEndRound_onClient s n : Prop :=
+      (forall n', n' <> n -> isSome (clientServerInfo_fromServer s n')).
+
+    Lemma serverEndRound_onClientCase :
+      forall s n, serverEndRound_onClient s n \/ ~ serverEndRound_onClient s n.
+    Proof.
+      admit.
+    Admitted.     
+
+    (* Produces a list of clients which the server has no inforamtion about *)
+    Definition clientServerInfo_fromServerUnknown s : list A :=
+    filter
+      (fun n =>
+        if clientServerInfo_fromServer s n
+          then false else true)
+      (enumerate A).
 
     (* Produces the information associated with a given client in the current round
         by first examining the set of inFlight messages and then the server state *) 
-    Definition clientInfo_fromWorld (W : WorldINT) : 'I_N -> option clientServerInfoType :=
+    Definition clientInfo_fromWorld (W : WorldINT) : A -> option clientServerInfoType :=
       fun n => match clientServerInfo_messageList (W.(inFlight)) n with
       | Some m => Some m
-      | None => clientServerInfo_fromServer (W.(localState) serverID) n
+      | None => clientServerInfo_fromServer (W.(localState) (serverID A)) n
       end.
 
     (* we'll probably need some hypotheses showing when clients can send messages
@@ -518,12 +587,12 @@ Section intermediateSemantics.
     Hypothesis clientInitSize : forall n, {m | (initMsgNode (clientID n)) = m::nil}.
 
     (* Initalization of a server adds no messages to inFlight *)
-    Hypothesis serverInitSize : initMsgNode serverID = nil.
+    Hypothesis serverInitSize : initMsgNode (serverID A) = nil.
 
     (* When the server initalizes, it gains no further information from clients *)
     Hypothesis serverInitInfo :
-      forall n, clientServerInfo_fromServer (initStateNode serverID) n =
-                clientServerInfo_fromServer (pre_initStateNode serverID) n.
+      forall n, clientServerInfo_fromServer (initStateNode (serverID A)) n =
+                clientServerInfo_fromServer (pre_initStateNode (serverID A)) n.
 
     (* All messages from initialization show their actual origin *)
     Hypothesis nodeInitOriginIsClient :
@@ -531,14 +600,14 @@ Section intermediateSemantics.
 
     (* All messages from a client init are directed to the server *)
     Hypothesis clientInitSentToServer : 
-      forall n p, List.In p (initMsgNode (clientID n)) -> fst (fst p) = serverID.    
+      forall n p, List.In p (initMsgNode (clientID n)) -> fst (fst p) = serverID A.    
 
     Hypothesis nodeInitTrace : 
       forall n, (initEventNode n) = [::].
 
     (* Bundling these bits together, we can establish the information sent by
          the client during initalization *)
-    Definition clientInit (n : 'I_N) : clientServerInfoType :=
+    Definition clientInit (n : A) : clientServerInfoType :=
       clientServerInfo_recoverable (proj1_sig (clientInitSize n)).
 
   (** Some assumptions about the behavior of nodes during recv **)
@@ -546,21 +615,33 @@ Section intermediateSemantics.
     (* Clients only communicate with the server *)
     Hypothesis clientRecvSentToServer :
       forall n n' m w p, List.In p (recvMsgNode (clientID n) n' m w) ->
-        fst (fst p) = serverID.
+        fst (fst p) = serverID A.
 
     (* A client only produces one packet upon receipt *)
     Hypothesis clientRecvSize : 
       forall n n' m w, {p | recvMsgNode (clientID n) n' m w = [::p]} .
     
-    (* Any packet sent from a client reveals the client as its origin *) 
-    Hypothesis clientRecvOriginIsClient :
+    (* Any packet sent from a node reveals the node as its origin *) 
+    Hypothesis nodeRecvOriginIsNode :
       forall n n' m w p ,
-        List.In p (recvMsgNode (clientID n) n' m w) -> p.2 = clientID n.
+        List.In p (recvMsgNode n n' m w) -> p.2 = n.
 
     (* The server only communicates with clients *)
     Hypothesis serverRecvSentToClient :
-      forall m n w p, List.In p (recvMsgNode serverID m n w) ->
+      forall m n w p, List.In p (recvMsgNode (serverID A) m n w) ->
         exists n, fst (fst p) = clientID n.
+
+    (* The server doesn't dump anything until it receives a message
+        from every client *)
+    Hypothesis serverRecvSize_midRound :
+      forall w n m, ~ serverEndRound_onClient (w.(localState) (serverID A)) n ->
+        recvMsgNode (serverID A) (clientID n) m w = nil.
+
+    (* Messages from the server to itself shouldn't appear in the world state, but
+        it'll be easier to instantiate a function that looks like this, 
+        than prove this property of the world state *)
+    Hypothesis serverRecvSize_fromServer :
+      forall w m, recvMsgNode (serverID A) (serverID A) m w = nil.
   
     Inductive Match : WorldINT -> WorldINT -> Prop :=
     (* For valid low-level world states, if any client has been uninitialized ,
@@ -583,6 +664,8 @@ Section intermediateSemantics.
               clientInfo_fromWorld WLOW n' = Some (clientInit n')) ->
             (* During initalization, nothing is added to the traces *)
             (trace preInitWorld = trace WLOW) -> 
+            (* During initalization, there are no messages to clients *)
+            (forall p n, List.In p WLOW.(inFlight) -> p.1.1 <> clientID n) -> 
           Match preInitWorld WLOW
 
     | postInitMatch : forall WINT WLOW,
@@ -591,21 +674,23 @@ Section intermediateSemantics.
             (forall n, (initNodes WINT) n = true) ->
             (forall n, (initNodes WLOW) n = true) ->
             (forall n, clientInfo_fromWorld WINT n = clientInfo_fromWorld WLOW n) ->
-            (forall p n, List.In p WLOW.(inFlight) -> fst (fst p) = clientID n ->
-              List.In p WINT.(inFlight)) ->
-            (trace WINT = trace WLOW) -> 
+(*            (forall p n, List.In p WLOW.(inFlight) -> fst (fst p) = clientID n ->
+              List.In p WINT.(inFlight)) -> *)
+            (forall p n, fst (fst p) = clientID n ->
+              count (eq_op p)  WLOW.(inFlight) = count (eq_op p) WINT.(inFlight)) ->
+            (trace WINT = trace WLOW) ->
           Match WINT WLOW.
 
     Definition countUninit : WorldINT -> nat :=
-      fun w => count (fun n => negb (initNodes w n)) (serverID::(map clientID (enum 'I_N))).
+      fun w => count (fun n => negb (initNodes w n)) ((serverID A)::(map (@clientID A) (enumerate A))).
 
     Definition world_measure : WorldINT -> nat :=
       fun w => 2*(countUninit w) + (length (inFlight w)).
 
-    Lemma count_upd_notin_same (A : Type) (pred : A -> bool) (l : list A) (a : A) (b : bool)
-          (a_dec : forall x y : A, {x = y} + {x <> y}) :
+    Lemma count_upd_notin_same (B : Type) (pred : B -> bool) (l : list B) (a : B) (b : bool)
+          (a_dec : forall x y : B, {x = y} + {x <> y}) :
       ~ List.In a l ->
-      count (fun a' : A => if a_dec a a' then b else pred a') l = count pred l.
+      count (fun a' : B => if a_dec a a' then b else pred a') l = count pred l.
     Proof.
       clear. move=> H0.
       induction l; auto. simpl in *.
@@ -613,12 +698,12 @@ Section intermediateSemantics.
       destruct (a_dec a a0); auto. congruence.
     Qed.
 
-    Lemma update_count_minus_1 (A : Type) (pred pred' : A -> bool) (l : list A) (a : A)
-          (a_dec : forall x y : A, {x = y} + {x <> y}) :
+    Lemma update_count_minus_1 (B : Type) (pred pred' : B -> bool) (l : list B) (a : B)
+          (a_dec : forall x y : B, {x = y} + {x <> y}) :
       List.NoDup l ->
       List.In a l ->
       pred a = true ->
-      (pred' = fun a' : A => if a_dec a a' then false else pred a') ->
+      (pred' = fun a' : B => if a_dec a a' then false else pred a') ->
       count pred' l + 1 = count pred l.
     Proof.
       move=> H0 H1 H2 H3.
@@ -628,7 +713,7 @@ Section intermediateSemantics.
         { simpl. clear e.
           have H3: (~ List.In a0 l).
           { by apply nodup_cons_notin. }
-          have ->: (count (fun a' : A => if is_left (a_dec a0 a') then false else pred a') l =
+          have ->: (count (fun a' : B => if is_left (a_dec a0 a') then false else pred a') l =
                     count pred l).
           { by apply count_upd_notin_same. }
           rewrite H2. simpl. rewrite add0n. apply addnC. }
@@ -640,7 +725,7 @@ Section intermediateSemantics.
     Qed.
 
     Lemma serverID_neq_map_client l :
-      ~ List.In serverID (map clientID l).
+      ~ List.In (serverID A) (map (@clientID A) l).
     Proof.
       clear. induction l; auto.
       move=> [H0 | H1]; auto. congruence.
@@ -674,27 +759,27 @@ Section intermediateSemantics.
       { apply List.NoDup_cons.
         { apply serverID_neq_map_client. }
         { rewrite nodup_uniq. rewrite map_inj_uniq.
-          { rewrite enumT. apply enumP_uniq, enumP. }
+          { (* rewrite enumT. apply enumP_uniq, enumP. *) admit. }
           { move=> i j H1. by inversion H1. } } }
       { destruct n. by left. simpl. right.
         apply map_in. move=> i j H1. by inversion H1.
-        apply list_in_finType_enum. }
+        (* apply list_in_finType_enum. *) admit. }
       { by rewrite H. }
       { rewrite /upd_initNodes. apply functional_extensionality => x.
         by destruct (nodeINTDec n x); auto. }
-    Qed.
+    Admitted.
 
    (* A server initalization step at the low level does not increase
       the inFlight count at all *)
     Lemma initStep_countInFlight_server : forall w st ps es,
-      initNodes w serverID = false ->  
-      init (network_descINT serverID) serverID = (st, ps, es) ->
+      initNodes w (serverID A) = false ->  
+      init (network_descINT (serverID A)) (serverID A) = (st, ps, es) ->
       length (inFlight w) =
       length (inFlight {|
-         localState := upd_localState nodeINTDec serverID st (localState w);
+         localState := upd_localState nodeINTDec (serverID A) st (localState w);
          inFlight := (inFlight w ++ ps)%list;
          trace := (trace w ++ es)%list;
-         initNodes := upd_initNodes nodeINTDec serverID (initNodes w) |}).
+         initNodes := upd_initNodes nodeINTDec (serverID A) (initNodes w) |}).
     Proof.
       move => w st ps es H1 H2. move: serverInitSize => H3.
         rewrite /initMsgNode in H3. rewrite H2 in H3. simpl in H3.
@@ -744,8 +829,6 @@ Section intermediateSemantics.
       rewrite H. fold (@flatten B). rewrite flatten_rewrite. by [].
     Qed.
 
-(** Proofs below still need to be reworked for new packet definition *)
-(*
     Lemma bleh': 
       forall l n, (forall n', List.In n' l -> n' <> n) ->
         [seq x <- flatten
@@ -779,7 +862,7 @@ Section intermediateSemantics.
       move => n. rewrite /clientInfo_fromWorld.
       rewrite /clientServerInfo_messageList /postInitWorld
               /initMsg /initMsgNode => //=.
-      move: (ord_enum_excision n) => H'. destruct H' as [enumPred [enumSucc [enumEq enumMem]]].
+(*      move: (ord_enum_excision n) => H'. destruct H' as [enumPred [enumSucc [enumEq enumMem]]].
       rewrite enumEq.
       have lEq : n :: enumSucc = [::n]++enumSucc. by []. rewrite lEq.
       rewrite filter_map filter_cat map_cat.
@@ -837,13 +920,14 @@ Section intermediateSemantics.
       have Heq : (sval (clientInitSize n)) = m.
       destruct (clientInitSize) => /=. rewrite /initMsgNode in e0.
       rewrite e0 in Hn. inversion Hn. by [].
-      subst. erewrite clientServerInfo_PI. f_equal.
-    Qed.
+      subst. by []. *)
+    admit.
+    Admitted.
 
     Lemma bleh'''' :  forall n W,
       clientInfo_fromWorld W n = None ->
       filter isSome
-        (map (fun p : packet nodeINT msgINT => clientServerInfo_fromPacket p n)
+        (map (fun p : packet (nodeINT A) msgINT => clientServerInfo_fromPacket p n)
           (inFlight W)) =
       nil.
     Proof.
@@ -858,13 +942,15 @@ Section intermediateSemantics.
     Lemma bleh''''':  initEvent = nil. 
     Proof.
       rewrite /initEvent nodeInitTrace cat0s.
-      fold (@flatten (packet nodeINT msgINT)).
-      induction (enum 'I_N) => //=. rewrite IHl.
+      fold (@flatten (packet (nodeINT A) msgINT)).
+      induction (enumerate A) => //=. rewrite IHl.
       rewrite (nodeInitTrace (clientID a)). by [].
     Qed.
-(* End TODO applicability *)
 
-    Lemma INTsimulatesLOW : forall WLOW WLOW',
+
+(* End TODO applicability *)
+(*
+Lemma INTsimulatesLOW : forall WLOW WLOW',
         (network_step_plus nodeINTDec WLOW WLOW') ->
         forall WINT, Match WINT WLOW ->
         (exists WINT', network_stepINT WINT WINT' /\ Match WINT' WLOW')
@@ -1140,15 +1226,18 @@ End intermediateSemantics.
 
 (** The relational intermediate network semantics *)
 Section relationalIntermediate.
-  Variable N : nat.
+  Variable A : Type.
+  Variable AEnum : Enumerable A.
+  Variable AEnum_OK : @Enum_ok A AEnum.
+  Variable ADec : forall a1 a2 : A, {a1 = a2} + {a1 <> a2}.
   Variable msgINT : Type.
   Variable eventINT : Type.
-  Notation nodeINT := (nodeINT N).
-  Notation nodePkgINT := (nodePkgINT N msgINT eventINT).
+  Notation nodeINT := (nodeINT A).
+  Notation nodePkgINT := (nodePkgINT A msgINT eventINT).
   Variable network_descINT : nodeINT -> nodePkgINT.
   Notation packet := (packet nodeINT msgINT).
-  Notation serverID := (serverID N).
-  Notation nodeINTDec := (@nodeINTDec N).
+  Notation serverID := (serverID A).
+  Notation nodeINTDec := (@nodeINTDec A ADec).
 
   (** The same as the regular node package except init and recv are relations *)
   Record RNodePkg : Type :=
@@ -1200,7 +1289,7 @@ Section relationalIntermediate.
   Definition upd_rLocalState (n : nodeINT) (s : nodeState n)
              (ls : rLocalStateTy)
     : rLocalStateTy :=
-    fun n' => match nodeINTDec n n' with
+    fun n' => match @nodeINTDec n n' with
            | left pf => @eq_rState n n' pf s
            | right _ => ls n'
            end.
@@ -1220,8 +1309,8 @@ Section relationalIntermediate.
   (** There is exactly one packet addressed to the server per client in
      the buffer *)
   Definition rAllClientsSentCorrectly (w : RWorld) :=
-    length (rInFlight w) = N /\
-    (forall i : 'I_N,
+    length (rInFlight w) = (length (enumerate A)) /\
+    (forall i : A,
         List.Exists
           (fun (pkt : packet) =>
              origin_of pkt = clientID i /\
@@ -1251,7 +1340,7 @@ Section relationalIntermediate.
         Rnetwork_step pre post
 
   (* A single client handles a packet *)
-  | RclientPacketStep : forall (w : RWorld) (n : 'I_N)
+  | RclientPacketStep : forall (w : RWorld) (n : A)
                           (p : packet)
                           (l1 l2 : list (packet))
                           (st : clientState n)
@@ -1274,7 +1363,7 @@ Section relationalIntermediate.
                           (e' : list eventINT),
       (rInitNodes w) serverID ->
       rAllClientsSentCorrectly w ->
-      serverUpdate st (msgToServerList (rInFlight w)) (st', l', e') ->
+      serverUpdate st (msgToServerList ADec (rInFlight w)) (st', l', e') ->
       Rnetwork_step
         w
         (mkRWorld (upd_rLocalState serverID st' (rLocalState w))
@@ -1284,14 +1373,17 @@ End relationalIntermediate.
 
 (** Regular networks can be automatically lifted to relation-style networks *)
 Section liftNetwork.
-  Variable N : nat.
+  Variable A : Type.
+  Variable AEnum : Enumerable A.
+  Variable AEnum_OK : @Enum_ok A AEnum.
+  Variable ADec : forall a1 a2 : A, {a1 = a2} + {a1 <> a2}.
   Variable msgINT : Type.
   Variable eventINT : Type.
-  Notation nodeINT := (nodeINT N).
-  Notation nodePkgINT := (nodePkgINT N msgINT eventINT).
+  Notation nodeINT := (nodeINT A).
+  Notation nodePkgINT := (nodePkgINT A msgINT eventINT).
   Variable network_descINT : nodeINT -> nodePkgINT.
   Notation packet := (packet nodeINT msgINT).
-  Notation mkRNodePkg := (@mkRNodePkg N msgINT eventINT).
+  Notation mkRNodePkg := (@mkRNodePkg A msgINT eventINT).
 
   (** Transform an init function into its relational equivalent *)
   Definition liftInit (S : Type)
@@ -1317,23 +1409,26 @@ End liftNetwork.
 (** The relational intermediate network semantics simulates the regular
     intermediate network semantics. *)
 Section relationalINTSimulation.
-  Variable N : nat.
+  Variable A : Type.
+  Variable AEnum : Enumerable A.
+  Variable AEnum_OK : @Enum_ok A AEnum.
+  Variable ADec : forall a1 a2 : A, {a1 = a2} + {a1 <> a2}.
   Variable msgINT : Type.
   Variable eventINT : Type.
-  Notation nodeINT := (nodeINT N).
-  Notation nodePkgINT := (nodePkgINT N msgINT eventINT).
+  Notation nodeINT := (nodeINT A).
+  Notation nodePkgINT := (nodePkgINT A msgINT eventINT).
   Variable network_descINT : nodeINT -> nodePkgINT.
   Notation packet := (packet nodeINT msgINT).
   Notation WorldINT := (WorldINT network_descINT).
   Notation Rnetwork_desc := (liftedNetwork_desc network_descINT).
   Notation RWorld := (RWorld Rnetwork_desc).
   Notation network_stepINT :=
-    (@network_stepINT N msgINT eventINT network_descINT).
+    (@network_stepINT A msgINT eventINT network_descINT).
   Notation Rnetwork_step :=
-    (@Rnetwork_step N msgINT eventINT Rnetwork_desc).
+    (@Rnetwork_step A msgINT eventINT Rnetwork_desc).
   Notation localStateTy := (localStateTy network_descINT).
   Notation rLocalStateTy := (rLocalStateTy Rnetwork_desc).
-  Notation packetFromClientb := (@packetFromClientb N msgINT).
+  Notation packetFromClientb := (@packetFromClientb A msgINT).
 
   (** The match relation
       1) All node states are equal
@@ -1357,7 +1452,7 @@ Section relationalINTSimulation.
              w.(inFlight) w.(trace) w.(initNodes).
 
   Lemma postInitPreserved WINT :
-    postInitWorld network_descINT = WINT ->
+    postInitWorld AEnum network_descINT = WINT ->
     postInitRWorld (rWorld_of_WorldINT WINT).
   Proof.
     move=> H0 n s. subst. split; auto.
@@ -1370,7 +1465,7 @@ Section relationalINTSimulation.
 
   (** An alternate implementation of clientsInFlightList using pmap and
       filter. Not necessarily better but it's used in the proofs below. *)
-  Definition clientsInFlightList' (l : list (packet)) : list 'I_N :=
+  Definition clientsInFlightList' (l : list (packet)) : list A :=
     pmap (fun pkt => match origin_of pkt with
                   | clientID i => Some i
                   | _          => None
@@ -1391,11 +1486,13 @@ Section relationalINTSimulation.
 
   Lemma length_clientsInFlightList (l : list packet) :
     onlyPacketsToServer l ->
-    @onlyPacketsFromClient N _ l ->
+    @onlyPacketsFromClient A _ l ->
     length (clientsInFlightList l) =
     length l.
   Proof.
     move=> H0 H1.
+    admit.
+    (*
     rewrite clientsInFlightListEquiv /clientsInFlightList' all_filter_eq.
     rewrite /onlyPacketsFromClient in H1.
     { apply forall_length_pmap. rewrite /onlyPacketsFromClient in H1.
@@ -1404,16 +1501,17 @@ Section relationalINTSimulation.
     { apply all_Forall_true_iff, List.Forall_forall.
       move=> pkt Hin. specialize (H1 pkt Hin).
       rewrite /packetFromClient in H1. rewrite /packetFromClientb.
-      by destruct (origin_of pkt). }
-  Qed.
+      by destruct (origin_of pkt). } *)
+  Admitted.
 
-  Lemma clientsInFlightList_enum_client_exists (l : list packet) (i : 'I_N) :
-    clientsInFlightList l = enum 'I_N ->
+  Lemma clientsInFlightList_enum_client_exists (l : list packet) (i : A) :
+    clientsInFlightList l = enumerate A ->
     List.Exists (fun pkt => origin_of pkt = clientID i ) l.
   Proof.
     rewrite clientsInFlightListEquiv => H0.
     rewrite /clientsInFlightList' in H0.
     move: H0. have ->: (forall p l, filter p l = List.filter p l) by [] => H0.
+    (*
     apply exists_filter_exists with packetFromClientb.
     apply List.Exists_exists.
     set sdf := (fun pkt : packet => match origin_of pkt with
@@ -1427,25 +1525,30 @@ Section relationalINTSimulation.
     destruct H1 as [pkt [H1 H2]].
     exists pkt. split; auto. rewrite /sdf in H2.
     destruct (origin_of pkt); by [congruence | inversion H2].
-  Qed.
+    *)
+    admit.
+  Admitted.
 
-  Lemma clientsInFlightList_enum_client_exists' (l : list packet) (i : 'I_N) :
+  Lemma clientsInFlightList_enum_client_exists' (l : list packet) (i : A) :
     onlyPacketsToServer l ->
-    clientsInFlightList l = enum 'I_N ->
+    clientsInFlightList l = enumerate A->
     List.Exists (fun pkt => origin_of pkt = clientID i /\
-                         dest_of pkt = serverID N) l.
+                         dest_of pkt = serverID A) l.
   Proof.
     move=> H0 H1. move: (clientsInFlightList_enum_client_exists l i H1).
+    (*
     apply forall_exists_conj. rewrite /onlyPacketsToServer in H0.
-    by rewrite List.Forall_forall.
-  Qed.
+    by rewrite List.Forall_forall. *)
+    admit.
+  Admitted.
 
   Lemma allClientsSentCorrectly_match WINT RW :
     inFlight WINT = rInFlight RW ->
-    @allClientsSentCorrectly _ msgINT eventINT network_descINT WINT ->
-    @rAllClientsSentCorrectly _ msgINT eventINT Rnetwork_desc RW.
+    @allClientsSentCorrectly _ _ msgINT eventINT network_descINT WINT ->
+    @rAllClientsSentCorrectly _ _ msgINT eventINT Rnetwork_desc RW.
   Proof.
     move=> H0 H1. inversion H1; subst. split.
+    (*
     { move: (length_clientsInFlightList H H2) => H4. rewrite H3 in H4.
       by rewrite -H0 -H4; apply size_enum_ord. }
     { move=> i. apply List.Exists_exists.
@@ -1454,7 +1557,8 @@ Section relationalINTSimulation.
       apply List.Exists_exists in H4.
       destruct H4 as [pkt [H4 [H5 H6]]].
       exists pkt. split; auto. }
-  Qed.
+    *) admit.
+  Admitted.
 
   Lemma serverUpdate_match st st' l ps es :
     updateServerList network_descINT st l = (st', ps, es) ->
@@ -1469,16 +1573,16 @@ Section relationalINTSimulation.
       destruct (foldr
            (fun (p : packet) '(s, ml, el) =>
             let
-            '(s', ml', el') := recv (network_descINT (serverID N))
+            '(s', ml', el') := recv (network_descINT (serverID A))
                                     p.1.2 p.2 s in (s', ml ++ ml', el ++ el'))
            (st, [::], [::]) l) eqn:Hfold.
       destruct p.
-      destruct (recv (network_descINT (serverID N)) a.1.2 a.2 s) eqn:Hrecv.
+      destruct (recv (network_descINT (serverID A)) a.1.2 a.2 s) eqn:Hrecv.
       destruct p.
       inversion H0; subst. pose proof Hfold. apply IHl in Hfold.
       by right with s. }
   Qed.
-
+  (*
   (** The simulation statement and proof *)
   Theorem relationalINTSimulation :
     forall WINT WINT' RW,
@@ -1524,5 +1628,5 @@ Section relationalINTSimulation.
             by destruct (nodeINTDec (serverID N) n). } }
         { split; auto. by rewrite H2. } } }
   Qed.
-
+  *)
 End relationalINTSimulation.
