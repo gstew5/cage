@@ -1,5 +1,31 @@
 Require Import listlemmas.
 
+(** Not sure if something like this exists somewhere already or where to
+    put this *)
+Ltac dec_same dec :=
+  match goal with
+  | [ |- context [ match dec ?x ?x with
+                  | left _ => _
+                  | right _ => _
+                  end ] ] =>
+    destruct (dec x x); try congruence
+  end.
+
+Ltac dec_diff dec :=
+  match goal with
+  | [ H : ?x <> ?y |- context [ match dec ?x ?y with
+                              | left _ => _
+                              | right _ => _
+                              end ] ] =>
+    destruct (dec x y); try congruence
+  | [ H : ?y <> ?x |- context [ match dec ?x ?y with
+                              | left _ => _
+                              | right _ => _
+                              end ] ] =>
+    destruct (dec x y); try congruence
+  end.
+
+
 Section NetworkSemantics.
 Set Implicit Arguments.  
   Variable node  : Type. (* The type of node identifiers *)
@@ -26,18 +52,18 @@ Set Implicit Arguments.
 
   Record NodePkg : Type :=
     mkNodePkg
-      { state       : Type
-      ; init        : node -> (state * list packet * list event)%type
+      { node_state       : Type
+      ; init        : node -> (node_state * list packet * list event)%type
       (* info, origin, state -> ... *)
-      ; recv        : msg -> node -> state -> (state * list packet * list event)%type
-      ; pre_init    : state
+      ; recv        : msg -> node -> node_state -> (node_state * list packet * list event)%type
+      ; pre_init    : node_state
       }.
   
   (** A mapping from node identifiers to their packages *)
   Variable network_desc : node -> NodePkg.
   
   (** The type of mappings from node identifiers to their local state *)
-  Definition localStateTy := forall (n : node), state (network_desc n).
+  Definition localStateTy := forall (n : node), node_state (network_desc n).
   
   (** A world configuration is:
       localState - a mapping from node identifiers to their local state
@@ -63,11 +89,11 @@ Set Implicit Arguments.
   (*   fun n' => if node_dec n' n then _ else ls n'. *)
 
   (** Or something like this avoids the need to import anything: *)
-  Definition eq_state (n n' : node) (pf: n = n') (s : state (network_desc n))
-    : state (network_desc n').
+  Definition eq_state (n n' : node) (pf: n = n') (s : node_state (network_desc n))
+    : node_state (network_desc n').
   Proof. rewrite <- pf; easy. Defined.
 
-  Definition upd_localState (n : node) (s : state (network_desc n))
+  Definition upd_localState (n : node) (s : node_state (network_desc n))
              (ls : localStateTy)
     : localStateTy :=
     fun n' => match node_dec n n' with
@@ -75,11 +101,16 @@ Set Implicit Arguments.
            | right _ => ls n'
            end.
 
-  (* This is weird *)
-  Lemma upd_localState_same n s st :
-    upd_localState n s st n = s.
-  Admitted.
+  Definition state_id (n : node) (s : node_state (network_desc n)) := s.
+  Lemma state_id_eq (n : node) (s : node_state (network_desc n)) :
+    state_id n s = s.
+  Proof. auto. Qed.
 
+  (* (* This is weird *) *)
+  (* Lemma upd_localState_same n s st : *)
+  (*   upd_localState n s st n = s. *)
+  (* Admitted. *)
+  
   (** Mark a node as being initialized *)
   Definition upd_initNodes (n : node) (initNodes : node -> bool)
     : node -> bool :=
@@ -92,7 +123,7 @@ Set Implicit Arguments.
 
   (* An uninitialized node can take its first step into a larger world *)
   | initStep : forall (w : World) (n : node)
-                 (st : state (network_desc n)) (ps : list packet)
+                 (st : node_state (network_desc n)) (ps : list packet)
                  (es : list event),
       w.(initNodes) n = false -> 
       (network_desc n).(init) n = (st, ps, es) ->
@@ -102,7 +133,7 @@ Set Implicit Arguments.
                    
   (* An "in flight" packet can be delivered to its destination *)
   | packetStep : forall (w : World) (n : node) (p : packet)
-                   (l1 l2 : list packet) (st : state (network_desc n))
+                   (l1 l2 : list packet) (st : node_state (network_desc n))
                    (ps : list packet) (es : list event),
       w.(initNodes) n = true -> 
       w.(inFlight) = l1 ++ (p :: l2) ->
@@ -127,6 +158,8 @@ Section intermediateSemantics.
   From mathcomp Require Import all_ssreflect.
   From mathcomp Require Import all_algebra.
   Require Import compile. (* For enumerable class *)
+
+  Notation state := node_state.
   
   (* Our network consists of two types of nodes
       - a server
@@ -1400,7 +1433,7 @@ Section liftNetwork.
 
   (** Transform a node package into its relational equivalent *)
   Definition liftNodePkg (pkg : nodePkgINT) :=
-    @mkRNodePkg pkg.(state) (liftInit pkg.(init))
+    @mkRNodePkg pkg.(node_state) (liftInit pkg.(init))
                             (liftRecv pkg.(recv)) pkg.(pre_init).
 
   (** Transform an entire network into its relational equivalent *)
@@ -1579,10 +1612,10 @@ Section relationalINTSimulation.
                                     p.1.2 p.2 s in (s', ml ++ ml', el ++ el'))
            (st, [::], [::]) l) eqn:Hfold.
       destruct p.
-      destruct (recv (network_descINT (serverID A)) a.1.2 a.2 s) eqn:Hrecv.
+      destruct (recv (network_descINT (serverID A)) a.1.2 a.2 n) eqn:Hrecv.
       destruct p.
       inversion H0; subst. pose proof Hfold. apply IHl in Hfold.
-      by right with s. }
+      by right with n. }
   Qed.
   (*
   (** The simulation statement and proof *)

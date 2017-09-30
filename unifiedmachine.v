@@ -154,7 +154,7 @@ Section machine_semantics.
     end.
 
   Definition serverNode :=
-    {| state := serverState ;
+    {| node_state := serverState ;
        init := serverInit ;
        recv := serverRecv ;
        pre_init := serverPreInit
@@ -176,7 +176,7 @@ Section machine_semantics.
       (clientState * list machine_packet * list machine_event).
 
   Definition clientNode :=
-    {| state := clientState;
+    {| node_state := clientState;
        init := clientInit ;
        recv := clientRecv ;
        pre_init := clientPreInit

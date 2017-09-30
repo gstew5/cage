@@ -22,9 +22,9 @@ Section toVerdi.
 
   (** Additional necessary assumptions *)
   Variable data : Type.
-  Variable to_data : forall n, (network_desc n).(state) -> data.
-  Variable from_data : forall n, data -> (network_desc n).(state).
-  Hypothesis from_to_data : forall n s, from_data n (to_data n s) = s.
+  Variable to_data : forall n, (network_desc n).(node_state) -> data.
+  Variable from_data : forall n, data -> option (network_desc n).(node_state).
+  Hypothesis from_to_data : forall n s, from_data n (to_data n s) = Some s.
 
   Variable nodes : list node.
   Hypothesis all_nodes : forall n, List.In n nodes.
@@ -51,16 +51,15 @@ Section toVerdi.
 
   (** Translate a recv function to a verdi net_handler. *)
   Definition to_net_handler n
-             (init : node -> ((network_desc n).(state) *
+             (init : node -> ((network_desc n).(node_state) *
                              list packet * list event)%type)
-             (recv : msg -> node -> (network_desc n).(state) ->
-                     ((network_desc n).(state) *
+             (recv : msg -> node -> (network_desc n).(node_state) ->
+                     ((network_desc n).(node_state) *
                       list packet * list event)%type)
     : node -> msg -> data_s -> (list event) * data_s * list (node * msg) :=
     fun src m d =>
       match dInit d with
       | false =>
-        let st := from_data n (dBody d) in
         let (p, es) := init n in
         let (st', ps) := p in
         let (p', es') := recv m src st' in
@@ -68,11 +67,14 @@ Section toVerdi.
         (es ++ es', mkData true (to_data n st''),
          map (fun pkt => (dest_of pkt, msg_of pkt)) (ps ++ ps'))
       | true  =>
-        let st := from_data n (dBody d) in
-        let (p, es) := recv m src st in
-        let (st', ps) := p in
-        (es, mkData true (to_data n st'),
-         map (fun pkt => (dest_of pkt, msg_of pkt)) ps)
+        match from_data n (dBody d) with
+        | Some st =>
+          let (p, es) := recv m src st in
+          let (st', ps) := p in
+          (es, mkData true (to_data n st'),
+           map (fun pkt => (dest_of pkt, msg_of pkt)) ps)
+        | None => (nil, d, nil)
+        end
       end.
 
   (** Translate recv functions to net_handlers. *)
@@ -81,7 +83,7 @@ Section toVerdi.
 
   (** Translate an init function to a verdi input_handler. *)
   Definition to_input_handler n
-             (init : node -> ((network_desc n).(state) *
+             (init : node -> ((network_desc n).(node_state) *
                              list packet * list event)%type)
     : msg -> data_s -> (list event) * data_s * list (node * msg) :=
     fun m d =>
@@ -141,8 +143,8 @@ Section toVerdi.
   Notation stateTy := (@localStateTy node msg event network_desc).
 
   Definition state_match (state : stateTy) (verdi_state : node -> data_s) :=
-    forall n, to_data n (state n) = dBody (verdi_state n).
-  
+    forall n, from_data n (dBody (verdi_state n)) = Some (state n).
+
   Definition verdi_trace_ty := list (node * (msg + list event)).
   
   Definition filter_trace (trace : verdi_trace_ty) :=
@@ -251,36 +253,23 @@ Section toVerdi.
   
   Notation network_step_star := (@network_step_star _ _ _ node_eq_dec network_desc).
 
-
-  (** A couple tactics for working with node_eq_dec *)
-  Ltac node_eq_same :=
-    match goal with
-    | [ |- context [ match node_eq_dec ?x ?x with
-                    | left _ => _
-                    | right _ => _
-                    end ] ] =>
-      destruct (node_eq_dec x x); try congruence
-    end.
-
-  Ltac node_eq_diff :=
-    match goal with
-    | [ H : ?x <> ?y |- context [ match node_eq_dec ?x ?y with
-                                | left _ => _
-                                | right _ => _
-                                end ] ] =>
-      destruct (node_eq_dec x y); try congruence
-    | [ H : ?y <> ?x |- context [ match node_eq_dec ?x ?y with
-                                | left _ => _
-                                | right _ => _
-                                end ] ] =>
-      destruct (node_eq_dec x y); try congruence
-    end.
+  (* This is weird *)
+  Lemma upd_localState_same n s st :
+    upd_localState n s st n = s.
+  Proof.
+    assert (H0: forall (A : Type) (a b : A), Some a = Some b -> a = b).
+    { intros A a b H. injection H; auto. }
+    apply H0. rewrite <- from_to_data.
+    unfold upd_localState, eq_state, eq_rect.
+    dec_same node_eq_dec. destruct e.
+    rewrite from_to_data; auto.
+  Qed.
 
   Lemma recv_simulation_step
-        WORLD (WORLD' : World) TRACE p out net net' d l l0 xs ys p1 :
+        WORLD (WORLD' : World) TRACE p out net net' d l l0 xs ys p1 s :
     nwPackets net = xs ++ p :: ys ->
-    recv (network_desc (pDst p)) (pBody p) (pSrc p)
-         (from_data (pDst p) (dBody (nwState net (pDst p)))) =
+    from_data (pDst p) (dBody (nwState net (pDst p))) = Some s ->
+    recv (network_desc (pDst p)) (pBody p) (pSrc p) s =
     (p1, l0) ->
     (let (st', ps) := p1 in
      (l0, {| dInit := true; dBody := to_data (pDst p) st' |},
@@ -301,7 +290,7 @@ Section toVerdi.
     exists WORLD' : World,
       network_step_star WORLD WORLD' /\ verdiMatch WORLD' net' (TRACE ++ [(pDst p, inr out)]).
   Proof.
-    intros H0 Hrecv H1 Hnet Hmatch0 Hmatch1 Hmatch2 Hmatch3 Hinit.
+    intros H0 H2 Hrecv H1 Hnet Hmatch0 Hmatch1 Hmatch2 Hmatch3 Hinit.
     pose proof Hmatch3. specialize (H (pDst p)). rewrite Hinit in H.
     destruct p1. inversion H1; subst.
     assert (exists xs' ys',
@@ -309,27 +298,23 @@ Section toVerdi.
     { eapply perm_split_2. unfold packets_match in Hmatch0.
       rewrite H0 in Hmatch0. rewrite map_app in Hmatch0. simpl in Hmatch0.
       apply Hmatch0. }
-    destruct H2 as [xs' [ys' H3]].
-    exists (mkWorld (upd_localState (pDst p) s WORLD.(localState))
+    destruct H3 as [xs' [ys' H3]].
+    exists (mkWorld (upd_localState (pDst p) n WORLD.(localState))
                (xs' ++ ys' ++ l1)
                (WORLD.(trace) ++ out) WORLD.(initNodes)).
     split. right with (w2:={| localState :=
-                                upd_localState (pDst p) s (localState WORLD);
+                                upd_localState (pDst p) n (localState WORLD);
                               inFlight := xs' ++ ys' ++ l1;
                               trace := trace WORLD ++ out;
                               initNodes := initNodes WORLD |}).
     apply packetStep with (p := packet_of_verdi_packet p); auto.
     { simpl. inversion H0. subst. auto.
-      assert (H5: localState WORLD (pDst p) =
+      assert (H6: Some (localState WORLD (pDst p)) =
                   from_data (pDst p) (dBody (nwState net (pDst p)))).
       { unfold state_match in Hmatch1. specialize (Hmatch1 (pDst p)).
-        assert (H6: from_data
-                      (pDst p) (to_data (pDst p)
-                                        (localState WORLD (pDst p))) =
-                    from_data (pDst p) (dBody (nwState net (pDst p)))).
-        { f_equal; auto. }
-        rewrite <- H6. rewrite from_to_data; auto. }
-      rewrite H5; inversion H0; subst; auto. }
+        rewrite Hmatch1; auto. }
+      rewrite <- Hrecv. f_equal.
+      rewrite H2 in H6. inversion H6; auto. }
     { left. }
     { unfold verdiMatch; simpl. split.
       { unfold packets_match in Hmatch0. unfold packets_match.
@@ -345,21 +330,24 @@ Section toVerdi.
       { split.
         { simpl in *. inversion H1.
           clear H1 Hmatch0 Hmatch2 Hmatch3 H3.
-          intro n. specialize (Hmatch1 n).
+          intro nd. specialize (Hmatch1 nd).
           unfold upd_localState.
-          destruct (node_eq_dec n (pDst p)) eqn:Heq; auto. simpl in *.
+          destruct (node_eq_dec nd (pDst p)) eqn:Heq; auto. simpl in *.
           rewrite e.
-          node_eq_same.
-          unfold eq_state. unfold eq_rect. destruct e0; auto.
-          node_eq_diff. }
+          dec_same node_eq_dec.
+          unfold eq_state. unfold eq_rect.
+          (* simpl in e0. simpl in n. generalize (from_to_data pDst). intro H1. *)
+          (* specialize (H1 n). rewrite H1. *)
+          destruct e0; auto.
+          dec_diff node_eq_dec. }
         { split.
           { clear Hmatch0 Hmatch1 Hmatch3 H3.
             inversion H0; clear H0. inversion H1; clear H1.
             subst. unfold trace_match.
             apply trace_app'; auto. }
           { clear Hmatch0 Hmatch1 Hmatch2. clear H1.
-            intro n. specialize (Hmatch3 n).
-            destruct (node_eq_dec n (pDst p)); subst; auto. } } } }
+            intro nd. specialize (Hmatch3 nd).
+            destruct (node_eq_dec nd (pDst p)); subst; auto. } } } }
   Qed.
 
   Theorem verdiSimulation :
@@ -381,15 +369,16 @@ Section toVerdi.
         specialize (Hmatch3 (pDst p)).
         rewrite Hinit in Hmatch3. unfold net_handlers in H0.
         unfold to_net_handler in H0. rewrite <- Hmatch3 in H0.
-        remember (recv (network_desc (pDst p)) (pBody p) (pSrc p)
-                       (from_data (pDst p) (dBody (nwState net (pDst p)))))
-          as p0.
-        destruct (recv (network_desc (pDst p)) (pBody p) (pSrc p)
-                       (from_data (pDst p) (dBody (nwState net (pDst p)))))
-                 eqn:Hrecv.
-        destruct p0. inversion Heqp0. rewrite H4 in *.
-        rewrite H5 in *. clear H4 H5 Heqp0.
-        destruct p1. eapply recv_simulation_step; eassumption. }
+        destruct (from_data (pDst p) (dBody (nwState net (pDst p)))) eqn:Hdata.
+        { remember (recv (network_desc (pDst p)) (pBody p) (pSrc p) n)
+            as p0.
+          destruct (recv (network_desc (pDst p)) (pBody p) (pSrc p) n)
+                   eqn:Hrecv.
+          destruct p0. inversion Heqp0. rewrite H4 in *.
+          rewrite H5 in *. clear H4 H5 Heqp0.
+          destruct p1. eapply recv_simulation_step; eassumption. }
+        { (* from_data returning None is impossible because of state_match *)
+          specialize (Hmatch1 (pDst p)). rewrite Hdata in Hmatch1. congruence. } }
 
       (* The node hasn't been initialized yet -- do init then recv *)
       { unfold net_handlers in H0. unfold to_net_handler in H0.
@@ -398,6 +387,7 @@ Section toVerdi.
         remember (init (network_desc (pDst p)) (pDst p)) as p0.
         destruct (init (network_desc (pDst p)) (pDst p)) eqn:Hinit'.
         destruct p0. destruct p0.
+        rename n into s.
         remember (recv (network_desc (pDst p)) (pBody p) (pSrc p) s) as p2.
         destruct (recv (network_desc (pDst p)) (pBody p) (pSrc p) s) eqn:Hrecv.
         destruct p2. destruct p2. inversion Heqp0. inversion Heqp2.
@@ -411,13 +401,14 @@ Section toVerdi.
           rewrite H in Hmatch0. rewrite map_app in Hmatch0. simpl in Hmatch0.
           apply Hmatch0. }
         destruct H0 as [xs' [ys' H0]].
-        exists (mkWorld (upd_localState (pDst p) s2 WORLD.(localState))
+        rename n0 into s0. rename n into s'. rename n1 into s1.
+        exists (mkWorld (upd_localState (pDst p) s1 WORLD.(localState))
                    (xs' ++ ys' ++ l6 ++ l7)
                    (WORLD.(trace) ++ l0 ++ l3)
                    (upd_initNodes (pDst p) WORLD.(initNodes))).
         split.
         { apply trans_step with
-          (w2 := (mkWorld (upd_localState (pDst p) s1 WORLD.(localState))
+          (w2 := (mkWorld (upd_localState (pDst p) s0 WORLD.(localState))
                           ((inFlight WORLD) ++ l6)
                           (WORLD.(trace) ++ l0)
                           (upd_initNodes (pDst p) WORLD.(initNodes)))).
@@ -425,12 +416,9 @@ Section toVerdi.
           eapply trans_step.
           {  apply packetStep with (p := packet_of_verdi_packet p)
                                      (l1:=xs') (l2:=ys'++l6); simpl; auto.
-             {  unfold upd_initNodes. node_eq_same. }
+             { unfold upd_initNodes. dec_same node_eq_dec. }
              { rewrite H0; rewrite <- app_assoc; auto. }
-             { 
-               rewrite <- (from_to_data (pDst p) (upd_localState (pDst p) s1 (localState WORLD) (pDst p))).
-               unfold upd_localState. unfold eq_state. unfold eq_rect.
-               node_eq_same. destruct e. rewrite from_to_data. eassumption. } }
+             { rewrite  upd_localState_same. eassumption. } }
           { apply refl_step. } }
         { unfold verdiMatch. simpl. split.
           { 
@@ -453,16 +441,17 @@ Section toVerdi.
             { eapply origins_correct_recv; eassumption. }
             { eapply origins_correct_init; eassumption. } }
           { split.
-            {  intro n. specialize (Hmatch1 n).
-               unfold upd_localState. unfold eq_state. unfold eq_rect.
-               destruct (node_eq_dec n (pDst p)); subst; simpl.
-               node_eq_same. destruct e; auto.
-               node_eq_diff. }
+            { intro n. specialize (Hmatch1 n).
+              unfold upd_localState. unfold eq_state. unfold eq_rect.
+              destruct (node_eq_dec n (pDst p)); subst; simpl.
+              dec_same node_eq_dec. destruct e; auto.
+              dec_diff node_eq_dec. }
             { split.
               { unfold trace_match. apply trace_app'; auto. }
-              { intro n. specialize (Hmatch3 n). unfold upd_initNodes.
+              { intro n. specialize (Hmatch3 n).
+                unfold upd_initNodes.
                 destruct (node_eq_dec (pDst p) n); subst; simpl.
-                node_eq_same; auto. node_eq_diff. } } } } } }
+                dec_same node_eq_dec; auto. dec_diff node_eq_dec. } } } } } }
 
     (* StepAsync_input -- a node receives an input from its environment *)
     { destruct (WORLD.(initNodes) h) eqn:Hinit.
@@ -491,6 +480,7 @@ Section toVerdi.
         destruct Hinit'. destruct p0. inversion HeqHinit'.
         destruct p. inversion H2. subst.
         inversion H. subst. clear H H2 HeqHinit'.
+        rename n0 into s0.
         exists (mkWorld (upd_localState h s0 WORLD.(localState))
                    (inFlight WORLD ++ l3)
                    (WORLD.(trace) ++ out) (upd_initNodes h WORLD.(initNodes))).
@@ -506,15 +496,15 @@ Section toVerdi.
           { split.
             { intro n. specialize (Hmatch1 n).
               destruct (node_eq_dec n h); subst.
-              { simpl. unfold upd_localState. node_eq_same.
+              { simpl. unfold upd_localState. dec_same node_eq_dec.
                 unfold eq_state. unfold eq_rect. destruct e; auto. }
-              { unfold upd_localState. node_eq_diff. } }
+              { unfold upd_localState. dec_diff node_eq_dec. } }
             { split.
               { apply trace_app2'; auto. }
               { intro n. specialize (Hmatch3 n).
                 destruct (node_eq_dec n h); subst; simpl.
-                { unfold upd_initNodes; node_eq_same. }
-                { unfold upd_initNodes. node_eq_diff. } } } } } } }
+                { unfold upd_initNodes; dec_same node_eq_dec. }
+                { unfold upd_initNodes. dec_diff node_eq_dec. } } } } } } }
   Qed.
 
 End toVerdi.
