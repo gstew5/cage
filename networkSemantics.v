@@ -57,7 +57,6 @@ Set Implicit Arguments.
   (** Update the state of a given node *)
 
   (** This is maybe the easiest way: *)
-  (* Require Import Coq.Program.Tactics. *)
   (* Program Definition upd_localState (n : node) (s : state (network_desc n)) *)
   (*         (ls : localStateTy) *)
   (*   : localStateTy := *)
@@ -75,6 +74,11 @@ Set Implicit Arguments.
            | left pf => @eq_state n n' pf s
            | right _ => ls n'
            end.
+
+  (* This is weird *)
+  Lemma upd_localState_same n s st :
+    upd_localState n s st n = s.
+  Admitted.
 
   (** Mark a node as being initialized *)
   Definition upd_initNodes (n : node) (initNodes : node -> bool)
@@ -108,14 +112,12 @@ Set Implicit Arguments.
                               (l1 ++ l2 ++ ps) (w.(trace) ++ es)
                               w.(initNodes)).
 
-    (* If we extend this network semantics for other stuff, this might be redefined in
-        terms of a star + step relation *)
-    Inductive network_step_plus : World -> World -> Prop :=
-    | single_step : forall w1 w2, network_step w1 w2 -> network_step_plus w1 w2
+    Inductive network_step_star : World -> World -> Prop :=
+    | refl_step : forall w1 w2, network_step_star w1 w2
     | trans_step : forall w1 w2 w3,
-          network_step_plus w1 w2 ->
-          network_step_plus w2 w3 ->
-          network_step_plus w1 w3.
+          network_step w1 w2 ->
+          network_step_star w2 w3 ->
+          network_step_star w1 w3.
 
 End NetworkSemantics.
 
