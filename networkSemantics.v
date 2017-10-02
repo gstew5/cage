@@ -1,3 +1,5 @@
+Require Import ProofIrrelevance.
+
 Require Import listlemmas.
 
 (** Not sure if something like this exists somewhere already or where to
@@ -87,12 +89,19 @@ Set Implicit Arguments.
   (*         (ls : localStateTy) *)
   (*   : localStateTy := *)
   (*   fun n' => if node_dec n' n then _ else ls n'. *)
-
+        
   (** Or something like this avoids the need to import anything: *)
   Definition eq_state (n n' : node) (pf: n = n') (s : node_state (network_desc n))
-    : node_state (network_desc n').
-  Proof. rewrite <- pf; easy. Defined.
+    : node_state (network_desc n') :=
+    match pf as e in (_ = n') return node_state (network_desc n') with
+    | eq_refl => s
+    end.
 
+  Lemma eq_state_id n s (pf : n = n) : eq_state pf s = s.
+  Proof.
+    rewrite (@UIP_refl _ _ pf); auto.
+  Qed.    
+  
   Definition upd_localState (n : node) (s : node_state (network_desc n))
              (ls : localStateTy)
     : localStateTy :=
@@ -105,11 +114,15 @@ Set Implicit Arguments.
   Lemma state_id_eq (n : node) (s : node_state (network_desc n)) :
     state_id n s = s.
   Proof. auto. Qed.
-
-  (* (* This is weird *) *)
-  (* Lemma upd_localState_same n s st : *)
-  (*   upd_localState n s st n = s. *)
-  (* Admitted. *)
+  
+  Lemma upd_localState_same n s st :
+    upd_localState n s st n = s.
+  Proof.
+    unfold upd_localState.
+    destruct (node_dec n n).
+    { apply eq_state_id. }
+    elimtype False; apply n0; auto.
+  Qed.    
   
   (** Mark a node as being initialized *)
   Definition upd_initNodes (n : node) (initNodes : node -> bool)
