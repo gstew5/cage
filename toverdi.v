@@ -166,7 +166,7 @@ Section toVerdi.
   Definition init_match (initNodes : node -> bool) (verdi_state : node -> data_s) :=
     forall n, initNodes n = dInit (verdi_state n).
 
-  (** The match relation. Assumes all nodes are initialized. *)
+  (** The match relation. *)
   Definition verdiMatch (w : World) (net : network) (tr : verdi_trace_ty)
     : Prop :=
     packets_match w.(inFlight) net.(nwPackets) /\
@@ -252,18 +252,6 @@ Section toVerdi.
   Proof. intro H0. rewrite H0. rewrite trace_app2; auto. Qed.
   
   Notation network_step_star := (@network_step_star _ _ _ node_eq_dec network_desc).
-
-  (* This is weird *)
-  Lemma upd_localState_same n s st :
-    upd_localState n s st n = s.
-  Proof.
-    assert (H0: forall (A : Type) (a b : A), Some a = Some b -> a = b).
-    { intros A a b H. injection H; auto. }
-    apply H0. rewrite <- from_to_data.
-    unfold upd_localState, eq_state, eq_rect.
-    dec_same node_eq_dec. destruct e.
-    rewrite from_to_data; auto.
-  Qed.
 
   Lemma recv_simulation_step
         WORLD (WORLD' : World) TRACE p out net net' d l l0 xs ys p1 s :
@@ -504,7 +492,7 @@ Section toVerdi.
               { intro n. specialize (Hmatch3 n).
                 destruct (node_eq_dec n h); subst; simpl.
                 { unfold upd_initNodes; dec_same node_eq_dec. }
-                { unfold upd_initNodes. dec_diff node_eq_dec. } } } } } } }
+                { unfold upd_initNodes; dec_diff node_eq_dec. } } } } } } }
   Qed.
 
 End toVerdi.

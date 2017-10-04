@@ -84,14 +84,8 @@ Set Implicit Arguments.
 
   (** Update the state of a given node *)
 
-  (** This is maybe the easiest way: *)
-  (* Program Definition upd_localState (n : node) (s : state (network_desc n)) *)
-  (*         (ls : localStateTy) *)
-  (*   : localStateTy := *)
-  (*   fun n' => if node_dec n' n then _ else ls n'. *)
-        
-  (** Or something like this avoids the need to import anything: *)
-  Definition eq_state (n n' : node) (pf: n = n') (s : node_state (network_desc n))
+  Definition eq_state (n n' : node) (pf: n = n')
+             (s : node_state (network_desc n))
     : node_state (network_desc n') :=
     match pf as e in (_ = n') return node_state (network_desc n') with
     | eq_refl => s
@@ -100,7 +94,7 @@ Set Implicit Arguments.
   Lemma eq_state_id n s (pf : n = n) : eq_state pf s = s.
   Proof.
     rewrite (@UIP_refl _ _ pf); auto.
-  Qed.    
+  Qed.
   
   Definition upd_localState (n : node) (s : node_state (network_desc n))
              (ls : localStateTy)
@@ -109,11 +103,6 @@ Set Implicit Arguments.
            | left pf => @eq_state n n' pf s
            | right _ => ls n'
            end.
-
-  Definition state_id (n : node) (s : node_state (network_desc n)) := s.
-  Lemma state_id_eq (n : node) (s : node_state (network_desc n)) :
-    state_id n s = s.
-  Proof. auto. Qed.
   
   Lemma upd_localState_same n s st :
     upd_localState n s st n = s.
@@ -1471,9 +1460,9 @@ Section relationalINTSimulation.
   Notation Rnetwork_desc := (liftedNetwork_desc network_descINT).
   Notation RWorld := (RWorld Rnetwork_desc).
   Notation network_stepINT :=
-    (@network_stepINT A msgINT eventINT network_descINT).
+    (@network_stepINT A AEnum ADec msgINT eventINT network_descINT).
   Notation Rnetwork_step :=
-    (@Rnetwork_step A msgINT eventINT Rnetwork_desc).
+    (@Rnetwork_step A AEnum ADec msgINT eventINT Rnetwork_desc).
   Notation localStateTy := (localStateTy network_descINT).
   Notation rLocalStateTy := (rLocalStateTy Rnetwork_desc).
   Notation packetFromClientb := (@packetFromClientb A msgINT).
@@ -1539,8 +1528,6 @@ Section relationalINTSimulation.
     length l.
   Proof.
     move=> H0 H1.
-    admit.
-    (*
     rewrite clientsInFlightListEquiv /clientsInFlightList' all_filter_eq.
     rewrite /onlyPacketsFromClient in H1.
     { apply forall_length_pmap. rewrite /onlyPacketsFromClient in H1.
@@ -1549,8 +1536,8 @@ Section relationalINTSimulation.
     { apply all_Forall_true_iff, List.Forall_forall.
       move=> pkt Hin. specialize (H1 pkt Hin).
       rewrite /packetFromClient in H1. rewrite /packetFromClientb.
-      by destruct (origin_of pkt). } *)
-  Admitted.
+        by destruct (origin_of pkt). }
+  Qed.
 
   Lemma clientsInFlightList_enum_client_exists (l : list packet) (i : A) :
     clientsInFlightList l = enumerate A ->
@@ -1559,23 +1546,20 @@ Section relationalINTSimulation.
     rewrite clientsInFlightListEquiv => H0.
     rewrite /clientsInFlightList' in H0.
     move: H0. have ->: (forall p l, filter p l = List.filter p l) by [] => H0.
-    (*
     apply exists_filter_exists with packetFromClientb.
     apply List.Exists_exists.
     set sdf := (fun pkt : packet => match origin_of pkt with
                                  | @serverID _ => None
                                  | clientID i => Some i
                                  end).
-    move: (@in_pmap_exists 'I_N packet i
+    move: (@in_pmap_exists _ packet i
                            [seq x <- l | packetFromClientb x] sdf) => H1.
     rewrite H0 in H1.
-    specialize (H1 (list_in_finType_enum i)).
+    destruct AEnum_OK. specialize (H1 (enum_total i)).
     destruct H1 as [pkt [H1 H2]].
     exists pkt. split; auto. rewrite /sdf in H2.
     destruct (origin_of pkt); by [congruence | inversion H2].
-    *)
-    admit.
-  Admitted.
+  Qed.
 
   Lemma clientsInFlightList_enum_client_exists' (l : list packet) (i : A) :
     onlyPacketsToServer l ->
@@ -1584,11 +1568,9 @@ Section relationalINTSimulation.
                          dest_of pkt = serverID A) l.
   Proof.
     move=> H0 H1. move: (clientsInFlightList_enum_client_exists l i H1).
-    (*
     apply forall_exists_conj. rewrite /onlyPacketsToServer in H0.
-    by rewrite List.Forall_forall. *)
-    admit.
-  Admitted.
+      by rewrite List.Forall_forall.
+  Qed.
 
   Lemma allClientsSentCorrectly_match WINT RW :
     inFlight WINT = rInFlight RW ->
@@ -1596,17 +1578,15 @@ Section relationalINTSimulation.
     @rAllClientsSentCorrectly _ _ msgINT eventINT Rnetwork_desc RW.
   Proof.
     move=> H0 H1. inversion H1; subst. split.
-    (*
     { move: (length_clientsInFlightList H H2) => H4. rewrite H3 in H4.
-      by rewrite -H0 -H4; apply size_enum_ord. }
+      by rewrite -H0. }
     { move=> i. apply List.Exists_exists.
       rewrite /onlyPacketsFromClient in H2. rewrite -H0.
       move: (clientsInFlightList_enum_client_exists' i H H3) => H4.
       apply List.Exists_exists in H4.
       destruct H4 as [pkt [H4 [H5 H6]]].
       exists pkt. split; auto. }
-    *) admit.
-  Admitted.
+  Qed.
 
   Lemma serverUpdate_match st st' l ps es :
     updateServerList network_descINT st l = (st', ps, es) ->
@@ -1630,7 +1610,7 @@ Section relationalINTSimulation.
       inversion H0; subst. pose proof Hfold. apply IHl in Hfold.
       by right with n. }
   Qed.
-  (*
+
   (** The simulation statement and proof *)
   Theorem relationalINTSimulation :
     forall WINT WINT' RW,
@@ -1652,7 +1632,7 @@ Section relationalINTSimulation.
         by split. } }
     { eexists. split.
       specialize (H0 (clientID n)). destruct H0 as [H0 H8].
-      { apply (RclientPacketStep RW p l1 l2 st ps es); subst; auto.
+      { apply (RclientPacketStep _ _ RW p l1 l2 st ps es); subst; auto.
         { by rewrite -H8 H. }
         { by rewrite -H1 H3. }
         { rewrite /dest_of. by rewrite -H0 -H5. } }
@@ -1660,10 +1640,10 @@ Section relationalINTSimulation.
         { move=> n0. specialize (H0 n0).
           destruct H0 as [H0 H8]. split; auto.
           { subst. rewrite /upd_localState /upd_rLocalState.
-            destruct (nodeINTDec (clientID n) n0); auto. } }
+            destruct (nodeINTDec _ (clientID n) n0); auto. } }
         { by split; auto; rewrite H2. } } }
     { eexists. split.
-      specialize (H0 (serverID N)). destruct H0 as [H0 H8].
+      specialize (H0 (serverID A)). destruct H0 as [H0 H8].
       apply RserverPacketStep with (st:=st) (st':=st') (l':=l') (e':=e').
       { by rewrite -H8. }
       { apply allClientsSentCorrectly_match with WINT; auto. }
@@ -1673,8 +1653,8 @@ Section relationalINTSimulation.
       { rewrite /RMatch. simpl. subst. split.
         { move=> n. specialize (H0 n). destruct H0 as [H0 H4]. split; auto.
           { simpl. rewrite /upd_localState /upd_rLocalState.
-            by destruct (nodeINTDec (serverID N) n). } }
+            by destruct (nodeINTDec _ (serverID A) n). } }
         { split; auto. by rewrite H2. } } }
   Qed.
-  *)
+
 End relationalINTSimulation.
