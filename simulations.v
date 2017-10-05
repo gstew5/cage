@@ -99,7 +99,11 @@ Record simulation
        `{ord_S : hasWellfoundedOrd ORD} :=
   mkSimulation {
       match_states : ORD -> S -> T -> Prop;
-      init_diagram : forall s, init s -> exists t x, init t /\ match_states x s t;
+      init_diagram :
+        forall s,
+          init s ->
+          (exists t, init t) /\
+          (forall t, init t -> exists x, match_states x s t);
       final_diagram : forall x s t, match_states x s t -> final s -> final t;
       step_diagram : forall x s t,
           match_states x s t ->
@@ -164,11 +168,17 @@ Proof.
        (fun (x : (T * S)) (s : S) (r : R) =>
           exists t : T, match_states sim_ST (snd x) s t /\ match_states _ (fst x) t r) _ _ _).
   { (* init *)
-    intros s A; destruct (init_diagram sim_ST) with s as [t [x [B1 B2]]]; auto.
-    destruct (init_diagram sim_TR) with t as [r [x' [C1 C2]]]; auto.
-    exists r, (x', x); split; auto.
-    exists t; split; auto.
-    apply C2. }
+    intros s A; destruct (init_diagram sim_ST) with s as [B1 B2]; auto.
+    destruct B1 as [t B1].
+    destruct (B2 t B1) as [x B3].
+    destruct (init_diagram sim_TR) with t as [C1 C2]; auto.
+    destruct C1 as [r C1].
+    destruct (C2 r C1) as [x' C3].
+    split. { exists r; auto. }
+    intros r' D.
+    destruct (C2 _ D) as [x'' E].
+    exists (x'',x); exists t; split; auto.
+    apply E. }
   { (* final *)
     intros [x y] s r [t [M1 M2]] F1.
     apply (final_diagram sim_TR) with x t; [apply M2|].
