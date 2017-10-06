@@ -320,6 +320,12 @@ Section intermediateSemantics.
     (initMsgNode (serverID A))++
       foldr (fun n l =>  l ++ (initMsgNode (clientID n))) nil (enumerate A).
 
+  Lemma bleh''' : forall A (l : list A), List.rev l = rev l.
+  Proof.
+    induction l. by []. simpl. rewrite IHl.
+    rewrite rev_cons. rewrite -cats1. by [].
+  Qed.
+
   Definition initMsg' :=
     initMsgNode (serverID A) ++
                 List.concat (List.map (fun i => initMsgNode (clientID i))
@@ -330,13 +336,26 @@ Section intermediateSemantics.
   Proof.
     rewrite /initMsg /initMsg'. induction (enumerate A); auto.
     simpl. f_equal. apply List.app_inv_head in IHl.
-    rewrite IHl. admit.
-  Admitted.
+    by rewrite IHl -!bleh''' concat_map_rev_app.
+  Qed.
 
   (* We can do the same for events *)
   Definition initEvent :=
     (initEventNode (serverID A))++
       foldr (fun n l =>  l ++ (initEventNode (clientID n))) nil (enumerate A).
+
+  Definition initEvent' :=
+    initEventNode (serverID A) ++
+                  List.concat (List.map (fun i => initEventNode (clientID i))
+                                        (rev (enumerate A))).
+
+  Lemma initEventEquiv :
+    initEvent = initEvent'.
+  Proof.
+    rewrite /initEvent /initEvent'. induction (enumerate A); auto.
+    simpl. f_equal. apply List.app_inv_head in IHl.
+    by rewrite IHl -!bleh''' concat_map_rev_app.
+  Qed.
 
   (* State of the world pre initalization *)
   Definition preInitWorld : WorldINT :=
@@ -369,27 +388,27 @@ Section intermediateSemantics.
  
   (** Information re: the state of packets on the network **)
 
-    Definition packetFromClient (pkt : packet (nodeINT A) msgINT) :=
+  Definition packetFromClient (pkt : packet (nodeINT A) msgINT) :=
     match origin_of pkt with
     | clientID _ => True
     | _          => False
     end.    
 
-    Definition packetFromClientb (pkt : packet (nodeINT A) msgINT) :=
+  Definition packetFromClientb (pkt : packet (nodeINT A) msgINT) :=
     match origin_of pkt with
     | clientID _ => true
     | _          => false
     end.    
 
-    Lemma packetFromClientP :
-      forall p, reflect (packetFromClient p) (packetFromClientb p).
-    Proof.
-      move => p. remember (packetFromClientb p) as t.
-      rewrite /packetFromClient. rewrite /packetFromClientb in Heqt.
+  Lemma packetFromClientP :
+    forall p, reflect (packetFromClient p) (packetFromClientb p).
+  Proof.
+    move => p. remember (packetFromClientb p) as t.
+    rewrite /packetFromClient. rewrite /packetFromClientb in Heqt.
       by destruct (origin_of p); rewrite Heqt; constructor.
-    Qed.
+  Qed.
 
-    (* Predicate denoting lists of packets directed to the server *)
+  (* Predicate denoting lists of packets directed to the server *)
   Definition onlyPacketsFromClient (l : list (packet (nodeINT A) msgINT)) :=
     forall x, List.In x l -> packetFromClient x.
 
@@ -900,12 +919,6 @@ Section intermediateSemantics.
       }
       inversion H'. apply H in H1. inversion H1. left => //.
       by []. move => n' H'. apply H. right => //.
-    Qed.
-
-    Lemma bleh''' : forall A (l : list A), List.rev l = rev l.
-    Proof.
-      induction l. by []. simpl. rewrite IHl.
-      rewrite rev_cons. rewrite -cats1. by [].
     Qed.
 
     Lemma postInitClientInfo_spec :
@@ -1520,14 +1533,21 @@ Section relationalINTSimulation.
         rewrite /initStateNode. destruct (init (network_descINT n) n).
         by destruct p. }
       { split; rewrite List.Forall_forall.
-        { move=> pkt Hin. rewrite initMsgEquiv; auto. rewrite /initMsg.
+        { move=> pkt Hin. rewrite initMsgEquiv; auto.
           rewrite /initMsg'. rewrite /initMsgNode.
           destruct n; apply List.in_or_app.
           { by left. }
-          { right. admit. } }
-        { move=> evt Hin. rewrite /initEvent.
-          admit. } } }
-  Admitted.
+          { right.
+            apply (@concat_map_in A packet a pkt (rev (enumerate A)) _); auto.
+            by rewrite -bleh''' -List.in_rev; apply AEnum_OK. } }
+        { move=> evt Hin. rewrite initEventEquiv; auto.
+          rewrite /initEvent'. rewrite /initEventNode.
+          destruct n; apply List.in_or_app.
+          { by left. }
+          { right.
+            apply (@concat_map_in A eventINT a evt (rev (enumerate A)) _); auto.
+            by rewrite -bleh''' -List.in_rev; apply AEnum_OK. } } } }
+  Qed.
 
   (** An alternate implementation of clientsInFlightList using pmap and
       filter. Not necessarily better but it's used in the proofs below. *)

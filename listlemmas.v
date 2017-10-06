@@ -193,6 +193,27 @@ Proof.
     { by right; apply IHl. } }
 Qed.
 
+Lemma concat_map_in (A B : Type) (a : A) (x : B) (l : list A) (f : A -> list B) :
+  List.In a l ->
+  List.In x (f a) ->
+  List.In x (List.concat (List.map (fun x : A => f x) l)).
+Proof.
+  move=> H0 H1. induction l; auto.
+  { simpl. apply in_or_app.
+    destruct H0; subst.
+    { by left. }
+    { right. by apply IHl. } }
+Qed.
+
+Lemma concat_map_rev_app (A B : Type) (a : A) (f : A -> list B) (l : list A) :
+  List.concat (List.map (fun x : A => f x) (List.rev l)) ++ f a =
+  List.concat (List.map (fun x : A => f x) (List.rev (a :: l))).
+Proof.
+  have ->: (List.rev (a :: l) = List.rev (app [:: a] l)) by [].
+  rewrite rev_app_distr. simpl. rewrite map_app. simpl.
+  rewrite concat_app. simpl. by rewrite app_nil_r.
+Qed.
+
 (*****************)
 (** Decidability *)
 
