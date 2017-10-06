@@ -1,4 +1,5 @@
 Require Import ProofIrrelevance.
+Require Import Permutation.
 
 Require Import listlemmas.
 
@@ -331,7 +332,7 @@ Section intermediateSemantics.
                 List.concat (List.map (fun i => initMsgNode (clientID i))
                                       (rev (enumerate A))).
 
-  Lemma initMsgEquiv :
+  Lemma initMsgEq :
     initMsg = initMsg'.
   Proof.
     rewrite /initMsg /initMsg'. induction (enumerate A); auto.
@@ -349,7 +350,7 @@ Section intermediateSemantics.
                   List.concat (List.map (fun i => initEventNode (clientID i))
                                         (rev (enumerate A))).
 
-  Lemma initEventEquiv :
+  Lemma initEventEq :
     initEvent = initEvent'.
   Proof.
     rewrite /initEvent /initEvent'. induction (enumerate A); auto.
@@ -1343,13 +1344,69 @@ Section relationalIntermediate.
         w.(rInFlight) = nil /\
         w.(rTrace) = nil.
 
+  (** [initPackets l ps] where l is a list of client indices and ps is a
+      list of packets means that ps is the list of all of the initial
+      packets of clients listed in l plus those of the server.
+      When l = enumerate A, it means ps contains all initial packets of
+      the system. It's used in place of initMsg (we can't just use fold
+      here since the init handlers aren't functions) to describe the post
+      init world state. *)
+  Inductive initPackets : list A -> list packet -> Prop :=
+  | initPacketsNil :
+      forall s ps es,
+        (Rnetwork_desc serverID).(rInit) serverID (s, ps, es) ->
+        initPackets nil ps
+  | initPacketsCons :
+      forall i tl ps ps' s es l1 l2,
+        (Rnetwork_desc (clientID i)).(rInit) (clientID i) (s, ps, es) ->
+        initPackets tl ps' ->
+        (* IDEA to allow postinitState to imply postInitRState and still
+           use equality in the match relation *)
+        Permutation (i :: tl) l1 ->
+        Permutation (ps ++ ps') l2 ->
+        initPackets l1 l2.
+
+  (** Similar to the above. *)
+  Inductive initEvents : list A -> list eventINT -> Prop :=
+  | initEventsNil :
+      forall s ps es,
+        (Rnetwork_desc serverID).(rInit) serverID (s, ps, es) ->
+        initEvents nil es
+  | initEventsCons :
+      forall i tl ps s es es' l1 l2,
+        (Rnetwork_desc (clientID i)).(rInit) (clientID i) (s, ps, es) ->
+        initEvents tl es' ->
+        Permutation (i :: tl) l1 ->
+        Permutation (es ++ es') l2 ->
+        initEvents l1 l2.
+
   Definition postInitRWorld (w : RWorld) : Prop :=
-    forall n s,
-      w.(rInitNodes) n = true /\
-      (w.(rLocalState) n = s ->
-       exists ps es, (Rnetwork_desc n).(rInit) n (s, ps, es) /\
-                List.Forall (fun p => List.In p w.(rInFlight)) ps /\
-                List.Forall (fun e => List.In e w.(rTrace)) es).
+    (forall n, w.(rInitNodes) n = true) /\
+    initPackets (enumerate A) w.(rInFlight) /\
+    initEvents (enumerate A) w.(rTrace).
+
+  (* (* Here is a straightforward but ugly alternative definition in case *)
+  (*    something is wrong with the inductive one. *) *)
+  (* Definition postInitRWorld (w : RWorld) : Prop := *)
+  (*   (* All nodes are initialized and their initial packets and events *) *)
+  (* (*      are in rInFlight and rTrace respectively *) *)
+  (*   (forall n, *)
+  (*       w.(rInitNodes) n = true /\ *)
+  (*       (forall s ps es, (Rnetwork_desc n).(rInit) n (s, ps, es) -> *)
+  (*                   List.Forall (fun p => List.In p w.(rInFlight)) ps /\ *)
+  (*                   List.Forall (fun e => List.In e w.(rTrace)) es)) /\ *)
+  (*   (* All packets in rInFlight come from the init handler of a node *) *)
+  (*   List.Forall (fun p => exists n, *)
+  (*                    forall s ps es, *)
+  (*                      (Rnetwork_desc n).(rInit) n (s, ps, es) -> *)
+  (*                      List.In p ps) *)
+  (*               w.(rInFlight) /\ *)
+  (*   (* All events in rTrace come from the init handler of a node *) *)
+  (*   List.Forall (fun e => exists n, *)
+  (*                    forall s ps es, *)
+  (*                      (Rnetwork_desc n).(rInit) n (s, ps, es) -> *)
+  (*                      List.In e es) *)
+  (*               w.(rTrace). *)
 
   Definition eq_rState (n n' : nodeINT) (pf: n = n') (s : nodeState n)
     : nodeState n'.
@@ -1376,7 +1433,7 @@ Section relationalIntermediate.
     List.Forall rPacketFromClient l.
 
   (** There is exactly one packet addressed to the server per client in
-     the buffer *)
+      the buffer *)
   Definition rAllClientsSentCorrectly (w : RWorld) :=
     length (rInFlight w) = (length (enumerate A)) /\
     (forall i : A,
@@ -1387,8 +1444,8 @@ Section relationalIntermediate.
           (rInFlight w)).
 
   (** An inductive relation that corresponds to the updateServerList operation. 
-     It describes the cumulative output of the server when it processes all
-     of the clients' messages. *)
+      It describes the cumulative output of the server when it processes all
+      of the clients' messages. *)
   Inductive serverUpdate : serverState -> list packet ->
                            (serverState*(list packet)*(list eventINT)) -> Prop :=
   | serverUpdateNil : forall s,
@@ -1521,32 +1578,62 @@ Section relationalINTSimulation.
     mkRWorld (rLocalState_of_localState w.(localState))
              w.(inFlight) w.(trace) w.(initNodes).
 
+  Notation postInitRWorld := (@postInitRWorld A AEnum msgINT eventINT Rnetwork_desc).
+
   Lemma postInitPreserved WINT :
     postInitWorld AEnum network_descINT = WINT ->
     postInitRWorld (rWorld_of_WorldINT WINT).
   Proof.
-    move=> H0 n s. subst. split; auto.
-    { move=> H0. simpl in *. exists ((init (network_descINT n)) n).1.2.
-      exists ((init (network_descINT n)) n).2. subst. 
-      split.
-      { rewrite /rLocalState_of_localState. rewrite /liftInit.
-        rewrite /initStateNode. destruct (init (network_descINT n) n).
-        by destruct p. }
-      { split; rewrite List.Forall_forall.
-        { move=> pkt Hin. rewrite initMsgEquiv; auto.
-          rewrite /initMsg'. rewrite /initMsgNode.
-          destruct n; apply List.in_or_app.
-          { by left. }
-          { right.
-            apply (@concat_map_in A packet a pkt (rev (enumerate A)) _); auto.
-            by rewrite -bleh''' -List.in_rev; apply AEnum_OK. } }
-        { move=> evt Hin. rewrite initEventEquiv; auto.
-          rewrite /initEvent'. rewrite /initEventNode.
-          destruct n; apply List.in_or_app.
-          { by left. }
-          { right.
-            apply (@concat_map_in A eventINT a evt (rev (enumerate A)) _); auto.
-            by rewrite -bleh''' -List.in_rev; apply AEnum_OK. } } } }
+    rewrite /postInitWorld => H0. rewrite -H0. split; auto.
+    { split; simpl.
+      { rewrite initMsgEq /initMsg' /initMsgNode.
+        induction (enumerate A); simpl.
+        { set init := init (network_descINT (serverID A)) (serverID A).
+          left with (s:=init.1.1) (es:=init.2). simpl. rewrite /liftInit.
+          by destruct init eqn:sdf; destruct p eqn:Hp; rewrite cats0. }
+        { set init' := init (network_descINT (clientID a)) (clientID a).
+          eright with (i:=a) (s:=init'.1.1) (ps:=init'.1.2) (es:=init'.2).
+          rewrite /rInit. simpl. rewrite /liftInit. simpl.
+          destruct init' eqn:Hinit. destruct p eqn:Hp. auto.
+          apply IHl; auto. apply Permutation_refl.
+          rewrite -!bleh'''. rewrite -concat_map_rev_app.
+          unfold init'.
+          have ->: ((init (network_descINT (serverID A)) (serverID A)).1.2 ++
+                   List.concat (List.map (fun x : A =>
+                                  (init (network_descINT (clientID x))
+                                        (clientID x)).1.2) (List.rev l)) ++
+                   (init (network_descINT (clientID a)) (clientID a)).1.2 = 
+                    ((init (network_descINT (serverID A)) (serverID A)).1.2 ++
+                      List.concat (List.map (fun x : A =>
+                                    (init (network_descINT (clientID x))
+                                          (clientID x)).1.2) (List.rev l))) ++
+                      (init (network_descINT (clientID a)) (clientID a)).1.2)
+            by apply List.app_assoc.
+          by apply Permutation_app_comm. } }
+      { rewrite initEventEq /initEvent' /initEventNode.
+        induction (enumerate A); simpl.
+        { set init := init (network_descINT (serverID A)) (serverID A).
+          left with (s:=init.1.1) (ps:=init.1.2). simpl. rewrite /liftInit.
+          by destruct init eqn:sdf; destruct p eqn:Hp; rewrite cats0. }
+        { set init' := init (network_descINT (clientID a)) (clientID a).
+          eright with (i:=a) (s:=init'.1.1) (ps:=init'.1.2) (es:=init'.2).
+          rewrite /rInit. simpl. rewrite /liftInit. simpl.
+          destruct init' eqn:Hinit. destruct p eqn:Hp. auto.
+          apply IHl; auto. apply Permutation_refl.
+          rewrite -!bleh'''. rewrite -concat_map_rev_app.
+          unfold init'.
+          have ->: ((init (network_descINT (serverID A)) (serverID A)).2 ++
+                   List.concat (List.map (fun x : A =>
+                                  (init (network_descINT (clientID x))
+                                        (clientID x)).2) (List.rev l)) ++
+                   (init (network_descINT (clientID a)) (clientID a)).2 = 
+                    ((init (network_descINT (serverID A)) (serverID A)).2 ++
+                      List.concat (List.map (fun x : A =>
+                                    (init (network_descINT (clientID x))
+                                          (clientID x)).2) (List.rev l))) ++
+                      (init (network_descINT (clientID a)) (clientID a)).2)
+            by apply List.app_assoc.
+          by apply Permutation_app_comm. } } }
   Qed.
 
   (** An alternate implementation of clientsInFlightList using pmap and
@@ -1675,7 +1762,7 @@ Section relationalINTSimulation.
         { move=> n. specialize (H0 n). destruct H0 as [H0 H4].
           split; subst.
           { by rewrite -H4. }
-          { by rewrite -H0; rewrite /rPre_initStateNode. } }
+          { split; auto. } }
         { by apply postInitPreserved. } }
       { rewrite /RMatch; subst; simpl in *.
         by split. } }
@@ -1683,14 +1770,15 @@ Section relationalINTSimulation.
       specialize (H0 (clientID n)). destruct H0 as [H0 H8].
       { apply (RclientPacketStep _ _ RW p l1 l2 st ps es); subst; auto.
         { by rewrite -H8 H. }
-        { by rewrite -H1 H3. }
-        { rewrite /dest_of. by rewrite -H0 -H5. } }
+        { rewrite /dest_of. by rewrite -H1. }
+        { by rewrite -H0. } }
       { rewrite /RMatch. simpl. split.
         { move=> n0. specialize (H0 n0).
           destruct H0 as [H0 H8]. split; auto.
           { subst. rewrite /upd_localState /upd_rLocalState.
             destruct (nodeINTDec _ (clientID n) n0); auto. } }
-        { by split; auto; rewrite H2. } } }
+        { split; auto.
+          by rewrite H2. } } }
     { eexists. split.
       specialize (H0 (serverID A)). destruct H0 as [H0 H8].
       apply RserverPacketStep with (st:=st) (st':=st') (l':=l') (e':=e').

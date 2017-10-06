@@ -116,9 +116,9 @@ Section weightsLangNetwork.
     wlNode -> (wlClientState * list wlPacket * list wlEvent) -> Prop :=
   | wlClientInit1 :
       forall n st pkt com' wlState',
-        com' = CIter nx mult_weights_body ->
         client_step_plus simpleClientOracle (mult_weights A nx)
                          wlClientPreInitState.(wlClientSt) com' wlState' ->
+        com' = CIter nx mult_weights_body ->
         st = mkWlClientState (Some n) com' wlState' ->
         pkt = mkPacket (serverID 'I_N)
                        (wlMsgClient st.(wlClientSt).(SWeights)) n ->
@@ -283,6 +283,10 @@ Section weightsLangNetwork.
     { by split. }
   Qed.
 
+  Definition wlClientState_to_client_state (cs : wlClientState)
+    : (client_state A) :=
+    (cs.(wlClientCom), cs.(wlClientSt)).
+
   Theorem wlNetworkMachine_step_diagram :
     forall x WORLD mach_st,
       wlMachineMatch x WORLD mach_st ->
@@ -297,9 +301,24 @@ Section weightsLangNetwork.
     move=> u WORLD mach_st Hmatch WORLD' Hworldstep. exists tt.
     induction Hworldstep; right.
     (* Batch init step *)
-    { rewrite /preInitRWorld in H. rewrite /postInitRWorld in H0.
-      (* exists (mkMachineState () nil). *)
-      admit. }
+    { rewrite /preInitRWorld in H.
+      destruct H0 as [Hpost1 [Hpost2 Hpost3]].
+      exists (mkMachineState
+           ([ffun i =>
+             wlClientState_to_client_state (post.(rLocalState) (clientID i))])
+           nil).
+      split.
+      { admit. }
+      { rewrite /wlMachineMatch /=. split.
+        { by move=> i; rewrite ffunE. }
+        { 
+          (* rewrite /tracesMatch. *)
+          (* inversion Hpost3; subst. *)
+          (* { admit. } *)
+          (* { rewrite /rInit in H0. simpl in H0. *)
+          (*   inversion H0; subst. simpl in *. *)
+
+          admit. } } }
     (* Client packet step *)
     { destruct p eqn:Hpkt. destruct p0 eqn:Hpkt'.
       rewrite /dest_of in H1. simpl in H1. admit. }
