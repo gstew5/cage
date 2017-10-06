@@ -41,6 +41,8 @@ Set Implicit Arguments.
   (** Destination, message, origin *)
   Definition packet := (node * msg * node)%type.
 
+  Definition mkPacket d m o : packet := (d, m, o).
+
   Definition msg_of (pkt : packet) := (snd (fst pkt)).
   Definition origin_of (pkt : packet) := (snd pkt).
   Definition dest_of (pkt : packet) := (fst (fst pkt)).
@@ -317,6 +319,19 @@ Section intermediateSemantics.
   Definition initMsg :=
     (initMsgNode (serverID A))++
       foldr (fun n l =>  l ++ (initMsgNode (clientID n))) nil (enumerate A).
+
+  Definition initMsg' :=
+    initMsgNode (serverID A) ++
+                List.concat (List.map (fun i => initMsgNode (clientID i))
+                                      (rev (enumerate A))).
+
+  Lemma initMsgEquiv :
+    initMsg = initMsg'.
+  Proof.
+    rewrite /initMsg /initMsg'. induction (enumerate A); auto.
+    simpl. f_equal. apply List.app_inv_head in IHl.
+    rewrite IHl. admit.
+  Admitted.
 
   (* We can do the same for events *)
   Definition initEvent :=
@@ -1311,13 +1326,17 @@ Section relationalIntermediate.
   Definition preInitRWorld : RWorld -> Prop :=
     fun w => forall n,
         w.(rInitNodes) n = false /\
-        w.(rLocalState) n = rPre_initStateNode n.
+        w.(rLocalState) n = rPre_initStateNode n /\
+        w.(rInFlight) = nil /\
+        w.(rTrace) = nil.
 
   Definition postInitRWorld (w : RWorld) : Prop :=
     forall n s,
       w.(rInitNodes) n = true /\
       (w.(rLocalState) n = s ->
-       exists p e, (Rnetwork_desc n).(rInit) n (s, p, e)).
+       exists ps es, (Rnetwork_desc n).(rInit) n (s, ps, es) /\
+                List.Forall (fun p => List.In p w.(rInFlight)) ps /\
+                List.Forall (fun e => List.In e w.(rTrace)) es).
 
   Definition eq_rState (n n' : nodeINT) (pf: n = n') (s : nodeState n)
     : nodeState n'.
@@ -1451,6 +1470,7 @@ Section relationalINTSimulation.
   Variable AEnum_OK : @Enum_ok A AEnum.
   Variable ADec : forall a1 a2 : A, {a1 = a2} + {a1 <> a2}.
   Variable msgINT : Type.
+  Variable msgINTDec : forall x y : msgINT, {x = y} + {x <> y}.
   Variable eventINT : Type.
   Notation nodeINT := (nodeINT A).
   Notation nodePkgINT := (nodePkgINT A msgINT eventINT).
@@ -1495,10 +1515,19 @@ Section relationalINTSimulation.
     move=> H0 n s. subst. split; auto.
     { move=> H0. simpl in *. exists ((init (network_descINT n)) n).1.2.
       exists ((init (network_descINT n)) n).2. subst. 
-      rewrite /rLocalState_of_localState. rewrite /liftInit.
-      rewrite /initStateNode. destruct (init (network_descINT n) n).
-      by destruct p. }
-  Qed.
+      split.
+      { rewrite /rLocalState_of_localState. rewrite /liftInit.
+        rewrite /initStateNode. destruct (init (network_descINT n) n).
+        by destruct p. }
+      { split; rewrite List.Forall_forall.
+        { move=> pkt Hin. rewrite initMsgEquiv; auto. rewrite /initMsg.
+          rewrite /initMsg'. rewrite /initMsgNode.
+          destruct n; apply List.in_or_app.
+          { by left. }
+          { right. admit. } }
+        { move=> evt Hin. rewrite /initEvent.
+          admit. } } }
+  Admitted.
 
   (** An alternate implementation of clientsInFlightList using pmap and
       filter. Not necessarily better but it's used in the proofs below. *)
