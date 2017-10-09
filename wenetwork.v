@@ -263,7 +263,9 @@ Module WE_NodePkg (A : MyOrderedType) (B : BOUND).
                mkServerState
                  (M.add x.(Ix.val) m' sst.(actions_received))
                  (M.add x.(Ix.val) true sst.(clients_received))
-           in (sst', packets_of sst', events_of sst')
+           in if round_is_done sst' then
+                (sst', packets_of sst', events_of sst')
+              else (sst', nil, nil)
          | TO_CLIENT _ => (sst, nil, nil)
          end
        | serverID => (sst, nil, nil)
