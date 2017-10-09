@@ -3,7 +3,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import List Permutation.
+Require Import List SetoidList Permutation.
 
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
@@ -84,6 +84,32 @@ Proof.
       { by apply nodup_uniq; auto. } } }
   { by move=> Contra; apply nodup_uniq in Contra; congruence. }
 Qed.
+
+Lemma nodupa_fst_pair (A B : Type) (x : B) (l : list A) :
+  NoDupA eq l ->
+  NoDupA (fun p q : A * B => p.1 = q.1) (List.map (pair^~ x) l).
+Proof.
+  elim: l x => //= a l IH x; inversion 1; subst.
+  move: (IH x H3) => H4; constructor => // H5; apply: H2.
+  clear - H5; elim: l H5 => //=; try solve[inversion 1].
+  move => ax l IH; inversion 1; subst.
+  { by simpl in H0; subst ax; constructor. }
+  by apply: InA_cons_tl; apply: IH.
+Qed.
+
+Lemma nodupa_dec (A : Type) (l : list A) (eqA : A -> A -> Prop) :
+  (forall a b, {eqA a b}+{~eqA a b}) -> 
+  {NoDupA eqA l}+{~NoDupA eqA l}.
+Proof.
+  move => H; elim: l.
+  { left; constructor. }
+  move => a l IH; case: (InA_dec H a l) => H2.
+  { by right; inversion 1; subst; apply: H4. }
+  case: IH => H3.
+  { left; constructor => //. }
+  right; inversion 1; subst.
+  by apply: H3.
+Defined.
 
 (**************************)
 (** List.list_prod lemmas *)

@@ -13,19 +13,22 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import orderedtypes dyadic compile listlemmas.
+Require Import orderedtypes dyadic compile listlemmas cdist vector.
 
 Require Import networkSemantics weightslang weightsextract.
 
-Module WE_NodePkg (A : MyOrderedType).
-  Module M := MWU A. Import M.
-
+Module WE_NodePkg (A : MyOrderedType) (B : BOUND).
+  Module Ix := MyOrdNatDepProps B.
+  Module MW := MWU A.
+  
   Section WE_NodePkg.
     Variable enum_ok : @Enum_ok A.t _.
-    Variable node : Type.
-    Variable server_id : node.
-    Variable epsQ : D. 
+    Definition node := nodeINT Ix.t.
+    Variable epsQ : D.
+    Definition num_players := B.n.
+    Context `{CCostInstance : CCostClass num_players A.t}.        
 
+  (*server sends [premsg]s, clients send [msg]s*)
   Definition premsg : Type := list (A.t*D).
     
   Definition premsg_ok (m : premsg) :=
@@ -99,33 +102,33 @@ Module WE_NodePkg (A : MyOrderedType).
     destruct st.(received) as [A B]; destruct B; auto.
   Qed.    
 
-  Definition client_state := (node * com A.t * cstate)%type.
+  Definition client_state := (node * com A.t * MW.cstate)%type.
 
   Definition client_init (id : node) : client_state :=
-    match interp (mult_weights_init A.t) (init_cstate epsQ) with
-    | None => (id, @CSkip A.t, init_cstate epsQ)
+    match MW.interp (mult_weights_init A.t) (MW.init_cstate epsQ) with
+    | None => (id, @CSkip A.t, MW.init_cstate epsQ)
     | Some st => (id, @CSkip A.t, st)
     end.
 
-  Definition event := unit.
+  Definition event := M.t (list (A.t*D)).
 
-  Definition MSG_of_cstate (id : node) (st : cstate) : list (packet node MSG) :=
-    (id, TO_SERVER (st.(SOracleSt).(sent)), server_id) :: nil.
+  Definition MSG_of_cstate (id : node) (st : MW.cstate) : list (packet node MSG) :=
+    (id, TO_SERVER (st.(MW.SOracleSt).(sent)), serverID _) :: nil.
 
   Definition install_cost_vec
           (cost_vec : list (A.t*D))
-          (st : cstate)
-    : cstate :=
-    mkCState
-      st.(SCosts)
-      st.(SPrevCosts)
-      st.(SWeights)
-      st.(SEpsilon)
-      st.(SOutputs)
-      st.(SChan)
+          (st : MW.cstate)
+    : MW.cstate :=
+    MW.mkCState
+      st.(MW.SCosts)
+      st.(MW.SPrevCosts)
+      st.(MW.SWeights)
+      st.(MW.SEpsilon)
+      st.(MW.SOutputs)
+      st.(MW.SChan)
       (@mkClientPkg
-        st.(SOracleSt).(sent)
-        st.(SOracleSt).(received)).
+        st.(MW.SOracleSt).(sent)
+        st.(MW.SOracleSt).(received)).
             
   Definition client_recv
              (m : MSG)
@@ -135,12 +138,12 @@ Module WE_NodePkg (A : MyOrderedType).
     := match m with
        | TO_CLIENT m' => 
          let st := install_cost_vec m'.(the_msg) cst.2
-         in match interp (mult_weights_body A.t) st with
+         in match MW.interp (mult_weights_body A.t) st with
             | None =>
               (cst, nil, nil) 
             | Some st' => 
               ((cst.1.1, @CSkip A.t, st') : client_state,
-               (cst.1.1, TO_SERVER (st'.(SOracleSt).(sent)), server_id) :: nil,
+               (cst.1.1, TO_SERVER (st'.(MW.SOracleSt).(sent)), serverID _) :: nil,
                nil)
             end
        | TO_SERVER _ => (cst, nil, nil)
@@ -155,6 +158,124 @@ Module WE_NodePkg (A : MyOrderedType).
          | (x, c, cst) => ((x,c,cst), MSG_of_cstate x cst, nil)
          end)
       client_recv
-      (server_id (*bogus*), @CSkip A.t, init_cstate epsQ).
+      (serverID _ (*bogus*), @CSkip A.t, MW.init_cstate epsQ).
+
+  Record server_state : Type :=
+    mkServerState
+      { actions_received : M.t (list (A.t*D))
+      ; clients_received : M.t bool }.
+                              
+  Definition server_init_state : server_state :=
+    mkServerState (M.empty _) (M.empty _).
+
+  Definition round_is_done (sst : server_state) : bool :=
+    all (fun x => M.mem x sst.(clients_received)) (map Ix.val (enumerate Ix.t)).
+  
+  Definition events_of (sst : server_state) : list event :=
+    if round_is_done sst then sst.(actions_received) :: nil
+    else nil.
+
+  Definition fun_of_map
+             (m : M.t (list (A.t*D)))
+             (player : nat)
+    : DIST.t A.t :=
+      match M.find (N.of_nat player) m with
+       | None => DIST.empty _
+       | Some l => DIST.add_weights l (DIST.empty _)
+      end.
+
+  Definition cost_vector (p : M.t A.t) (player : Ix.t) : list (A.t * D) :=
+    List.fold_left
+      (fun l a => (a, ccost player.(Ix.val) (M.add player.(Ix.val) a p)) :: l)
+      (enumerate A.t)
+      nil.
+
+  Lemma cost_vector_nodup p player :
+    NoDupA (fun p q => p.1 = q.1) (cost_vector p player).
+  Proof.
+    rewrite /cost_vector -fold_left_rev_right.
+    generalize (enum_nodup (A:=A.t)); move: (enumerate A.t) => l H.
+    have H2: NoDupA (fun x : A.t => [eta eq x]) (List.rev l).
+    { apply NoDupA_rev => //.
+      by constructor => // => x y z -> <-. }
+    move {H}; move: H2; move: (List.rev l) => l0.
+    elim: l0 => //= a l0 IH H2; constructor.
+    { move => H3.
+      have H4: InA (fun x y => x=y) a l0.
+      { clear -H3; move: H3; elim: l0 => //=.
+        { inversion 1. }
+        move => a0 l IH H; inversion H; subst.
+        { by simpl in H1; subst a0; constructor. }
+        by apply: InA_cons_tl; apply: IH. }
+      by inversion H2; subst. }
+    by apply: IH; inversion H2; subst.
+  Qed.      
+
+  Lemma cost_vector_allin p player : 
+    forall a,
+    exists d,
+      [/\ In (a,d) (cost_vector p player)
+       , Dle (-D1) d & Dle d D1].
+  Proof.
+    generalize (enum_total (A:=A.t)) => H a.
+    rewrite /cost_vector -fold_left_rev_right.
+    have H2: forall a, In a (List.rev (enumerate A.t)).
+    { by move => ax; rewrite -in_rev. }
+    clear H; move: (H2 a); elim: (List.rev (enumerate A.t)) => // ax l IH; case.
+    { move => Heq; subst; exists ((ccost) (Ix.val player) (M.add (Ix.val player) a p)).
+      split => //=; first by left.
+      admit. (*property of (ccost)*)
+      admit. (*property of (ccost)*) }
+    move => H3; move: (IH H3); clear H3; case => x []H3 H4 H5.
+    exists x; split => //.
+    constructor; apply: H3.
+  Admitted.    
+
+  Lemma cost_vector_ok p player : premsg_ok (cost_vector p player).
+  Proof.
+    split.
+    { apply: cost_vector_nodup. }
+    apply: cost_vector_allin.
+  Qed.    
+
+  Definition cost_vector_msg p player : msg :=
+    mkMsg (cost_vector_ok p player).
+  
+  Definition packets_of (sst : server_state) : list (packet node MSG) :=
+    let ds := fun_of_map (actions_received sst) in 
+    let p := rprod_sample A.t0 num_players ds in
+    List.fold_left
+      (fun acc player =>
+         (clientID player, TO_CLIENT (cost_vector_msg p player), serverID _) :: acc)
+      (enumerate Ix.t)
+      nil.
+  
+  Definition server_recv
+             (m : MSG)
+             (from : node)
+             (sst : server_state)
+    : server_state * seq (packet node MSG) * seq event
+    := match from with
+       | clientID x => 
+         match m with
+         | TO_SERVER m' => 
+           let sst' :=
+               mkServerState
+                 (M.add x.(Ix.val) m' sst.(actions_received))
+                 (M.add x.(Ix.val) true sst.(clients_received))
+           in (sst', packets_of sst', events_of sst')
+         | TO_CLIENT _ => (sst, nil, nil)
+         end
+       | serverID => (sst, nil, nil)
+       end.
+  
+  Definition server : NodePkg node MSG event :=
+    @mkNodePkg
+      _ _ _
+      server_state
+      (fun _ => (server_init_state, nil, nil))
+      server_recv
+      server_init_state.
+  
   End WE_NodePkg.
 End WE_NodePkg.  
