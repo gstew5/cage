@@ -274,6 +274,101 @@ Section semantics.
         step_plus c'' s'' c' s' -> 
         step_plus c s c' s'.
 
+  (** Another version of the operational semantics, with slightly 
+      different iteration semantics (FIXME! FOR BACKWARD COMPATIBILITY 
+      WITH EXISTING PROOFS.) *)
+  
+  Inductive step' : com A -> state -> com A -> state -> Prop :=
+  | SUpdate' :
+      forall f s pf,
+        let: s' :=
+           @mkState
+             (SCosts s)
+             (SCostsOk s)
+             (SPrevCosts s)
+             (finfun (fun a => eval (f a) s))
+             pf
+             (SEpsilon s)             
+             (SEpsilonOk s)
+             (SOutputs s)
+             (SChan s)
+             (SOracleSt s)
+        in
+        step' (CUpdate f) s CSkip s'
+             
+  | SRecv' :
+      forall s f t' (Hrecv : oracle_recv (SOracleSt s) (SChan s) f t') pf,
+        let: s' :=
+           @mkState
+             f
+             pf
+             (existT _ (SCosts s) (SCostsOk s) :: SPrevCosts s)
+             (SWeights s)
+             (SWeightsOk s)
+             (SEpsilon s)
+             (SEpsilonOk s)
+             (SOutputs s)
+             (SChan s)
+             t'
+        in 
+        step' CRecv s CSkip s'
+
+  | SSend' :
+      forall s ch t',
+        let: d:=
+           p_aux_dist
+             a0
+             (SEpsilonOk s)
+             (SWeightsOk s)
+             CMAX_nil (*Important that [cs := nil] here! 
+                        [p_aux_dist] applied to the empty sequence
+                        of cost functions specializes to the distribution formed
+                        by: SWeights w / \Gamma. *) in
+        oracle_send (SOracleSt s) d ch t' -> 
+        let: s' :=
+           @mkState
+             (SCosts s)
+             (SCostsOk s)
+             (SPrevCosts s)
+             (SWeights s)
+             (SWeightsOk s)
+             (SEpsilon s)
+             (SEpsilonOk s)             
+             (d :: SOutputs s)
+             ch
+             t'
+        in 
+        step' CSend s CSkip s'
+             
+  | SSeq1' :
+      forall c2 s,
+        step' (CSeq CSkip c2) s c2 s
+             
+  | SSeq2' :
+      forall c1 c1' c2 s1 s2,
+        step' c1 s1 c1' s2 ->
+        step' (CSeq c1 c2) s1 (CSeq c1' c2) s2
+
+  | SIter1' :
+      forall c s,
+        step' (CIter 1 c) s c s
+             
+  | SIterS' :
+      forall c s (n : N.t),
+        (1 < n)%N -> 
+        step' (CIter n c) s (CSeq c (CIter (N.pred n) c)) s.
+
+  Inductive step'_plus : com A -> state -> com A -> state -> Prop :=
+  | step'1 :
+      forall c s c' s',
+        step' c s c' s' ->
+        step'_plus c s c' s'
+  | step'_trans :
+      forall c s c'' s'' c' s',
+        step' c s c'' s'' ->
+        step'_plus c'' s'' c' s' -> 
+        step'_plus c s c' s'.
+
   Inductive final_com : com A -> Prop :=
   | final_skip :
       final_com CSkip.
@@ -1739,7 +1834,98 @@ Section mult_weights_refinement.
     { apply: (step_plus_mult_weights_init_size H3). }
     by rewrite H5 => -> /=; rewrite addnS.
   Qed.
+(*
+  Inductive cequiv : com A -> com A -> Prop :=
+  | cequiv_refl c : cequiv c c
+  | cequiv_iter c : cequiv c (CSeq c (CIter 0 c))
+  | cequiv_seq c1 c1' c2 : cequiv c1 c1' -> cequiv (CSeq c1 c2) (CSeq c1' c2).
 
+  Lemma step'_step_cequiv c c0 s c' s' :
+    cequiv c c0 ->
+    step' a0 c s c' s' ->
+    exists cx, step a0 c0 s cx s' /\ cequiv c' cx.
+  Proof.
+    induction 1; subst.
+    { induction 1; try solve[eexists; split; [constructor|constructor] => //].
+      { destruct IHstep' as [cx [H1 H2]].
+        exists (CSeq cx c2); split; constructor => //. }
+      exists (CSeq c (CIter (N.pred n) c)); split; constructor.
+      apply: ltn_trans; last by apply: H.
+      by []. }
+    { move => H.
+    
+    
+    induction 1; try solve[eexists; split; [constructor|constructor] => //].
+    { destruct IHstep' as [cx [H1 H2]].
+      exists (CSeq cx c2); split; constructor => //. }
+      exists (CSeq c (CIter (N.pred n) c)); split; constructor.
+      apply: ltn_trans; last by apply: H.
+      by []. }
+    
+      
+      { destruct IHstep'.
+        case: H1 => H1 H2; exists (CSeq x c2); split.
+        { constructor => //. }
+        
+        
+
+
+      ; try solve[split; [constructor; constructor|constructor] => //].
+  
+  Lemma step'_final_step_plus c s c' s' :
+    final_com c' -> 
+    step' a0 c s c' s' ->
+    step_plus a0 c s c' s'.
+  Proof.
+    move => H H1.
+    induction H1; try solve[constructor; constructor => //|inversion H].
+    inversion H; subst.
+    apply: step_trans; first by constructor.
+    apply: step_trans; first by constructor.
+    constructor; constructor.
+  Qed.
+  
+  Inductive has_CIter1 : com A -> Prop :=
+  | has_CIter1_base : forall c, has_CIter1 (CIter 1 c)
+  | has_CIter1_seq : forall c1 c2, has_CIter1 c1 -> has_CIter1 (CSeq c1 c2).
+  
+  Lemma step'_step c s c' s' :
+    ~has_CIter1 c -> 
+    step' c s c' s' ->
+    step c s c' s'.
+  Proof.
+    move => H H2; induction H2; try solve[constructor => //].
+    { constructor; apply: IHstep'.
+      move => H3; apply: H; constructor => //. }
+    elimtype False; apply: H; constructor.
+    constructor.
+    have H1: (0 < 1)%N by [].
+    by apply: ltn_trans; first by apply: H1.
+  Qed.
+
+  Lemma step'_step_plus_iter c s c' s' :
+    has_CIter1 c ->
+    final_com c' -> 
+    step'_plus c s c' s' ->
+    step_plus c s c' s'.
+  Proof.
+    move => H Hfinal; induction 1; try solve[inversion H].
+    { inversion Hfinal; subst; clear Hfinal.
+      inversion H; subst.
+      inversion H0; subst.
+      apply: step_trans; first by constructor.
+      apply: step_trans; first by constructor.
+      constructor.
+      constructor.
+      constructor.
+    { inversion H; subst.
+      admit. }
+    { apply: step_trans; first by constructor.
+      apply: step_trans.
+      { constructor.
+    constructor.
+*) 
+  
   (** REFINEMENT 2:
       Show that [mult_weights1] refines the Ssreflect spec in weights.v. *)
 
@@ -2111,25 +2297,34 @@ Section semantics_lemmas.
   (** The number of cost vectors received from the environment *)
   Definition num_costs (s : state A) := INR (size (all_costs' s)).
 
+  Lemma step'_plus_step_plus_mwu nx s c' s' :
+    final_com c' ->    
+    step'_plus a0 (mult_weights A nx) s c' s' ->
+    step_plus a0 (mult_weights A nx) s c' s'.
+  Admitted. (*TODO*)
+  
   Lemma mult_weights_T :
     forall nx (c' : com A) (s' : state A) ch t,
       (0 < size (all_costs s'))%N ->       
-      step_plus a0 (mult_weights A nx) (init_state ch t) c' s' ->
+      step'_plus a0 (mult_weights A nx) (init_state ch t) c' s' ->
       final_com c' -> 
       num_costs s' = INR (N.to_nat nx).
   Proof.    
     move => nx c' s' ch t Hsz H H2.
+    rename H into H'.
+    have H: step_plus a0 (mult_weights A nx) (init_state ch t) c' s'.
+    { apply: step'_plus_step_plus_mwu => //. }
     move: (step_plus_mult_weights_size_all_costs H H2).
     rewrite /num_costs /all_costs' /all_costs0 size_map size_all_costs_init_state.
     rewrite size_removelast => H3; rewrite H3 in Hsz|-*; move: Hsz.
     by case: (N.to_nat nx) => // n _; f_equal => /=; rewrite -addnE addn1.
-  Qed.    
+  Qed.
 
   Definition Tx nx := INR (N.to_nat nx).
   
   Lemma mult_weights_epsilon_no_regret :
     forall nx (c' : com A) (s' : state A) (ch : oracle_chanty) (t : T),
-      step_plus a0 (mult_weights A nx) (init_state ch t) c' s' ->
+      step'_plus a0 (mult_weights A nx) (init_state ch t) c' s' ->
       final_com c' ->
       (0 < size (all_costs' s'))%N -> 
       let: eCost := state_expCost1 (all_costs0 s') s'
@@ -2137,6 +2332,9 @@ Section semantics_lemmas.
   Proof.
     move => nx c' s' ch t H H2 Hsize.
     have H3: SOutputs (init_state ch t) = [::] by [].
+    rename H into H'.
+    have H: step_plus a0 (mult_weights A nx) (init_state ch t) c' s'.
+    { apply: step'_plus_step_plus_mwu => //. }    
     have H4: catrev (rev (all_costs0 s')) (all_costs (init_state ch t)) = all_costs s'.
     { case: (step_plus_all_costs_cat H) => l; rewrite /all_costs0 => ->.
       rewrite removelast_cat => //.
@@ -2145,7 +2343,7 @@ Section semantics_lemmas.
     have Hsize': (0 < size (all_costs s'))%N.
     { clear - Hsize; move: Hsize; rewrite /all_costs' size_map /all_costs0.
       rewrite size_removelast => //. }
-    rewrite -(mult_weights_T Hsize' H H2).
+    rewrite -(mult_weights_T Hsize' H' H2).
     by apply: perstep_weights_noregret.
   Qed.
 End semantics_lemmas.
