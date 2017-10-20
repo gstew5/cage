@@ -106,7 +106,7 @@ Section machine_semantics.
   
   Definition client_step
     : com A -> state A ClientPkg unit -> com A -> state A ClientPkg unit -> Prop :=
-    @step A a0 ClientPkg unit simpleClientOracle.
+    @step' A a0 ClientPkg unit simpleClientOracle.
 
   Definition client_state :=
     (com A * @weightslang.state A ClientPkg unit)%type.
@@ -520,7 +520,7 @@ Section machine_semantics.
           by inversion Hrecv; subst; rewrite H2. }
         { apply: sentSome => //.
           inversion H; subst; rewrite H2 => //. }
-        move: (IHstep H4 H4 H5); inversion 1; subst.
+        move: (IHstep' H4 H4 H5); inversion 1; subst.
         { constructor => //. }
         apply: sentSome => //.
         apply: H.
@@ -1121,7 +1121,7 @@ Section extract_oracle.
     sent (SOracleSt s) = None -> 
     match_states s sx ->
     exists sx' : state A unit unit,
-      match_states s' sx' /\ step a0 c sx c' sx'.
+      match_states s' sx' /\ step' a0 c sx c' sx'.
   Proof.
     induction 1; subst.
     { exists {|
@@ -1210,7 +1210,7 @@ Section extract_oracle.
       split => //.
       constructor. }
     { move => H1 H2.
-      case: (IHstep H1 H2) => sx' []H3 H4.
+      case: (IHstep' H1 H2) => sx' []H3 H4.
       exists sx'; split => //.
       by constructor. }
     { move => H H2.
@@ -1241,7 +1241,7 @@ Section extract_oracle.
     (* step by client i *)
     (exists sx',
       match_states s' sx' /\
-      @weightslang.step A a0 unit unit _ c sx c' sx').
+      @weightslang.step' A a0 unit unit _ c sx c' sx').
   Proof.
     inversion 1; subst; simpl. 
     { (* client_step *)
@@ -1287,7 +1287,7 @@ Section extract_oracle.
     exists sx',
       match_states s' sx' /\
       ((c=CSkip /\ sx=sx') \/ 
-       @weightslang.step_plus A a0 unit unit _ c sx c' sx').
+       @weightslang.step'_plus A a0 unit unit _ c sx c' sx').
   Proof.
     move => Hstep.
     move: c s sx.
@@ -1332,7 +1332,7 @@ Section extract_oracle.
     exists sx'.
     split => //.
     right.
-    apply: weightslang.step_trans.
+    apply: weightslang.step'_trans.
     { apply: Hstep'. }
     apply: Hstep_plus.
   Qed.
@@ -1346,7 +1346,7 @@ Section extract_oracle.
     match_states s sx ->
     exists sx',
       match_states s' sx' /\
-      @weightslang.step_plus A a0 unit unit _ c sx c' sx'.
+      @weightslang.step'_plus A a0 unit unit _ c sx c' sx'.
   Proof.
     move => H1 H2 H3 H4 H5 H6.
     case: (oracle_extractible_aux H1 H2 H4 H5 H6) => sx' []H7 H8.
