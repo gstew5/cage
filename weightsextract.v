@@ -1357,8 +1357,8 @@ Module MWUProof (T : OrderedFinType).
     have H7: (0 < size (all_costs' s'))%N.
     { by rewrite -H6. }
     inversion H2; subst.
-    apply: mult_weights_epsilon_no_regret => //.
-    eapply step_plus_step'_plus_mwu in H3; eauto.
+    apply: mult_weights_epsilon_no_regret_noprime => //.
+    eauto.
   Qed.
   End mwuproof.
   End mwuProof.
