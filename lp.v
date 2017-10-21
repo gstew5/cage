@@ -217,10 +217,8 @@ Module LP (P : LINEAR_PROGRAM).
       send
       _
       _.
-  Next Obligation.
-  Admitted. (*LP TODO*) 
-  Next Obligation.
-  Admitted. (*LP TODO*)
+  Next Obligation.(*LP TODO*) 
+  Next Obligation.(*LP TODO*)
 
   (** Hook up to MWU *)
   
