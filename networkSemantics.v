@@ -1,6 +1,6 @@
 Require Import ProofIrrelevance.
 Require Import Permutation.
-
+Require Import simulations.
 Require Import listlemmas.
 
 (** Not sure if something like this exists somewhere already or where to
@@ -752,7 +752,7 @@ Section intermediateSemantics.
               count (eq_op p)  WLOW.(inFlight) = count (eq_op p) WINT.(inFlight)) ->
             (trace WINT = trace WLOW) ->
           Match WINT WLOW.
-
+    
     Definition countUninit : WorldINT -> nat :=
       fun w => count (fun n => negb (initNodes w n)) ((serverID A)::(map (@clientID A) (enumerate A))).
 
@@ -1015,278 +1015,85 @@ Section intermediateSemantics.
 
 
 (* End TODO applicability *)
-(*
+
 Lemma INTsimulatesLOW : forall WLOW WLOW',
-        (network_step_plus nodeINTDec WLOW WLOW') ->
-        forall WINT, Match WINT WLOW ->
-        (exists WINT', network_stepINT WINT WINT' /\ Match WINT' WLOW')
-        \/ (world_measure WLOW' < world_measure WLOW /\ Match WINT WLOW').
-    Proof.
-      (* induction over the transition+ from WLOW to WLOW'*) 
-      induction 1 as [WLOW WLOW' HStep | (* fill me in for trans_step *) ].
-      (* single step of transition+ *)
-      + induction HStep as
-          [WLOW n st ps es initN initEq |
-           (* fill me in for packet step *)].
-        (* We moved from WLOW by an initalization step *)
-        - set WLOW' := {|
-                    localState := upd_localState nodeINTDec n st (localState WLOW);
-                    inFlight := (inFlight WLOW ++ ps)%list;
-                    trace := (trace WLOW ++ es)%list;
-                    initNodes := upd_initNodes nodeINTDec n (initNodes WLOW) |}.
-          (* Does WLOW' have any uninitalized nodes?*)
-          case: (nodesInitOrWitness WLOW') => WLOW'_initH WINT MatchH.
-          * (* All nodes have initalized, this is the state immediatly before the
-              server's first big step *)
-            induction MatchH; last first.
-            by congruence. (* Since there are uninitialized components, we know
-              that we had to take an initalization step *)
-            { left. eexists. split.
-              - apply batchInitStep.
-              - apply postInitMatch.
-                { move => n'. rewrite /postInitWorld /WLOW' /initStateNode /upd_localState /=.
-                  case: (nodeINTDec n (clientID n')) => eqN ; subst => /=.
-                  * rewrite initEq. by [].
-                  * rewrite H0. by [].
-                    case_eq (initNodes WLOW (clientID n')) => initH. by [].
-                    specialize (WLOW'_initH (clientID n')). rewrite <- WLOW'_initH.
-                    rewrite <- initH. rewrite /WLOW' /upd_initNodes /=.
-                    case: (nodeINTDec n (clientID n')) => initH'. congruence. by[].
-                }
-                { rewrite /preInitWorld => n'. by []. }
-                { by []. }
-                { move => n'.
-                  generalize dependent n => n. case: n.
-                  (* If n is the server *)
-                  + move => st initN initEq WLOW' WLOW'_initH.
-                    have Hps : ps = [::].
-                    { rewrite <- serverInitSize.
-                      rewrite /initMsgNode initEq. by [].
-                    }
-                    have HInfoEq : clientInfo_fromWorld WLOW' n' = clientInfo_fromWorld WLOW n'.
-                    { rewrite /WLOW' /clientInfo_fromWorld => /=. 
-                      rewrite Hps List.app_nil_r /upd_localState.
-                      destruct (nodeINTDec serverID serverID); last by congruence.
-                      rewrite /eq_state /eq_rect.
-                      destruct (clientServerInfo_messageList (inFlight WLOW) n'); first by [].
-                      rewrite H1.  rewrite -serverInitInfo.
-                      f_equal. destruct e. rewrite /initStateNode initEq. by []. by [].
-                    }
-                    rewrite HInfoEq. rewrite H3.
-                    apply postInitClientInfo_spec.
-                    specialize (WLOW'_initH (clientID n')).
-                    move: WLOW'_initH.
-                    rewrite /WLOW' /upd_initNodes => /=.
-                    case: (nodeINTDec serverID (clientID n')) => Hcontra.
-                    inversion Hcontra. by [].
-                  (* If n is a client *)
-                  + move => n st initN initEq WLOW' WLOW'_initH.
-                    rewrite postInitClientInfo_spec.
-                    rewrite /clientInfo_fromWorld /WLOW' => /=.
-                    move: (clientInitSize n) => [m psEq].
-                    rewrite /initMsgNode in psEq. rewrite initEq in psEq. simpl in psEq.
-                    rewrite psEq /clientServerInfo_messageList. rewrite map_cat.
-                    rewrite filter_cat. case: (nodeINTDec (clientID n) (clientID n')) => nEq.
-                  (* What node do we need info about? *)
-                    (* The most recently initalized node n *) 
-                    - have HNone : clientInfo_fromWorld WLOW n' = None.
-                      { apply H2. rewrite -nEq. by []. } 
-                      move: (bleh'''' n' WLOW HNone) => Hpf. rewrite Hpf.
-                      rewrite cat0s. simpl.
-                      case_eq (isSome (clientServerInfo_fromPacket m n')); last first.
-                      rewrite /clientServerInfo_fromPacket.
-                      case: msgHasOriginInfoDec => HasOrgpf; last first.
-                      apply False_rec. apply HasOrgpf. apply (clientInitHasOrigin n).
-                      rewrite /initMsgNode initEq psEq => /=. left => //.
-                      case (nodeINTDec (msgOrigin HasOrgpf) (clientID n')) => pfEq; last first.
-                      apply False_rec. apply pfEq. apply clientInitOriginIsClient.
-                      rewrite /initMsgNode -nEq initEq psEq => /=. left => //.
-                      case (nodeINTDec (m.1) (serverID)) => pfEq'; last first.
-                      apply False_rec. apply pfEq'. apply (clientInitSentToServer n').
-                      rewrite /initMsgNode -nEq initEq psEq => /=. left => //.
-                      move => x. inversion x. move => ipEq.
-                      remember (clientServerInfo_fromPacket m n') as l. destruct l => //=.
-                      rewrite Heql /clientServerInfo_fromPacket.
-                      case: msgHasOriginInfoDec => HasOrgpf; last first.
-                      apply False_rec. apply HasOrgpf. apply (clientInitHasOrigin n).
-                      rewrite /initMsgNode initEq psEq => /=. left => //.
-                      case (nodeINTDec (msgOrigin HasOrgpf) (clientID n')) => pfEq; last first.
-                      apply False_rec. apply pfEq. apply clientInitOriginIsClient.
-                      rewrite /initMsgNode -nEq initEq psEq => /=. left => //.
-                      case (nodeINTDec (m.1) (serverID)) => pfEq'; last first.
-                      apply False_rec. apply pfEq'. apply (clientInitSentToServer n').
-                      rewrite /initMsgNode -nEq initEq psEq => /=. left => //. f_equal.
-                      rewrite /clientInit. have sigEq: sval (clientInitSize n') = m.
-                      destruct (clientInitSize n') => /=. rewrite /initMsgNode in e.
-                      rewrite -nEq initEq in e. simpl in e. rewrite psEq in e. inversion e.
-                      by []. subst.
-                      apply clientServerInfo_PI.  subst.
-                    (* Some node initalized in a previous round *)
-                      have HInfo : (clientInfo_fromWorld WLOW n') = Some (clientInit n').
-                      { apply H3. move: (WLOW'_initH (clientID n')).
-                        rewrite /WLOW' /initNodes /upd_initNodes => /=.
-                        case: (nodeINTDec (clientID n) (clientID n')) => nEq'. congruence.
-                        by [].
-                      }
-                      have HnoInfo :
-                        (filter isSome (map
-                          (fun p : packet nodeINT msgINT =>
-                            clientServerInfo_fromPacket p n') (cons m nil))) = nil.
-                      rewrite /clientServerInfo_fromPacket => /=.
-                      case (msgHasOriginInfoDec m.2) => mOriginDH; last first.
-                      apply False_rec. apply mOriginDH. apply (clientInitHasOrigin n).
-                      rewrite /initMsgNode initEq; left => //=.
-                      case (nodeINTDec (msgOrigin mOriginDH) (clientID n')) => nEq'.
-                      apply False_rec. apply nEq. rewrite -nEq'. symmetry.
-                      apply (clientInitOriginIsClient n).
-                      rewrite /initMsgNode initEq; left => //=. by []. 
-                      rewrite HnoInfo cats0 -HInfo.
-                      rewrite /upd_localState. case (nodeINTDec (clientID n) serverID) => contraEq.
-                      inversion contraEq.  by [].
-                }
-                rewrite /WLOW' /postInitWorld => /=. have esEq : es = [::].
-                (* Complete just needs some rewrites *)
-                have esH : es = (initEventNode n). rewrite /initEventNode initEq => //.
-                rewrite esH. apply nodeInitTrace.
-                rewrite esEq List.app_nil_r -H4 bleh'''''. by [].
-              }
-          *  (* A client remains uninitalized *)
-              induction MatchH; last first.
-              by congruence. (* Uninitalized components restrict
-                  the match just like above *)
-              { right. split.
-                  (* Show that the measure decreases *)
-                - rewrite /world_measure.
-                  have H' : (countUninit WLOW' + 1 = countUninit WLOW).
-                  { apply initStep_countUninit; by []. }
-                  generalize dependent n => n.
-                  case: n; intros.
-                  * have H'' : length (inFlight WLOW) = length (inFlight WLOW').
-                    apply initStep_countInFlight_server; by []. rewrite -H' H''.
-                    rewrite mulnDr -addnA ltn_add2l -{1}[length (inFlight WLOW')]
-                            add0n ltn_add2r. by []. 
-                  * have H'' : length (inFlight WLOW) + 1 = length (inFlight WLOW').
-                    apply initStep_countInFlight_client; by []. rewrite -H' -H''.
-                    rewrite mulnDr -addnA ltn_add2l {1} addnC ltn_add2r. by [].
-                  (* Establish match relation with initWorld *)
-                - destruct WLOW'_initH as [n' WLOW'_initH].
-                  apply preInitMatch with (n := n').
-                  { by []. }
-                  { move => n'' Hinit.
-                    rewrite /WLOW' /upd_localState => /=.
-                    case: (nodeINTDec n (clientID n'')) => Hupd.
-                    subst. simpl. rewrite /initStateNode.
-                    rewrite initEq => //. apply H0.
-                    rewrite /WLOW' in Hinit. simpl in Hinit.
-                    rewrite /upd_initNodes in Hinit.
-                    destruct (nodeINTDec n (clientID n'')); first by congruence. by [].
-                  }
-                  { move => n'' Hinit. rewrite /WLOW' /upd_localState /=.
-                    case: (nodeINTDec n n'') => Hupd. subst.
-                    - move: Hinit => Hcontra. rewrite /WLOW' in Hcontra. simpl in Hcontra.
-                      rewrite /upd_initNodes in Hcontra.
-                      destruct (nodeINTDec n'' n''); by congruence.
-                    - rewrite H1; first by []. rewrite /WLOW' in Hinit. simpl in Hinit.
-                      rewrite -Hinit /upd_initNodes. destruct (nodeINTDec n n''); last by [].
-                      congruence.
-                  }
-                  {
-                    move => n'' Hinit. rewrite   -(H2 n'') /clientInfo_fromWorld /WLOW' => //=.
-                    rewrite  /clientServerInfo_messageList map_cat filter_cat.
-                    have H' : (filter isSome (map
-                                (fun p : packet nodeINT msgINT =>
-                                  clientServerInfo_fromPacket p n'') ps)) = nil.
-                    { rewrite /clientServerInfo_fromPacket.
-                      induction n. move: serverInitSize. rewrite /initMsgNode initEq //= => psEq.
-                      rewrite psEq. by [].
-                      move: (clientInitSize o) => [m mEq]. move: mEq.
-                      rewrite /initMsgNode initEq //= => psEq.
-                      rewrite psEq //=. case (msgHasOriginInfoDec m.2) => mOriginDH; last first.
-                      apply False_rec. apply mOriginDH. apply (clientInitHasOrigin o).
-                      rewrite /initMsgNode initEq psEq. left => //.
-                      case (nodeINTDec (msgOrigin mOriginDH) (clientID n'')) => nEqContra.
-                      apply False_rec.
-                      have EqContra : initNodes WLOW' (clientID n'') <> initNodes WLOW' (clientID o).
-                      rewrite Hinit /WLOW' => //=. rewrite /upd_initNodes.
-                      destruct nodeINTDec; by congruence.
-                      apply EqContra. rewrite -nEqContra. f_equal.
-                      apply clientInitOriginIsClient. rewrite /initMsgNode initEq psEq.
-                      left => //. by [].
-                    }
-                    rewrite H' cats0. rewrite /upd_localState.
-                    destruct (filter isSome (map
-                               (fun p : packet nodeINT msgINT =>
-                                 clientServerInfo_fromPacket p n'') (inFlight WLOW))); last first.
-                    destruct o => //=.
-                    case (nodeINTDec n serverID) => serverEq. rewrite /eq_state /eq_rect.
-                    subst. rewrite H1. rewrite -serverInitInfo /initStateNode initEq => //. by [].
-                    by []. case (nodeINTDec n serverID) => serverEq. rewrite /eq_state /eq_rect.
-                    subst. rewrite H1. rewrite -serverInitInfo /initStateNode initEq => //. by [].
-                    by []. move: Hinit. rewrite /WLOW' /upd_initNodes => /=.
-                    case (nodeINTDec n (clientID n'')) => nEq //=.
-                  }
-                  {
-                    move => n'' Hinit. rewrite /clientInfo_fromWorld /WLOW' => //=.
-                    rewrite  /clientServerInfo_messageList map_cat filter_cat.
-                    case: (nodeINTDec n (clientID n'')) => nEq.
-                    (* The node being considered was initalized in the last step *)
-                    - have HNone : clientInfo_fromWorld WLOW n'' = None.
-                      { apply H2. rewrite -nEq. by []. } 
-                      move: (bleh'''' n'' WLOW HNone) => Hpf. rewrite Hpf.
-                      rewrite cat0s. simpl. move: (clientInitSize n'') => [m mEq].
-                      have mpsEq : [::m] = ps. rewrite -mEq /initMsgNode. subst. rewrite initEq => //.
-                      rewrite -mpsEq /clientServerInfo_fromPacket => /=.
-                      case (msgHasOriginInfoDec m.2) => mInfoDH; last first.
-                      apply False_rec. apply mInfoDH. apply (clientInitHasOrigin n'').
-                      subst. rewrite /initMsgNode initEq. left => //.
-                      case (nodeINTDec (msgOrigin mInfoDH) (clientID n'')) => mInfoH; last first.
-                      apply False_rec. apply mInfoH. apply (clientInitOriginIsClient n'').
-                      subst. rewrite /initMsgNode initEq. left => //.
-                      case (nodeINTDec m.1 serverID) => mDestH; last first.
-                      apply False_rec. apply mDestH. apply (clientInitSentToServer n'').
-                      subst. rewrite /initMsgNode initEq. left => //. simpl.
-                      f_equal. rewrite /clientInit. have mSigEq : m = (sval (clientInitSize n'')).
-                      destruct (clientInitSize n'') => /=. rewrite e in mEq. inversion mEq => //.
-                      subst. apply clientServerInfo_PI.
-                    - rewrite -(H3 n'') /clientInfo_fromWorld /clientServerInfo_messageList.
-                    have H' : (filter isSome (map
-                                (fun p : packet nodeINT msgINT =>
-                                  clientServerInfo_fromPacket p n'') ps)) = nil.
-                    { induction n.
-                      move: serverInitSize. rewrite /initMsgNode initEq /= => psEq.
-                      rewrite psEq //.
-                      rewrite /clientServerInfo_fromPacket.
-                      move: (clientInitSize o). rewrite /initMsgNode initEq /=. move => [m mEq].
-                      rewrite mEq => /=. case (msgHasOriginInfoDec m.2) => mOriginDH; last first.
-                      apply False_rec. apply mOriginDH. apply (clientInitHasOrigin o).
-                      rewrite /initMsgNode initEq mEq. left => //.
-                      case (nodeINTDec (msgOrigin mOriginDH) (clientID n'')) => mOriginEq.
-                      apply False_rec. apply nEq. rewrite -mOriginEq.
-                      rewrite (clientInitOriginIsClient o) => //. rewrite /initMsgNode initEq  mEq.
-                      left =>  //=. by [].
-                    }
-                    rewrite H' cats0. rewrite /upd_localState.
-                    destruct (filter isSome (map
-                               (fun p : packet nodeINT msgINT =>
-                                 clientServerInfo_fromPacket p n'') (inFlight WLOW))); last first.
-                    destruct o => //=.
-                    case (nodeINTDec n serverID) => serverEq. rewrite /eq_state /eq_rect.
-                    subst. rewrite H1. rewrite -serverInitInfo /initStateNode initEq => //. by [].
-                    by []. case (nodeINTDec n serverID) => serverEq. rewrite /eq_state /eq_rect.
-                    subst. rewrite H1. rewrite -serverInitInfo /initStateNode initEq => //. by [].
-                    by []. move: Hinit. rewrite /WLOW' /upd_initNodes => /=.
-                    case (nodeINTDec n (clientID n'')) => nEq' //=.
-                  }
-                  { rewrite H4 /WLOW' //=. have esH: es = (initEventNode n).
-                    rewrite /initEventNode initEq => //.
-                    rewrite esH nodeInitTrace List.app_nil_r //.
-                  }
-              }
-        (* We moved from WLOW by a node step *)
-        - admit.
-      (* Transitive component of + relation *)
-      + admit.
-    Admitted. *)
+        (network_step nodeINTDec WLOW WLOW') ->
+        forall WINT, Match WLOW WINT ->
+        (exists WINT', network_stepINT WINT WINT' /\ Match WLOW' WINT')
+        \/ (world_measure WLOW' < world_measure WLOW /\ Match WLOW' WINT).
+Proof.
+Admitted.
+
+  Program Instance natOrder : hasOrd nat :=
+    lt.
+  Program Instance hasTransOrdNat : @hasTransOrd nat natOrder.
+  Next Obligation.
+    eapply PeanoNat.Nat.lt_trans; eauto.
+  Defined.
+
+  Program Instance natOrderWf : @hasWellfoundedOrd _ _ (hasTransOrdNat).
+
+  Instance WorldINT_hasInit : hasInit WorldINT :=
+    fun x => postInitWorld = x.
+
+  Instance WorldINT_hasFinal : hasFinal (WorldINT) := fun x => False.
+
+  Instance WorldINT_hasStep : hasStep (WorldINT) :=
+    fun x x' => network_stepINT x x'.
+
+  Instance WorldINT_hasStepLow : hasStep (WorldINT) :=
+    fun x x' => network_step nodeINTDec x x'.
+
+  Program Instance worldINT_hasSemantics :
+    semantics (H1 := WorldINT_hasStep) (X := WorldINT).
+
+  Instance worldINTLow_hasSemantics :
+    semantics (H1 := WorldINT_hasStepLow).
+
+
+  Definition Matches_state (ord : nat) (low high : WorldINT) : Prop :=
+    Match low high /\ world_measure low = ord.
+
+  Lemma init_diagram_WorldINT :
+    forall s : WorldINT,
+      simulations.init s ->
+      (exists t : WorldINT, simulations.init t) /\
+      (forall t : WorldINT,
+          simulations.init t -> exists x : nat, Matches_state x s t).
+  Proof.
+    split.
+    +
+      exists s; auto.
+    +
+      move => t H0; exists (world_measure s);
+                rewrite /Matches_state; inversion H; inversion H0;
+                  subst; split; constructor; auto.
+  Qed.
+  Program Definition simulation_WorldINT :=
+    @mkSimulation WorldINT WorldINT nat WorldINT_hasInit
+                  WorldINT_hasFinal WorldINT_hasStepLow
+                  worldINTLow_hasSemantics WorldINT_hasInit
+                  WorldINT_hasFinal WorldINT_hasStep
+                  worldINT_hasSemantics natOrder hasTransOrdNat
+                  natOrderWf
+                  Matches_state  (* match_states *)
+                  init_diagram_WorldINT
+                  _ (* There is currently no final state *)
+                  _ (* step_diagram *)
+  .
+  Next Obligation.
+    assert (network_step nodeINTDec s s') by auto;
+      unfold Matches_state in H;
+      destruct H;
+      apply INTsimulatesLOW with (WINT := t) in H0; auto.
+    do 2 destruct H0; exists (world_measure s');
+      [ right; exists x0 | left];
+      intuition; rewrite /Matches_state;
+        [ exists 0; exists x0 | |
+                 rewrite /ord/natOrder; apply: leP; subst; auto | ];
+        intuition.
+  Defined.
+
   End refinement.
 End intermediateSemantics.
 
@@ -1748,6 +1555,51 @@ Section relationalINTSimulation.
   Qed.
 
   (** The simulation statement and proof *)
+
+(* WorldINT_hasStep *) 
+
+Instance WorldINT_hasInit' : hasInit WorldINT :=
+    fun x => preInitWorld  _ = x.
+
+Instance RWorld_hasInit : hasInit RWorld :=
+    fun x => preInitRWorld x.
+
+Instance RWorldINT_hasFinal : hasFinal (RWorld) := fun x => False.
+
+Instance RWorldINT_hasStep : hasStep (RWorld) :=
+  fun x x' =>  Rnetwork_step x x'.
+
+(* worldINT_hasSemantics *)
+
+Program Instance RWorldINT_hasSemantics :
+  semantics (X := RWorld) (H1 := RWorldINT_hasStep).
+
+(* Instance HASORD : hasOrd  *)
+(* Lemma wf_ord : well_founded WorldINT_relORD. *)
+(* simulation (ORD:=(T*S)) (sem_S:=sem_S) (sem_T:=sem_R) *)
+  Definition unitOrd : unit -> unit -> Prop := fun _ _ => False.
+  Instance unitHasOrd  : hasOrd unit := unitOrd.
+  Program Instance unitHasTransOrd : hasTransOrd.
+  Program Instance unitHasWellfoundedOrd : hasWellfoundedOrd.
+  Solve Obligations with by rewrite /ord /unitOrd; constructor => b H.
+
+  (*Class hasStep (X : Type) : Type := step : X -> X -> Prop.*)
+  Instance WorldINT'_hasStep : hasStep (WorldINT) :=
+    network_stepINT .
+
+  Instance WorldINT'_hasInit : hasInit WorldINT .
+   refine (fun x => _ = x). apply preInitWorld.
+   Defined.
+
+  Instance WorldINT'_hasFinal : hasFinal WorldINT :=
+    fun x => false.
+
+  Program Instance WorldINT'_hasStepLow : hasStep (WorldINT) :=
+    _.
+
+  Instance worldINT'Low_hasSemantics :
+    semantics (H1 := WorldINT'_hasStepLow).
+
   Theorem relationalINTSimulation :
     forall WINT WINT' RW,
       network_stepINT WINT WINT' ->
@@ -1793,5 +1645,66 @@ Section relationalINTSimulation.
             by destruct (nodeINTDec _ (serverID A) n). } }
         { split; auto. by rewrite H2. } } }
   Qed.
+
+  Program Definition simulation_WorldINT' :=
+    @mkSimulation WorldINT RWorld unit
+                  WorldINT_hasInit'
+                  WorldINT'_hasFinal
+                  WorldINT'_hasStep
+                  worldINT'Low_hasSemantics
+
+                  RWorld_hasInit
+                  RWorldINT_hasFinal RWorldINT_hasStep
+                  RWorldINT_hasSemantics 
+
+                  unitOrd unitHasTransOrd unitHasWellfoundedOrd
+                  
+
+                  _  (* match_states *)
+                  _  (*init diagram *)
+                  _  (* There is currently no final state *)
+                  _  (* step_diagram *).
+    Next Obligation.
+     apply (RMatch X X0). Defined.
+    Next Obligation.
+      split. exists (rWorld_of_WorldINT s).
+      unfold simulations.init in *.
+      unfold RWorld_hasInit.
+      unfold preInitRWorld.
+      unfold WorldINT_hasInit' in H.
+      subst. intros. repeat split.
+      intros.
+      unfold simulations.init in *.
+      unfold WorldINT_hasInit' in H. unfold preInitWorld in H.
+      unfold RWorld_hasInit in H0. unfold preInitRWorld in H0.
+      assert nodeINT. constructor.
+      exists tt. unfold simulation_WorldINT'_obligation_1.
+      constructor. intros; split. unfold simulations.init in H0.
+      unfold RWorld_hasInit in H0. unfold preInitRWorld in H0.
+      destruct H0 with (n := n). destruct H2. destruct H3.
+      unfold simulations.init in H. unfold WorldINT_hasInit' in H.
+       unfold preInitWorld in H. rewrite H2. destruct H.
+      unfold rPre_initStateNode. unfold rPre_init. simpl.
+      auto. unfold simulations.init in H. unfold WorldINT_hasInit' in H.
+      unfold preInitWorld in H. unfold simulations.init in H0.
+      unfold RWorld_hasInit in H0.
+      destruct H0 with (n := n). destruct H. unfold rInitNodes.
+      auto. split. destruct H. simpl.  destruct H0 with (n := X).
+      destruct H1. destruct H2. auto. destruct H0 with (n := X).
+       destruct H2. destruct H3. destruct H. rewrite H4. auto.
+      Defined.
+      
+      Next Obligation.
+      exists tt. right. 
+      pose proof (relationalINTSimulation H0 H) as bleh.
+      
+      destruct bleh. exists x0.
+      split; last first. unfold simulation_WorldINT'_obligation_1.
+      destruct H1. auto.
+
+      unfold step_plus. exists 0. unfold stepN.
+      destruct H1.
+      exists x0; split; auto.
+      Defined.
 
 End relationalINTSimulation.
