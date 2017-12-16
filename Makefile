@@ -130,7 +130,8 @@ VFILES:=bigops.v\
   unifiedmachine.v\
   networkSemantics.v\
   simulations.v\
-  wenetwork.v
+  wenetwork.v\
+  networkSemanticsNoBatch.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
 -include $(addsuffix .d,$(VFILES))

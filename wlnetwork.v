@@ -10,7 +10,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import compile dist weights numerics bigops games weightslang.
-Require Import machine networkSemantics listlemmas smooth.
+Require Import machine networkSemanticsNoBatch listlemmas smooth.
 
 Section weightsLangNetwork.
   Variable N : nat.
@@ -28,7 +28,8 @@ Section weightsLangNetwork.
 
   Definition wlNode := (nodeINT 'I_N).
 
-  Definition wlClientMsg := {ffun A -> rat}.
+  (* Definition wlClientMsg := {ffun A -> rat}. *)
+  Definition wlClientMsg := dist A rat_realFieldType.
   Definition wlServerMsg := {ffun A -> rat}.
 
   Inductive wlMsg :=
@@ -94,13 +95,16 @@ Section weightsLangNetwork.
 
   Record wlClientState : Type :=
     mkWlClientState {
-        wlClientId  : option wlNode ;
-        wlClientCom : com ;
-        wlClientSt  : @weightslang.state A (ClientPkg A) unit
+        wlClientId      : option wlNode ;
+        wlClientCom     : com ;
+        wlClientWeights : {ffun A -> rat}
       }.
 
   Definition wlClientPreInitState :=
-    mkWlClientState None (mult_weights A nx) (init_state A epsOk tt (init_ClientPkg A)).
+    mkWlClientState None (mult_weights A nx) [ffun _ => 1].
+
+  Definition clientPkgPreInitState :=
+    (init_state A epsOk tt (init_ClientPkg A)).
 
   Notation SOracleSt := (@SOracleSt A (ClientPkg A) unit).
   Notation SWeights := (@SWeights A (ClientPkg A) unit).
@@ -112,37 +116,45 @@ Section weightsLangNetwork.
   Notation mult_weights_body := (mult_weights_body A).
   Notation simpleClientOracle := (simpleClientOracle A).
 
+  (* Starting with the preInit client package state, run the
+     [mult_weights_init] part of the client's command and send the
+     distribution from the resulting client package to the server. *)
   Inductive wlClientInit :
     wlNode -> (wlClientState * list wlPacket * list wlEvent) -> Prop :=
   | wlClientInit1 :
-      forall n st pkt com' wlState',
+      forall n st pkt com' clientPkgSt' d weights,
         client_step_plus simpleClientOracle (mult_weights A nx)
-                         wlClientPreInitState.(wlClientSt) com' wlState' ->
+                         clientPkgPreInitState com' clientPkgSt' ->
         com' = CIter nx mult_weights_body ->
-        st = mkWlClientState (Some n) com' wlState' ->
+        st = mkWlClientState (Some n) com' weights ->
+        (clientPkgSt').(SOracleSt).(sent) = Some d ->
         pkt = mkPacket (serverID 'I_N)
-                       (wlMsgClient st.(wlClientSt).(SWeights)) n ->
+                       (wlMsgClient d) n ->
         wlClientInit n (st, pkt :: nil, nil).
 
   Inductive wlClientRecv :
     wlMsg -> wlNode -> wlClientState ->
     (wlClientState * list wlPacket * list wlEvent) -> Prop :=
   | wlClientRecv1 :
-      forall id m n st (wlState' : state A (ClientPkg A) unit) cost_vector d com' n0,
+      forall id m n st (clientPkgSt clientPkgSt' : state A (ClientPkg A) unit)
+        cost_vector d com' n0 weights weights',
         st.(wlClientId) = Some id ->
         m = wlMsgServer cost_vector ->
-        st.(wlClientSt).(SOracleSt).(received) = Some cost_vector ->
+        clientPkgSt.(SOracleSt).(received) = Some cost_vector ->
         (* Maybe this should be phrased a bit differently *)
         st.(wlClientCom) = CIter (n0+1) mult_weights_body ->
         (com' = CIter n0 mult_weights_body \/ (n0 = BinNums.N0 /\ com' = CSkip)) ->
         client_step_plus simpleClientOracle st.(wlClientCom)
-                                                 st.(wlClientSt) com' wlState' ->
-        wlState'.(SOracleSt).(sent) = Some d ->
-        wlClientRecv m n st (mkWlClientState (Some id) com' wlState',
+                                                 clientPkgSt com' clientPkgSt' ->
+        clientPkgSt'.(SOracleSt).(sent) = Some d ->
+        clientPkgSt.(SWeights) = weights ->
+        clientPkgSt'.(SWeights) = weights' ->
+        wlClientRecv m n st (mkWlClientState (Some id) com' weights',
                              mkPacket (serverID _) (wlMsgClient d) id :: nil,
                              nil).
 
   Definition wlClientPkg := mkWlNodePkg wlClientInit wlClientRecv wlClientPreInitState.
+
 
   (** The network description. All clients share the same package. *)
   Definition wlNetwork_desc (n : wlNode) :=
@@ -161,6 +173,7 @@ Section weightsLangNetwork.
     by right; move: Heq => /eqP.
   Qed.
 
+  (* Notation RWorld := (RWorld wlNetwork_desc). *)
   Notation wlWorld := (@RWorld 'I_N wlMsg wlEvent wlNetwork_desc).
   Notation Rnetwork_step :=
     (@Rnetwork_step 'I_N ordinalEnumerable ordinal_eq_dec wlMsg wlEvent
@@ -173,21 +186,54 @@ Section weightsLangNetwork.
 
   Notation localStateTy := (@rLocalStateTy 'I_N wlMsg wlEvent wlNetwork_desc).
 
+  (* Need to add the following to the match relation: for each client,
+     if there's a packet in flight addressed to them, then their
+     received field in the machine contains the same cost vector, and
+     if there's a packet originating from them, their sent field in
+     the machine contains the same distribution. *)
+
   Definition clientStatesMatch
              (mach_states : {ffun 'I_N -> (client_state A)})
-             (wl_states : localStateTy) :=
+             (W : wlWorld) :=
     forall i,
-      mach_states i = ((wl_states (clientID i)).(wlClientCom),
-                       (wl_states (clientID i)).(wlClientSt)).
+      fst (mach_states i) = (rLocalState W (clientID i)).(wlClientCom) /\
+      (forall pkt d,
+          (List.In pkt (rInFlight W) /\ origin_of pkt = clientID i /\
+           msg_of pkt = wlMsgClient d) ->
+          (snd (mach_states i)).(SOracleSt).(sent) = Some d) /\
+      (forall pkt cost_vec,
+          (List.In pkt (rInFlight W) /\ dest_of pkt = clientID i /\
+           msg_of pkt = wlMsgServer cost_vec) ->
+          (snd (mach_states i)).(SOracleSt).(received) = Some cost_vec).
 
   Definition tracesMatch
              (hist : seq {ffun 'I_N -> dist A rat_realFieldType})
              (trace : seq wlEvent) :=
     hist = trace.
 
-  Definition wlMachineMatch (_ : unit) (W : wlWorld) (mach_st : machine_state) :=
-    clientStatesMatch mach_st.(clients) W.(rLocalState) /\
-    tracesMatch mach_st.(hist) W.(rTrace).
+  Definition initStatesMatch (W : wlWorld) :=
+    forall n, rInitNodes W n = false -> rLocalState W n = rPre_init (wlNetwork_desc n).
+
+  (** This ensures that all clients have been already initialized
+      during a server step *)
+  Definition clientsInitIfPacket (W : wlWorld) :=
+    forall i, List.Exists (fun pkt => origin_of pkt = clientID i) (rInFlight W) ->
+         rInitNodes W (clientID i) = true.
+
+  (* Definition wlMachineMatch (_ : unit) (W : wlWorld) (mach_st : machine_state) := *)
+  (*   clientStatesMatch mach_st.(clients) W.(rLocalState) /\ *)
+  (*   tracesMatch mach_st.(hist) W.(rTrace) /\ *)
+  (*   initStatesMatch W. *)
+
+  (** When the server takes an init step in the wl network, there's no
+      corresponding step in the machine so we have a simple well founded
+      order on whether or not the server has been initialized. *)
+  Definition wlMachineMatch (x : nat) (W : wlWorld) (mach_st : machine_state) :=
+    x = (if W.(rInitNodes) (serverID 'I_N) then 0%N else 1%N) /\
+    clientStatesMatch mach_st.(clients) W /\
+    tracesMatch mach_st.(hist) W.(rTrace) /\
+    initStatesMatch W /\
+    clientsInitIfPacket W.
 
 
   (** WORK IN PROGRESS: set up proper simulation record. *)
@@ -207,6 +253,7 @@ Section weightsLangNetwork.
       (* No events in the trace *)
       w.(rTrace) = nil.
 
+  (** TODO: figure out the final state. *)
   Instance wlNetworkHasFinal : hasFinal wlWorld :=
     fun w =>
       (* All nodes marked as initialized *)
@@ -216,9 +263,10 @@ Section weightsLangNetwork.
       (* All client commands are CSkip, sent contains a distribution and
          received is empty  *)
       (forall i,
-          (w.(rLocalState) (clientID i)).(wlClientCom) = CSkip /\
-          (exists d, (w.(rLocalState) (clientID i)).(wlClientSt).(SOracleSt).(sent) = Some d) /\
-          (w.(rLocalState) (clientID i)).(wlClientSt).(SOracleSt).(received) = None).
+          (w.(rLocalState) (clientID i)).(wlClientCom) = CSkip).
+          (* (w.(rLocalState) (clientID i)).(wlClientCom) = CSkip /\ *)
+          (* (exists d, (w.(rLocalState) (clientID i)).(wlClientSt).(SOracleSt).(sent) = Some d) /\ *)
+          (* (w.(rLocalState) (clientID i)).(wlClientSt).(SOracleSt).(received) = None). *)
 
   Instance wlNetworkHasStep : hasStep wlWorld := Rnetwork_step.
 
@@ -242,11 +290,10 @@ Section weightsLangNetwork.
 
   Instance machineSemantics : @semantics machine_state _ _ _.
 
-  Definition unitOrd : unit -> unit -> Prop := fun _ _ => False.
-  Instance unitHasOrd : hasOrd unit := unitOrd.
-  Program Instance unitHasTransOrd : hasTransOrd.
-  Program Instance unitHasWellfoundedOrd : hasWellfoundedOrd.
-  Solve Obligations with by rewrite /ord /unitOrd; constructor => b H.
+  Program Instance natOrd : hasOrd nat := lt.
+  Program Instance natHasTransOrd : hasTransOrd.
+  Next Obligation. by eapply PeanoNat.Nat.lt_trans; eassumption. Qed.
+  Program Instance natHasWellfoundedOrd : hasWellfoundedOrd.
 
   Lemma wlNetworkMachine_init_diagram :
     forall WORLD,
@@ -256,12 +303,26 @@ Section weightsLangNetwork.
   Proof.
     rewrite /init /wlNetworkHasInit /machineHasInit => WORLD Hinit.
     destruct Hinit as [Hinit1 [Hinit2 [Hinit3 [Hinit4 Hinit5]]]].
-    split. 
+    split.
     { by exists machineInitState. }
     { move=> mach_st H0; subst.
-      exists tt. split.
-      { by move=> i; rewrite ffunE; f_equal; rewrite Hinit2. }
-      { by rewrite Hinit5. } }
+      exists 1%N. split.
+      { by rewrite Hinit3. }
+      { split.
+        { move=> i. simpl. split.
+          { by rewrite ffunE; simpl; rewrite Hinit2. }
+          { split.
+            { move=> H0 d [H1 _].
+              rewrite Hinit4 in H1. inversion H1. }
+            { move=> pkt cost_vec [H0 _].
+              rewrite Hinit4 in H0. inversion H0. } } }
+        { split.
+          { by rewrite Hinit5. }
+          { split.
+            { move=> n Hinitfalse. rewrite /wlClientPreInitState in Hinit2.
+              destruct n; simpl; auto. apply Hinit2. }
+            {  by move=> i H0; rewrite Hinit4 in H0;
+                          apply List.Exists_nil in H0. } } } } }
   Qed.
 
   Lemma wlNetworkMachine_final_diagram :
@@ -273,19 +334,33 @@ Section weightsLangNetwork.
     rewrite /final /wlNetworkHasFinal /machineHasFinal.
     move=> x WORLD mach_st Hmatch Hfinal.
     constructor => i.
-    destruct Hmatch as [Hmatch1 Hmatch2].
+    destruct Hmatch as [Hmatch1 [Hmatch2 Hmatch3]].
     destruct Hfinal as [Hfinal1 [Hfinal2 Hfinal3]].
     specialize (Hfinal3 i).
     destruct Hfinal3 as [Hfinal3 [Hfinal4 Hfinal5]].
-    exists (wlClientSt (rLocalState WORLD (clientID i))).
-    split.
-    { by rewrite Hmatch1; f_equal. }
-    { by split. }
-  Qed.
+  Admitted.    
+  (*   exists (wlClientSt (rLocalState WORLD (clientID i))). *)
+  (*   split. *)
+  (*   { by rewrite Hmatch2; f_equal. } *)
+  (*   { by split. } *)
+  (* Qed. *)
 
-  Definition wlClientState_to_client_state (cs : wlClientState)
-    : (client_state A) :=
-    (cs.(wlClientCom), cs.(wlClientSt)).
+  (* Definition wlClientState_to_client_state (cs : wlClientState) *)
+  (*   : (client_state A) := *)
+  (*   (cs.(wlClientCom), cs.(wlClientSt)). *)
+
+  Lemma asdf1 u w mach_st :
+    wlMachineMatch u w mach_st ->
+    rAllClientsSentCorrectly ordinalEnumerable w ->
+    all_clients_have_sent mach_st (wlReceived (rLocalState w (serverID 'I_N))).
+  Proof.
+    move=> [_ [Hmatch _]] [Hsent1 Hsent2].
+    move=> i. specialize (Hsent2 i).
+    specialize (Hmatch i).
+    (* destruct ((clients mach_st) i). *)
+    (* inversion Hmatch; subst. clear Hmatch. *)
+    (* split. *)
+  Admitted.
 
   Theorem wlNetworkMachine_step_diagram :
     forall x WORLD mach_st,
@@ -293,42 +368,130 @@ Section weightsLangNetwork.
       forall WORLD',
         Rnetwork_step WORLD WORLD' ->
         exists x',
-          (unitOrd x' x /\
+          (natOrd x' x /\
            wlMachineMatch x' WORLD' mach_st) \/
           (exists mach_st', step_plus mach_st mach_st' /\
                        wlMachineMatch x' WORLD' mach_st').
   Proof.
-    move=> u WORLD mach_st Hmatch WORLD' Hworldstep. exists tt.
-    induction Hworldstep; right.
-    (* Batch init step *)
-    { rewrite /preInitRWorld in H.
-      destruct H0 as [Hpost1 [Hpost2 Hpost3]].
-      exists (mkMachineState
-           ([ffun i =>
-             wlClientState_to_client_state (post.(rLocalState) (clientID i))])
-           nil).
-      split.
-      { admit. }
-      { rewrite /wlMachineMatch /=. split.
-        { by move=> i; rewrite ffunE. }
-        { 
-          (* rewrite /tracesMatch. *)
-          (* inversion Hpost3; subst. *)
-          (* { admit. } *)
-          (* { rewrite /rInit in H0. simpl in H0. *)
-          (*   inversion H0; subst. simpl in *. *)
+    move=> u WORLD mach_st Hmatch WORLD' Hworldstep.
+    induction Hworldstep.
 
-          admit. } } }
-    (* Client packet step *)
-    { destruct p eqn:Hpkt. destruct p0 eqn:Hpkt'.
-      rewrite /dest_of in H1. simpl in H1. admit. }
-    (* Server packet step *)
-    { admit. }
+    (** Node init step *)
+    { destruct Hmatch as [Hmatch1 [Hmatch2 [Hmatch3 [Hmatch4 Hmatch5]]]].
+      rewrite /initStatesMatch in Hmatch4.
+      destruct n eqn:Hn.
+      (** Server init step *)
+      { simpl in H0, H, st.
+        exists 0%N. left. split.
+        { by rewrite Hmatch1 H /natOrd. }
+        { split; simpl.
+          { rewrite /upd_rInitNodes.
+            destruct (nodeINTDec _ (serverID 'I_N) (serverID 'I_N)); auto.
+            congruence. }
+          { split.
+            { rewrite /upd_rLocalState. move=> i.
+              simpl.
+              destruct (Hmatch2 i) as [Hmatch2_0 [Hmatch2_1 Hmatch2_2]].
+              rewrite Hmatch2_0.
+              split.
+              { destruct (nodeINTDec ordinal_eq_dec (serverID 'I_N)
+                                     (clientID i)) eqn:Heq; auto.
+                { by inversion e. }
+                { by rewrite Heq. } }
+              { inversion H0; subst. split.
+                { move=> pkt d [H1 [H2 H3]].
+                  rewrite cats0 in H1.
+                    by eapply Hmatch2_1; split; eauto. }
+                { move=> pkt cost_vec [H1 [H2 H3]].
+                  rewrite cats0 in H1.
+                    by eapply Hmatch2_2; split; eauto. } } }
+            { split.
+              { by inversion H0; auto; rewrite cats0. }
+              { split.
+                { move=> i H1; simpl. rewrite /upd_rLocalState.
+                  destruct (nodeINTDec _ (serverID 'I_N) i).
+                  { by rewrite /eq_rState; simpl; inversion H0; subst; auto. }
+                  { apply Hmatch4. simpl in H1.
+                    rewrite /upd_rInitNodes in H1.
+                    destruct (nodeINTDec _ (serverID 'I_N) i);
+                      simpl in H1; congruence. } }
+                { move=> i H1; simpl in *.
+                  specialize (Hmatch5 i).
+                  rewrite /upd_rInitNodes.
+                  destruct (nodeINTDec _ (serverID 'I_N) (clientID i)); auto.
+                  apply Hmatch5. inversion H0; subst.
+                    by rewrite cats0 in H1. } } } } } }
+
+      (** Client init step *)
+      { exists u. right.
+        admit. } }
+
+    (** Client packet step *)
+    { exists u. right. admit. }
+
+    (** Server step *)
+    { exists 0%N. right.
+
+      (* Here we can derive from H0 and H1: for each client, there
+         exists a packet from the server to that client in l' that
+         contains its new cost vector. We also need to know that the
+         cost vector satisfies received_ok, which may require
+         serverCostRel to come with an additional assumption. *)
+      
+      exists (mkMachineState [ffun i =>
+                         let (com, st) := mach_st.(clients) i in
+                         (com,
+                          @mkState
+                            _ _ _
+                            (SCosts st)
+                            (SCostsOk st)
+                            (SPrevCosts st)
+                            (SWeights st)
+                            (SWeightsOk st)
+                            (SEpsilon st)
+                            (SEpsilonOk st)
+                            (SOutputs st)
+                            (SChan st)
+                            (@mkClientPkg
+                               _
+                               None
+                               (* This needs to be replaced with the
+                                  new cost vector for client i. *)
+                               (received (SOracleSt st))
+                               (@received_ok (SOracleSt st))))]
+                        (mach_st.(hist) ++ e')).
+
+      split.
+      { exists 0%N. simpl. eexists. split.
+        Focus 2. reflexivity.
+
+        apply MSExpectedCost with
+            (f:=(rLocalState w (serverID 'I_N)).(wlReceived));
+          simpl in *.
+        {  by eapply asdf1; eassumption. }
+        { admit. }
+        { admit. } }
+      { split; simpl.
+        { by rewrite H. }
+        { split; simpl.
+          { admit. (* Not true until we fix the cost vector thing. *) }
+          { split.
+            { admit. }
+            { split.
+              { rewrite /initStatesMatch. simpl. move=> n H2.
+                destruct n.
+                { congruence. }
+                { simpl in *.
+                  rewrite /upd_rLocalState.
+                  destruct (nodeINTDec _ (serverID 'I_N) (clientID o)).
+                  { congruence. }
+                  { admit. } } }
+              { admit. } } } } } }
   Admitted.
 
   Definition wlNetworkMachine_simulation :=
     mkSimulation wlNetworkSemantics
-                 unitHasWellfoundedOrd
+                 natHasWellfoundedOrd
                  wlMachineMatch
                  wlNetworkMachine_init_diagram
                  wlNetworkMachine_final_diagram

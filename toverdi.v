@@ -60,16 +60,16 @@ Section toVerdi.
     fun src m d =>
       match dInit d with
       | false =>
-        let (p, es) := init n in
-        let (st', ps) := p in
-        let (p', es') := recv m src st' in
+        let (p,    es)  := init n in
+        let (st',  ps)  := p in
+        let (p',   es') := recv m src st' in
         let (st'', ps') := p' in
         (es ++ es', mkData true (to_data n st''),
          map (fun pkt => (dest_of pkt, msg_of pkt)) (ps ++ ps'))
       | true  =>
         match from_data n (dBody d) with
         | Some st =>
-          let (p, es) := recv m src st in
+          let (p,   es) := recv m src st in
           let (st', ps) := p in
           (es, mkData true (to_data n st'),
            map (fun pkt => (dest_of pkt, msg_of pkt)) ps)
@@ -89,8 +89,8 @@ Section toVerdi.
     fun m d =>
       match dInit d with
       | false =>
-        let st := from_data n (dBody d) in
-        let (p, es) := init n in
+        let st        := from_data n (dBody d) in
+        let (p,   es) := init n in
         let (st', ps) := p in
         (es, mkData true (to_data n st'),
          map (fun pkt => (dest_of pkt, msg_of pkt)) ps)

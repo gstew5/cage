@@ -58,7 +58,7 @@ Qed.
 *)
 
 Section general_machine_semantics.
-  Local Open Scope ring_scope.  
+  Local Open Scope ring_scope.
   Variable A : finType.
   Variable a0 : A.
   Variable N : nat.
