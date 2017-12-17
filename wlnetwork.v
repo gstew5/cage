@@ -186,12 +186,11 @@ Section weightsLangNetwork.
 
   Notation localStateTy := (@rLocalStateTy 'I_N wlMsg wlEvent wlNetwork_desc).
 
-  (* Need to add the following to the match relation: for each client,
-     if there's a packet in flight addressed to them, then their
-     received field in the machine contains the same cost vector, and
-     if there's a packet originating from them, their sent field in
-     the machine contains the same distribution. *)
-
+  (** For each client, if there's a packet in flight addressed to
+      them, then their received field in the machine contains the same
+      cost vector, and if there's a packet originating from them,
+      their sent field in the machine contains the same
+      distribution. *)
   Definition clientStatesMatch
              (mach_states : {ffun 'I_N -> (client_state A)})
              (W : wlWorld) :=
@@ -209,21 +208,7 @@ Section weightsLangNetwork.
   Definition tracesMatch
              (hist : seq {ffun 'I_N -> dist A rat_realFieldType})
              (trace : seq wlEvent) :=
-    hist = trace.
-
-  Definition initStatesMatch (W : wlWorld) :=
-    forall n, rInitNodes W n = false -> rLocalState W n = rPre_init (wlNetwork_desc n).
-
-  (** This ensures that all clients have been already initialized
-      during a server step *)
-  Definition clientsInitIfPacket (W : wlWorld) :=
-    forall i, List.Exists (fun pkt => origin_of pkt = clientID i) (rInFlight W) ->
-         rInitNodes W (clientID i) = true.
-
-  (* Definition wlMachineMatch (_ : unit) (W : wlWorld) (mach_st : machine_state) := *)
-  (*   clientStatesMatch mach_st.(clients) W.(rLocalState) /\ *)
-  (*   tracesMatch mach_st.(hist) W.(rTrace) /\ *)
-  (*   initStatesMatch W. *)
+    hist = rev trace.
 
   (** When the server takes an init step in the wl network, there's no
       corresponding step in the machine so we have a simple well founded
@@ -231,9 +216,7 @@ Section weightsLangNetwork.
   Definition wlMachineMatch (x : nat) (W : wlWorld) (mach_st : machine_state) :=
     x = (if W.(rInitNodes) (serverID 'I_N) then 0%N else 1%N) /\
     clientStatesMatch mach_st.(clients) W /\
-    tracesMatch mach_st.(hist) W.(rTrace) /\
-    initStatesMatch W /\
-    clientsInitIfPacket W.
+    tracesMatch mach_st.(hist) W.(rTrace).
 
 
   (** WORK IN PROGRESS: set up proper simulation record. *)
@@ -316,13 +299,7 @@ Section weightsLangNetwork.
               rewrite Hinit4 in H1. inversion H1. }
             { move=> pkt cost_vec [H0 _].
               rewrite Hinit4 in H0. inversion H0. } } }
-        { split.
-          { by rewrite Hinit5. }
-          { split.
-            { move=> n Hinitfalse. rewrite /wlClientPreInitState in Hinit2.
-              destruct n; simpl; auto. apply Hinit2. }
-            {  by move=> i H0; rewrite Hinit4 in H0;
-                          apply List.Exists_nil in H0. } } } } }
+        { by rewrite Hinit5. } } }
   Qed.
 
   Lemma wlNetworkMachine_final_diagram :
@@ -344,10 +321,6 @@ Section weightsLangNetwork.
   (*   { by rewrite Hmatch2; f_equal. } *)
   (*   { by split. } *)
   (* Qed. *)
-
-  (* Definition wlClientState_to_client_state (cs : wlClientState) *)
-  (*   : (client_state A) := *)
-  (*   (cs.(wlClientCom), cs.(wlClientSt)). *)
 
   Lemma asdf1 u w mach_st :
     wlMachineMatch u w mach_st ->
@@ -377,9 +350,9 @@ Section weightsLangNetwork.
     induction Hworldstep.
 
     (** Node init step *)
-    { destruct Hmatch as [Hmatch1 [Hmatch2 [Hmatch3 [Hmatch4 Hmatch5]]]].
-      rewrite /initStatesMatch in Hmatch4.
+    { destruct Hmatch as [Hmatch1 [Hmatch2 Hmatch3]].
       destruct n eqn:Hn.
+
       (** Server init step *)
       { simpl in H0, H, st.
         exists 0%N. left. split.
@@ -389,8 +362,7 @@ Section weightsLangNetwork.
             destruct (nodeINTDec _ (serverID 'I_N) (serverID 'I_N)); auto.
             congruence. }
           { split.
-            { rewrite /upd_rLocalState. move=> i.
-              simpl.
+            { rewrite /upd_rLocalState. move=> i /=.
               destruct (Hmatch2 i) as [Hmatch2_0 [Hmatch2_1 Hmatch2_2]].
               rewrite Hmatch2_0.
               split.
@@ -405,22 +377,7 @@ Section weightsLangNetwork.
                 { move=> pkt cost_vec [H1 [H2 H3]].
                   rewrite cats0 in H1.
                     by eapply Hmatch2_2; split; eauto. } } }
-            { split.
-              { by inversion H0; auto; rewrite cats0. }
-              { split.
-                { move=> i H1; simpl. rewrite /upd_rLocalState.
-                  destruct (nodeINTDec _ (serverID 'I_N) i).
-                  { by rewrite /eq_rState; simpl; inversion H0; subst; auto. }
-                  { apply Hmatch4. simpl in H1.
-                    rewrite /upd_rInitNodes in H1.
-                    destruct (nodeINTDec _ (serverID 'I_N) i);
-                      simpl in H1; congruence. } }
-                { move=> i H1; simpl in *.
-                  specialize (Hmatch5 i).
-                  rewrite /upd_rInitNodes.
-                  destruct (nodeINTDec _ (serverID 'I_N) (clientID i)); auto.
-                  apply Hmatch5. inversion H0; subst.
-                    by rewrite cats0 in H1. } } } } } }
+            { by inversion H0; subst; rewrite cats0. } } } }
 
       (** Client init step *)
       { exists u. right.
@@ -437,29 +394,30 @@ Section weightsLangNetwork.
          contains its new cost vector. We also need to know that the
          cost vector satisfies received_ok, which may require
          serverCostRel to come with an additional assumption. *)
-      
+
+      set clientSt' := fun st => @mkState
+                                _ _ _
+                                (SCosts st)
+                                (SCostsOk st)
+                                (SPrevCosts st)
+                                (SWeights st)
+                                (SWeightsOk st)
+                                (SEpsilon st)
+                                (SEpsilonOk st)
+                                (SOutputs st)
+                                (SChan st)
+                                (@mkClientPkg
+                                   _
+                                   None
+                                   (* This needs to be replaced with the
+                                      new cost vector for client i. *)
+                                   (received (SOracleSt st))
+                                   (@received_ok (SOracleSt st))).
+            
       exists (mkMachineState [ffun i =>
                          let (com, st) := mach_st.(clients) i in
-                         (com,
-                          @mkState
-                            _ _ _
-                            (SCosts st)
-                            (SCostsOk st)
-                            (SPrevCosts st)
-                            (SWeights st)
-                            (SWeightsOk st)
-                            (SEpsilon st)
-                            (SEpsilonOk st)
-                            (SOutputs st)
-                            (SChan st)
-                            (@mkClientPkg
-                               _
-                               None
-                               (* This needs to be replaced with the
-                                  new cost vector for client i. *)
-                               (received (SOracleSt st))
-                               (@received_ok (SOracleSt st))))]
-                        (mach_st.(hist) ++ e')).
+                         (com, clientSt' st)]
+                        (e' ++ mach_st.(hist))).
 
       split.
       { exists 0%N. simpl. eexists. split.
@@ -468,25 +426,30 @@ Section weightsLangNetwork.
         apply MSExpectedCost with
             (f:=(rLocalState w (serverID 'I_N)).(wlReceived));
           simpl in *.
-        {  by eapply asdf1; eassumption. }
-        { admit. }
-        { admit. } }
+        { by eapply asdf1; eassumption. }
+        { destruct Hmatch as [Hmatch0 [Hmatch1 Hmatch2]].
+          move=> i. specialize (Hmatch1 i).
+          destruct Hmatch1 as [Hmatch1_0 [Hmatch1_1 Hmatch1_2]].
+          eapply mkAllClientsExpCost with
+              (c:=wlClientCom (rLocalState w (clientID i)))
+              (s:=snd ((clients mach_st) i))
+              (c':=wlClientCom (rLocalState w (clientID i)))
+              (s':=clientSt' (snd ((clients mach_st) i))); auto.
+          { destruct ((clients mach_st) i).
+              by simpl in Hmatch1_0; rewrite Hmatch1_0. }
+          { simpl. rewrite ffunE. destruct ((clients mach_st) i).
+            simpl in *. by rewrite Hmatch1_0. }
+          { by constructor. }
+          { simpl. admit. (* not true until we actually replace with
+                             the new cost vector *) } }
+        { destruct Hmatch as [Hmatch0 [Hmatch1 Hmatch2]].
+          rewrite /tracesMatch in Hmatch2.
+          admit. } }
       { split; simpl.
         { by rewrite H. }
         { split; simpl.
-          { admit. (* Not true until we fix the cost vector thing. *) }
-          { split.
-            { admit. }
-            { split.
-              { rewrite /initStatesMatch. simpl. move=> n H2.
-                destruct n.
-                { congruence. }
-                { simpl in *.
-                  rewrite /upd_rLocalState.
-                  destruct (nodeINTDec _ (serverID 'I_N) (clientID o)).
-                  { congruence. }
-                  { admit. } } }
-              { admit. } } } } } }
+          { admit. (* Not true until we replace the cost vector. *) }
+          { admit. } } } }
   Admitted.
 
   Definition wlNetworkMachine_simulation :=
