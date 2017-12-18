@@ -114,7 +114,16 @@ Set Implicit Arguments.
     destruct (node_dec n n).
     { apply eq_state_id. }
     elimtype False; apply n0; auto.
-  Qed.    
+  Qed.
+
+  Lemma upd_localState_diff n m s st :
+    n <> m ->
+    st n = upd_localState m s st n.
+  Proof.
+    unfold upd_localState.
+    destruct (node_dec m n); auto.
+    intro Contra. congruence.
+  Qed.
   
   (** Mark a node as being initialized *)
   Definition upd_initNodes (n : node) (initNodes : node -> bool)
@@ -1204,6 +1213,15 @@ Section relationalIntermediateNoBatch.
            | right _ => ls n'
            end.
 
+  Lemma upd_rLocalState_diff n m s st :
+    n <> m ->
+    st n = upd_rLocalState m s st n.
+  Proof.
+    unfold upd_rLocalState.
+    destruct (nodeINTDec m n); auto.
+    intro Contra. congruence.
+  Qed.
+
   Definition rOnlyPacketsToServer (l : list packet) :=
     forall pkt, List.In pkt l -> dest_of pkt = serverID.
 
@@ -1227,9 +1245,9 @@ Section relationalIntermediateNoBatch.
              dest_of pkt = serverID)
           (rInFlight w)).
 
-  (** An inductive relation that corresponds to the updateServerList operation. 
-      It describes the cumulative output of the server when it processes all
-      of the clients' messages. *)
+  (** An inductive relation that corresponds to the updateServerList
+      operation.  It describes the cumulative output of the server
+      when it processes all of the clients' messages. *)
   Inductive serverUpdate : serverState -> list packet ->
                            (serverState*(list packet)*(list eventINT)) -> Prop :=
   | serverUpdateNil : forall s,

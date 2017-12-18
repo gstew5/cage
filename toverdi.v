@@ -100,7 +100,7 @@ Section toVerdi.
   (** Translate init functions to input_handlers. *)
   Definition input_handlers n :=
     to_input_handler n (network_desc n).(init).
-  
+
   (** Perhaps these shouldn't be declared as instances here and should
       rather just be defined as records so the user can declare the
       instances, but it's useful to have them here for now to make sure
@@ -111,7 +111,7 @@ Section toVerdi.
       input  := msg ;
       output := event
     }.
-  
+
   Global Instance ToVerdi_MultiParams : MultiParams ToVerdi_BaseParams :=
     {
       name            := node ;
@@ -125,7 +125,7 @@ Section toVerdi.
       net_handlers    := net_handlers ;
       input_handlers  := input_handlers
     }.
-  
+
   Notation World := (World network_desc).
   Notation network_step := (@network_step _ _ _ node_eq_dec network_desc).
 
@@ -136,7 +136,7 @@ Section toVerdi.
 
   Definition packet_of_verdi_packet (verdi_pkt : Net.packet) :=
     (pDst verdi_pkt, pBody verdi_pkt, pSrc verdi_pkt).
-  
+
   Definition packets_match (pkts : list packet) (verdi_pkts : list Net.packet) :=
     Permutation pkts (map packet_of_verdi_packet verdi_pkts).
 
@@ -146,7 +146,7 @@ Section toVerdi.
     forall n, from_data n (dBody (verdi_state n)) = Some (state n).
 
   Definition verdi_trace_ty := list (node * (msg + list event)).
-  
+
   Definition filter_trace (trace : verdi_trace_ty) :=
     filter (fun x => match snd x with
                   | inl _   => false
@@ -159,7 +159,7 @@ Section toVerdi.
                     | inr l => Some l
                     | _     => None
                     end) trace.
-  
+
   Definition trace_match (trace : list event) (verdi_trace : verdi_trace_ty) :=
     trace = concat (map_trace (filter_trace verdi_trace)).
 
@@ -250,7 +250,7 @@ Section toVerdi.
     l1 = concat (map_trace (filter_trace l2)) ->
     l1 ++ l3 = concat (map_trace (filter_trace (l2 ++ [(n, inl inp); (n, inr l3)]))).
   Proof. intro H0. rewrite H0. rewrite trace_app2; auto. Qed.
-  
+
   Notation network_step_star := (@network_step_star _ _ _ node_eq_dec network_desc).
 
   Lemma recv_simulation_step
@@ -409,8 +409,7 @@ Section toVerdi.
              { rewrite  upd_localState_same. eassumption. } }
           { apply refl_step. } }
         { unfold verdiMatch. simpl. split.
-          { 
-            unfold packets_match. rewrite map_app. rewrite map_app.
+          { unfold packets_match. rewrite map_app. rewrite map_app.
             rewrite map_app. rewrite map_app. rewrite map_app.
             rewrite map_packets_id. rewrite map_packets_id.
             unfold packets_match in Hmatch0.
@@ -454,10 +453,10 @@ Section toVerdi.
         split; auto. split; auto; simpl.
         { intro n. specialize (Hmatch1 n).
           destruct (node_eq_dec n h) eqn: Heq; subst; auto. }
-        { split. 
-          { unfold trace_match. rewrite filter_trace_app_nil. auto. } 
+        { split.
+          { unfold trace_match. rewrite filter_trace_app_nil. auto. }
           { intro n. destruct (node_eq_dec n h); subst; auto. } } }
-      
+
       (* The node hasn't been initialized yet -- do init *)
       { destruct net'. inversion H0; subst. clear H0.
         unfold input_handlers in H. unfold to_input_handler in H.
@@ -478,7 +477,7 @@ Section toVerdi.
         { unfold verdiMatch. simpl. split.
           { unfold packets_match in Hmatch0. unfold packets_match.
             rewrite map_app. rewrite map_packets_id.
-            rewrite Permutation_app_comm. 
+            rewrite Permutation_app_comm.
             apply Permutation_app_head; auto. simpl.
             eapply origins_correct_init; eassumption. }
           { split.

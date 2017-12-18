@@ -322,10 +322,52 @@ Section weightsLangNetwork.
   (*   { by split. } *)
   (* Qed. *)
 
+  Inductive clientDists
+    : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} -> Prop :=
+  | ClientDistsNil : clientDists nil [ffun _ => uniformDist a0]
+  | ClientDistsCons : forall pkt pkts i d f,
+      clientDists pkts f ->
+      origin_of pkt = clientID i ->
+      msg_of pkt = wlMsgClient d ->
+      clientDists (pkt :: pkts) (upd i d f).
+
+  Definition clientDistsFun
+    : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} :=
+    fun pkts =>
+      foldr (fun (pkt : wlPacket) f =>
+               match msg_of pkt, origin_of pkt with
+               | wlMsgClient d, clientID i => upd i d f
+               | _, _ => f
+               end) [ffun _ => uniformDist a0] pkts.
+
+  Lemma clientDistsEq pkts f :
+    (forall pkt, List.In pkt pkts -> (exists i, origin_of pkt = clientID i) /\
+                               (exists d, msg_of pkt = wlMsgClient d)) ->
+    clientDists pkts f <-> clientDistsFun pkts = f.
+  Proof.
+    move=> H0. split; move=> H1.
+    { induction H1; auto.
+      simpl.
+      rewrite H2 H IHclientDists; auto.
+      by move=> x HIn; specialize (H0 x (List.in_cons pkt x pkts HIn)). }
+    { generalize dependent f. induction pkts; move=> f H1.
+      { by rewrite -H1; constructor. }
+      { simpl in H1.
+        destruct (msg_of a) eqn:Hmsg.
+        { destruct (origin_of a) eqn:Horigin.
+          { by destruct (H0 a (List.in_eq a pkts)) as [[i H2] _]; congruence. }
+          { rewrite -H1. rewrite Hmsg. rewrite Horigin.
+            rewrite Hmsg in H1. rewrite Horigin in H1. constructor; auto.
+            { apply IHpkts; auto; move=> pkt HIn.
+              by specialize (H0 pkt (List.in_cons a pkt pkts HIn)). } } }
+        { by destruct (H0 a (List.in_eq a pkts)) as [_ [d H2]];
+            congruence. } } }
+  Qed.
+
   Lemma asdf1 u w mach_st :
     wlMachineMatch u w mach_st ->
     rAllClientsSentCorrectly ordinalEnumerable w ->
-    all_clients_have_sent mach_st (wlReceived (rLocalState w (serverID 'I_N))).
+    all_clients_have_sent mach_st (clientDistsFun (rInFlight w)).
   Proof.
     move=> [_ [Hmatch _]] [Hsent1 Hsent2].
     move=> i. specialize (Hsent2 i).
@@ -334,6 +376,18 @@ Section weightsLangNetwork.
     (* inversion Hmatch; subst. clear Hmatch. *)
     (* split. *)
   Admitted.
+
+  (* Lemma asdf2 w st l e : *)
+  (*   rAllClientsSentCorrectly ordinalEnumerable w -> *)
+  (*   serverUpdate wlNetwork_desc (rLocalState w (serverID 'I_N)) *)
+  (*                (msgToServerList ordinal_eq_dec (rInFlight w)) (st, l, e) -> *)
+  (*   forall i, *)
+  (*     List.Exists (fun pkt => dest_of pkt = clientID i /\ *)
+  (*                          msg_of pkt = wlMsgServer *)
+  (*                                         (serverCostRel st.(wlReceived) i)) *)
+  (*                 l. *)
+  (* Proof. *)
+  (* Admitted. *)
 
   Theorem wlNetworkMachine_step_diagram :
     forall x WORLD mach_st,
@@ -373,10 +427,9 @@ Section weightsLangNetwork.
               { inversion H0; subst. split.
                 { move=> pkt d [H1 [H2 H3]].
                   rewrite cats0 in H1.
-                    by eapply Hmatch2_1; split; eauto. }
-                { move=> pkt cost_vec [H1 [H2 H3]].
-                  rewrite cats0 in H1.
-                    by eapply Hmatch2_2; split; eauto. } } }
+                  by eapply Hmatch2_1; split; eauto. }
+                { move=> pkt cost_vec [H1 [H2 H3]]. rewrite cats0 in H1.
+                  by eapply Hmatch2_2; split; eauto. } } }
             { by inversion H0; subst; rewrite cats0. } } } }
 
       (** Client init step *)
@@ -389,42 +442,53 @@ Section weightsLangNetwork.
     (** Server step *)
     { exists 0%N. right.
 
-      (* Here we can derive from H0 and H1: for each client, there
-         exists a packet from the server to that client in l' that
-         contains its new cost vector. We also need to know that the
-         cost vector satisfies received_ok, which may require
-         serverCostRel to come with an additional assumption. *)
+      (* Probably need this to be an axiom. *)
+      have cost_vectors_ok: (forall i, forall cost_vec,
+                                  Some (serverCostRel (clientDistsFun (rInFlight w)) i)
+                                  = Some cost_vec ->
+                                  forall a, (0%:R <= cost_vec a <= 1%:R)%R).
+      { admit. }
 
-      set clientSt' := fun st => @mkState
-                                _ _ _
-                                (SCosts st)
-                                (SCostsOk st)
-                                (SPrevCosts st)
-                                (SWeights st)
-                                (SWeightsOk st)
-                                (SEpsilon st)
-                                (SEpsilonOk st)
-                                (SOutputs st)
-                                (SChan st)
-                                (@mkClientPkg
-                                   _
-                                   None
-                                   (* This needs to be replaced with the
-                                      new cost vector for client i. *)
-                                   (received (SOracleSt st))
-                                   (@received_ok (SOracleSt st))).
+      set clientSt' := fun st i => @mkState
+                                  _ _ _
+                                  (SCosts st)
+                                  (SCostsOk st)
+                                  (SPrevCosts st)
+                                  (SWeights st)
+                                  (SWeightsOk st)
+                                  (SEpsilon st)
+                                  (SEpsilonOk st)
+                                  (SOutputs st)
+                                  (SChan st)
+                                  (@mkClientPkg
+                                     _
+                                     None
+                                     (* New cost vector *)
+                                     (Some (serverCostRel
+                                              (clientDistsFun
+                                                 (rInFlight w)) i))
+                                     (cost_vectors_ok i)).
             
       exists (mkMachineState [ffun i =>
                          let (com, st) := mach_st.(clients) i in
-                         (com, clientSt' st)]
+                         (com, clientSt' st i)]
                         (e' ++ mach_st.(hist))).
 
       split.
       { exists 0%N. simpl. eexists. split.
         Focus 2. reflexivity.
 
+        (* I think we need something here to express the client
+           distributions received by the server since the server
+           actually resets its state after processing them -- we never
+           see that part of the server state from the outside because
+           it's thrown away so we just see the empty state both before
+           and after the server runs. *)
+        (* Trying with clientDistsFun. There is also the clientDists
+           relation which is equivalent. *)
+
         apply MSExpectedCost with
-            (f:=(rLocalState w (serverID 'I_N)).(wlReceived));
+            (f:=clientDistsFun (rInFlight w));
           simpl in *.
         { by eapply asdf1; eassumption. }
         { destruct Hmatch as [Hmatch0 [Hmatch1 Hmatch2]].
@@ -434,21 +498,29 @@ Section weightsLangNetwork.
               (c:=wlClientCom (rLocalState w (clientID i)))
               (s:=snd ((clients mach_st) i))
               (c':=wlClientCom (rLocalState w (clientID i)))
-              (s':=clientSt' (snd ((clients mach_st) i))); auto.
+              (s':=clientSt' (snd ((clients mach_st) i)) i); auto.
           { destruct ((clients mach_st) i).
               by simpl in Hmatch1_0; rewrite Hmatch1_0. }
           { simpl. rewrite ffunE. destruct ((clients mach_st) i).
             simpl in *. by rewrite Hmatch1_0. }
-          { by constructor. }
-          { simpl. admit. (* not true until we actually replace with
-                             the new cost vector *) } }
+          { by constructor. } }
         { destruct Hmatch as [Hmatch0 [Hmatch1 Hmatch2]].
           rewrite /tracesMatch in Hmatch2.
           admit. } }
       { split; simpl.
         { by rewrite H. }
         { split; simpl.
-          { admit. (* Not true until we replace the cost vector. *) }
+          { move=> i /=. rewrite ffunE.
+            destruct ((clients mach_st) i) eqn:Hclients; simpl.
+            split.
+            { rewrite -upd_rLocalState_diff.
+              { admit. }
+              { move=> Contra; congruence. } }
+            { split.
+              { move=> pkt d [H3 [H4 H5]].
+                admit. }
+              { move=> pkt cost_vec [H3 [H4 H5]].
+                f_equal. admit. } } }
           { admit. } } } }
   Admitted.
 
