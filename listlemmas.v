@@ -9,6 +9,9 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
+Lemma map_list_map A B (f : A -> B) l : List.map f l = map f l.
+Proof. by elim: l. Qed.
+
 (** Relating List.In to SSReflect's \in *)
 Lemma list_in_iff {X : eqType} (x : X) (l : list X) :
   x \in l <-> List.In x l.
@@ -109,7 +112,38 @@ Proof.
   { left; constructor => //. }
   right; inversion 1; subst.
   by apply: H3.
-Defined.
+Defined.  
+
+Lemma nodup_in_inj (A B : Type) (l : list A) (f : A -> B) :
+  forall a b,
+    List.NoDup (map f l) ->
+    List.In a l ->
+    List.In b l ->
+    f a = f b ->
+    a = b.
+Proof.
+  induction l => b c.
+  { move=> Hnodup Hinb. inversion Hinb. }
+  { move=> Hnodup Hinb Hinc H0. simpl in Hnodup.
+    apply NoDup_cons_iff in Hnodup. destruct Hnodup.
+    destruct Hinb eqn:Hb; subst; auto;
+      destruct Hinc eqn:Hc; subst; auto.
+    { apply in_map with (f:=f) in i. rewrite -H0 in i.
+      by rewrite map_list_map in i; congruence. }
+    { apply in_map with (f:=f) in i. rewrite H0 in i.
+      by rewrite map_list_map in i; congruence. } }
+Qed.
+
+Lemma nodup_perm_in_inj (A B: Type) (l : list A) (l' : list B)
+      (f : B -> A) :
+  List.NoDup l ->
+  Permutation l (map f l') ->
+  forall a b, List.In a l' -> List.In b l' -> f a = f b -> a = b.
+Proof.
+  move=> Hnodup Hperm a b Hina Hinb H1.
+  apply nodup_in_inj with (f:=f) (l:=l'); auto.
+  by eapply Permutation_NoDup; eauto.
+Qed.
 
 (**************************)
 (** List.list_prod lemmas *)
@@ -183,9 +217,6 @@ Qed.
 
 (********************)
 (** List.map lemmas *)
-
-Lemma map_list_map A B (f : A -> B) l : List.map f l = map f l.
-Proof. by elim: l. Qed.
 
 Lemma map_inj A B (f : A -> B) (l1 l2 : list A) (H : injective f) :
   List.map f l1 = List.map f l2 -> l1=l2.

@@ -1234,16 +1234,21 @@ Section relationalIntermediateNoBatch.
   Definition rOnlyPacketsFromClient l : Prop :=
     List.Forall rPacketFromClient l.
 
-  (** There is exactly one packet addressed to the server per client in
-      the buffer *)
+  (* (** There is exactly one packet addressed to the server per client in *)
+  (*     the buffer *) *)
+  (* Definition rAllClientsSentCorrectly (w : RWorld) := *)
+  (*   length (rInFlight w) = (length (enumerate A)) /\ *)
+  (*   (forall i : A, *)
+  (*       List.Exists *)
+  (*         (fun (pkt : packet) => *)
+  (*            origin_of pkt = clientID i /\ *)
+  (*            dest_of pkt = serverID) *)
+  (*         (rInFlight w)). *)
+
   Definition rAllClientsSentCorrectly (w : RWorld) :=
-    length (rInFlight w) = (length (enumerate A)) /\
-    (forall i : A,
-        List.Exists
-          (fun (pkt : packet) =>
-             origin_of pkt = clientID i /\
-             dest_of pkt = serverID)
-          (rInFlight w)).
+    (forall pkt : packet, List.In pkt (rInFlight w) -> dest_of pkt = serverID) /\
+    Permutation (map (@origin_of nodeINT msgINT) (rInFlight w))
+                (map (@clientID A) (enumerate A)).
 
   (** An inductive relation that corresponds to the updateServerList
       operation.  It describes the cumulative output of the server

@@ -199,11 +199,21 @@ Section weightsLangNetwork.
       (forall pkt d,
           (List.In pkt (rInFlight W) /\ origin_of pkt = clientID i /\
            msg_of pkt = wlMsgClient d) ->
-          (snd (mach_states i)).(SOracleSt).(sent) = Some d) /\
+          (snd (mach_states i)).(SOracleSt).(sent) = Some d /\
+          (snd (mach_states i)).(SOracleSt).(received) = None) /\
       (forall pkt cost_vec,
           (List.In pkt (rInFlight W) /\ dest_of pkt = clientID i /\
            msg_of pkt = wlMsgServer cost_vec) ->
+          (snd (mach_states i)).(SOracleSt).(sent) = None /\
           (snd (mach_states i)).(SOracleSt).(received) = Some cost_vec).
+
+  Definition packetsWellFormed (W : wlWorld) :=
+    forall pkt,
+      List.In pkt (rInFlight W) ->
+      (forall i, origin_of pkt = clientID i ->
+            exists d, msg_of pkt = wlMsgClient d) /\
+      (origin_of pkt = serverID 'I_N ->
+       exists cost_vec, msg_of pkt = wlMsgServer cost_vec).
 
   Definition tracesMatch
              (hist : seq {ffun 'I_N -> dist A rat_realFieldType})
@@ -216,6 +226,7 @@ Section weightsLangNetwork.
   Definition wlMachineMatch (x : nat) (W : wlWorld) (mach_st : machine_state) :=
     x = (if W.(rInitNodes) (serverID 'I_N) then 0%N else 1%N) /\
     clientStatesMatch mach_st.(clients) W /\
+    packetsWellFormed W /\
     tracesMatch mach_st.(hist) W.(rTrace).
 
 
@@ -299,7 +310,9 @@ Section weightsLangNetwork.
               rewrite Hinit4 in H1. inversion H1. }
             { move=> pkt cost_vec [H0 _].
               rewrite Hinit4 in H0. inversion H0. } } }
-        { by rewrite Hinit5. } } }
+        { split.
+          { move=> pkt HIn. rewrite Hinit4 in HIn. inversion HIn. }
+          { by rewrite Hinit5. } } } }
   Qed.
 
   Lemma wlNetworkMachine_final_diagram :
@@ -364,30 +377,71 @@ Section weightsLangNetwork.
             congruence. } } }
   Qed.
 
+  Lemma asdf0 (w : wlWorld) :
+    Permutation.Permutation [seq origin_of i | i <- rInFlight w]
+                            [seq clientID i | i <- enumerate 'I_N] ->
+    forall i, exists pkt, List.In pkt (rInFlight w) /\ origin_of pkt = clientID i.
+  Proof.
+  Admitted.
+
+  Lemma asdf3 (l : list wlPacket) (i : 'I_N) :
+    (forall i, exists pkt, List.In pkt l /\ origin_of pkt = clientID i) ->
+    exists pkt, List.In pkt l /\ origin_of pkt = clientID i /\
+           msg_of pkt = wlMsgClient ((clientDistsFun l) i).
+  Admitted.
+
   Lemma asdf1 u w mach_st :
     wlMachineMatch u w mach_st ->
     rAllClientsSentCorrectly ordinalEnumerable w ->
     all_clients_have_sent mach_st (clientDistsFun (rInFlight w)).
   Proof.
-    move=> [_ [Hmatch _]] [Hsent1 Hsent2].
-    move=> i. specialize (Hsent2 i).
-    specialize (Hmatch i).
-    (* destruct ((clients mach_st) i). *)
-    (* inversion Hmatch; subst. clear Hmatch. *)
-    (* split. *)
-  Admitted.
+    move=> [Hmatch0 [Hmatch1 [Hmatch2 Hmatch3]]] H0.
+    move=> i.
+    specialize (Hmatch1 i).
+    destruct Hmatch1 as [Hmatch1_0 [Hmatch1_1 Hmatch1_2]].
+    destruct ((clients mach_st) i) eqn:Hclients.
+    destruct H0 as [H0 H1].
+    rewrite /packetsWellFormed in Hmatch2.
+    rewrite /rAllClientsSentCorrectly in H0.
+    move: (asdf0 H1 i) => [pkt [H2 H3]].
+    specialize (Hmatch2 pkt H2).
+    destruct Hmatch2 as [Hmatch2 _].
+    specialize (Hmatch2 i H3).
+    destruct Hmatch2 as [d Hmatch2].
+    have H4: (List.In pkt (rInFlight w) /\
+              origin_of pkt = clientID i /\
+              msg_of pkt = wlMsgClient d) by [].
+    specialize (Hmatch1_1 pkt d H4).
+    destruct Hmatch1_1 as [Hmatch1_1_0 Hmatch1_1_1].
+    simpl in *. split; auto. rewrite Hmatch1_1_0.
+    f_equal.
+    (* The idea is to use [nodup_perm_in_inj] in listlemmas.v to prove
+       the goal because there is only one packet with client i as its
+       origin. *)
+    move: (@asdf3 (rInFlight w) i (asdf0 H1)) => [pkt' [H5 [H6 H7]]].
+    have H8: (pkt = pkt').
+    { eapply (@nodup_perm_in_inj wlNode wlPacket
+                                 [seq clientID i | i <- enumerate 'I_N]
+                                 (rInFlight w)
+                                 (@origin_of wlNode wlMsg)); auto.
+      { rewrite -map_list_map. 
+        apply FinFun.Injective_map_NoDup.
+        { by move=> x y H; inversion H. }
+        rewrite /enumerable_fun. rewrite /ordinalEnumerable.
+        apply nodup_uniq. simpl.
+        rewrite enumT. apply enumP_uniq. apply enumP. }
+      { by apply Permutation.Permutation_sym. }
+      { by rewrite H3 H6. } }
+    destruct H4 as [H4 [H4' H4'']]. rewrite -H8 in H7.
+    by rewrite H4'' in H7; inversion H7.
+  Qed.
 
-  (* Lemma asdf2 w st l e : *)
-  (*   rAllClientsSentCorrectly ordinalEnumerable w -> *)
-  (*   serverUpdate wlNetwork_desc (rLocalState w (serverID 'I_N)) *)
-  (*                (msgToServerList ordinal_eq_dec (rInFlight w)) (st, l, e) -> *)
-  (*   forall i, *)
-  (*     List.Exists (fun pkt => dest_of pkt = clientID i /\ *)
-  (*                          msg_of pkt = wlMsgServer *)
-  (*                                         (serverCostRel st.(wlReceived) i)) *)
-  (*                 l. *)
-  (* Proof. *)
-  (* Admitted. *)
+  Lemma asdf2 w st l e :
+    serverUpdate wlNetwork_desc (rLocalState w (serverID 'I_N))
+                 (msgToServerList ordinal_eq_dec (rInFlight w)) (st, l, e) ->
+    e = clientDistsFun (rInFlight w) :: nil.
+  Proof.
+  Admitted.
 
   Theorem wlNetworkMachine_step_diagram :
     forall x WORLD mach_st,
@@ -404,7 +458,7 @@ Section weightsLangNetwork.
     induction Hworldstep.
 
     (** Node init step *)
-    { destruct Hmatch as [Hmatch1 [Hmatch2 Hmatch3]].
+    { destruct Hmatch as [Hmatch1 [Hmatch2 [Hmatch3 Hmatch4]]].
       destruct n eqn:Hn.
 
       (** Server init step *)
@@ -430,8 +484,15 @@ Section weightsLangNetwork.
                   by eapply Hmatch2_1; split; eauto. }
                 { move=> pkt cost_vec [H1 [H2 H3]]. rewrite cats0 in H1.
                   by eapply Hmatch2_2; split; eauto. } } }
-            { by inversion H0; subst; rewrite cats0. } } } }
-
+            { inversion H0; subst. split.
+              { move=> pkt /= HIn. rewrite cats0 in HIn.
+                specialize (Hmatch3 pkt HIn).
+                destruct Hmatch3 as [Hmatch3_0 Hmatch3_1].
+                split.
+                { by move=> i Horigin; apply (Hmatch3_0 i). }
+                { by move=> Horigin; apply Hmatch3_1. } }
+              { by rewrite cats0. } } } } }
+        
       (** Client init step *)
       { exists u. right.
         admit. } }
@@ -504,24 +565,41 @@ Section weightsLangNetwork.
           { simpl. rewrite ffunE. destruct ((clients mach_st) i).
             simpl in *. by rewrite Hmatch1_0. }
           { by constructor. } }
-        { destruct Hmatch as [Hmatch0 [Hmatch1 Hmatch2]].
-          rewrite /tracesMatch in Hmatch2.
-          admit. } }
+        { by rewrite (asdf2 H1). } }
       { split; simpl.
         { by rewrite H. }
-        { split; simpl.
+        { destruct Hmatch as [_ [Hmatch1 [Hmatch2 _]]].
+          split; simpl.
           { move=> i /=. rewrite ffunE.
             destruct ((clients mach_st) i) eqn:Hclients; simpl.
             split.
             { rewrite -upd_rLocalState_diff.
-              { admit. }
+              { (* destruct Hmatch as [_ [Hmatch1 _]]. *)
+                specialize (Hmatch1 i).
+                destruct Hmatch1 as [Hmatch1 _].
+                destruct ((clients mach_st i)). 
+                inversion Hclients; subst; auto. }
               { move=> Contra; congruence. } }
             { split.
               { move=> pkt d [H3 [H4 H5]].
+                (* Contradictory. H1 should tell us that l' contains
+                   only packets with the serve as the origin, so H4
+                   causes contradiction. g*)
                 admit. }
               { move=> pkt cost_vec [H3 [H4 H5]].
-                f_equal. admit. } } }
-          { admit. } } } }
+                split; auto. f_equal.
+                (* l' contains a only one packet such that [dest_of
+                   pkt = clientID i], with its msg being
+                   cost_vec. [clientDistsFun (fInFlight w)) i] is the
+                   distribution of client i coming to the server,
+                   which is mapped to the unique packet in l' to
+                   client i according to H1. *)
+                admit. } } }
+          { split. move=> pkt /= HIn.
+            split.
+            { move=> i Horigin. admit. (* not possible *) }
+            { move=> Horigin. admit. (* true from H1 *) }
+            { admit. } } } } }
   Admitted.
 
   Definition wlNetworkMachine_simulation :=
