@@ -43,6 +43,11 @@ Section weightsLangNetwork.
   Notation wlPacket := (packet wlNode wlMsg).
   Notation mkPacket := (@mkPacket wlNode wlMsg).
 
+  Lemma wlNode_dec : forall n1 n2 : wlNode, {n1 = n2} + {n1 <> n2}.
+  Proof.
+    decide equality.
+    by destruct (a == o) eqn:Heq; move: Heq => /eqP; [left | right].
+  Defined.
 
   (** Server node package *)
 
@@ -335,62 +340,176 @@ Section weightsLangNetwork.
   (*   { by split. } *)
   (* Qed. *)
 
-  Inductive clientDists
-    : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} -> Prop :=
-  | ClientDistsNil : clientDists nil [ffun _ => uniformDist a0]
-  | ClientDistsCons : forall pkt pkts i d f,
-      clientDists pkts f ->
-      origin_of pkt = clientID i ->
-      msg_of pkt = wlMsgClient d ->
-      clientDists (pkt :: pkts) (upd i d f).
+  (* Inductive clientDists *)
+  (*   : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} -> Prop := *)
+  (* | ClientDistsNil : clientDists nil [ffun _ => uniformDist a0] *)
+  (* | ClientDistsCons : forall pkt pkts i d f, *)
+  (*     clientDists pkts f -> *)
+  (*     origin_of pkt = clientID i -> *)
+  (*     msg_of pkt = wlMsgClient d -> *)
+  (*     clientDists (pkt :: pkts) (upd i d f). *)
+
+  (* Definition clientDistsFun *)
+  (*   : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} := *)
+  (*   fun pkts => *)
+  (*     foldr (fun (pkt : wlPacket) f => *)
+  (*              match msg_of pkt, origin_of pkt with *)
+  (*              | wlMsgClient d, clientID i => upd i d f *)
+  (*              | _, _ => f *)
+  (*              end) [ffun _ => uniformDist a0] pkts. *)
+
+  (* Lemma clientDistsEq pkts f : *)
+  (*   (forall pkt, List.In pkt pkts -> (exists i, origin_of pkt = clientID i) /\ *)
+  (*                              (exists d, msg_of pkt = wlMsgClient d)) -> *)
+  (*   clientDists pkts f <-> clientDistsFun pkts = f. *)
+  (* Proof. *)
+  (*   move=> H0. split; move=> H1. *)
+  (*   { induction H1; auto. *)
+  (*     simpl. *)
+  (*     rewrite H2 H IHclientDists; auto. *)
+  (*     by move=> x HIn; specialize (H0 x (List.in_cons pkt x pkts HIn)). } *)
+  (*   { generalize dependent f. induction pkts; move=> f H1. *)
+  (*     { by rewrite -H1; constructor. } *)
+  (*     { simpl in H1. *)
+  (*       destruct (msg_of a) eqn:Hmsg. *)
+  (*       { destruct (origin_of a) eqn:Horigin. *)
+  (*         { by destruct (H0 a (List.in_eq a pkts)) as [[i H2] _]; congruence. } *)
+  (*         { rewrite -H1. rewrite Hmsg. rewrite Horigin. *)
+  (*           rewrite Hmsg in H1. rewrite Horigin in H1. constructor; auto. *)
+  (*           { apply IHpkts; auto; move=> pkt HIn. *)
+  (*             by specialize (H0 pkt (List.in_cons a pkt pkts HIn)). } } } *)
+  (*       { by destruct (H0 a (List.in_eq a pkts)) as [_ [d H2]]; *)
+  (*           congruence. } } } *)
+  (* Qed. *)
+
+  (** Redefine clientDistsFun by decomposing it into a pmap and a
+      simpl fold. It seems much easier to work with this way because
+      it's easier to prove things about the different components and
+      then glue their proofs together. *)
+  Definition clientIdsDists
+    : seq wlPacket -> seq ('I_N * wlClientMsg) :=
+    fun pkts =>
+      (pmap (fun pkt =>
+               match origin_of pkt, msg_of pkt with
+               | clientID i, wlMsgClient d => Some (i, d)
+               | _, _ => None
+               end) pkts).
+
+  Definition buildDistMap
+    : seq ('I_N * wlClientMsg) -> {ffun 'I_N -> wlClientMsg} :=
+    fun l => foldr (fun (x : 'I_N*(dist A rat_realFieldType)) f =>
+                   let (i, d) := x in upd i d f)
+                [ffun _ => uniformDist a0] l.
 
   Definition clientDistsFun
     : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} :=
-    fun pkts =>
-      foldr (fun (pkt : wlPacket) f =>
-               match msg_of pkt, origin_of pkt with
-               | wlMsgClient d, clientID i => upd i d f
-               | _, _ => f
-               end) [ffun _ => uniformDist a0] pkts.
+    fun pkts => buildDistMap (clientIdsDists pkts).
 
-  Lemma clientDistsEq pkts f :
-    (forall pkt, List.In pkt pkts -> (exists i, origin_of pkt = clientID i) /\
-                               (exists d, msg_of pkt = wlMsgClient d)) ->
-    clientDists pkts f <-> clientDistsFun pkts = f.
+  Lemma buildDistMap_spec (l : seq ('I_N * wlClientMsg)) (p : 'I_N * wlClientMsg) :
+    List.NoDup [seq p.1 | p <- l] ->
+    List.In p l ->
+    buildDistMap l p.1 = p.2.
   Proof.
-    move=> H0. split; move=> H1.
-    { induction H1; auto.
-      simpl.
-      rewrite H2 H IHclientDists; auto.
-      by move=> x HIn; specialize (H0 x (List.in_cons pkt x pkts HIn)). }
-    { generalize dependent f. induction pkts; move=> f H1.
-      { by rewrite -H1; constructor. }
-      { simpl in H1.
-        destruct (msg_of a) eqn:Hmsg.
-        { destruct (origin_of a) eqn:Horigin.
-          { by destruct (H0 a (List.in_eq a pkts)) as [[i H2] _]; congruence. }
-          { rewrite -H1. rewrite Hmsg. rewrite Horigin.
-            rewrite Hmsg in H1. rewrite Horigin in H1. constructor; auto.
-            { apply IHpkts; auto; move=> pkt HIn.
-              by specialize (H0 pkt (List.in_cons a pkt pkts HIn)). } } }
-        { by destruct (H0 a (List.in_eq a pkts)) as [_ [d H2]];
-            congruence. } } }
+    move=> Hnodup Hin.
+    induction l. inversion Hin.
+    simpl. destruct a. simpl in *. rewrite /upd. rewrite ffunE.
+    destruct Hin as [Hin | Hin].
+    { destruct p. simpl. inversion Hin; subst.
+      have H0: (o0 == o0) by []. by rewrite H0. }
+    { have H0: (o <> p.1).
+      { move: (nodup_cons_notin Hnodup) => Hnotin.
+        apply List.in_map with (f:=fst) in Hin.
+        rewrite map_list_map in Hin.
+        move=> Contra. rewrite Contra in Hnotin. contradiction. }
+      destruct (o == p.1) eqn:Hop. move: Hop => /eqP; congruence.
+      rewrite Hop. apply List.NoDup_cons_iff in Hnodup.
+      by destruct Hnodup; apply IHl. }
   Qed.
 
-  Lemma asdf0 (w : wlWorld) :
+  Lemma in_clientIdsDists (l : seq wlPacket) (pkt : wlPacket) i d :
+    List.In pkt l ->
+    origin_of pkt = clientID i ->
+    msg_of pkt = wlMsgClient d ->
+    List.In (i, d) (clientIdsDists l).
+  Proof.
+    move=> Hin Horigin Hmsg.
+    induction l. inversion Hin.
+    simpl. rewrite /oapp.
+    destruct Hin; subst.
+    { rewrite Horigin. rewrite Hmsg. by left. }
+    { by destruct (origin_of a) eqn:Horigina;
+        destruct (msg_of a) eqn:Hmsga;
+        rewrite Horigina; try rewrite Hmsga; try right; apply IHl. }
+  Qed.
+
+  Lemma notin_clientIdsDists l i :
+    ~ List.In (clientID i) [seq origin_of pkt | pkt <- l] ->
+    ~ List.In i [seq p.1 | p <- clientIdsDists l].
+  Proof.
+    move=> Hin.
+    induction l; auto.    
+    simpl in *. rewrite /oapp.
+    apply Decidable.not_or in Hin.
+    destruct Hin.
+    destruct (origin_of a) eqn:Horigin.
+    { by apply IHl. }
+    { destruct (msg_of a) eqn:Hmsg.
+      { simpl. move=> Contra. destruct Contra.
+        { by subst; congruence. }
+        { by apply IHl; assumption. } }
+      { by apply IHl. } }
+  Qed.
+
+  Lemma nodup_clientIdsDists (l : seq wlPacket) :
+    List.NoDup [seq origin_of pkt | pkt <- l] ->
+    List.NoDup [seq p.1 | p <- (clientIdsDists l)].
+  Proof.
+    move=> Hnodup.
+    induction l. constructor.
+    simpl in *. rewrite /oapp.
+    apply List.NoDup_cons_iff in Hnodup; destruct Hnodup.
+    destruct (origin_of a) eqn:Horigin;
+      destruct (msg_of a) eqn:Hmsg; rewrite Horigin.
+    { by apply IHl. }
+    { by apply IHl. }
+    { by rewrite Hmsg; apply List.NoDup_cons; auto;
+        apply notin_clientIdsDists. }
+    { by rewrite Hmsg; apply IHl. }
+  Qed.
+
+  Lemma perm_client_packet_exists (w : wlWorld) :
     Permutation.Permutation [seq origin_of i | i <- rInFlight w]
                             [seq clientID i | i <- enumerate 'I_N] ->
     forall i, exists pkt, List.In pkt (rInFlight w) /\ origin_of pkt = clientID i.
   Proof.
-  Admitted.
+    move=> Hperm i.
+    eapply in_perm_exists with (enumerate 'I_N).
+    { apply list_in_finType_enum. }
+    { by apply Permutation.Permutation_sym. }
+  Qed.
 
-  Lemma asdf3 (l : list wlPacket) (i : 'I_N) :
-    (forall i, exists pkt, List.In pkt l /\ origin_of pkt = clientID i) ->
-    exists pkt, List.In pkt l /\ origin_of pkt = clientID i /\
-           msg_of pkt = wlMsgClient ((clientDistsFun l) i).
-  Admitted.
+  Lemma clientDistsFun_spec (l : list wlPacket) (i : 'I_N) pkt d :
+    List.NoDup [seq origin_of pkt | pkt <- l] ->
+    List.In pkt l ->
+    origin_of pkt = clientID i ->
+    msg_of pkt = wlMsgClient d ->
+    d = (clientDistsFun l) i.
+  Proof.
+    move=> Hnodup Hin Horigin Hmsg.
+    rewrite /clientDistsFun.
+    remember (i, d) as p.
+    have H0: (List.In (i, d) (clientIdsDists l)).
+    { by apply in_clientIdsDists with pkt. }
+    symmetry.
+    have H1: (i = p.1) by destruct p; inversion Heqp.
+    have H2: (d = p.2) by destruct p; inversion Heqp.
+    rewrite H1. rewrite H2.
+    apply buildDistMap_spec.
+    { by apply nodup_clientIdsDists. }
+    { by rewrite Heqp. }
+  Qed.
 
-  Lemma asdf1 u w mach_st :
+  Lemma clientsSentMatch u w mach_st :
     wlMachineMatch u w mach_st ->
     rAllClientsSentCorrectly ordinalEnumerable w ->
     all_clients_have_sent mach_st (clientDistsFun (rInFlight w)).
@@ -401,13 +520,12 @@ Section weightsLangNetwork.
     destruct Hmatch1 as [Hmatch1_0 [Hmatch1_1 Hmatch1_2]].
     destruct ((clients mach_st) i) eqn:Hclients.
     destruct H0 as [H0 H1].
+    pose proof Hmatch2 as Hmatch2'.
     rewrite /packetsWellFormed in Hmatch2.
     rewrite /rAllClientsSentCorrectly in H0.
-    move: (asdf0 H1 i) => [pkt [H2 H3]].
-    specialize (Hmatch2 pkt H2).
-    destruct Hmatch2 as [Hmatch2 _].
-    specialize (Hmatch2 i H3).
-    destruct Hmatch2 as [d Hmatch2].
+    move: (perm_client_packet_exists H1 i) => [pkt [H2 H3]].
+    specialize (Hmatch2 pkt H2). destruct Hmatch2 as [Hmatch2 _].
+    specialize (Hmatch2 i H3). destruct Hmatch2 as [d Hmatch2].
     have H4: (List.In pkt (rInFlight w) /\
               origin_of pkt = clientID i /\
               msg_of pkt = wlMsgClient d) by [].
@@ -415,25 +533,15 @@ Section weightsLangNetwork.
     destruct Hmatch1_1 as [Hmatch1_1_0 Hmatch1_1_1].
     simpl in *. split; auto. rewrite Hmatch1_1_0.
     f_equal.
-    (* The idea is to use [nodup_perm_in_inj] in listlemmas.v to prove
-       the goal because there is only one packet with client i as its
-       origin. *)
-    move: (@asdf3 (rInFlight w) i (asdf0 H1)) => [pkt' [H5 [H6 H7]]].
-    have H8: (pkt = pkt').
-    { eapply (@nodup_perm_in_inj wlNode wlPacket
-                                 [seq clientID i | i <- enumerate 'I_N]
-                                 (rInFlight w)
-                                 (@origin_of wlNode wlMsg)); auto.
-      { rewrite -map_list_map. 
-        apply FinFun.Injective_map_NoDup.
-        { by move=> x y H; inversion H. }
-        rewrite /enumerable_fun. rewrite /ordinalEnumerable.
-        apply nodup_uniq. simpl.
-        rewrite enumT. apply enumP_uniq. apply enumP. }
+    apply clientDistsFun_spec with pkt; auto.
+    { apply Permutation.Permutation_NoDup with
+          [seq clientID i | i <- enumerate 'I_N].
       { by apply Permutation.Permutation_sym. }
-      { by rewrite H3 H6. } }
-    destruct H4 as [H4 [H4' H4'']]. rewrite -H8 in H7.
-    by rewrite H4'' in H7; inversion H7.
+      { apply FinFun.Injective_map_NoDup.
+        { by move=> x y Heq; inversion Heq. }
+        { rewrite /enumerable_fun. rewrite /ordinalEnumerable.
+          apply nodup_uniq. rewrite enumT.
+          apply enumP_uniq. apply enumP. } } }
   Qed.
 
   Lemma asdf2 w st l e :
@@ -545,13 +653,12 @@ Section weightsLangNetwork.
            see that part of the server state from the outside because
            it's thrown away so we just see the empty state both before
            and after the server runs. *)
-        (* Trying with clientDistsFun. There is also the clientDists
-           relation which is equivalent. *)
+        (* Trying with clientDistsFun. *)
 
         apply MSExpectedCost with
             (f:=clientDistsFun (rInFlight w));
           simpl in *.
-        { by eapply asdf1; eassumption. }
+        { by eapply clientsSentMatch; eassumption. }
         { destruct Hmatch as [Hmatch0 [Hmatch1 Hmatch2]].
           move=> i. specialize (Hmatch1 i).
           destruct Hmatch1 as [Hmatch1_0 [Hmatch1_1 Hmatch1_2]].
@@ -583,7 +690,7 @@ Section weightsLangNetwork.
             { split.
               { move=> pkt d [H3 [H4 H5]].
                 (* Contradictory. H1 should tell us that l' contains
-                   only packets with the serve as the origin, so H4
+                   only packets with the server as the origin, so H4
                    causes contradiction. g*)
                 admit. }
               { move=> pkt cost_vec [H3 [H4 H5]].

@@ -116,9 +116,9 @@ Defined.
 
 Lemma nodup_in_inj (A B : Type) (l : list A) (f : A -> B) :
   forall a b,
-    List.NoDup (map f l) ->
-    List.In a l ->
-    List.In b l ->
+    NoDup (map f l) ->
+    In a l ->
+    In b l ->
     f a = f b ->
     a = b.
 Proof.
@@ -136,13 +136,29 @@ Qed.
 
 Lemma nodup_perm_in_inj (A B: Type) (l : list A) (l' : list B)
       (f : B -> A) :
-  List.NoDup l ->
+  NoDup l ->
   Permutation l (map f l') ->
-  forall a b, List.In a l' -> List.In b l' -> f a = f b -> a = b.
+  forall a b, In a l' -> In b l' -> f a = f b -> a = b.
 Proof.
   move=> Hnodup Hperm a b Hina Hinb H1.
   apply nodup_in_inj with (f:=f) (l:=l'); auto.
   by eapply Permutation_NoDup; eauto.
+Qed.
+
+Lemma in_perm_exists (A B C : Type) (l1 : list A) (l2 : list B)
+      (f : A -> C) (g : B -> C) :
+  (forall a, In a l1) ->
+  Permutation [seq f i | i <- l1]
+              [seq g i | i <- l2] ->
+  forall a, exists b, List.In b l2 /\ g b = f a.
+Proof.
+  move=> Hin Hperm a.
+  have H0: (In (f a) [seq f i | i <- l1]).
+  { by apply in_map. }
+  have H1: (In (f a) [seq g i | i <- l2]).
+  { by apply Permutation_in with [seq f i | i <- l1]. }
+  rewrite -map_list_map in H1. apply in_map_iff in H1.
+  by destruct H1 as [b [H1 H2]]; exists b.
 Qed.
 
 (**************************)
