@@ -452,7 +452,7 @@ Section intermediateSemantics.
   Definition msgToServerList
     (l : list (packet (nodeINT A) msgINT)) : list (packet (nodeINT A) msgINT) :=
   filter (fun pkt => nodeINTDec (dest_of pkt) (serverID A)) l.
-
+  
 
   (* All clients have sent correctly if all packets in flight :
       1.) Are directed to the server
@@ -1253,15 +1253,17 @@ Section relationalIntermediateNoBatch.
   (** An inductive relation that corresponds to the updateServerList
       operation.  It describes the cumulative output of the server
       when it processes all of the clients' messages. *)
+  (** Edit: split the tuple into separate type indices so we don't
+      lose information about their structure when using induction. *)
   Inductive serverUpdate : serverState -> list packet ->
-                           (serverState*(list packet)*(list eventINT)) -> Prop :=
+                           serverState -> (list packet) -> (list eventINT) -> Prop :=
   | serverUpdateNil : forall s,
-      serverUpdate s nil (s, nil, nil)
+      serverUpdate s nil s nil nil
   | serverUpdateCons : forall s hd tl s' ms es s'' ms' es',
-      serverUpdate s tl (s', ms, es) ->
+      serverUpdate s tl s' ms es ->
       serverNode.(rRecv) (msg_of hd) (origin_of hd)
                          s' (s'', ms', es') ->
-      serverUpdate s (hd :: tl) (s'', ms ++ ms', es ++ es').
+      serverUpdate s (hd :: tl) s'' (ms ++ ms') (es ++ es').    
 
   (** Mark a node as being initialized *)
   Definition upd_rInitNodes (n : nodeINT) (rInitNodes : nodeINT -> bool)
@@ -1308,7 +1310,7 @@ Section relationalIntermediateNoBatch.
       (rInitNodes w) serverID = true ->
       rAllClientsSentCorrectly w ->
       serverUpdate (rLocalState w serverID)
-                   (msgToServerList ADec (rInFlight w)) (st', l', e') ->
+                   (msgToServerList ADec (rInFlight w)) st' l' e' ->
       Rnetwork_step
         w
         (mkRWorld (upd_rLocalState serverID st' (rLocalState w))

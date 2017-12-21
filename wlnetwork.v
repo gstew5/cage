@@ -8,6 +8,7 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
+Require Import Permutation.
 
 Require Import compile dist weights numerics bigops games weightslang.
 Require Import machine networkSemanticsNoBatch listlemmas smooth.
@@ -25,6 +26,7 @@ Section weightsLangNetwork.
   Local Open Scope ring_scope.
   Hypothesis epsOk : (0%:R < eps <= 1 / 2%:R)%R.
   Variable nx : N.t.    (* #iterations *)
+  Instance ordinalEnumerable : Enumerable 'I_N := enum 'I_N.
 
   Definition wlNode := (nodeINT 'I_N).
 
@@ -42,12 +44,6 @@ Section weightsLangNetwork.
   Definition mkWlNodePkg := @mkRNodePkg 'I_N wlMsg wlEvent.
   Notation wlPacket := (packet wlNode wlMsg).
   Notation mkPacket := (@mkPacket wlNode wlMsg).
-
-  Lemma wlNode_dec : forall n1 n2 : wlNode, {n1 = n2} + {n1 <> n2}.
-  Proof.
-    decide equality.
-    by destruct (a == o) eqn:Heq; move: Heq => /eqP; [left | right].
-  Defined.
 
   (** Server node package *)
 
@@ -69,11 +65,20 @@ Section weightsLangNetwork.
   | wlServerInit1 :
       forall node, wlServerInit node (wlServerInitState, nil, nil).
 
-  Definition packetsToClients st ps :=
-    length ps = N /\
-    forall i c, serverCostRel st.(wlReceived) i = c ->
-           List.Exists (fun pkt => dest_of pkt = clientID i /\
-                                msg_of pkt = wlMsgServer c) ps.
+  (* Definition packetsToClients st ps := *)
+  (*   length ps = N /\ *)
+  (*   forall i c, serverCostRel st.(wlReceived) i = c -> *)
+  (*          List.Exists (fun pkt => dest_of pkt = clientID i /\ *)
+  (*                               msg_of pkt = wlMsgServer c) ps. *)
+
+  (** Rewrite this in a similar fashion as rAllClientsSentCorrectly *)
+  Definition packetsToClients' (st : wlServerState) (ps : list wlPacket) :=
+    (* (forall pkt : wlPacket, List.In pkt ps -> origin_of pkt = (serverID 'I_N)) /\ *)
+    (forall i, exists pkt, List.In pkt ps /\ origin_of pkt = (serverID 'I_N) /\
+                 dest_of pkt = clientID i /\
+                 msg_of pkt = wlMsgServer (serverCostRel st.(wlReceived) i)) /\
+    Permutation (map (@dest_of wlNode wlMsg) ps)
+                (map (@clientID 'I_N) (enumerate 'I_N)).
 
   Inductive wlServerRecv
     : wlMsg -> wlNode -> wlServerState ->
@@ -84,12 +89,12 @@ Section weightsLangNetwork.
         st' = mkWlServerState (upd i msg st.(wlReceived)) (st.(wlNumReceived) + 1) ->
         wlServerRecv (wlMsgClient msg) (clientID i) st (st', nil, nil)
   | wlServerRecv2 :
-      forall msg i st st' ps e cost_vector,
+      forall msg st st' ps i,
         (st.(wlNumReceived).+1 = N)%nat ->
         st' = mkWlServerState (upd i msg st.(wlReceived)) (st.(wlNumReceived) + 1) ->
-        serverCostRel st'.(wlReceived) i = cost_vector ->
-        packetsToClients st' ps ->
-        wlServerRecv (wlMsgClient msg) (clientID i) st (wlServerInitState, ps, e).
+        packetsToClients' st' ps ->
+        wlServerRecv (wlMsgClient msg) (clientID i) st
+                     (wlServerInitState, ps, st'.(wlReceived) :: nil).
 
   Definition wlServerPkg := mkWlNodePkg wlServerInit wlServerRecv wlServerPreInitState.
 
@@ -167,8 +172,6 @@ Section weightsLangNetwork.
     | serverID   => wlServerPkg
     | clientID _ => wlClientPkg
     end.
-
-  Instance ordinalEnumerable : Enumerable 'I_N := enum 'I_N.
 
   Lemma ordinal_eq_dec :
     forall i1 i2 : 'I_N, {i1 = i2} + {i1 <> i2}.
@@ -383,8 +386,8 @@ Section weightsLangNetwork.
   (* Qed. *)
 
   (** Redefine clientDistsFun by decomposing it into a pmap and a
-      simpl fold. It seems much easier to work with this way because
-      it's easier to prove things about the different components and
+      simple fold. It seems much easier to work with this way because
+      it's easier to prove things about the separate components and
       then glue their proofs together. *)
   Definition clientIdsDists
     : seq wlPacket -> seq ('I_N * wlClientMsg) :=
@@ -405,7 +408,8 @@ Section weightsLangNetwork.
     : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} :=
     fun pkts => buildDistMap (clientIdsDists pkts).
 
-  Lemma buildDistMap_spec (l : seq ('I_N * wlClientMsg)) (p : 'I_N * wlClientMsg) :
+  Lemma buildDistMap_spec (l : seq ('I_N * wlClientMsg))
+        (p : 'I_N * wlClientMsg) :
     List.NoDup [seq p.1 | p <- l] ->
     List.In p l ->
     buildDistMap l p.1 = p.2.
@@ -478,14 +482,14 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma perm_client_packet_exists (w : wlWorld) :
-    Permutation.Permutation [seq origin_of i | i <- rInFlight w]
-                            [seq clientID i | i <- enumerate 'I_N] ->
+    Permutation [seq origin_of i | i <- rInFlight w]
+                [seq clientID i | i <- enumerate 'I_N] ->
     forall i, exists pkt, List.In pkt (rInFlight w) /\ origin_of pkt = clientID i.
   Proof.
     move=> Hperm i.
     eapply in_perm_exists with (enumerate 'I_N).
     { apply list_in_finType_enum. }
-    { by apply Permutation.Permutation_sym. }
+    { by apply Permutation_sym. }
   Qed.
 
   Lemma clientDistsFun_spec (l : list wlPacket) (i : 'I_N) pkt d :
@@ -534,9 +538,9 @@ Section weightsLangNetwork.
     simpl in *. split; auto. rewrite Hmatch1_1_0.
     f_equal.
     apply clientDistsFun_spec with pkt; auto.
-    { apply Permutation.Permutation_NoDup with
+    { apply Permutation_NoDup with
           [seq clientID i | i <- enumerate 'I_N].
-      { by apply Permutation.Permutation_sym. }
+      { by apply Permutation_sym. }
       { apply FinFun.Injective_map_NoDup.
         { by move=> x y Heq; inversion Heq. }
         { rewrite /enumerable_fun. rewrite /ordinalEnumerable.
@@ -546,10 +550,109 @@ Section weightsLangNetwork.
 
   Lemma asdf2 w st l e :
     serverUpdate wlNetwork_desc (rLocalState w (serverID 'I_N))
-                 (msgToServerList ordinal_eq_dec (rInFlight w)) (st, l, e) ->
+                 (msgToServerList ordinal_eq_dec (rInFlight w)) st l e ->
     e = clientDistsFun (rInFlight w) :: nil.
-  Proof.
   Admitted.
+
+  Lemma asdf9 (l : list wlPacket) (pkt : wlPacket) :
+    Permutation [seq dest_of i | i <- l]
+                [seq clientID i | i <- enumerate 'I_N] ->
+    exists i, dest_of pkt = clientID i.
+  Proof.
+    move=> Hperm.
+  Admitted.
+
+  Lemma asdf4 msg origin s s' ms es (pkt pkt' : wlPacket) l i :
+    rRecv (wlNetwork_desc (serverID 'I_N)) msg origin s (s', ms, es) ->
+    List.In pkt l ->
+    List.In pkt' l ->
+    dest_of pkt = clientID i ->
+    dest_of pkt' = clientID i ->
+    pkt = pkt'.
+  Admitted.
+
+  Lemma asdf7 msg origin s s' ms es pkt :
+    rRecv (wlNetwork_desc (serverID 'I_N)) msg origin s (s', ms, es) ->
+    List.In pkt ms ->
+    origin_of pkt = serverID 'I_N.
+  Proof.
+    move=> Hrecv Hin. simpl in Hrecv.
+    inversion Hrecv.
+    { subst. inversion Hin. }
+    { simpl in *. rewrite /packetsToClients' in H7.
+      destruct H7.
+      apply asdf9 with (pkt:=pkt) in H8.
+      destruct H8 as [i' H8].
+      specialize (H7 i').
+      destruct H7 as [pkt' [H7 [H9 [H10 H11]]]].
+      have Heq: (pkt = pkt').
+      { by eapply asdf4; eauto. }
+      by rewrite Heq. }
+  Qed.
+
+  Lemma asdf3 st st' l l' e pkt :
+    serverUpdate wlNetwork_desc st l st' l' e ->
+    List.In pkt l' ->
+    origin_of pkt = serverID 'I_N.
+  Proof.
+    move=> Hupdate Hin.
+    induction Hupdate. subst. inversion Hin.
+    apply List.in_app_or in Hin. destruct Hin as [Hin | Hin].
+    { by apply IHHupdate. }
+    { by eapply asdf7; eauto. }
+  Qed.
+
+  Lemma asdf5 i w st' l' e' :
+    serverUpdate wlNetwork_desc (rLocalState w (serverID 'I_N))
+                 (msgToServerList ordinal_eq_dec (rInFlight w)) st' l' e' ->
+    exists pkt, List.In pkt l' /\
+           dest_of pkt = clientID i /\
+           msg_of pkt = wlMsgServer
+                          (serverCostRel (clientDistsFun (rInFlight w)) i).
+  Admitted.
+
+  Lemma asdf4' w st' l' e' pkt pkt' i:
+    serverUpdate wlNetwork_desc (rLocalState w (serverID 'I_N))
+                 (msgToServerList ordinal_eq_dec (rInFlight w)) st' l' e' ->
+    List.In pkt l' ->
+    List.In pkt' l' ->
+    dest_of pkt = clientID i ->
+    dest_of pkt' = clientID i ->
+    pkt = pkt'.
+  Admitted.
+
+  Lemma asdf8 msg origin s s' ms es pkt :
+    rRecv (wlNetwork_desc (serverID 'I_N)) msg origin s (s', ms, es) ->
+    List.In pkt ms ->
+    exists cost_vec, msg_of pkt = wlMsgServer cost_vec.
+  Proof.
+    move=> Hrecv Hin.
+    inversion Hrecv.
+    { subst. inversion Hin. }
+    { rewrite /packetsToClients' in H7.
+      destruct H7 as [H7 H8].
+      apply asdf9 with (pkt:=pkt) in H8.
+      destruct H8 as [i' H8].
+      specialize (H7 i').
+      destruct H7 as [pkt' [H7 [H9 [H10 H11]]]].
+      exists (serverCostRel (wlReceived st') i').
+      have Heq: (pkt = pkt').
+      { by eapply asdf4; eauto. }
+      by rewrite Heq. }
+  Qed.
+
+  Lemma asdf6 pkt st st' l l' e' :
+    serverUpdate wlNetwork_desc st l st' l' e' ->
+    List.In pkt l' ->
+    exists cost_vec, msg_of pkt = wlMsgServer cost_vec.
+  Proof.
+    move=> Hupdate Hin.
+    induction Hupdate. inversion Hin.
+    apply List.in_app_or in Hin.
+    destruct Hin as [Hin | Hin].
+    { by apply IHHupdate. }
+    { by eapply asdf8; eauto. }
+  Qed.
 
   Theorem wlNetworkMachine_step_diagram :
     forall x WORLD mach_st,
@@ -647,14 +750,6 @@ Section weightsLangNetwork.
       { exists 0%N. simpl. eexists. split.
         Focus 2. reflexivity.
 
-        (* I think we need something here to express the client
-           distributions received by the server since the server
-           actually resets its state after processing them -- we never
-           see that part of the server state from the outside because
-           it's thrown away so we just see the empty state both before
-           and after the server runs. *)
-        (* Trying with clientDistsFun. *)
-
         apply MSExpectedCost with
             (f:=clientDistsFun (rInFlight w));
           simpl in *.
@@ -675,38 +770,34 @@ Section weightsLangNetwork.
         { by rewrite (asdf2 H1). } }
       { split; simpl.
         { by rewrite H. }
-        { destruct Hmatch as [_ [Hmatch1 [Hmatch2 _]]].
+        { destruct Hmatch as [_ [Hmatch1 [Hmatch2 Hmatch3]]].
           split; simpl.
           { move=> i /=. rewrite ffunE.
             destruct ((clients mach_st) i) eqn:Hclients; simpl.
             split.
             { rewrite -upd_rLocalState_diff.
-              { (* destruct Hmatch as [_ [Hmatch1 _]]. *)
-                specialize (Hmatch1 i).
+              { specialize (Hmatch1 i).
                 destruct Hmatch1 as [Hmatch1 _].
-                destruct ((clients mach_st i)). 
+                destruct ((clients mach_st i)).
                 inversion Hclients; subst; auto. }
               { move=> Contra; congruence. } }
             { split.
               { move=> pkt d [H3 [H4 H5]].
-                (* Contradictory. H1 should tell us that l' contains
-                   only packets with the server as the origin, so H4
-                   causes contradiction. g*)
-                admit. }
+                apply asdf3 with (pkt:=pkt) in H1; congruence. }
               { move=> pkt cost_vec [H3 [H4 H5]].
                 split; auto. f_equal.
-                (* l' contains a only one packet such that [dest_of
-                   pkt = clientID i], with its msg being
-                   cost_vec. [clientDistsFun (fInFlight w)) i] is the
-                   distribution of client i coming to the server,
-                   which is mapped to the unique packet in l' to
-                   client i according to H1. *)
-                admit. } } }
+                pose proof H1 as H2.
+                apply asdf5 with (i:=i) in H2.
+                destruct H2 as [pkt' [H2 [H2' H2'']]].
+                have Heq: (pkt = pkt').
+                { by apply (@asdf4' w st' l' e' pkt pkt' i H1); auto. }
+                by subst; rewrite H5 in H2''; inversion H2''. } } }
           { split. move=> pkt /= HIn.
             split.
-            { move=> i Horigin. admit. (* not possible *) }
-            { move=> Horigin. admit. (* true from H1 *) }
-            { admit. } } } } }
+            { move=> i Horigin.
+              by apply asdf3 with (pkt:=pkt) in H1; congruence. }
+            { by move=> Horigin; eapply asdf6; eauto. }
+            { by rewrite /tracesMatch rev_cat Hmatch3 (asdf2 H1). } } } } }
   Admitted.
 
   Definition wlNetworkMachine_simulation :=
