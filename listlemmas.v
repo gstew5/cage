@@ -161,6 +161,23 @@ Proof.
   by destruct H1 as [b [H1 H2]]; exists b.
 Qed.
 
+Lemma in_perm_exists' (A B C : Type) (l1 : list A) (l2 : list B)
+      (f : A -> C) (g : B -> C) (b : B) :
+  (forall a, In a l1) ->
+  List.In b l2 ->
+  Permutation [seq g i | i <- l2]
+              [seq f i | i <- l1] ->
+  exists a, g b = f a.
+Proof.
+  move=> Hina Hinb Hperm.
+  have H0: (In (g b) [seq g b | b <- l2]).
+  { by apply in_map. }
+  have H1: (In (g b) [seq f a | a <- l1]).
+  { by apply Permutation_in with [seq g b | b <- l2]. }
+  rewrite -map_list_map in H1. apply in_map_iff in H1.
+  by destruct H1 as [a [H1 H2]]; exists a.
+Qed.
+
 (**************************)
 (** List.list_prod lemmas *)
 
@@ -483,6 +500,12 @@ Proof.
     by move: H0 => /eqP.
 Qed.
 
+Lemma filter_length_le (A B : Type) (l : list A) (f : A -> bool) :
+  length (filter f l) <= length l.
+Proof.
+  by induction l; auto; simpl; destruct (f a); auto.
+Qed.
+
 Lemma all_filter_eq (A : Type) (l : list A) (f : A -> bool) :
   all f l -> filter f l = l.
 Proof.
@@ -610,8 +633,15 @@ Proof.
     by apply Forall_forall. } 
 Qed.
 
+Lemma card_length (A : finType) :
+  #|A| = length (enum A).
+Proof. by apply cardE. Qed.
+
 Section ordEnum.
   Variable N : nat.
+
+  Lemma enum_ord_length : length (enum 'I_N) = N.
+  Proof. by rewrite -card_length; apply card_ord. Qed.
   
   Lemma enum_ord_enum : enum 'I_N = ord_enum N.
   Proof. 
@@ -645,7 +675,8 @@ Section ordEnum.
     { by apply iota_ltn_sorted. }
   Qed.
 
-  Lemma ord_enum_uniq : uniq (enum 'I_N).
+  Lemma ord_enum_uniq :
+    uniq (enum 'I_N).
   Proof. by apply enumP_uniq; rewrite enumT; apply enumP. Qed.
   
   (** Surgery on an ordinal enumeration *)

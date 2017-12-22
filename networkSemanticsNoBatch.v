@@ -1213,6 +1213,20 @@ Section relationalIntermediateNoBatch.
            | right _ => ls n'
            end.
 
+  Lemma eq_rState_id n s (pf : n = n) : eq_rState pf s = s.
+  Proof.
+    rewrite (@UIP_refl _ _ pf); auto.
+  Qed.
+
+  Lemma upd_rLocalState_same n s st :
+    upd_rLocalState n s st n = s.
+  Proof.
+    unfold upd_rLocalState.
+    destruct (nodeINTDec n n).
+    { apply eq_rState_id. }
+    elimtype False; apply n0; auto.
+  Qed.
+
   Lemma upd_rLocalState_diff n m s st :
     n <> m ->
     st n = upd_rLocalState m s st n.

@@ -235,7 +235,8 @@ Section weightsLangNetwork.
     x = (if W.(rInitNodes) (serverID 'I_N) then 0%N else 1%N) /\
     clientStatesMatch mach_st.(clients) W /\
     packetsWellFormed W /\
-    tracesMatch mach_st.(hist) W.(rTrace).
+    tracesMatch mach_st.(hist) W.(rTrace) /\
+    rLocalState W (serverID 'I_N) = wlServerInitState.
 
 
   (** WORK IN PROGRESS: set up proper simulation record. *)
@@ -554,25 +555,51 @@ Section weightsLangNetwork.
     e = clientDistsFun (rInFlight w) :: nil.
   Admitted.
 
-  Lemma asdf9 (l : list wlPacket) (pkt : wlPacket) :
+  Lemma perm_in_exists_pkt (l : list wlPacket) (pkt : wlPacket) :
     Permutation [seq dest_of i | i <- l]
                 [seq clientID i | i <- enumerate 'I_N] ->
+    List.In pkt l ->
     exists i, dest_of pkt = clientID i.
   Proof.
-    move=> Hperm.
-  Admitted.
+    move=> Hperm Hin.
+    have H: (forall i, List.In i (enumerate 'I_N)).
+    { by apply list_in_finType_enum. }
+    by eapply in_perm_exists'; eauto.
+  Qed.
 
-  Lemma asdf4 msg origin s s' ms es (pkt pkt' : wlPacket) l i :
-    rRecv (wlNetwork_desc (serverID 'I_N)) msg origin s (s', ms, es) ->
-    List.In pkt l ->
-    List.In pkt' l ->
+  Lemma recv_nil_or_perm msg origin s s' ms es :
+    wlServerRecv msg origin s (s', ms, es) ->
+    ms = nil \/
+    Permutation [seq clientID i0 | i0 <- enumerate 'I_N]
+                [seq dest_of i | i <- ms].
+  Proof.
+    move=> Hrecv. inversion Hrecv.
+    { by left. }
+    { right. rewrite /packetsToClients' in H7.
+      by destruct H7; apply Permutation_sym. }
+  Qed.
+
+  Lemma recv_inj msg origin s s' ms es (pkt pkt' : wlPacket) i :
+    wlServerRecv msg origin s (s', ms, es) ->
+    List.In pkt ms ->
+    List.In pkt' ms ->
     dest_of pkt = clientID i ->
     dest_of pkt' = clientID i ->
     pkt = pkt'.
-  Admitted.
+  Proof.
+    move=> Hrecv Hin Hin' Hdest Hdest'.
+    destruct (recv_nil_or_perm Hrecv).
+    { subst; inversion Hin. }
+    apply (@nodup_perm_in_inj _ _ [seq clientID i | i <- enumerate 'I_N]
+                              ms (@dest_of wlNode wlMsg)); auto.
+    { apply FinFun.Injective_map_NoDup.
+      { by move=> x y Heq; inversion Heq. }
+      { by apply nodup_uniq, ord_enum_uniq. } }
+    { by rewrite Hdest. }
+  Qed.
 
-  Lemma asdf7 msg origin s s' ms es pkt :
-    rRecv (wlNetwork_desc (serverID 'I_N)) msg origin s (s', ms, es) ->
+  Lemma recv_in_origin_server msg origin s s' ms es pkt :
+    wlServerRecv msg origin s (s', ms, es) ->
     List.In pkt ms ->
     origin_of pkt = serverID 'I_N.
   Proof.
@@ -581,16 +608,16 @@ Section weightsLangNetwork.
     { subst. inversion Hin. }
     { simpl in *. rewrite /packetsToClients' in H7.
       destruct H7.
-      apply asdf9 with (pkt:=pkt) in H8.
+      apply perm_in_exists_pkt with (pkt:=pkt) in H8; auto.
       destruct H8 as [i' H8].
       specialize (H7 i').
       destruct H7 as [pkt' [H7 [H9 [H10 H11]]]].
       have Heq: (pkt = pkt').
-      { by eapply asdf4; eauto. }
+      { by eapply recv_inj; eauto. }
       by rewrite Heq. }
   Qed.
 
-  Lemma asdf3 st st' l l' e pkt :
+  Lemma update_in_origin_server st st' l l' e pkt :
     serverUpdate wlNetwork_desc st l st' l' e ->
     List.In pkt l' ->
     origin_of pkt = serverID 'I_N.
@@ -599,10 +626,10 @@ Section weightsLangNetwork.
     induction Hupdate. subst. inversion Hin.
     apply List.in_app_or in Hin. destruct Hin as [Hin | Hin].
     { by apply IHHupdate. }
-    { by eapply asdf7; eauto. }
+    { by eapply recv_in_origin_server; eauto. }
   Qed.
 
-  Lemma asdf5 i w st' l' e' :
+  Lemma update_exists_pkt i w st' l' e' :
     serverUpdate wlNetwork_desc (rLocalState w (serverID 'I_N))
                  (msgToServerList ordinal_eq_dec (rInFlight w)) st' l' e' ->
     exists pkt, List.In pkt l' /\
@@ -611,18 +638,137 @@ Section weightsLangNetwork.
                           (serverCostRel (clientDistsFun (rInFlight w)) i).
   Admitted.
 
-  Lemma asdf4' w st' l' e' pkt pkt' i:
-    serverUpdate wlNetwork_desc (rLocalState w (serverID 'I_N))
-                 (msgToServerList ordinal_eq_dec (rInFlight w)) st' l' e' ->
+  Lemma lem1 n m p :
+    (n <= m)%N ->
+    (m < p.-1)%N ->
+    n.+1 <> p.
+  Proof.
+    move=> H0 H1 Contra.
+    rewrite -addn1 in Contra.
+    rewrite -Contra in H1. rewrite addn1 in H1.
+    by rewrite leqNgt in H0; move: H0 => /negP.
+  Qed.
+
+  Lemma recv_nil msg origin s s' ms es m :
+    (m < N.-1)%N ->
+    (wlNumReceived s <= m)%N ->
+    wlServerRecv msg origin s (s', ms, es) ->
+    ms = nil.
+  Proof.
+    move=> Hm Hreceived Hrecv.
+    inversion Hrecv; auto.
+    apply lem1 with (p:=N) in Hreceived; auto.
+    by congruence.
+  Qed.
+
+  Lemma recv_numReceived msg origin s s' ms es m :
+    (0 < m)%N ->
+    (m < N.-1)%N ->
+    (wlNumReceived s <= m.-1)%N ->
+    wlServerRecv msg origin s (s', ms, es) ->
+    (wlNumReceived s' <= m)%N.
+  Proof.
+    move=> Hpos Hm Hreceived Hrecv.
+    inversion Hrecv; auto.
+    { subst. simpl. clear H4.
+      rewrite -Nat.sub_1_r in Hreceived.
+      destruct m. inversion Hpos.
+      simpl in Hreceived. rewrite -minus_n_O in Hreceived.
+      by rewrite -[m.+1]addn1; apply leq_add; auto. }
+  Qed.
+
+  Lemma update_numReceived l l' st e m :
+    (m < N.-1)%N ->
+    (length l <= m)%N ->
+    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    (wlNumReceived st <= m)%N.
+  Proof.
+    move=> Hm Hlength Hupdate. generalize dependent m.
+    remember wlServerInitState.
+    induction Hupdate; move=> m Hm Hlength.
+    { by rewrite Heqw. }
+    { remember m. destruct m.
+      rewrite Heqn in Hlength. inversion Hlength.
+      specialize (IHHupdate Heqw (n.-1)).
+      have H0: (wlNumReceived s' <= n.-1)%N.
+      { apply IHHupdate. apply ltnW. rewrite -(S_pred n 0); auto.
+        destruct n. inversion Heqn. by apply/ ltP.
+        by simpl in Hlength; destruct n; auto. }
+      eapply recv_numReceived; try eassumption.
+      destruct n. inversion Heqn. auto. }
+  Qed.
+
+  Lemma update_nil l l' st e :
+    (length l < N)%N ->
+    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    l' = nil.
+  Proof.
+    move=> Hlength Hupdate.
+    remember wlServerInitState.
+    induction Hupdate; auto.
+    have H0: (length tl < N.-1)%N.
+    { simpl in Hlength.
+      suff: (length tl + 1 < N.-1 + 1)%N.
+      { by move=> H0; rewrite ltn_add2r in H0. }
+      rewrite [(N.-1 + 1)%N]addn1. rewrite -(S_pred N 0).
+      by rewrite addn1.
+      have H0: (forall n m, n.+1 < m -> 0 < m)%N.
+      { by move=> n m H0; destruct m. }
+      by apply /ltP; apply H0 with (length tl). }
+    rewrite Heqw in Hupdate.
+    have H1: (wlNumReceived s' <= length tl)%N.
+    { by eapply update_numReceived; eauto. }
+    have H3: (ms' = nil).
+    { by eapply recv_nil with (m:=length tl); eauto. }
+    have H4: (ms = nil) by apply IHHupdate; auto.
+    by rewrite H3 H4.
+  Qed.
+
+  Lemma recv_nodup msg origin s s' ms es :
+    wlServerRecv msg origin s (s', ms, es) ->
+    List.NoDup [seq dest_of pkt | pkt <- ms].
+  Proof.
+    move=> Hrecv.
+    inversion Hrecv.
+    { by constructor. }
+    { destruct H7 as [_ H7].
+      eapply Permutation_NoDup.
+      { apply Permutation_sym in H7. apply H7. }
+      { apply FinFun.Injective_map_NoDup.
+        { by move=> x y Heq; inversion Heq. }
+        { by apply nodup_uniq, ord_enum_uniq. } } }
+  Qed.
+
+  Lemma update_nodup st l l' e:
+    (length l <= N)%N ->
+    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    List.NoDup [seq dest_of pkt | pkt <- l'].
+  Proof.
+    move=> Hlength Hupdate.
+    inversion Hupdate; subst. left.
+    have H1: (ms = nil).
+    { by eapply update_nil with (l:=tl); eauto. }
+    subst. simpl.
+    eapply recv_nodup; eauto.
+  Qed.
+
+  Lemma update_inj st l l' e pkt pkt' i:
+    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    (length l <= N)%N ->
     List.In pkt l' ->
     List.In pkt' l' ->
     dest_of pkt = clientID i ->
     dest_of pkt' = clientID i ->
     pkt = pkt'.
-  Admitted.
+  Proof.
+    move=> Hupdate Hlength Hin Hin' Hdest Hdest'.
+    apply (@nodup_in_inj _ _ l' (@dest_of wlNode wlMsg)); auto.
+    { eapply update_nodup; eauto. }
+    { by rewrite Hdest. }
+  Qed.
 
-  Lemma asdf8 msg origin s s' ms es pkt :
-    rRecv (wlNetwork_desc (serverID 'I_N)) msg origin s (s', ms, es) ->
+  Lemma recv_exists_cost_vector msg origin s s' ms es pkt :
+    wlServerRecv msg origin s (s', ms, es) ->
     List.In pkt ms ->
     exists cost_vec, msg_of pkt = wlMsgServer cost_vec.
   Proof.
@@ -631,17 +777,17 @@ Section weightsLangNetwork.
     { subst. inversion Hin. }
     { rewrite /packetsToClients' in H7.
       destruct H7 as [H7 H8].
-      apply asdf9 with (pkt:=pkt) in H8.
+      apply perm_in_exists_pkt with (pkt:=pkt) in H8; auto.
       destruct H8 as [i' H8].
       specialize (H7 i').
       destruct H7 as [pkt' [H7 [H9 [H10 H11]]]].
       exists (serverCostRel (wlReceived st') i').
       have Heq: (pkt = pkt').
-      { by eapply asdf4; eauto. }
+      { by eapply recv_inj; eauto. }
       by rewrite Heq. }
   Qed.
 
-  Lemma asdf6 pkt st st' l l' e' :
+  Lemma update_exists_cost_vector pkt st st' l l' e' :
     serverUpdate wlNetwork_desc st l st' l' e' ->
     List.In pkt l' ->
     exists cost_vec, msg_of pkt = wlMsgServer cost_vec.
@@ -651,8 +797,14 @@ Section weightsLangNetwork.
     apply List.in_app_or in Hin.
     destruct Hin as [Hin | Hin].
     { by apply IHHupdate. }
-    { by eapply asdf8; eauto. }
+    { by eapply recv_exists_cost_vector; eauto. }
   Qed.
+
+  Lemma update_init_state (w : wlWorld) st l e :
+    serverUpdate wlNetwork_desc wlServerInitState
+                 (msgToServerList ordinal_eq_dec (rInFlight w)) st l e ->
+    st = wlServerInitState.
+  Admitted.
 
   Theorem wlNetworkMachine_step_diagram :
     forall x WORLD mach_st,
@@ -669,7 +821,7 @@ Section weightsLangNetwork.
     induction Hworldstep.
 
     (** Node init step *)
-    { destruct Hmatch as [Hmatch1 [Hmatch2 [Hmatch3 Hmatch4]]].
+    { destruct Hmatch as [Hmatch1 [Hmatch2 [Hmatch3 [Hmatch4 Hmatch5]]]].
       destruct n eqn:Hn.
 
       (** Server init step *)
@@ -702,8 +854,10 @@ Section weightsLangNetwork.
                 split.
                 { by move=> i Horigin; apply (Hmatch3_0 i). }
                 { by move=> Horigin; apply Hmatch3_1. } }
-              { by rewrite cats0. } } } } }
-        
+              { split.
+                { by rewrite cats0. }
+                { by rewrite upd_rLocalState_same. } } } } } }
+
       (** Client init step *)
       { exists u. right.
         admit. } }
@@ -740,7 +894,7 @@ Section weightsLangNetwork.
                                               (clientDistsFun
                                                  (rInFlight w)) i))
                                      (cost_vectors_ok i)).
-            
+
       exists (mkMachineState [ffun i =>
                          let (com, st) := mach_st.(clients) i in
                          (com, clientSt' st i)]
@@ -770,7 +924,7 @@ Section weightsLangNetwork.
         { by rewrite (asdf2 H1). } }
       { split; simpl.
         { by rewrite H. }
-        { destruct Hmatch as [_ [Hmatch1 [Hmatch2 Hmatch3]]].
+        { destruct Hmatch as [_ [Hmatch1 [Hmatch2 [Hmatch3 Hmatch4]]]].
           split; simpl.
           { move=> i /=. rewrite ffunE.
             destruct ((clients mach_st) i) eqn:Hclients; simpl.
@@ -783,21 +937,44 @@ Section weightsLangNetwork.
               { move=> Contra; congruence. } }
             { split.
               { move=> pkt d [H3 [H4 H5]].
-                apply asdf3 with (pkt:=pkt) in H1; congruence. }
+                apply update_in_origin_server with (pkt:=pkt) in H1;
+                  congruence. }
               { move=> pkt cost_vec [H3 [H4 H5]].
                 split; auto. f_equal.
                 pose proof H1 as H2.
-                apply asdf5 with (i:=i) in H2.
+                apply update_exists_pkt with (i:=i) in H2.
                 destruct H2 as [pkt' [H2 [H2' H2'']]].
+                rewrite Hmatch4 in H1.
                 have Heq: (pkt = pkt').
-                { by apply (@asdf4' w st' l' e' pkt pkt' i H1); auto. }
+                { apply (@update_inj st'
+                                     (msgToServerList _ (rInFlight w))
+                                     l' e' pkt pkt' i H1); auto.
+                  rewrite /msgToServerList.
+                  have Hlen: (length (rInFlight w) = N).
+                  { destruct H0 as [_ H0].
+                    have Hlen: (length (enumerate 'I_N) = N).
+                    { by apply enum_ord_length. }
+                    move: (Permutation_length H0) => Hlen'.
+                    rewrite 2!List.map_length in Hlen'.
+                    by rewrite Hlen'. }
+                  move: (@filter_length_le
+                           wlPacket wlNode (rInFlight w)
+                           (fun pkt => nodeINTDec ordinal_eq_dec
+                                               (dest_of pkt)
+                                               (serverID 'I_N))) => Hfilter.
+                  by rewrite Hlen in Hfilter. }
                 by subst; rewrite H5 in H2''; inversion H2''. } } }
           { split. move=> pkt /= HIn.
             split.
             { move=> i Horigin.
-              by apply asdf3 with (pkt:=pkt) in H1; congruence. }
-            { by move=> Horigin; eapply asdf6; eauto. }
-            { by rewrite /tracesMatch rev_cat Hmatch3 (asdf2 H1). } } } } }
+              by apply update_in_origin_server with (pkt:=pkt) in H1;
+                congruence. }
+            { by move=> Horigin; eapply update_exists_cost_vector; eauto. }
+            { split.
+              { by rewrite /tracesMatch rev_cat Hmatch3 (asdf2 H1). }
+              { rewrite upd_rLocalState_same.
+                rewrite Hmatch4 in H1.
+                eapply update_init_state; eauto. } } } } } }
   Admitted.
 
   Definition wlNetworkMachine_simulation :=
