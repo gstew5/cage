@@ -11,8 +11,9 @@ Import GRing.Theory Num.Def Num.Theory.
 Require Import Permutation.
 Require Import ProofIrrelevance.
 
-Require Import compile dist weights numerics bigops games weightslang.
+Require Import compile dist weights dyadic numerics bigops games.
 Require Import machine networkSemanticsNoBatch listlemmas smooth.
+Require Import weightslang.
 
 Section weightsLangNetwork.
   Variable N : nat.
@@ -26,6 +27,10 @@ Section weightsLangNetwork.
   Arguments serverCostRel {A N costInstance} f i.
   Variable eps : rat.
   Local Open Scope ring_scope.
+  Hypothesis serverCostRelOk:
+    forall f i cost_vec,
+      Some (serverCostRel f i) = Some cost_vec ->
+      forall a, (0%:R <= cost_vec a <= 1%:R)%R.
   Hypothesis epsOk : (0%:R < eps <= 1 / 2%:R)%R.
   Variable nx : N.t.    (* #iterations *)
   Instance ordinalEnumerable : Enumerable 'I_N := enum 'I_N.
@@ -109,12 +114,15 @@ Section weightsLangNetwork.
         wlClientSt  : @weightslang.state A (ClientPkg A) unit
       }.
 
-  Definition wlClientPreInitState :=
-    mkWlClientState None (mult_weights A nx)
-                    (init_state A epsOk tt (init_ClientPkg A)).
-
   Definition clientPkgPreInitState :=
     (init_state A epsOk tt (init_ClientPkg A)).
+
+  (* Definition wlClientPreInitState := *)
+  (*   mkWlClientState None (mult_weights A nx) *)
+  (*                   (init_state A epsOk tt (init_ClientPkg A)). *)
+
+  Definition wlClientPreInitState :=
+    mkWlClientState None (mult_weights A nx) clientPkgPreInitState.
 
   Notation SOracleSt := (@SOracleSt A (ClientPkg A) unit).
   Notation SWeights := (@SWeights A (ClientPkg A) unit).
@@ -132,11 +140,11 @@ Section weightsLangNetwork.
   Inductive wlClientInit :
     wlNode -> (wlClientState * list wlPacket * list wlEvent) -> Prop :=
   | wlClientInit1 :
-      forall n st pkt com' clientPkgSt' d weights,
+      forall n st pkt com' clientPkgSt' d,
         client_step_plus simpleClientOracle (mult_weights A nx)
                          clientPkgPreInitState com' clientPkgSt' ->
-        com' = CIter nx mult_weights_body ->
-        st = mkWlClientState (Some n) com' weights ->
+        com' = CSeq CSkip (CIter nx mult_weights_body) ->
+        st = mkWlClientState (Some n) com' clientPkgSt' ->
         (clientPkgSt').(SOracleSt).(sent) = Some d ->
         pkt = mkPacket (serverID 'I_N)
                        (wlMsgClient d) n ->
@@ -230,7 +238,23 @@ Section weightsLangNetwork.
              (hist : seq {ffun 'I_N -> dist A rat_realFieldType})
              (trace : seq wlEvent) :=
     hist = rev trace.
+  
+  Definition initMatch (W : wlWorld) (mach_st : machine_state) :=
+    forall i,
+      (* Uninitialized clients are in their initial state *)
+      (rInitNodes W (clientID i) = false ->
+       rLocalState W (clientID i) = wlClientPreInitState /\
+       (clients mach_st) i = (mult_weights A nx, clientPkgPreInitState)) /\
+      (* If there exists a packet from a client, that client has been
+      initialized. *)
+      ((exists pkt, List.In pkt (rInFlight W) /\ origin_of pkt = clientID i) ->
+       rInitNodes W (clientID i) = true).
 
+  Definition sentPacketMatch (W : wlWorld) (mach_st : machine_state) :=
+    forall i,
+      (clients mach_st i).2.(SOracleSt).(sent) = None ->
+      ~ (exists pkt, List.In pkt (rInFlight W) /\ origin_of pkt = clientID i).
+  
   (** When the server takes an init step in the wl network, there's no
       corresponding step in the machine so we have a simple well founded
       order on whether or not the server has been initialized. *)
@@ -239,7 +263,9 @@ Section weightsLangNetwork.
     clientStatesMatch mach_st.(clients) W /\
     packetsWellFormed W /\
     tracesMatch mach_st.(hist) W.(rTrace) /\
-    rLocalState W (serverID 'I_N) = wlServerInitState.
+    rLocalState W (serverID 'I_N) = wlServerInitState /\
+    initMatch W mach_st /\
+    sentPacketMatch W mach_st.
 
 
   (** WORK IN PROGRESS: set up proper simulation record. *)
@@ -324,7 +350,17 @@ Section weightsLangNetwork.
                     rewrite Hinit4 in H; inversion H. } } } } }
         { split.
           { move=> pkt HIn. rewrite Hinit4 in HIn. inversion HIn. }
-          { by rewrite Hinit5. } } } }
+          { split.
+            { by rewrite Hinit5. }
+            { split; auto. split.
+              { move=> i. split.
+                { move=> _. specialize (Hinit3 (clientID i)).
+                  specialize (Hinit2 i). split; auto.
+                    by simpl; rewrite ffunE. }
+                { move=> [pkt [Hin _]].
+                  rewrite Hinit4 in Hin. inversion Hin. } }
+              { move=> i _ [pkt [Contra _]].
+                by rewrite Hinit4 in Contra. } } } } } }
   Qed.
 
   Lemma perm_client_packet_exists (w : wlWorld) :
@@ -399,7 +435,8 @@ Section weightsLangNetwork.
               msg_of pkt = wlMsgClient d) by [].
     specialize (Hmatch2_2 pkt d H0).
     destruct Hmatch2_2 as [Hsent Hreceived].
-    exists (mkClientSt (wlClientSt (rLocalState WORLD (clientID i))) (Some d) Hreceivedok).
+    exists (mkClientSt (wlClientSt (rLocalState WORLD (clientID i)))
+                  (Some d) Hreceivedok).
     simpl. split.
     { destruct ((clients mach_st) i). f_equal; auto.
       rewrite /mkClientSt. destruct s.
@@ -412,48 +449,6 @@ Section weightsLangNetwork.
       by rewrite (@proof_irrelevance _ received_ok Hreceivedok). }
     { by split; auto; exists d. }
   Qed.
-
-  (* Inductive clientDists *)
-  (*   : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} -> Prop := *)
-  (* | ClientDistsNil : clientDists nil [ffun _ => uniformDist a0] *)
-  (* | ClientDistsCons : forall pkt pkts i d f, *)
-  (*     clientDists pkts f -> *)
-  (*     origin_of pkt = clientID i -> *)
-  (*     msg_of pkt = wlMsgClient d -> *)
-  (*     clientDists (pkt :: pkts) (upd i d f). *)
-
-  (* Definition clientDistsFun *)
-  (*   : seq wlPacket -> {ffun 'I_N -> dist A rat_realFieldType} := *)
-  (*   fun pkts => *)
-  (*     foldr (fun (pkt : wlPacket) f => *)
-  (*              match msg_of pkt, origin_of pkt with *)
-  (*              | wlMsgClient d, clientID i => upd i d f *)
-  (*              | _, _ => f *)
-  (*              end) [ffun _ => uniformDist a0] pkts. *)
-
-  (* Lemma clientDistsEq pkts f : *)
-  (*   (forall pkt, List.In pkt pkts -> (exists i, origin_of pkt = clientID i) /\ *)
-  (*                              (exists d, msg_of pkt = wlMsgClient d)) -> *)
-  (*   clientDists pkts f <-> clientDistsFun pkts = f. *)
-  (* Proof. *)
-  (*   move=> H0. split; move=> H1. *)
-  (*   { induction H1; auto. *)
-  (*     simpl. *)
-  (*     rewrite H2 H IHclientDists; auto. *)
-  (*     by move=> x HIn; specialize (H0 x (List.in_cons pkt x pkts HIn)). } *)
-  (*   { generalize dependent f. induction pkts; move=> f H1. *)
-  (*     { by rewrite -H1; constructor. } *)
-  (*     { simpl in H1. *)
-  (*       destruct (msg_of a) eqn:Hmsg. *)
-  (*       { destruct (origin_of a) eqn:Horigin. *)
-  (*         { by destruct (H0 a (List.in_eq a pkts)) as [[i H2] _]; congruence. } *)
-  (*         { rewrite -H1. rewrite Hmsg. rewrite Horigin. *)
-  (*           rewrite Hmsg in H1. rewrite Horigin in H1. constructor; auto. *)
-  (*           { apply IHpkts; auto; move=> pkt HIn. *)
-  (*             by specialize (H0 pkt (List.in_cons a pkt pkts HIn)). } } } *)
-  (*       { by destruct (H0 a (List.in_eq a pkts)) as [_ [d H2]]; *)
-  (*           congruence. } } } *)
-  (* Qed. *)
 
   (** Redefine clientDistsFun by decomposing it into a pmap and a
       simple fold. It seems much easier to work with this way because
@@ -1202,7 +1197,405 @@ Section weightsLangNetwork.
     move: (update_event Hlen Hupdate) => He.
     by rewrite He in Hupdate; apply Hupdate.
   Qed.
-    
+
+  (** Measure the size of a command *)
+  Fixpoint com_size (c : com) : nat :=
+    match c with
+    | CSkip => 0
+    | CUpdate _ => 1
+    | CRecv => 1
+    | CSend => 1
+    | CSeq c1 c2 => 1 + com_size c1 + com_size c2
+    | CIter n c' => 1 + 2*n * (com_size c' + 1)
+    end.
+
+  (** A single client_step always reduces the size of a command. *)
+  Lemma step_com_size_decreases c c' s s' :
+    client_step c s c' s' ->
+    (com_size c' < com_size c)%N.
+  Proof.
+    move=> H0.
+    induction H0; auto.
+    { by rewrite ltn_add2r. }
+    { simpl. rewrite addnA.
+      admit. }
+  Admitted.
+
+  Lemma step_plus_com_size_decreases c c' s s' :
+    client_step_plus simpleClientOracle c s c' s' ->
+    (com_size c' < com_size c)%N.
+  Proof.
+    move=> Hstep.
+    induction Hstep; subst.
+    { by apply step_com_size_decreases in H. }
+    { apply step_com_size_decreases in H.
+      by move: H => /ltP H; move: IHHstep => /ltP IHHstep; apply /ltP; omega. }
+  Qed.
+
+  Lemma client_step_not_same com st st' :
+    ~ client_step com st com st'.
+  Proof.
+    move=> Contra.
+    apply step_com_size_decreases in Contra.
+    by move: Contra => /ltP Contra; omega.
+  Qed.
+
+  Lemma client_step_plus_not_same com st st' :
+    ~ client_step_plus simpleClientOracle com st com st'.
+  Proof.
+    move=> Contra.
+    apply step_plus_com_size_decreases in Contra.
+    by move: Contra => /ltP Contra; omega.
+  Qed.
+
+  Lemma client_init_step (mach_st : machine_state)
+        (w : wlWorld) i st ps es u :
+    rInitNodes w (clientID i) = false ->
+    wlMachineMatch u w mach_st ->
+    rInit (wlNetwork_desc (clientID i)) (clientID i) (st, ps, es) ->
+    exists mach_st' : machine_state,
+      step_plus mach_st mach_st' /\
+      wlMachineMatch
+        (if rInitNodes w (serverID 'I_N) then 0%N else 1%N)
+        {| rLocalState :=
+             upd_rLocalState ordinal_eq_dec (clientID i) st (rLocalState w);
+           rInFlight := rInFlight w ++ ps;
+           rTrace := rTrace w ++ es;
+           rInitNodes :=
+             upd_rInitNodes ordinal_eq_dec (clientID i) (rInitNodes w) |}
+        mach_st'.
+  Proof.
+    move=> Hinitnode Hmatch Hinit.
+    destruct Hmatch as
+        [_ [Hclients [Hpackets [Htrace [Hserverinit
+                                          [Hclientinit Hsentpacket]]]]]].
+    pose proof Hclients as Hclients'.
+    specialize (Hclients i).
+    destruct Hclients as [Hclients0 [Hclients1 [Hclients2 Hclients3]]].
+    inversion Hinit. subst.
+    rewrite /clientPkgPreInitState in H2. rewrite /init_state in H2.
+    pose mach_st' :=
+      mkMachineState
+        (upd i (CSeq CSkip (CIter nx (weightslang.mult_weights_body A)),
+                clientPkgSt')
+             (clients mach_st))
+        (hist mach_st).
+    exists mach_st'.
+
+      pose st0 := {|
+        SCosts := init_costs A;
+        SCostsOk := init_costs_ok (A:=A);
+        SPrevCosts := [::];
+        weightslang.SWeights := init_weights A;
+        SWeightsOk := init_weights_ok (A:=A);
+        SEpsilon := eps;
+        SEpsilonOk := epsOk;
+        SOutputs := [::];
+        SChan := tt;
+        weightslang.SOracleSt := init_ClientPkg A |}.
+      fold st0 in H2.
+
+      inversion H2; subst.
+      { rewrite /mult_weights in H. simpl in H.
+        inversion H; subst. inversion H7. }
+      { rewrite /mult_weights in H. inversion H; subst.
+        rewrite /mult_weights_init in H8. inversion H8; subst.
+        inversion H9; subst. 
+        pose st1 := {|
+         SCosts := SCosts st0;
+         SCostsOk := SCostsOk st0;
+         SPrevCosts := SPrevCosts st0;
+         weightslang.SWeights := [ffun=> eval (EVal (QVal 1)) st0];
+         SWeightsOk := pf;
+         SEpsilon := SEpsilon st0;
+         SEpsilonOk := SEpsilonOk st0;
+         SOutputs := SOutputs st0;
+         SChan := SChan st0;
+         weightslang.SOracleSt := SOracleSt st0 |}.
+        fold st1 in H9, H, H0, H8.
+        
+        inversion H0; subst.
+        { by inversion H1; subst; inversion H11. }
+        { inversion H1; subst. inversion H12; subst.
+          inversion H3; subst.
+          { inversion H4; subst. inversion H14; subst.
+            pose st2 :=  {|
+                 SCosts := SCosts st1;
+                 SCostsOk := SCostsOk st1;
+                 SPrevCosts := SPrevCosts st1;
+                 weightslang.SWeights := SWeights st1;
+                 SWeightsOk := SWeightsOk st1;
+                 SEpsilon := SEpsilon st1;
+                 SEpsilonOk := SEpsilonOk st1;
+                 SOutputs := p_aux_dist (A:=A) a0 (eps:=SEpsilon st1) 
+                               (SEpsilonOk st1) (w:=SWeights st1) 
+                               (SWeightsOk st1) (cs:=[::]) (CMAX_nil (A:=A)) ::
+                             SOutputs st1;
+                 SChan := ch;
+                 weightslang.SOracleSt := t' |}.
+            fold st2 in H4, H14, H3, H0, H6, Hinit, H2.
+            fold st2.
+            destruct (Hclientinit i) as [Hclientinit'].
+            specialize (Hclientinit' Hinitnode).
+            destruct Hclientinit' as [Hpreinit Hstate].
+
+            split.
+            { exists 2%N.
+
+              pose mach_st0 :=
+                mkMachineState
+                  (upd i (CSeq (CSeq CSkip CSend)
+                               (CIter nx (weightslang.mult_weights_body A)),
+                          st1)
+                       (clients mach_st))
+                  (hist mach_st).
+            exists mach_st0. split.
+            { unfold st2.
+              apply MSClientStep with (c:=fst ((clients mach_st) i))
+                                      (s:=snd ((clients mach_st) i)).
+              { by destruct ((clients mach_st) i). }
+              { by destruct ((clients mach_st) i); inversion Hstate. }
+              { rewrite Hstate. simpl. repeat constructor. } }
+            { pose mach_st1 :=
+                mkMachineState
+                  (upd i (CSeq CSend
+                               (CIter nx (weightslang.mult_weights_body A)),
+                          st1)
+                       (clients mach_st0))
+                  (hist mach_st0).
+                exists mach_st1. split.
+              { apply MSClientStep with (c:=fst ((clients mach_st0) i))
+                                        (s:=snd ((clients mach_st0) i)).
+                { by destruct ((clients mach_st0) i). }
+                { by simpl; rewrite /upd ffunE eq_refl. }
+                { simpl. rewrite /upd ffunE eq_refl. simpl.
+                  repeat constructor. } }
+              { pose mach_st2 :=
+                mkMachineState
+                  (upd i (CSeq CSkip
+                               (CIter nx (weightslang.mult_weights_body A)),
+                          st2)
+                       (clients mach_st1))
+                  (hist mach_st1).
+                exists mach_st2. split.
+                { apply MSClientStep with (c:=fst ((clients mach_st1) i))
+                                          (s:=snd ((clients mach_st1) i)).
+                  { by destruct ((clients mach_st1) i). }
+                  { by simpl; rewrite /upd ffunE eq_refl. }
+                  { simpl. rewrite /upd ffunE eq_refl. simpl.
+                    constructor. constructor. assumption. } }
+                simpl. unfold mach_st', mach_st2.
+                simpl. unfold st2, st1, st0.
+                f_equal. simpl. rewrite /upd -ffunP => x.
+                rewrite 4!ffunE.
+                  by destruct (i == x) eqn: Hix; rewrite Hix. } } }
+            { inversion H5; subst.              
+      { split.
+      { by simpl; rewrite /upd_rInitNodes; destruct (nodeINTDec _ _ _). }
+      { clear H8 H0 H H9 H3 H1 H12 H14 H4 H5 H2.
+        split. simpl. rewrite /upd. move=> i'.
+        specialize (Hclients' i').
+        destruct Hclients'
+          as [Hclients'0 [Hclients'1 [Hclients'2 Hclients'3]]].
+        simpl. rewrite ffunE. split.
+        { destruct (i == i') eqn:Heq; rewrite Heq.
+          { by move: Heq => /eqP ->; rewrite upd_rLocalState_same. }
+          { rewrite -upd_rLocalState_diff; try congruence; auto.
+            move: Heq => /eqP; congruence. } }
+        { split. destruct (i == i') eqn:Heq; rewrite Heq.
+          { move: Heq => /eqP ->.
+            by rewrite upd_rLocalState_same; constructor. }
+          { move: Heq => /eqP Heq.
+            rewrite -upd_rLocalState_diff.
+            assumption. congruence. }
+          { split.
+            { move=> pkt d0 Hin. split.
+              destruct Hin as [Hin [Horigin Hmsg]].
+              apply List.in_app_or in Hin. 
+              destruct (i == i') eqn:Heq; rewrite Heq.
+              { move: Heq => /eqP Heq. subst.
+                simpl.
+                destruct Hin as [Hin | Hin].
+                { (* Contradiction since [rInFlight w] doesn't contain
+                     a packet from client i'. *)
+                  specialize (Hsentpacket i').
+                  rewrite Hstate in Hsentpacket.
+                  specialize (Hsentpacket erefl).
+                  exfalso. apply Hsentpacket.
+                  by exists pkt. }
+                { simpl in Hin. destruct Hin; try contradiction.
+                  destruct pkt. destruct p. simpl in *. inversion H; subst.
+                    by inversion Hmsg; subst. } }
+              { destruct Hin as [Hin | Hin].
+                { have Hasd: (List.In pkt (rInFlight w) /\
+                              origin_of pkt = clientID i' /\
+                              msg_of pkt = wlMsgClient d0) by [].
+                  specialize (Hclients'2 pkt d0 Hasd).
+                  destruct Hclients'2 as [Hsent Hreceived].
+                    by rewrite -Hsent. }
+                {  simpl in Hin. destruct Hin as [Hin | Hin]; try contradiction.
+                   destruct pkt. destruct p. inversion Hin.
+                   simpl in Horigin. subst. inversion H2; subst.
+                   rewrite eq_refl in Heq; congruence. } }
+              { destruct (i == i') eqn:Heq; rewrite Heq.
+                { by rewrite H13. }
+                { destruct Hin as [Hin [Horigin Hmsg]].
+                  apply List.in_app_or in Hin.
+                  destruct Hin as [Hin | Hin].
+                  { have Hasd: (List.In pkt (rInFlight w) /\
+                                origin_of pkt = clientID i' /\
+                                msg_of pkt = wlMsgClient d0) by [].
+                    specialize (Hclients'2 pkt d0 Hasd).
+                    by destruct Hclients'2 as [_ Hclients'2]. }
+                  { simpl in Hin. destruct Hin as [Hin | Hin];
+                                    try contradiction.
+                    destruct pkt. destruct p. simpl in Horigin.
+                    inversion Hin. subst. inversion H2; subst.
+                    by rewrite eq_refl in Heq. } } } }
+            { move=> pkt cost_vec H. split.
+              { (* This case and the one below are almost exactly the
+                   same so there's probably a nicer way to avoid
+                   duplicating the script *)
+                destruct H as [Hin [Hdest Hmsg]].
+                apply List.in_app_or in Hin.
+                destruct (i == i') eqn:Heq; rewrite Heq; simpl.
+                { move: Heq => /eqP Heq; subst.
+                  destruct Hin as [Hin | Hin].
+                  { (* Contradiction since there is no packet in
+                       [rInFlight w] addressed to the client *)
+                    destruct (Hclients3 pkt cost_vec
+                                        (conj Hin (conj Hdest Hmsg)))
+                      as [_ Hreceived].
+                    rewrite Hstate in Hreceived.
+                    simpl in Hreceived; congruence. }
+                  { simpl in Hin. destruct Hin as [Hin | Hin].
+                    destruct pkt. destruct p. inversion Hin. subst.
+                    inversion Hdest.
+                    contradiction. } }
+                { move: Heq => /eqP Heq.
+                  destruct Hin as [Hin | Hin].
+                  { have Hconj: ( List.In pkt (rInFlight w) /\
+                                  dest_of pkt = clientID i' /\
+                                  msg_of pkt = wlMsgServer cost_vec) by [].
+                    specialize (Hclients'3 pkt cost_vec Hconj).
+                    by destruct Hclients'3 as [Hsent _]. }
+                  { simpl in Hin. destruct Hin as [Hin | Hin].
+                    destruct pkt. destruct p. inversion Hin. subst.
+                    rewrite /dest_of in Hdest. simpl in Hdest. congruence.
+                    contradiction. } } }
+              { destruct H as [Hin [Hdest Hmsg]].
+                apply List.in_app_or in Hin.
+                destruct (i == i') eqn:Heq; rewrite Heq; simpl.
+                { move: Heq => /eqP Heq; subst.
+                  destruct Hin as [Hin | Hin].
+                  { (* Contradiction since there is no packet in
+                       [rInFlight w] addressed to the client *)
+                    destruct (Hclients3 pkt cost_vec
+                                        (conj Hin (conj Hdest Hmsg)))
+                      as [_ Hreceived].
+                    rewrite Hstate in Hreceived.
+                    simpl in Hreceived; congruence. }
+                  { simpl in Hin. destruct Hin as [Hin | Hin].
+                    destruct pkt. destruct p. inversion Hin. subst.
+                    inversion Hdest.
+                    contradiction. } }
+                { move: Heq => /eqP Heq.
+                  destruct Hin as [Hin | Hin].
+                  { have Hconj: ( List.In pkt (rInFlight w) /\
+                                  dest_of pkt = clientID i' /\
+                                  msg_of pkt = wlMsgServer cost_vec) by [].
+                    specialize (Hclients'3 pkt cost_vec Hconj).
+                    by destruct Hclients'3 as [_ Hreceived]. }
+                  { simpl in Hin. destruct Hin as [Hin | Hin].
+                    destruct pkt. destruct p. inversion Hin. subst.
+                    rewrite /dest_of in Hdest. simpl in Hdest. congruence.
+                    contradiction. } } } } } }
+              { split.
+                { move=> pkt /= Hin.
+                  apply List.in_app_or in Hin. destruct Hin as [Hin | Hin].
+                  { by apply Hpackets. }
+                  { simpl in Hin. destruct Hin as [Hin | Hin].
+                    destruct pkt. destruct p. inversion Hin. subst.
+                    split.
+                    { move=> i' Horigin. rewrite /origin_of in Horigin.
+                      simpl in Horigin. inversion Horigin; subst.
+                      by exists d. }
+                    { move=> Horigin. rewrite /origin_of in Horigin.
+                      by simpl in Horigin; congruence. }
+                    contradiction. } }
+                { split; simpl.
+                  { by rewrite cats0. }
+                  { split.
+                    { by rewrite -upd_rLocalState_diff. }
+                    { split.
+                      { rewrite cats0. move=> i0 /=.
+                        split.
+                        { rewrite /upd_rInitNodes.
+                          destruct (nodeINTDec _ _ _).
+                          { move=> /= Contra; congruence. }
+                          { simpl. move=> Hinitnodes. 
+                            rewrite /initMatch in Hclientinit.
+                            specialize (Hclientinit i0).
+                            destruct Hclientinit as [Hclientinit _].
+                            apply Hclientinit in Hinitnodes.
+                            rewrite /upd ffunE. destruct (i == i0) eqn:Heq.
+                            { move: Heq => /eqP Heq; congruence. }
+                            rewrite Heq.
+                            by rewrite -upd_rLocalState_diff; auto. } }
+                        { move=> [pkt [Hin Horigin]].
+                          rewrite /upd_rInitNodes.
+                          destruct (i == i0) eqn:Heq; move: Heq => /eqP Heq.
+                          { by subst; destruct (nodeINTDec _ _ _). }
+                          { destruct (nodeINTDec _ _ _); auto. simpl.
+                            apply List.in_app_or in Hin.
+                            destruct Hin as [Hin | Hin].
+                            { destruct (Hclientinit i0) as [_ Hinittrue].
+                              apply Hinittrue. by exists pkt. }
+                            { simpl in Hin. destruct Hin as [Hin | Hin].
+                              destruct pkt. destruct p. inversion Hin; subst.
+                              simpl in Horigin; congruence.
+                              contradiction. } } } }
+                      { rewrite /sentPacketMatch. simpl. move=> i0.
+                        rewrite /upd ffunE => Hsent [pkt [Hin Horigin]].
+                        destruct (i == i0) eqn:Heq; rewrite Heq in Hsent;
+                          move: Heq => /eqP Heq.
+                        { by simpl in Hsent; congruence. }
+                        { apply List.in_app_or in Hin.
+                          destruct Hin as [Hin | Hin].
+                          { by destruct (Hsentpacket i0 Hsent); exists pkt. }
+                          { simpl in Hin. destruct Hin as [Hin | Hin].
+                            destruct pkt; destruct p. inversion Hin; subst.
+                            rewrite /origin_of in Horigin.
+                            simpl in Horigin; congruence.
+                            contradiction. } } } } } } } } } } }
+          { inversion H4; subst. inversion H15; subst.
+            exfalso. eapply client_step_plus_not_same. eassumption. }
+            { inversion H13. } } }
+  Qed.
+
+  (* May need more assumptions. *)
+  Lemma client_recv_step (mach_st mach_st' : machine_state)
+        (w : wlWorld) i st ps es l1 l2 p :
+    clientStatesMatch (clients mach_st) w ->
+    tracesMatch (hist mach_st) (rTrace w) ->
+    rInFlight w = l1 ++ p :: l2 ->
+    dest_of p = clientID i ->
+    rRecv (wlNetwork_desc (clientID i)) (msg_of p) (origin_of p)
+          (rLocalState w (clientID i)) (st, ps, es) ->
+    exists mach_st' : machine_state,
+      step_plus mach_st mach_st' /\
+      wlMachineMatch
+        0
+        {| rLocalState :=
+             upd_rLocalState ordinal_eq_dec (clientID i) st (rLocalState w);
+           rInFlight := l1 ++ l2 ++ ps;
+           rTrace := rTrace w ++ es;
+           rInitNodes := rInitNodes w |}
+        mach_st'.
+  Proof.
+    move=> /= Hclients Htrace Hflight Hdest Hrecv.
+  Admitted.
+
   Theorem wlNetworkMachine_step_diagram :
     forall x WORLD mach_st,
       wlMachineMatch x WORLD mach_st ->
@@ -1218,7 +1611,8 @@ Section weightsLangNetwork.
     induction Hworldstep.
 
     (** Node init step *)
-    { destruct Hmatch as [Hmatch1 [Hmatch2 [Hmatch3 [Hmatch4 Hmatch5]]]].
+    { destruct Hmatch as
+          [Hmatch1 [Hmatch2 [Hmatch3 [Hmatch4 [Hmatch5 [Hmatch6 Hmatch7]]]]]].
       destruct n eqn:Hn.
 
       (** Server init step *)
@@ -1256,25 +1650,34 @@ Section weightsLangNetwork.
                 { by move=> Horigin; apply Hmatch3_1. } }
               { split.
                 { by rewrite cats0. }
-                { by rewrite upd_rLocalState_same. } } } } } }
+                { split.
+                  { by rewrite upd_rLocalState_same. }
+                  { split.
+                    { move=> i. simpl. rewrite /upd_rInitNodes.
+                      destruct (nodeINTDec _ _ _).
+                      congruence. simpl.
+                      specialize (Hmatch6 i). destruct Hmatch6 as [Hinit Hpkt].
+                      split.
+                      { move=> H1.
+                        rewrite -upd_rLocalState_diff; try congruence.
+                        specialize (Hinit H1).
+                        destruct Hinit as [Hinit0 Hinit1].
+                        split; auto. }
+                        by rewrite cats0; apply Hpkt. }
+                    { by rewrite 2!cats0. } } } } } } } }
 
       (** Client init step *)
-      { exists u. right.
-        admit. } }
+      { simpl in *.
+        by exists (if rInitNodes w (serverID 'I_N) then 0%N else 1%N);
+               right; apply client_init_step with u. } }
 
     (** Client packet step *)
-    { exists u. right. admit. }
+    { exists 0%N. right.
+      destruct Hmatch as [_ [Hmatch1 [_ [Hmatch3 _]]]].
+      eapply client_recv_step; eauto. }
 
     (** Server step *)
     { exists 0%N. right.
-
-      (* Probably need this to be an axiom. *)
-      have cost_vectors_ok:
-        (forall i, forall cost_vec,
-              Some (serverCostRel (clientDistsFun (rInFlight w)) i)
-              = Some cost_vec ->
-              forall a, (0%:R <= cost_vec a <= 1%:R)%R).
-      { admit. }
 
       set clientSt' := fun st i => @mkState
                                   _ _ _
@@ -1294,7 +1697,7 @@ Section weightsLangNetwork.
                                      (Some (serverCostRel
                                               (clientDistsFun
                                                  (rInFlight w)) i))
-                                     (cost_vectors_ok i)).
+                                     (@serverCostRelOk _ _)).
 
       exists (mkMachineState [ffun i =>
                          let (com, st) := mach_st.(clients) i in
@@ -1302,9 +1705,7 @@ Section weightsLangNetwork.
                         (e' ++ mach_st.(hist))).
 
       split.
-      { exists 0%N. simpl. eexists. split.
-        Focus 2. reflexivity.
-
+      { exists 0%N. simpl. eexists. split; auto.
         apply MSExpectedCost with
             (f:=clientDistsFun (rInFlight w));
           simpl in *.
@@ -1322,13 +1723,14 @@ Section weightsLangNetwork.
           { simpl. rewrite ffunE. destruct ((clients mach_st) i).
             simpl in *. by rewrite Hmatch1_0. }
           { by constructor. } }
-        { destruct Hmatch as [_ [_ [_ [_ Hmatch]]]].
+        { destruct Hmatch as [_ [_ [_ [_ [Hmatch _]]]]].
           rewrite Hmatch in H1.
           rewrite msgToServerList_eq_rInFlight in H1; auto.
           by rewrite (update_event (length_rInFlight_N H0) H1). } }
       { split; simpl.
         { by rewrite H. }
-        { destruct Hmatch as [_ [Hmatch1 [Hmatch2 [Hmatch3 Hmatch4]]]].
+        { destruct Hmatch as
+              [_ [Hmatch1 [Hmatch2 [Hmatch3 [Hmatch4 [Hmatch5 Hmatch6]]]]]].
           split; simpl.
           { move=> i /=. rewrite ffunE.
             destruct ((clients mach_st) i) eqn:Hclients; simpl.
@@ -1388,12 +1790,23 @@ Section weightsLangNetwork.
                   rewrite Hmatch4 in H1.
                   by rewrite /tracesMatch rev_cat Hmatch3
                              (update_event (length_rInFlight_N H0) H1). }
-                { rewrite upd_rLocalState_same.
-                  rewrite Hmatch4 in H1.
-                  eapply update_init_state; eauto.
-                  by rewrite msgToServerList_eq_rInFlight; auto;
-                    apply length_rInFlight_N. } } } } } }
-  Admitted.
+                { split.
+                  { rewrite upd_rLocalState_same.
+                    rewrite Hmatch4 in H1.
+                    eapply update_init_state; eauto.
+                      by rewrite msgToServerList_eq_rInFlight; auto;
+                        apply length_rInFlight_N. }
+                  { split.
+                    { move=> i. simpl.
+                      specialize (Hmatch5 i).
+                      destruct Hmatch5 as [Hinit Hpkt].
+                      destruct H0 as [_ Hperm].
+                      specialize (Hpkt (perm_client_packet_exists Hperm i)).
+                      split; congruence. }
+                    { move=> i /= Hsent [pkt [Hin Horigin]].
+                      apply update_in_origin_server with (pkt:=pkt) in H1; auto.
+                      by congruence. } } } } } } } }
+  Qed.
 
   Definition wlNetworkMachine_simulation :=
     mkSimulation wlNetworkSemantics
