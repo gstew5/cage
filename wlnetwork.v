@@ -37,7 +37,6 @@ Section weightsLangNetwork.
 
   Definition wlNode := (nodeINT 'I_N).
 
-  (* Definition wlClientMsg := {ffun A -> rat}. *)
   Definition wlClientMsg := dist A rat_realFieldType.
   Definition wlServerMsg := {ffun A -> rat}.
 
@@ -117,10 +116,6 @@ Section weightsLangNetwork.
   Definition clientPkgPreInitState :=
     (init_state A epsOk tt (init_ClientPkg A)).
 
-  (* Definition wlClientPreInitState := *)
-  (*   mkWlClientState None (mult_weights A nx) *)
-  (*                   (init_state A epsOk tt (init_ClientPkg A)). *)
-
   Definition wlClientPreInitState :=
     mkWlClientState None (mult_weights A nx) clientPkgPreInitState.
 
@@ -189,7 +184,6 @@ Section weightsLangNetwork.
     by right; move: Heq => /eqP.
   Defined.
 
-  (* Notation RWorld := (RWorld wlNetwork_desc). *)
   Notation wlWorld := (@RWorld 'I_N wlMsg wlEvent wlNetwork_desc).
   Notation Rnetwork_step :=
     (@Rnetwork_step 'I_N ordinalEnumerable ordinal_eq_dec wlMsg wlEvent
@@ -238,7 +232,7 @@ Section weightsLangNetwork.
              (hist : seq {ffun 'I_N -> dist A rat_realFieldType})
              (trace : seq wlEvent) :=
     hist = rev trace.
-  
+
   Definition initMatch (W : wlWorld) (mach_st : machine_state) :=
     forall i,
       (* Uninitialized clients are in their initial state *)
@@ -246,7 +240,7 @@ Section weightsLangNetwork.
        rLocalState W (clientID i) = wlClientPreInitState /\
        (clients mach_st) i = (mult_weights A nx, clientPkgPreInitState)) /\
       (* If there exists a packet from a client, that client has been
-      initialized. *)
+         initialized. *)
       ((exists pkt, List.In pkt (rInFlight W) /\ origin_of pkt = clientID i) ->
        rInitNodes W (clientID i) = true).
 
@@ -254,7 +248,7 @@ Section weightsLangNetwork.
     forall i,
       (clients mach_st i).2.(SOracleSt).(sent) = None ->
       ~ (exists pkt, List.In pkt (rInFlight W) /\ origin_of pkt = clientID i).
-  
+
   (** When the server takes an init step in the wl network, there's no
       corresponding step in the machine so we have a simple well founded
       order on whether or not the server has been initialized. *)
@@ -289,8 +283,7 @@ Section weightsLangNetwork.
     fun w =>
       (* All nodes marked as initialized *)
       (forall n, w.(rInitNodes) n = true) /\
-      (* (* No packets in flight *) *)
-      (* w.(rInFlight) = nil /\ *)
+      (* The final packets from all clients are in the buffer *)
       rAllClientsSentCorrectly ordinalEnumerable w /\
       (* All client commands are CSkip *)
       (forall i,
@@ -300,7 +293,6 @@ Section weightsLangNetwork.
 
   Instance wlNetworkSemantics : @semantics wlWorld _ _ _.
 
-  (* Not sure about this *)
   Definition machineInitState :=
     @mkMachineState A N
       [ffun i =>
@@ -1115,7 +1107,7 @@ Section weightsLangNetwork.
     inversion H6. split; auto.
     by rewrite H9 H10 in H7.
   Qed.
-  
+
   Lemma update_exists_pkt_aux st' l l' i dists :
     length l = N ->
     serverUpdate wlNetwork_desc wlServerInitState l st' l' (dists :: nil) ->
@@ -1209,17 +1201,94 @@ Section weightsLangNetwork.
     | CIter n c' => 1 + 2*n * (com_size c' + 1)
     end.
 
+  Lemma lem1 a b c d :
+    (a - b - 2 < 1)%coq_nat ->
+    (a + c + d - b - 2 < 1 + c + d)%coq_nat.
+  Proof. by rewrite -!plusE -!minusE; omega. Qed.
+
+  Lemma jfds c n :
+    (0 < n)%coq_nat ->
+    (1 + c + 1 + 2 * (n - 1) * (c + 1) < 1 + 2 * n * (c + 1))%coq_nat.
+  Proof.
+    move=> Hnpos.
+    have H0: (2 * (n - 1) = 2*n - 2)%N.
+    { by rewrite mulnBr; rewrite muln1. }
+    rewrite H0.
+    have H1: ((2*n-2)*(c+1) = 2*n*c + 2*n - (2*c + 2))%N.
+    { rewrite mulnBl.
+      have H2: (2 * (c + 1) = 2*c + 2)%N.
+      { by rewrite mulnDr; rewrite muln1. }
+      rewrite H2.
+      have H3: (2*n*(c+1) = (2*n*c + 2*n))%N.
+      { by rewrite mulnDr; rewrite muln1. }
+        by rewrite H3;  rewrite subnDA. }    
+    rewrite H1. rewrite (@addnBA (1+c+1%N) (2*n*c+2*n)%N (2*c+2)%N).
+    { rewrite addnA. rewrite subnDA.
+      have H2: (2*n*(c+1) = 2*n*c + 2*n)%N.
+      { by rewrite mulnDr; rewrite muln1. }
+      rewrite H2. rewrite addnA.      
+      suff: (1 + c + 1 - 2*c - 2 < 1)%N.
+      { by move=> /ltP H3; apply lem1. }
+      suff: (c - 2*c < 1)%N.
+      { rewrite -!multE -!plusE -!minusE.
+        by move=> /ltP H3; apply /ltP; omega. }
+      have H3: (c - 2*c = O)%coq_nat.
+      { by rewrite -!multE; omega. }      
+      rewrite -!multE in H3.
+      rewrite -!multE -!minusE.
+      apply /ltP. omega. }
+    { apply leq_add.
+      { rewrite -mulnA. rewrite [(n*c)%N]mulnC. rewrite mulnA.
+        suff: (2*c*1 <= 2*c*n)%N.
+        { by rewrite muln1. }
+        apply leq_mul; auto. by apply /ltP. }
+      apply /ltP. rewrite -multE. omega. }
+  Qed.
+
+  Lemma lem2 n :
+    (0 < n)%coq_nat ->
+    (((n + n)%coq_nat - 1)%coq_nat +
+     ((n + n)%coq_nat - 1)%coq_nat)%coq_nat.+1 =
+    (((n + n)%coq_nat + (n + n)%coq_nat)%coq_nat -
+     1)%coq_nat.
+  Proof. omega. Qed.
+
+  Lemma nat_of_bin_pred_minus_1 n :
+    (0 < n)%num ->
+    (nat_of_bin (N.pred n) = n - 1)%N.
+  Proof.
+    move=> Hpos.
+    destruct n; auto; simpl.
+    induction p; simpl; auto.
+    { rewrite !NatTrec.doubleE -!addnn -!minusE -!plusE; omega. }
+    { destruct p; simpl; auto.
+      { simpl in IHp. rewrite IHp.
+        rewrite !NatTrec.doubleE !NatTrec.addE -!addnn -!minusE -!plusE.
+        omega. 
+        rewrite -N.succ_pos_pred.
+        apply N.lt_0_succ. }
+      { simpl in IHp. rewrite IHp.
+        { rewrite !NatTrec.doubleE -!addnn -!minusE -!plusE. 
+          by apply lem2; move: (nat_of_pos_s p) => [n H0]; omega. }
+        by rewrite -N.succ_pos_pred; apply N.lt_0_succ. } }
+  Qed.
+
   (** A single client_step always reduces the size of a command. *)
   Lemma step_com_size_decreases c c' s s' :
     client_step c s c' s' ->
     (com_size c' < com_size c)%N.
   Proof.
-    move=> H0.
-    induction H0; auto.
+    move=> H0. induction H0; auto.
     { by rewrite ltn_add2r. }
-    { simpl. rewrite addnA.
-      admit. }
-  Admitted.
+    { simpl; rewrite addnA.
+      rewrite nat_of_bin_pred_minus_1.
+      { rewrite -!multE -!plusE -!minusE.
+        apply /ltP. apply jfds.
+        by apply /ltP. }
+      { destruct n.
+        { inversion H. }
+        { by rewrite -N.succ_pos_pred; apply N.lt_0_succ. } } }
+  Qed.
 
   Lemma step_plus_com_size_decreases c c' s s' :
     client_step_plus simpleClientOracle c s c' s' ->
@@ -1671,7 +1740,7 @@ Section weightsLangNetwork.
         by exists (if rInitNodes w (serverID 'I_N) then 0%N else 1%N);
                right; apply client_init_step with u. } }
 
-    (** Client packet step *)
+    (** Client recv step *)
     { exists 0%N. right.
       destruct Hmatch as [_ [Hmatch1 [_ [Hmatch3 _]]]].
       eapply client_recv_step; eauto. }
