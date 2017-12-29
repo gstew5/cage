@@ -38,7 +38,25 @@ Section distLemmas.
 
   Lemma dist_positive : forall t : T, d t >= 0.
   Proof. by case: (andP (dist_ax d))=> _; move/forallP. Qed.
+
 End distLemmas.
+
+(* We need proof irrelevance to have equality of dists implied by
+   equality of their probability mass functions. We can move this to a
+   separate file if we want to avoid axioms in the main dist file. *)
+Require Import ProofIrrelevance.
+Section distEquality.
+  Variable T : finType.
+  Variable rty : numDomainType.
+  Variable d1 d2 : dist T rty.
+  Lemma dist_eq :
+    pmf d1 = pmf d2 ->
+    d1 = d2.
+  Proof.
+    destruct d1; destruct d2=> /= H0; subst.
+    by f_equal; apply proof_irrelevance.
+  Qed.
+End distEquality.
 
 Section support.
   Variable T : finType.

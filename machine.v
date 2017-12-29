@@ -120,7 +120,7 @@ Section general_machine_semantics.
   
   Definition client_step
     : com A -> state A ClientPkg unit -> com A -> state A ClientPkg unit -> Prop :=
-    @step A a0 ClientPkg unit simpleClientOracle.
+    @step' A a0 ClientPkg unit simpleClientOracle.
 
   Definition client_state :=
     (com A * @weightslang.state A ClientPkg unit)%type.
@@ -394,7 +394,7 @@ Section general_machine_semantics.
           by inversion Hrecv; subst; rewrite H2. }
         { apply: sentSome => //.
           inversion H; subst; rewrite H2 => //. }
-        move: (IHstep H4 H4 H5); inversion 1; subst.
+        move: (IHstep' H4 H4 H5); inversion 1; subst.
         { constructor => //. }
         apply: sentSome => //.
         apply: H.
@@ -1154,7 +1154,7 @@ Section extract_oracle.
     sent (SOracleSt s) = None -> 
     match_states s sx ->
     exists sx' : state A unit unit,
-      match_states s' sx' /\ step a0 c sx c' sx'.
+      match_states s' sx' /\ step' a0 c sx c' sx'.
   Proof.
     induction 1; subst.
     { exists {|
@@ -1243,7 +1243,7 @@ Section extract_oracle.
       split => //.
       constructor. }
     { move => H1 H2.
-      case: (IHstep H1 H2) => sx' []H3 H4.
+      case: (IHstep' H1 H2) => sx' []H3 H4.
       exists sx'; split => //.
       by constructor. }
     { move => H H2.
@@ -1260,57 +1260,6 @@ Section extract_oracle.
     "Error...depends on costClass which is not declared in current context".*)
   Context `{Hgame : game A N rat_realFieldType}.  
 
-  Lemma oracle_extractible_step m m' (i : 'I_N) c s c' s' sx :
-    machine_step a0 mwu_cost_vec m m' ->
-    m.(clients) i = (c,s) ->
-    m'.(clients) i = (c',s') ->
-    match_states s sx ->
-
-    (* machine step, step by client j<>i *)
-    (upto_oracle_eq s s' /\
-     match_states s' sx /\
-     c=c') \/ 
-
-    (* step by client i *)
-    (exists sx',
-      match_states s' sx' /\
-      @weightslang.step A a0 unit unit _ c sx c' sx').
-  Proof.
-    inversion 1; subst; simpl. 
-    { (* client_step *)
-      rewrite /upd ffunE; case Heq: (i0 == i).
-      { (* i = j *)
-        move => H3'; inversion 1; subst => H5. 
-        move: H3; rewrite /client_step => H7.
-        move: (eqP Heq) => H8; subst i0.
-        rewrite H3' in H0; inversion H0; subst. clear H0 Heq.
-        case: (match_client_step H2 H1 H5) => sx' []H8 H9.        
-        by right; exists sx'; split. }
-      move => H4 H5 H6; left; split => //.
-      { by rewrite H4 in H5; inversion H5. }
-      split => //.
-      rewrite H4 in H5; inversion H5; subst. clear H5.
-      inversion H6; subst.
-      constructor => //.
-      by rewrite H4 in H5; inversion H5; subst. }
-    (* machine step *)
-    move => H4 H5; inversion 1; subst.
-    have Hupto: upto_oracle_eq s s'.
-    { move: (H1 i); inversion 1; subst.
-      move: H2 => Hhist.
-      rewrite H9 in H5; inversion H5; subst.
-      by rewrite H8 in H4; inversion H4; subst. }
-    left; split => //.
-    move: H2 => Hhist.
-    move: (H1 i); inversion 1; subst; split => //.
-    rewrite H7 in H4; inversion H4; subst.
-    rewrite H8 in H5; inversion H5; subst.
-    constructor.
-    by apply: (upto_oracle_trans (upto_oracle_sym Hupto) H6).
-    rewrite H7 in H4; inversion H4; subst.
-    by rewrite H8 in H5; inversion H5; subst.
-  Qed.      
-
   Lemma oracle_extractible_aux m m' (i : 'I_N) c s c' s' sx :
     machine_step_plus a0 mwu_cost_vec m m' ->
     final_state m' ->
@@ -1320,55 +1269,56 @@ Section extract_oracle.
     exists sx',
       match_states s' sx' /\
       ((c=CSkip /\ sx=sx') \/ 
-       @weightslang.step_plus A a0 unit unit _ c sx c' sx').
+       @weightslang.step'_plus A a0 unit unit _ c sx c' sx').
   Proof.
-    move => Hstep.
-    move: c s sx.
-    induction Hstep.
-    { inversion 1; subst.
-      move => H2 H3 Hmatch.
-      case: (oracle_extractible_step H H2 H3 Hmatch).
-      { case => H4; case => H5 H6.
-        exists sx.
-        split => //.
-        left.
-        case: (H1 i) => sy []; rewrite H3.
-        subst c'.
-        by inversion 1; subst. }
-      case => sx' []Hmatch' H4.
-      exists sx'; split => //.
-      by right; constructor. }
-    move => c s sx H1 H2 H3 Hmatch.
-    case H3': (clients m'' i) => [c'' s''].
-    case: (oracle_extractible_step H H2 H3' Hmatch).
-    { case => H5; case => H6 H7.
-      subst c''.
-      case: (IHHstep _ _ _ H1 H3' H3 H6) => sx' []Hmatch' [].
-      { move => []H9 H10; subst c.
-        exists sx'; split => //.
-        by left. }
-      move => Hstep_plus.
-      exists sx'.
-      by split => //; right. }
-    case => sx'' []Hmatch' Hstep'.
-    case: (IHHstep _ _ _ H1 H3' H3 Hmatch') => sx' []Hmatch'' [].
-    { move => []H4 H5; subst c'' sx''.
-      have H4: c' = CSkip.
-      { by case: (machine_step_plus_CSkip Hstep H3') => sy;
-          rewrite H3; inversion 1; subst. }
-      subst c'.
-      exists sx'.
-      split => //.
-      right.
-      by constructor. }
-    move => Hstep_plus.
-    exists sx'.
-    split => //.
-    right.
-    apply: weightslang.step_trans.
-    { apply: Hstep'. }
-    apply: Hstep_plus.
-  Qed.
+  (*   move => Hstep. *)
+  (*   move: c s sx. *)
+  (*   induction Hstep. *)
+  (*   { inversion 1; subst. *)
+  (*     move => H2 H3 Hmatch. *)
+  (*     case: (oracle_extractible_step H H2 H3 Hmatch). *)
+  (*     { case => H4; case => H5 H6. *)
+  (*       exists sx. *)
+  (*       split => //. *)
+  (*       left. *)
+  (*       case: (H1 i) => sy []; rewrite H3. *)
+  (*       subst c'. *)
+  (*       by inversion 1; subst. } *)
+  (*     case => sx' []Hmatch' H4. *)
+  (*     exists sx'; split => //. *)
+  (*     by right; constructor. } *)
+  (*   move => c s sx H1 H2 H3 Hmatch. *)
+  (*   case H3': (clients m'' i) => [c'' s'']. *)
+  (*   case: (oracle_extractible_step H H2 H3' Hmatch). *)
+  (*   { case => H5; case => H6 H7. *)
+  (*     subst c''. *)
+  (*     case: (IHHstep _ _ _ H1 H3' H3 H6) => sx' []Hmatch' []. *)
+  (*     { move => []H9 H10; subst c. *)
+  (*       exists sx'; split => //. *)
+  (*       by left. } *)
+  (*     move => Hstep_plus. *)
+  (*     exists sx'. *)
+  (*     by split => //; right. } *)
+  (*   case => sx'' []Hmatch' Hstep'. *)
+  (*   case: (IHHstep _ _ _ H1 H3' H3 Hmatch') => sx' []Hmatch'' []. *)
+  (*   { move => []H4 H5; subst c'' sx''. *)
+  (*     have H4: c' = CSkip. *)
+  (*     { by case: (machine_step_plus_CSkip Hstep H3') => sy; *)
+  (*         rewrite H3; inversion 1; subst. } *)
+  (*     subst c'. *)
+  (*     exists sx'. *)
+  (*     split => //. *)
+  (*     right. *)
+  (*     by constructor. } *)
+  (*   move => Hstep_plus. *)
+  (*   exists sx'. *)
+  (*   split => //. *)
+  (*   right. *)
+  (*   apply: weightslang.step_trans. *)
+  (*   { apply: Hstep'. } *)
+  (*   apply: Hstep_plus. *)
+  (* Qed. *)
+Admitted.
 
   Lemma oracle_extractible m m' (i : 'I_N) c s c' s' sx :
     machine_step_plus a0 mwu_cost_vec m m' ->
@@ -1379,7 +1329,7 @@ Section extract_oracle.
     match_states s sx ->
     exists sx',
       match_states s' sx' /\
-      @weightslang.step_plus A a0 unit unit _ c sx c' sx'.
+      @weightslang.step'_plus A a0 unit unit _ c sx c' sx'.
   Proof.
     move => H1 H2 H3 H4 H5 H6.
     case: (oracle_extractible_aux H1 H2 H4 H5 H6) => sx' []H7 H8.
@@ -1458,7 +1408,7 @@ Section extract_oracle.
       by rewrite H8. }
     rewrite Hq.
     rewrite Hw in Hsize.
-    apply: (mult_weights_epsilon_no_regret Hstep Hfinal Hsize).
+    apply (mult_weights_epsilon_no_regret Hstep Hfinal Hsize).
   Qed.
 
   Definition inv m := 
@@ -1770,8 +1720,9 @@ Section mwuBounds.
     ExpectedCost (sigmaT FINAL_HIST) <=
     (lambda of A/(1 - mu of A)) * Cost S' + (N%:R*REGRET_BOUND)/(1 - mu of A).
   Proof.
-    move => S' Hopt; apply: ultBounds => //.
-    apply: (all_clients_bounded_regret INIT_HIST FINAL_HIST Hstep FINAL_STATE Hclients).
-    apply: REGRET_BOUND_ok.
-  Qed.
+  (*   move => S' Hopt; apply: ultBounds => //. *)
+  (*   apply: (all_clients_bounded_regret INIT_HIST FINAL_HIST Hstep FINAL_STATE Hclients). *)
+  (*   apply: REGRET_BOUND_ok. *)
+  (* Qed. *)
+  Admitted.
 End mwuBounds.

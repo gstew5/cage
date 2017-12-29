@@ -3,7 +3,7 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-Require Import List SetoidList Permutation.
+Require Import List SetoidList Permutation Omega.
 
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
@@ -52,6 +52,38 @@ Proof.
   { move=> Contra. apply list_in_iff in Contra.
     by rewrite Contra in H0. }
 Qed.
+
+Lemma list_in_cons_app (A : Type) (x y : A) (l1 l2 : list A) :
+  List.In x (l1 ++ l2) -> List.In x (l1 ++ y :: l2).
+Proof.
+  move=> H0. apply in_or_app.
+  apply in_app_or in H0.
+  destruct H0 as [H0 | H0].
+  { by left. }
+  { by right; apply List.in_cons. }
+Qed.
+
+Lemma list_in_count_pos (A : Type) (a : A) (l : list A) (P : A -> bool) :
+  List.In a l -> P a = true -> count P l > 0.
+Proof.
+  induction l; auto.
+  simpl. move=> [H0 | H0] H1.
+  { subst. rewrite H1; auto. }
+  { specialize (IHl H0 H1). rewrite -plusE.
+    move: IHl => /ltP IHl.
+    apply /ltP. omega. }
+Qed.
+
+(* Lemma list_notin_count_zero (A : Type) (a : A) (l : list A) (P : A -> bool) : *)
+(*   ~ List.In a l -> P a = true -> count P l > 0. *)
+(* Proof. *)
+(*   induction l; auto. *)
+(*   simpl. move=> [H0 | H0] H1. *)
+(*   { subst. rewrite H1; auto. } *)
+(*   { specialize (IHl H0 H1). rewrite -plusE. *)
+(*     move: IHl => /ltP IHl. *)
+(*     apply /ltP. omega. } *)
+(* Qed. *)
 
 (** List.NoDup lemmas *)
 
@@ -143,6 +175,33 @@ Proof.
   move=> Hnodup Hperm a b Hina Hinb H1.
   apply nodup_in_inj with (f:=f) (l:=l'); auto.
   by eapply Permutation_NoDup; eauto.
+Qed.
+
+Lemma notin_count_0 (A B : Type) (b : B) (l : list A) (f : A -> B)
+      (dec : forall x y : B, {x = y} + {x <> y}) :
+  ~ In b [seq f a | a <- l] ->
+  count (fun a : A => dec (f a) b) l = 0.
+Proof.
+  move=> Hnotin. induction l; auto.
+  simpl in *. apply Decidable.not_or in Hnotin.
+  destruct Hnotin as [Hnoteq Hnotin].
+  destruct (dec (f a) b). congruence.
+  by rewrite add0n; apply IHl.
+Qed.
+
+Lemma nodup_count_le_1 (A B : Type) (l : list A) (f : A -> B)
+      (dec : forall x y : B, {x = y} + {x <> y}) :
+  NoDup (map f l) ->
+  forall b, 
+    (count (fun a => dec (f a) b) l <= 1)%N.
+Proof.
+  induction l; auto.
+  move=> Hnodup b.
+  simpl. simpl in *.
+  inversion Hnodup; subst.
+  destruct (dec (f a) b) eqn:Heq; simpl.
+  { by subst; rewrite notin_count_0. }
+  { by rewrite add0n; apply IHl. }
 Qed.
 
 Lemma in_perm_exists (A B C : Type) (l1 : list A) (l2 : list B)

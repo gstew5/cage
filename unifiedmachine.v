@@ -1,210 +1,210 @@
-Set Implicit Arguments.
-Unset Strict Implicit.
+(* Set Implicit Arguments. *)
+(* Unset Strict Implicit. *)
 
-Require Import QArith NArith.
-Require Import ProofIrrelevance. (*FIXME: don't need funext*)
+(* Require Import QArith NArith. *)
+(* Require Import ProofIrrelevance. (*FIXME: don't need funext*) *)
 
-From mathcomp Require Import ssreflect.ssreflect.
-From mathcomp Require Import all_ssreflect.
-From mathcomp Require Import all_algebra.
+(* From mathcomp Require Import ssreflect.ssreflect. *)
+(* From mathcomp Require Import all_ssreflect. *)
+(* From mathcomp Require Import all_algebra. *)
 
-Import GRing.Theory Num.Def Num.Theory.
+(* Import GRing.Theory Num.Def Num.Theory. *)
 
-Require Import dist weights numerics bigops games weightslang smooth.
-Require Import machine networkSemantics listlemmas.
+(* Require Import dist weights numerics bigops games weightslang smooth. *)
+(* Require Import machine networkSemantics listlemmas. *)
 
-Section machine_semantics.
+(* Section machine_semantics. *)
 
-  Local Open Scope ring_scope.
+(*   Local Open Scope ring_scope. *)
 
-  Variable A : finType.
-  Variable a0 : A.
-  Variable N : nat.
-  Context `{Hgame : game A N rat_realFieldType}.
+(*   Variable A : finType. *)
+(*   Variable a0 : A. *)
+(*   Variable N : nat. *)
+(*   Context `{Hgame : game A N rat_realFieldType}. *)
 
-  (*
-    We have two kinds of nodes in our network:
-    - the singular server
-    - the set of N clients
-  *) 
-  Inductive machine_node : Type :=
-  | server : machine_node
-  | client_n : 'I_N -> machine_node.
+(*   (* *)
+(*     We have two kinds of nodes in our network: *)
+(*     - the singular server *)
+(*     - the set of N clients *)
+(*   *)  *)
+(*   Inductive machine_node : Type := *)
+(*   | server : machine_node *)
+(*   | client_n : 'I_N -> machine_node. *)
 
-  (* We have decidable equality over these identifiers. *)
-  Lemma machine_node_dec : forall n1 n2 : machine_node, {n1 = n2} + {n1 <> n2}.
-  Proof.
-    intros. destruct n1, n2.
-    + left; auto.
-    + right; auto. congruence.
-    + right; congruence.
-    + case: (eqVneq o o0); [move =>  H | move/eqP => H].
-      - left; subst => //.
-      - right => Hcontra. inversion Hcontra; congruence.
-  Qed.
+(*   (* We have decidable equality over these identifiers. *) *)
+(*   Lemma machine_node_dec : forall n1 n2 : machine_node, {n1 = n2} + {n1 <> n2}. *)
+(*   Proof. *)
+(*     intros. destruct n1, n2. *)
+(*     + left; auto. *)
+(*     + right; auto. congruence. *)
+(*     + right; congruence. *)
+(*     + case: (eqVneq o o0); [move =>  H | move/eqP => H]. *)
+(*       - left; subst => //. *)
+(*       - right => Hcontra. inversion Hcontra; congruence. *)
+(*   Qed. *)
 
-  (*
-    We have two kind of messages:
-    - Messages sent from clients to servers
-    - Messages sent from servers to clients
-  *)
+(*   (* *)
+(*     We have two kind of messages: *)
+(*     - Messages sent from clients to servers *)
+(*     - Messages sent from servers to clients *)
+(*   *) *)
   
-  (* Messages from clients to the server *)
-  (** The server needs to recieve a distribution over A as well as some
-      identifier indicating where the packet came from **)
-  Definition clientServerMsgType := (dist A rat_realFieldType *'I_N)%type.
+(*   (* Messages from clients to the server *) *)
+(*   (** The server needs to recieve a distribution over A as well as some *)
+(*       identifier indicating where the packet came from **) *)
+(*   Definition clientServerMsgType := (dist A rat_realFieldType *'I_N)%type. *)
 
-  (* Messages from the server to clients *)
-  Definition serverClientMsgType := {ffun A -> rat}.
+(*   (* Messages from the server to clients *) *)
+(*   Definition serverClientMsgType := {ffun A -> rat}. *)
 
-  (* The total messsage type for this network is simply the union of these two types *)
-  Inductive machine_msg : Type :=
-  | csMsg : clientServerMsgType -> machine_msg
-  | scMsg : serverClientMsgType -> machine_msg.
+(*   (* The total messsage type for this network is simply the union of these two types *) *)
+(*   Inductive machine_msg : Type := *)
+(*   | csMsg : clientServerMsgType -> machine_msg *)
+(*   | scMsg : serverClientMsgType -> machine_msg. *)
 
-  Definition machine_packet := (machine_node * machine_msg * machine_node)%type.
+(*   Definition machine_packet := (machine_node * machine_msg * machine_node)%type. *)
 
-  (* The type used by the server to build the trace *)
-  Definition machine_event := {ffun 'I_N -> (dist A rat_realFieldType)}.
+(*   (* The type used by the server to build the trace *) *)
+(*   Definition machine_event := {ffun 'I_N -> (dist A rat_realFieldType)}. *)
 
-  Definition machine_pkg := NodePkg machine_node machine_packet machine_event.
+(*   Definition machine_pkg := NodePkg machine_node machine_packet machine_event. *)
 
-  (** Server node definitions **)
-  (* The server tracks the distribuitions recieved from clients *)
-  Record serverState : Type :=
-    mkServerState
-        { received : {ffun 'I_N -> option (dist A rat_realFieldType)} }.
+(*   (** Server node definitions **) *)
+(*   (* The server tracks the distribuitions recieved from clients *) *)
+(*   Record serverState : Type := *)
+(*     mkServerState *)
+(*         { received : {ffun 'I_N -> option (dist A rat_realFieldType)} }. *)
 
-  (* The server has received messages from all clients when its received
-       field maps each client to Some _.
-     Equivalently, the support for None of the received function is the entire
-       domain (all elements of 'I_N) *)
-  Definition all_clients_received (S : serverState) :=
-    forall x, x \in support_for None (S.(received)).
+(*   (* The server has received messages from all clients when its received *)
+(*        field maps each client to Some _. *)
+(*      Equivalently, the support for None of the received function is the entire *)
+(*        domain (all elements of 'I_N) *) *)
+(*   Definition all_clients_received (S : serverState) := *)
+(*     forall x, x \in support_for None (S.(received)). *)
 
-  Definition all_clients_received_dec : forall S,
-    {all_clients_received S} + {~ all_clients_received S}.
-  Proof.
-    move=> s; rewrite /all_clients_received; clear.
-    have in_dec: (forall x, decidable (x \in None.-support (received s))).
-    { move=> x; destruct (x \in _); by [left|right]. }
-    move: (list_all_dec in_dec (enum 'I_N)) => H0.
-    destruct H0; auto.
-    { by left => x; apply i, list_in_iff; rewrite enumT. }
-  Qed.
+(*   Definition all_clients_received_dec : forall S, *)
+(*     {all_clients_received S} + {~ all_clients_received S}. *)
+(*   Proof. *)
+(*     move=> s; rewrite /all_clients_received; clear. *)
+(*     have in_dec: (forall x, decidable (x \in None.-support (received s))). *)
+(*     { move=> x; destruct (x \in _); by [left|right]. } *)
+(*     move: (list_all_dec in_dec (enum 'I_N)) => H0. *)
+(*     destruct H0; auto. *)
+(*     { by left => x; apply i, list_in_iff; rewrite enumT. } *)
+(*   Qed. *)
 
-  Definition dist_of_all_clients (S : serverState) (pf : all_clients_received S) :
-    {ffun 'I_N -> dist A rat_realFieldType}.
-  Proof.
-    apply finfun. intros.
-    remember (S.(received) X) as t.
-    destruct t. exact d. specialize (pf X). SearchAbout support_for.
-    rewrite supportE in pf. rewrite Heqt in pf. 
-    move/eqP: pf. intros H. congruence.
-  Defined.
+(*   Definition dist_of_all_clients (S : serverState) (pf : all_clients_received S) : *)
+(*     {ffun 'I_N -> dist A rat_realFieldType}. *)
+(*   Proof. *)
+(*     apply finfun. intros. *)
+(*     remember (S.(received) X) as t. *)
+(*     destruct t. exact d. specialize (pf X). SearchAbout support_for. *)
+(*     rewrite supportE in pf. rewrite Heqt in pf.  *)
+(*     move/eqP: pf. intros H. congruence. *)
+(*   Defined. *)
 
-  Definition cost_vectors (f : {ffun 'I_N -> dist A rat_realFieldType}) :
-    list machine_packet :=
-  map
-    (fun n =>
-      (client_n n,
-      (scMsg (mwu_cost_vec f n)),
-      server))
-    (enum 'I_N).
+(*   Definition cost_vectors (f : {ffun 'I_N -> dist A rat_realFieldType}) : *)
+(*     list machine_packet := *)
+(*   map *)
+(*     (fun n => *)
+(*       (client_n n, *)
+(*       (scMsg (mwu_cost_vec f n)), *)
+(*       server)) *)
+(*     (enum 'I_N). *)
 
-  (* A function for updating the received field of a server state *)
-  Definition upd {A : finType} {T : Type}
-             (a : A) (t : T) (s : {ffun A -> T}) :=
-    finfun (fun b => if a==b then t else s b).
+(*   (* A function for updating the received field of a server state *) *)
+(*   Definition upd {A : finType} {T : Type} *)
+(*              (a : A) (t : T) (s : {ffun A -> T}) := *)
+(*     finfun (fun b => if a==b then t else s b). *)
 
-  (* The server prior to initialization has received no messages from clients *)
-  Program Definition serverPreInit : serverState :=
-    mkServerState (finfun (fun  x => None)).
+(*   (* The server prior to initialization has received no messages from clients *) *)
+(*   Program Definition serverPreInit : serverState := *)
+(*     mkServerState (finfun (fun  x => None)). *)
 
-  (* On initialization, the server just waits *)
-  Definition serverInit :
-    machine_node -> (serverState * list machine_packet * list machine_event) :=
-  fun _ => ( mkServerState (finfun (fun x => None))
-           , nil
-           , nil).
+(*   (* On initialization, the server just waits *) *)
+(*   Definition serverInit : *)
+(*     machine_node -> (serverState * list machine_packet * list machine_event) := *)
+(*   fun _ => ( mkServerState (finfun (fun x => None)) *)
+(*            , nil *)
+(*            , nil). *)
 
-  (* If the server receives a
-       csMsg : it updates its received field. If after updating this field
-               all_clients_received is true, it initiates the next round of MW
-               sending to each client a {ffun A -> rat} and clearing its received field.
-       scMSG : This should never happen. The server ignores the message and continues waiting
-  *)
-  Definition serverRecv :
-    machine_msg ->
-    machine_node -> 
-    serverState ->
-      (serverState * list machine_packet * list machine_event) :=
-  fun msg origin st =>
-    match msg with
-    | csMsg (msg', cNum) =>
-        let st' := (mkServerState (upd cNum (Some msg') (st.(received)))) in
-        match all_clients_received_dec st' with
-        | left pf =>
-            (mkServerState (finfun (fun x => None))
-            , cost_vectors (dist_of_all_clients pf)
-            , (dist_of_all_clients pf)::nil) 
-        | _ => (st', nil, nil)
-        end
-    | scMsg msg' => (mkServerState (finfun (fun x => None)), nil, nil)
-    end.
+(*   (* If the server receives a *)
+(*        csMsg : it updates its received field. If after updating this field *)
+(*                all_clients_received is true, it initiates the next round of MW *)
+(*                sending to each client a {ffun A -> rat} and clearing its received field. *)
+(*        scMSG : This should never happen. The server ignores the message and continues waiting *)
+(*   *) *)
+(*   Definition serverRecv : *)
+(*     machine_msg -> *)
+(*     machine_node ->  *)
+(*     serverState -> *)
+(*       (serverState * list machine_packet * list machine_event) := *)
+(*   fun msg origin st => *)
+(*     match msg with *)
+(*     | csMsg (msg', cNum) => *)
+(*         let st' := (mkServerState (upd cNum (Some msg') (st.(received)))) in *)
+(*         match all_clients_received_dec st' with *)
+(*         | left pf => *)
+(*             (mkServerState (finfun (fun x => None)) *)
+(*             , cost_vectors (dist_of_all_clients pf) *)
+(*             , (dist_of_all_clients pf)::nil)  *)
+(*         | _ => (st', nil, nil) *)
+(*         end *)
+(*     | scMsg msg' => (mkServerState (finfun (fun x => None)), nil, nil) *)
+(*     end. *)
 
-  Definition serverNode :=
-    {| node_state := serverState ;
-       init := serverInit ;
-       recv := serverRecv ;
-       pre_init := serverPreInit
-    |}.
-  (** End Server node definitions **)
+(*   Definition serverNode := *)
+(*     {| node_state := serverState ; *)
+(*        init := serverInit ; *)
+(*        recv := serverRecv ; *)
+(*        pre_init := serverPreInit *)
+(*     |}. *)
+(*   (** End Server node definitions **) *)
 
-  (** Client node definitons **)  
-  Variable clientState : Type.
+(*   (** Client node definitons **)   *)
+(*   Variable clientState : Type. *)
   
-  Variable clientPreInit : clientState.
+(*   Variable clientPreInit : clientState. *)
 
-  Variable clientInit :
-    machine_node -> (clientState * list machine_packet * list machine_event).
+(*   Variable clientInit : *)
+(*     machine_node -> (clientState * list machine_packet * list machine_event). *)
   
-  Variable clientRecv :
-    machine_msg ->
-    machine_node ->
-    clientState -> 
-      (clientState * list machine_packet * list machine_event).
+(*   Variable clientRecv : *)
+(*     machine_msg -> *)
+(*     machine_node -> *)
+(*     clientState ->  *)
+(*       (clientState * list machine_packet * list machine_event). *)
 
-  Definition clientNode :=
-    {| node_state := clientState;
-       init := clientInit ;
-       recv := clientRecv ;
-       pre_init := clientPreInit
-    |}.
+(*   Definition clientNode := *)
+(*     {| node_state := clientState; *)
+(*        init := clientInit ; *)
+(*        recv := clientRecv ; *)
+(*        pre_init := clientPreInit *)
+(*     |}. *)
 
-  (** End Client node definitons **)
+(*   (** End Client node definitons **) *)
 
-  (** Begin World defintions **)
-  Definition network_descMWU :
-    machine_node -> (NodePkg machine_node machine_msg machine_event) :=
-  fun node => match node with
-  | server => serverNode
-  | client_n _ => clientNode
-  end.
+(*   (** Begin World defintions **) *)
+(*   Definition network_descMWU : *)
+(*     machine_node -> (NodePkg machine_node machine_msg machine_event) := *)
+(*   fun node => match node with *)
+(*   | server => serverNode *)
+(*   | client_n _ => clientNode *)
+(*   end. *)
   
-  Definition initStateMWU :
-    (localStateTy network_descMWU) :=
-  fun node => match node with
-  | server => serverPreInit
-  | client_n _ => clientPreInit
-  end.
+(*   Definition initStateMWU : *)
+(*     (localStateTy network_descMWU) := *)
+(*   fun node => match node with *)
+(*   | server => serverPreInit *)
+(*   | client_n _ => clientPreInit *)
+(*   end. *)
 
-  Definition initWorldMWU :
-    World network_descMWU :=
-    {| localState := initStateMWU ;
-       inFlight  := nil ;
-       trace     := nil ;
-       initNodes := fun n => false
-    |}.
-  (** End World Definitions **)
-End machine_semantics.
+(*   Definition initWorldMWU : *)
+(*     World network_descMWU := *)
+(*     {| localState := initStateMWU ; *)
+(*        inFlight  := nil ; *)
+(*        trace     := nil ; *)
+(*        initNodes := fun n => false *)
+(*     |}. *)
+(*   (** End World Definitions **) *)
+(* End machine_semantics. *)
