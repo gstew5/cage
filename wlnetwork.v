@@ -13,7 +13,7 @@ Require Import ProofIrrelevance.
 
 Require Import compile dist weights dyadic numerics bigops games.
 Require Import machine networkSemanticsNoBatch listlemmas smooth.
-Require Import weightslang.
+Require Import weightslang simulations.
 
 Section weightsLangNetwork.
   Variable N : nat.
@@ -280,9 +280,7 @@ Section weightsLangNetwork.
     clientDestUniqueMatch W.
 
 
-  (** WORK IN PROGRESS: set up proper simulation record. *)
-
-  Require Import simulations.
+  (** Set up simulation record. *)
 
   Instance wlNetworkHasInit : hasInit wlWorld :=
     fun w =>
@@ -660,25 +658,6 @@ Section weightsLangNetwork.
       { by apply nodup_uniq, ord_enum_uniq. } }
     { by rewrite Hdest. }
   Qed.
-
-  (* Lemma recv_pkt_origin_unique msg origin s s' ms es (pkt pkt' : wlPacket) i : *)
-  (*   wlServerRecv msg origin s (s', ms, es) -> *)
-  (*   List.In pkt ms -> *)
-  (*   List.In pkt' ms -> *)
-  (*   origin_of pkt = clientID i -> *)
-  (*   origin_of pkt' = clientID i -> *)
-  (*   pkt = pkt'. *)
-  (* Proof. *)
-  (*   move=> Hrecv Hin Hin' Horigin Horigin'. *)
-  (*   destruct (recv_nil_or_perm Hrecv). *)
-  (*   { subst; inversion Hin. } *)
-  (*   apply (@nodup_perm_in_inj _ _ [seq clientID i | i <- enumerate 'I_N] *)
-  (*                             ms (@origin_of wlNode wlMsg)); auto. *)
-  (*   { apply FinFun.Injective_map_NoDup. *)
-  (*     { by move=> x y Heq; inversion Heq. } *)
-  (*     { by apply nodup_uniq, ord_enum_uniq. } } *)
-  (*   { by rewrite Horigin. } *)
-  (* Qed. *)
 
   Lemma recv_in_origin_server msg origin s s' ms es pkt :
     wlServerRecv msg origin s (s', ms, es) ->
@@ -1377,6 +1356,18 @@ Section weightsLangNetwork.
     by move: Contra => /ltP Contra; omega.
   Qed.
 
+  (* Dispatch common contradictory cases *)
+  Ltac step_contra :=
+    try match goal with
+        | [ H : step' _ CSkip _ _ _ |- _ ] => inversion H
+        | [ H : client_step _ CSkip _ _ _  |- _ ] => inversion H
+        | [ H : (?n < ?n%num)%N |- _ ] => inversion H
+        | [ H : 0%num <> 0%num /\ _ = _ \/ 0%num = 0%num /\ _ = CSkip |- _ ] =>
+            by destruct H as [[_ H] | [_ H]]; inversion H
+        | [ H : N.pos _ <> 0%num /\ _ = _ \/ N.pos _ = 0%num /\ _ = CSkip |- _ ] =>
+            by destruct H as [[_ H] | [H _]]; inversion H
+        end.
+
   Lemma client_init_step (mach_st : machine_state)
         (w : wlWorld) i st ps es u :
     rInitNodes w (clientID i) = false ->
@@ -1428,13 +1419,13 @@ Section weightsLangNetwork.
         SChan := tt;
         weightslang.SOracleSt := init_ClientPkg A |}.
     fold st0 in H2.
-      
+
     inversion H2; subst.
     { rewrite /mult_weights in H. simpl in H.
       inversion H; subst. inversion H7. }
     { rewrite /mult_weights in H. inversion H; subst.
       rewrite /mult_weights_init in H8. inversion H8; subst.
-      inversion H9; subst. 
+      inversion H9; subst.
       pose st1 := {|
          SCosts := SCosts st0;
          SCostsOk := SCostsOk st0;
@@ -1447,7 +1438,7 @@ Section weightsLangNetwork.
          SChan := SChan st0;
          weightslang.SOracleSt := SOracleSt st0 |}.
       fold st1 in H9, H, H0, H8.
-      
+
       inversion H0; subst.
       { by inversion H1; subst; inversion H11. }
       { inversion H1; subst. inversion H12; subst.
@@ -1461,8 +1452,8 @@ Section weightsLangNetwork.
                  SWeightsOk := SWeightsOk st1;
                  SEpsilon := SEpsilon st1;
                  SEpsilonOk := SEpsilonOk st1;
-                 SOutputs := p_aux_dist (A:=A) a0 (eps:=SEpsilon st1) 
-                               (SEpsilonOk st1) (w:=SWeights st1) 
+                 SOutputs := p_aux_dist (A:=A) a0 (eps:=SEpsilon st1)
+                               (SEpsilonOk st1) (w:=SWeights st1)
                                (SWeightsOk st1) (cs:=[::]) (CMAX_nil (A:=A)) ::
                              SOutputs st1;
                  SChan := ch;
@@ -1475,7 +1466,7 @@ Section weightsLangNetwork.
 
           split.
           { exists 2%N.
-            
+
             pose mach_st0 :=
               mkMachineState
                 (upd i (CSeq (CSeq CSkip CSend)
@@ -1523,7 +1514,7 @@ Section weightsLangNetwork.
                 f_equal. simpl. rewrite /upd -ffunP => x.
                 rewrite 4!ffunE.
                   by destruct (i == x) eqn: Hix; rewrite Hix. } } }
-            { inversion H5; subst.              
+            { inversion H5; subst.
       { split.
       { by simpl; rewrite /upd_rInitNodes; destruct (nodeINTDec _ _ _). }
       { clear H8 H0 H H9 H3 H1 H12 H14 H4 H5 H2.
@@ -1545,7 +1536,7 @@ Section weightsLangNetwork.
           { split.
             { move=> pkt d0 Hin. split.
               destruct Hin as [Hin [Horigin Hmsg]].
-              apply List.in_app_or in Hin. 
+              apply List.in_app_or in Hin.
               destruct (i == i') eqn:Heq; rewrite Heq.
               { move: Heq => /eqP Heq. subst.
                 simpl.
@@ -1667,7 +1658,7 @@ Section weightsLangNetwork.
                         { rewrite /upd_rInitNodes.
                           destruct (nodeINTDec _ _ _).
                           { move=> /= Contra; congruence. }
-                          { simpl. move=> Hinitnodes. 
+                          { simpl. move=> Hinitnodes.
                             rewrite /initMatch in Hclientinit.
                             specialize (Hclientinit i0).
                             destruct Hclientinit as [Hclientinit _].
@@ -1728,8 +1719,7 @@ Section weightsLangNetwork.
                           { simpl in Hin. destruct Hin as [Hin | Hin].
                             destruct pkt. destruct p. inversion Hin; subst.
                             inversion Hdest. contradiction. } } }
-                      {
-                        move=> i0 /=.
+                      { move=> i0 /=.
                         rewrite count_cat.
                         simpl. rewrite addn0.
                         rewrite /dest_of. simpl.
@@ -1738,7 +1728,7 @@ Section weightsLangNetwork.
                         by rewrite addn0. } } } } } } } } }
           { inversion H4; subst. inversion H15; subst.
             exfalso. eapply client_step_plus_not_same. eassumption. }
-            { inversion H13. } } }
+            { by step_contra. } } }
   Qed.
 
   Lemma client_recv_step (mach_st : machine_state)
@@ -1771,22 +1761,18 @@ Section weightsLangNetwork.
     inversion Hrecv. subst.
     pose st := ((clients mach_st) i).2.
     destruct n0.
+
     (* n0 = 0 *)
     rewrite H6 in H11.
     inversion H11; subst.
-    { inversion H; subst.
-      { destruct H10 as [[H10 H10'] | [H10 H10']]; inversion H10'. }
-      { inversion H13. } }
-    { inversion H; subst. inversion H0; subst. inversion H; subst.
-      inversion H1; subst.
-      { destruct H10 as [[H10 H10'] | [H10 H10']]; inversion H10'. }
-      { inversion H1; subst.
-        { inversion H14. } }
-        { inversion H1; subst.
+    { by inversion H; subst; step_contra. }
+    { inversion H; subst; step_contra.
+      inversion H0; subst. inversion H; subst.
+      inversion H1; subst; step_contra.
+      { inversion H1; subst; step_contra.
           { inversion H7; subst.
-            { inversion H8; subst. inversion H17; subst.
-              destruct H10 as [[H10 H10'] | [H10 H10']]; inversion H10'. }
-            { inversion H8; subst. inversion H18; subst.    
+            { by inversion H8; subst; inversion H17; subst; step_contra. }
+            { inversion H8; subst. inversion H18; subst.
 
             pose st0 :=
               {|
@@ -1817,17 +1803,14 @@ Section weightsLangNetwork.
                 weightslang.SOracleSt := t' |}.
 
             fold st0 in H8, H18, H9.
-            
+
             inversion H9; subst.
-            { inversion H13; subst.
-              { destruct H10 as [[H10 H10'] | [H10 H10']]; inversion H10'. }
-              { inversion H20. } }
+            { by inversion H13; subst; step_contra. }
             { inversion H13; subst.
               { inversion H14; subst.
-                { inversion H15; subst. inversion H22; subst.
-                  { destruct H10 as [[H10 H10'] | [H10 H10']]; inversion H10'. } }
+                { by inversion H15; subst; inversion H22; subst; step_contra. }
                 { inversion H15; subst. inversion H23; subst.
-                  
+
                 pose st1 :=
                   {|
                     SCosts := SCosts st0;
@@ -1882,10 +1865,8 @@ Section weightsLangNetwork.
                 fold st1 in H23, H15, H15.
 
                 inversion H16; subst.
-                { inversion H17; subst.
-                  { destruct H10 as [[H10 H10'] | [H10 H10']]; inversion H10'. }
-                  { inversion H25. } }
-                { inversion H17; subst.
+                { by inversion H17; subst; step_contra. }
+                { inversion H17; subst; step_contra.
                   { fold st1 in H19, H17, H16.
                     inversion H19; subst.
                     { inversion H20; subst. inversion H21; subst.
@@ -2057,9 +2038,7 @@ Section weightsLangNetwork.
                             { by inversion H21; rewrite H27. } } }
                         by [].
 
-                        (* match *)
-
-
+              (* match *)
               split; auto.
               split.
               { move=> i'.
@@ -2323,31 +2302,22 @@ Section weightsLangNetwork.
                 have Hle: (forall a b c, a + (b + c) <= 1 -> a + c <= 1)%coq_nat.
                 { rewrite -!plusE. move=> a b c Habc. omega. }
                 eapply Hle; eauto. } }
-                    
-                    { inversion H20; subst. inversion H21; subst.
-                      { inversion H24. }
-                      { inversion H24. } } }
-                  { inversion H26. } } } }
-              { inversion H21. } } } }
-          { inversion H16. } }
-        { inversion H14. } }
-    { (* n0 <> 0 *)
-      
+              { inversion H20; subst. inversion H21; subst; step_contra. } } } } }
+              { step_contra. } } } } } }
+    {
+
+      (* n0 <> 0 *)
       rewrite H6 in H11.
       inversion H11; subst.
-      { inversion H; subst.
-        { destruct H10 as [[_ H10] | [H10 _]]; inversion H10. }
-        { inversion H13. } }
+      { inversion H; subst; step_contra. }
       { inversion H; subst.
         { inversion H0; subst.
-          { inversion H1; subst.
-            { destruct H10 as [[_ H10] | [H10 _]]; inversion H10. }
-            { destruct H10 as [[_ H10] | [H10 _]]; inversion H10. } }
+          { inversion H1; subst; step_contra. }
           { inversion H1; subst.
             { move: (Pos.succ_not_1 p0) => Hsucc. congruence. }
             { inversion H7; subst.
-              { inversion H8; subst. inversion H18; subst. inversion H19; subst.
-                { destruct H10 as [[_ H10] | [H10 _]]; inversion H10. } }
+              { inversion H8; subst. inversion H18; subst.
+                inversion H19; subst; step_contra. }
               { inversion H8; subst.
                 inversion H19; subst. inversion H20; subst.
 
@@ -2378,18 +2348,15 @@ Section weightsLangNetwork.
                 SOutputs := SOutputs st;
                 SChan := SChan st;
                 weightslang.SOracleSt := t' |}.
-                
+
             fold st0 in H20, H9, H8, H19.
-            
+
             inversion H9; subst.
-            { inversion H13; subst. inversion H22; subst.
-              { destruct H10 as [[_ H10] | [H10 _]]; inversion H10. }
-              { inversion H23. } }
-            { inversion H13; subst. inversion H23; subst.
+            { inversion H13; subst. inversion H22; subst; step_contra. }
+            { inversion H13; subst. inversion H23; subst; step_contra.
               { inversion H14; subst.
                 { inversion H15; subst. inversion H25; subst.
-                  inversion H26; subst.
-                  destruct H10 as [[_ H10] | [H10 _]]; inversion H10. }
+                  inversion H26; subst; step_contra. }
                 { inversion H15; subst. inversion H26; subst.
                   inversion H27; subst.
 
@@ -2448,15 +2415,12 @@ Section weightsLangNetwork.
                 fold st1 in H27, H17, H15, H26.
 
       inversion H17; subst.
-      { inversion H18; subst. inversion H29; subst.
-        { destruct H10 as [[_ H10] | [H10 _]]; inversion H10. }
-        { inversion H30. } }
-      { inversion H18; subst. inversion H30; subst.
+      { inversion H18; subst. inversion H29; subst; step_contra. }
+      { inversion H18; subst. inversion H30; subst; step_contra.
         inversion H21; subst.
         { inversion H22; subst. inversion H32; subst.
           inversion H24; subst.
 
-          
           pose com0 := CIter (N.succ (N.pos p0)) (weightslang.mult_weights_body A).
           pose com1 := CSeq (weightslang.mult_weights_body A)
                             (CIter (N.pred (N.succ (N.pos p0)))
@@ -2491,7 +2455,7 @@ Section weightsLangNetwork.
                                          (weightslang.mult_weights_body A)).
           pose com6 := CSeq CSkip (CIter (N.pred (N.succ (N.pos p0)))
                                          (weightslang.mult_weights_body A)).
-          
+
           pose mach_st0 :=
             mkMachineState
               (upd i (com0, st) (clients mach_st))
@@ -2521,9 +2485,9 @@ Section weightsLangNetwork.
             mkMachineState
               (upd i (com5, st1') (clients mach_st4))
               (hist mach_st4).
-          
+
           inversion Hrecv0 as [Hrecv1 Hrecv2 Hrecv3].
-          
+
           pose st2 :=
             {|
               SCosts := SCosts st1;
@@ -2540,7 +2504,7 @@ Section weightsLangNetwork.
                                      (CMAX_nil (A:=A)) :: SOutputs st1;
               SChan := ch;
               weightslang.SOracleSt := t'0 |}.
-          
+
           pose st2' :=
             {|
               SCosts := SCosts st1';
@@ -2557,8 +2521,7 @@ Section weightsLangNetwork.
                                      (CMAX_nil (A:=A)) :: SOutputs st1';
               SChan := ch;
               weightslang.SOracleSt := t'0 |}.
-          
-          
+
           pose mach_st6 :=
             mkMachineState
               (upd i (com6, st2') (clients mach_st5))
@@ -2635,9 +2598,8 @@ Section weightsLangNetwork.
                   by rewrite H34 -H14 H35 -H17. }
               { by inversion H24; rewrite H7. } } }
           reflexivity.
-          
-          (* match *)
 
+          (* match *)
           split; auto.
           split.
           { move=> i'.
@@ -2913,27 +2875,21 @@ Section weightsLangNetwork.
                 SEpsilon := SEpsilon st1;
                 SEpsilonOk := SEpsilonOk st1;
                 SOutputs := p_aux_dist (A:=A) a0 (eps:=SEpsilon st1) (SEpsilonOk st1)
-                                       (w:=SWeights st1) (SWeightsOk st1) (cs:=[::]) 
+                                       (w:=SWeights st1) (SWeightsOk st1) (cs:=[::])
                                        (CMAX_nil (A:=A)) :: SOutputs st1;
                 SChan := ch;
-                weightslang.SOracleSt := t'0 |}.                        
+                weightslang.SOracleSt := t'0 |}.
               fold st2 in H33, H22, H24.
               inversion H24; subst.
-              { inversion H28; subst. 
-                { destruct H10 as [[_ H10] | [H10 _]]; inversion H10. }
-                { inversion H36. } }
-              { inversion H28; subst.
-                destruct H10 as [[_ H10] | [H10 _]].
+              { inversion H28; subst; step_contra. }
+              { inversion H28; subst; step_contra.
+                destruct H10 as [[_ H10] | [H10 _]]; last by inversion H10.
                 { rewrite H10 in H29.
                   rewrite Pos.pred_N_succ in H29.
                   apply step_plus_com_size_decreases in H29. inversion H29.
                   move: H32 => /ltP H32.
-                  rewrite -!multE -!plusE in H32. omega. }
-                { inversion H10. }
-                { inversion H37. } } } }
-        { inversion H31. } } } }
-              { inversion H24. } } } } } }
-        { inversion H14. } } }
+                  rewrite -!multE -!plusE in H32. omega. } } } } } } } } } } } }
+        { by step_contra. } } }
   Qed.
 
   Theorem wlNetworkMachine_step_diagram :
@@ -3016,7 +2972,7 @@ Section weightsLangNetwork.
                       destruct (nodeINTDec _ _ _); auto.
                       by congruence. }
                     { by rewrite 2!cats0. } } } } } } } }
-        
+
       (** Client init step *)
       { simpl in *.
         by exists (if rInitNodes w (serverID 'I_N) then 0%N else 1%N);

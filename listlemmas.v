@@ -74,17 +74,6 @@ Proof.
     apply /ltP. omega. }
 Qed.
 
-(* Lemma list_notin_count_zero (A : Type) (a : A) (l : list A) (P : A -> bool) : *)
-(*   ~ List.In a l -> P a = true -> count P l > 0. *)
-(* Proof. *)
-(*   induction l; auto. *)
-(*   simpl. move=> [H0 | H0] H1. *)
-(*   { subst. rewrite H1; auto. } *)
-(*   { specialize (IHl H0 H1). rewrite -plusE. *)
-(*     move: IHl => /ltP IHl. *)
-(*     apply /ltP. omega. } *)
-(* Qed. *)
-
 (** List.NoDup lemmas *)
 
 Lemma nodup_cons_notin (A : Type) (a : A) (l : list A) :
