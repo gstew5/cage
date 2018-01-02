@@ -1178,10 +1178,7 @@ Section weights.
         { clear x y.
           move: (CMAX H astar) => H2.
           rewrite ler_norml in H2; case: (andP H2) => H3 _.
-          apply: Rle_trans.
-          { rewrite -rat_to_R1 -rat_to_R_opp; apply: rat_to_R_le.
-            apply: H3. }
-          by apply: Rle_refl. }
+          rewrite -rat_to_R1n; apply: rat_to_R_le => //. }
         clear x y.
         move: (CMAX H astar) => H2.
         rewrite ler_norml in H2.
@@ -1427,7 +1424,7 @@ Section weights_noregret.
   Lemma r1_neq0 : (1 + r <> 0)%R.
   Proof.
     rewrite -(Rplus_opp_l r); move/Rplus_eq_reg_r => H.
-    move: r_ok; rewrite H Ropp_involutive //.
+    move: r_ok; rewrite -(Ropp_involutive r) -H //.
   Qed.    
 
   Lemma sqrt_Rinv (a : R) (Hlt : (0 < a)%R) : (sqrt (/a) = /sqrt a)%R.

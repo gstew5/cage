@@ -856,8 +856,6 @@ Section rat_to_R_lemmas.
   Lemma rat_to_R_0_center (r : rat) : rat_to_R r = 0%R -> r == 0.
   Proof.
     move =>  H.
-    (*have H0 : rat_to_R r = rat_to_R (-r) by
-      rewrite -mulN1r rat_to_R_mul H Rmult_0_r => //. *)
     rewrite -numq_eq0.
     rewrite -rat_to_R0 /rat_to_R /rat_to_Q in H.
     rewrite /numq.
@@ -871,13 +869,6 @@ Section rat_to_R_lemmas.
 
   Lemma rat_to_R_inv (r : rat) : (r != 0) -> rat_to_R r^-1 = Rinv (rat_to_R r).
   Proof.
-    (*
-    case H0 : (r == 0).
-    - move/eqP: H0 => H0.
-      rewrite H0. rewrite invr0 => //.
-      rewrite /rat_to_R /rat_to_Q /Q2R => /=.
-      rewrite Rmult_0_l.
-    *)
     move => H.
     apply Rmult_eq_reg_l with (r := rat_to_R r).
     rewrite -rat_to_R_mul Rinv_r.
@@ -888,6 +879,7 @@ Section rat_to_R_lemmas.
     move => H0.
     apply rat_to_R_0_center in H0. apply negbTE in H. congruence.
   Qed. 
+
   Lemma rat_to_R_opp (r : rat) : rat_to_R (- r) = Ropp (rat_to_R r).
   Proof.
     have ->: -r = -1 * r by rewrite mulNr mul1r.
@@ -897,6 +889,11 @@ Section rat_to_R_lemmas.
     rewrite /rat_to_R /rat_to_Q /Q2R /= Ropp_mult_distr_l_reverse Rmult_1_l.
     by apply: Ropp_eq_compat; rewrite Rinv_1.
   Qed.
+
+  Lemma rat_to_R1n : rat_to_R (-1) = (-1)%R.
+  Proof.
+    rewrite rat_to_R_opp rat_to_R1 //.
+  Qed.  
 End rat_to_R_lemmas.
 
 Section Z_to_int.

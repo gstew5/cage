@@ -1517,11 +1517,12 @@ End unitGameTest. End UnitGameTest.
 
 Instance unitLambdaInstance
          (rty : realFieldType) 
-  : @LambdaClass Unit rty | 0 := 0.
+  : @LambdaClass Unit rty | 0 := 1.
 
 Program Instance unitLambdaAxiomInstance
         (rty : realFieldType) 
-  : @LambdaAxiomClass Unit rty _ | 0.
+  : @LambdaAxiomClass Unit rty _ | 1.
+Next Obligation. by apply: ler01. Qed.
 
 Instance unitMuInstance
          (rty : realFieldType)
@@ -1534,12 +1535,12 @@ Next Obligation.
   apply/andP; split; first by apply: lerr.
   by apply: ltr01.
 Qed.
-                                          
+
 Program Instance unitSmoothAxiomInstance {N rty}
   : @SmoothnessAxiomClass [finType of Unit] N rty _ _ _ _ _ _ _ _.
 Next Obligation.
   rewrite /Cost /(cost) /unitCostInstance mul0r addr0 => //.
-  rewrite big_const_ord iter_const_rty mul0r lerr //.
+  rewrite big_const_ord iter_const_rty mul0r mulr0 //.
 Qed.
 
 Instance unitSmoothInstance {N rty}
