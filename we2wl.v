@@ -14,10 +14,12 @@ Require Import ProofIrrelevance.
 Require Import compile dist weights dyadic numerics bigops games.
 Require Import machine networkSemanticsNoBatch listlemmas smooth.
 Require Import weightslang simulations.
+Require Import weightsextract.
 Require Import wlnetwork wenetwork networkSemantics.
 Require Import orderedtypes dyadic compile listlemmas cdist vector.
 
-Module WE2WL (A : MyOrderedType) (B : BOUND).
+Module WE2WL (T : OrderedFinType) (B : BOUND).
+  Module MWProof := MWUProof T. Import MWProof.
   Module WE_Node := WE_NodePkg A B. Import WE_Node.
   Section WE2WL.
    Variable enum_ok : @Enum_ok A.t _.
@@ -59,7 +61,7 @@ Module WE2WL (A : MyOrderedType) (B : BOUND).
       (* No events in the trace *)
       w.(rTrace) = nil.
 
-  Instance wlNetworkHasFinal : hasFinal weWorld :=
+  Instance weNetworkHasFinal : hasFinal weWorld :=
     fun w : weWorld =>
       (* All nodes marked as initialized *)
       (forall n, w.(rInitNodes) n = true) /\
@@ -71,6 +73,11 @@ Module WE2WL (A : MyOrderedType) (B : BOUND).
   Instance weNetworkHasStep : hasStep weWorld := weNetworkStep.
 
   Instance weNetworkSemantics : @semantics weWorld _ _ _.
+
+  Notation wlWorld := (@RWorld 'I_num_players (wlMsg t) (wlEvent num_players t)
+                               (wlNetwork_desc)).
+  
+  Program Definition weMachineMatch (_ : unit) (we_st : weWorld) (wl_st : wlWorld) := _.
   
   Definition we2wl_simulation :=
     mkSimulation weNetworkSemantics

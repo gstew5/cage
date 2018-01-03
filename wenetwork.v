@@ -15,18 +15,19 @@ Import GRing.Theory Num.Def Num.Theory.
 
 Require Import orderedtypes dyadic compile listlemmas cdist vector.
 
-Require Import networkSemantics weightslang weightsextract.
+Require Import networkSemantics weightslang weightsextract simulations.
 
-Module WE_NodePkg (A : MyOrderedType) (B : BOUND).
-  Module Ix := MyOrdNatDepProps B.
+Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
+  Module Ix := MyOrdNatDepProps NUM_PLAYERS.
   Module MW := MWU A.
   
   Section WE_NodePkg.
     Variable enum_ok : @Enum_ok A.t _.
     Definition node := nodeINT Ix.t.
     Variable epsQ : D.
-    Definition num_players := B.n.
-    Context `{CCostInstance : CCostClass num_players A.t}.        
+    Definition num_players := NUM_PLAYERS.n.
+    Context `{CCostInstance : CCostClass num_players A.t}.
+    Variable nx : N.t. (*num_iters*)
 
   (*server sends [premsg]s, clients send [msg]s*)
   Definition premsg : Type := list (A.t*D).
@@ -102,12 +103,20 @@ Module WE_NodePkg (A : MyOrderedType) (B : BOUND).
     destruct st.(received) as [A B]; destruct B; auto.
   Qed.    
 
-  Definition client_state := (node * com A.t * MW.cstate)%type.
+  Record client_state :=
+    mkClientState
+      { client_id : node
+      ; client_iters : N.t
+      ; client_cstate : MW.cstate
+      }.
 
+  Definition client_preinit : client_state :=
+    mkClientState (serverID Ix.t) (*bogus! can be any node id*) nx (MW.init_cstate epsQ).
+  
   Definition client_init (id : node) : client_state :=
     match MW.interp (mult_weights_init A.t) (MW.init_cstate epsQ) with
-    | None => (id, @CSkip A.t, MW.init_cstate epsQ)
-    | Some st => (id, @CSkip A.t, st)
+    | None => mkClientState id nx (MW.init_cstate epsQ)
+    | Some st => mkClientState id nx st
     end.
 
   Definition event := M.t (list (A.t*D)).
@@ -129,7 +138,8 @@ Module WE_NodePkg (A : MyOrderedType) (B : BOUND).
       (@mkClientPkg
         st.(MW.SOracleSt).(sent)
         st.(MW.SOracleSt).(received)).
-            
+
+  (*TODO: update to check whether nx=0*)
   Definition client_recv
              (m : MSG)
              (from : node)
@@ -137,33 +147,36 @@ Module WE_NodePkg (A : MyOrderedType) (B : BOUND).
     : client_state * seq (packet node MSG) * seq event
     := match m with
        | TO_CLIENT m' => 
-         let st := install_cost_vec m'.(the_msg) cst.2
+         let st := install_cost_vec m'.(the_msg) cst.(client_cstate)
          in match MW.interp (mult_weights_body A.t) st with
             | None =>
               (cst, nil, nil) 
             | Some st' => 
-              ((cst.1.1, @CSkip A.t, st') : client_state,
-               (cst.1.1, TO_SERVER (st'.(MW.SOracleSt).(sent)), serverID _) :: nil,
+              (mkClientState cst.(client_id) (N.pred cst.(client_iters)) st',
+               (cst.(client_id), TO_SERVER (st'.(MW.SOracleSt).(sent)), serverID _) :: nil,
                nil)
             end
        | TO_SERVER _ => (cst, nil, nil)
        end.
                    
-  Definition client : NodePkg node MSG event :=
+  Definition client' : NodePkg node MSG event :=
     @mkNodePkg
       _ _ _
       client_state
       (fun id =>
          match client_init id with
-         | (x, c, cst) => ((x,c,cst), MSG_of_cstate x cst, nil)
+         | mkClientState x c cst => (mkClientState x c cst, MSG_of_cstate x cst, nil)
          end)
       client_recv
-      (serverID _ (*bogus*), @CSkip A.t, MW.init_cstate epsQ).
+      (mkClientState (serverID _ (*bogus*)) nx (MW.init_cstate epsQ)).
+
+  Definition client : RNodePkg Ix.t MSG event :=
+    liftNodePkg client'.
 
   Record server_state : Type :=
     mkServerState
       { actions_received : M.t (list (A.t*D))
-      ; clients_received : M.t bool }.
+      ; clients_received : M.t bool }. (*TODO: This should be just a count of num clients received*)
                               
   Definition server_init_state : server_state :=
     mkServerState (M.empty _) (M.empty _).
@@ -271,13 +284,15 @@ Module WE_NodePkg (A : MyOrderedType) (B : BOUND).
        | serverID => (sst, nil, nil)
        end.
   
-  Definition server : NodePkg node MSG event :=
+  Definition server' : NodePkg node MSG event :=
     @mkNodePkg
       _ _ _
       server_state
       (fun _ => (server_init_state, nil, nil))
       server_recv
       server_init_state.
+
+  Definition server : RNodePkg Ix.t MSG event := liftNodePkg server'.
   
   End WE_NodePkg.
 End WE_NodePkg.  

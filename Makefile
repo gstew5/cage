@@ -131,6 +131,7 @@ VFILES:=bigops.v\
   networkSemantics.v\
   simulations.v\
   wenetwork.v\
+  wlnetwork.v\
   networkSemanticsNoBatch.v
 
 ifneq ($(filter-out archclean clean cleanall printenv,$(MAKECMDGOALS)),)
