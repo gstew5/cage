@@ -1,4 +1,5 @@
-Require Import ProofIrrelevance.
+(* Constructive UIP for types with decidable equality. *)
+Require Import Coq.Logic.Eqdep_dec.
 Require Import Permutation.
 Require Import simulations.
 Require Import listlemmas.
@@ -87,6 +88,9 @@ Set Implicit Arguments.
 
   (** Update the state of a given node *)
 
+  (** I think this is like a transport function in the HoTT literature
+      and the match on pf corresponds to path induction.
+      https://tinyurl.com/typefamilytransport *)
   Definition eq_state (n n' : node) (pf: n = n')
              (s : node_state (network_desc n))
     : node_state (network_desc n') :=
@@ -96,7 +100,10 @@ Set Implicit Arguments.
 
   Lemma eq_state_id n s (pf : n = n) : eq_state pf s = s.
   Proof.
-    rewrite (@UIP_refl _ _ pf); auto.
+    (* rewrite (@UIP_refl _ _ pf); auto. *)
+    assert (H: pf = eq_refl n).
+    { apply UIP_dec; auto. }
+    rewrite H; auto.
   Qed.
   
   Definition upd_localState (n : node) (s : node_state (network_desc n))
@@ -1215,7 +1222,10 @@ Section relationalIntermediateNoBatch.
 
   Lemma eq_rState_id n s (pf : n = n) : eq_rState pf s = s.
   Proof.
-    rewrite (@UIP_refl _ _ pf); auto.
+    (* rewrite (@UIP_refl _ _ pf); auto. *)
+    assert (H: pf = Coq.Init.Logic.eq_refl n).
+    { apply UIP_dec, nodeINTDec. }
+    rewrite H; auto.
   Qed.
 
   Lemma upd_rLocalState_same n s st :
@@ -1331,3 +1341,38 @@ Section relationalIntermediateNoBatch.
                   l' (rTrace w ++ e') (rInitNodes w)).
 
 End relationalIntermediateNoBatch.
+
+(** Regular networks can be automatically lifted to relation-style networks *)
+Section liftNetwork.
+  Variable A : Type.
+  Variable AEnum : Enumerable A.
+  Variable AEnum_OK : @Enum_ok A AEnum.
+  Variable ADec : forall a1 a2 : A, {a1 = a2} + {a1 <> a2}.
+  Variable msgINT : Type.
+  Variable eventINT : Type.
+  Notation nodeINT := (nodeINT A).
+  Notation nodePkgINT := (nodePkgINT A msgINT eventINT).
+  Variable network_descINT : nodeINT -> nodePkgINT.
+  Notation packet := (packet nodeINT msgINT).
+  Notation mkRNodePkg := (@mkRNodePkg A msgINT eventINT).
+
+  (** Transform an init function into its relational equivalent *)
+  Definition liftInit (S : Type)
+             (init : nodeINT -> (S * list packet * list eventINT)%type) :=
+    fun n res => init n = res.
+
+  (** Transform a recv function into its relational equivalent *)
+  Definition liftRecv (S : Type)
+             (recv : msgINT -> nodeINT -> S ->
+                     (S * list packet * list eventINT)%type) :=
+    fun m o s res => recv m o s = res.
+
+  (** Transform a node package into its relational equivalent *)
+  Definition liftNodePkg (pkg : nodePkgINT) :=
+    @mkRNodePkg pkg.(node_state) (liftInit pkg.(init))
+                            (liftRecv pkg.(recv)) pkg.(pre_init).
+
+  (** Transform an entire network into its relational equivalent *)
+  Definition liftedNetwork_desc :=
+    fun n => liftNodePkg (network_descINT n).
+End liftNetwork.

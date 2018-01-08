@@ -15,7 +15,7 @@ Import GRing.Theory Num.Def Num.Theory.
 
 Require Import orderedtypes dyadic compile listlemmas cdist vector.
 
-Require Import networkSemantics weightslang weightsextract simulations.
+Require Import networkSemanticsNoBatch weightslang weightsextract simulations.
 
 Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
   Module Ix := MyOrdNatDepProps NUM_PLAYERS.
@@ -295,4 +295,4 @@ Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
   Definition server : RNodePkg Ix.t MSG event := liftNodePkg server'.
   
   End WE_NodePkg.
-End WE_NodePkg.  
+End WE_NodePkg.
