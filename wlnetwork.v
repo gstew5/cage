@@ -46,10 +46,10 @@ Section weightsLangNetwork.
 
   Definition wlEvent := {ffun 'I_N -> dist A rat_realFieldType}.
 
-  Notation wlNodePkg := (nodePkgINT N wlMsg wlEvent).
+  Definition wlNodePkg := (nodePkgINT 'I_N wlMsg wlEvent).
   Definition mkWlNodePkg := @mkRNodePkg 'I_N wlMsg wlEvent.
-  Notation wlPacket := (packet wlNode wlMsg).
-  Notation mkPacket := (@mkPacket wlNode wlMsg).
+  Definition wlPacket := (packet wlNode wlMsg).
+  Definition mkWlPacket := (@mkPacket wlNode wlMsg).
 
   (** Server node package *)
 
@@ -141,7 +141,7 @@ Section weightsLangNetwork.
         com' = CSeq CSkip (CIter nx mult_weights_body) ->
         st = mkWlClientState (Some n) com' clientPkgSt' ->
         (clientPkgSt').(SOracleSt).(sent) = Some d ->
-        pkt = mkPacket (serverID 'I_N)
+        pkt = mkWlPacket (serverID 'I_N)
                        (wlMsgClient d) n ->
         wlClientInit n (st, pkt :: nil, nil).
 
@@ -163,7 +163,7 @@ Section weightsLangNetwork.
                          st.(wlClientCom) clientPkgSt com' clientPkgSt' ->
         clientPkgSt'.(SOracleSt).(sent) = Some d ->
         wlClientRecv m n st (mkWlClientState (Some id) com' clientPkgSt',
-                             mkPacket (serverID _) (wlMsgClient d) id :: nil,
+                             mkWlPacket (serverID _) (wlMsgClient d) id :: nil,
                              nil).
 
   Definition wlClientPkg := mkWlNodePkg wlClientInit wlClientRecv
@@ -194,8 +194,6 @@ Section weightsLangNetwork.
   Notation machine_step := (@machine_step A a0 N _ (@serverCostRel)).
 
   Notation client_step := (@client_step A a0).
-
-  Notation localStateTy := (@rLocalStateTy 'I_N wlMsg wlEvent wlNetwork_desc).
 
   (** For each client, if there's a packet in flight addressed to
       them, then their received field in the machine contains the same

@@ -29,7 +29,7 @@ Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
     Context `{CCostInstance : CCostClass num_players A.t}.
     Variable nx : N.t. (*num_iters*)
 
-  (*server sends [premsg]s, clients send [msg]s*)
+  (*server sends [premsg]s, clients send [msg]s*) (* <- is this backwards? *)
   Definition premsg : Type := list (A.t*D).
     
   Definition premsg_ok (m : premsg) :=
@@ -124,6 +124,7 @@ Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
   Definition MSG_of_cstate (id : node) (st : MW.cstate) : list (packet node MSG) :=
     (id, TO_SERVER (st.(MW.SOracleSt).(sent)), serverID _) :: nil.
 
+  (* TODO: actually install the cost vector, probably using MProps.of_list *)
   Definition install_cost_vec
           (cost_vec : list (A.t*D))
           (st : MW.cstate)
@@ -139,7 +140,9 @@ Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
         st.(MW.SOracleSt).(sent)
         st.(MW.SOracleSt).(received)).
 
-  (*TODO: update to check whether nx=0*)
+  (* TODO: update to check whether nx=0 *)
+  (* Although it shouldn't ever happen if the server is programmed to
+     not send response packets after the last round. *)
   Definition client_recv
              (m : MSG)
              (from : node)
@@ -176,13 +179,14 @@ Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
   Record server_state : Type :=
     mkServerState
       { actions_received : M.t (list (A.t*D))
-      ; clients_received : M.t bool }. (*TODO: This should be just a count of num clients received*)
+        ; num_received : nat
+        ; round : nat }.
                               
   Definition server_init_state : server_state :=
-    mkServerState (M.empty _) (M.empty _).
+    mkServerState (M.empty _) 0 0.
 
   Definition round_is_done (sst : server_state) : bool :=
-    all (fun x => M.mem x sst.(clients_received)) (map Ix.val (enumerate Ix.t)).
+    num_received sst == num_players.
   
   Definition events_of (sst : server_state) : list event :=
     if round_is_done sst then sst.(actions_received) :: nil
@@ -262,27 +266,39 @@ Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
          (clientID player, TO_CLIENT (cost_vector_msg p player), serverID _) :: acc)
       (enumerate Ix.t)
       nil.
+
+  Definition incr_round (sst : server_state) :=
+    mkServerState sst.(actions_received) sst.(num_received) (S sst.(round)).
   
   Definition server_recv
              (m : MSG)
              (from : node)
              (sst : server_state)
     : server_state * seq (packet node MSG) * seq event
-    := match from with
-       | clientID x => 
-         match m with
-         | TO_SERVER m' => 
-           let sst' :=
-               mkServerState
-                 (M.add x.(Ix.val) m' sst.(actions_received))
-                 (M.add x.(Ix.val) true sst.(clients_received))
-           in if round_is_done sst' then
-                (sst', packets_of sst', events_of sst')
-              else (sst', nil, nil)
-         | TO_CLIENT _ => (sst, nil, nil)
-         end
-       | serverID => (sst, nil, nil)
-       end.
+    :=
+      (* Do nothing if reached max number of rounds. This makes it
+         impossible for clients to receive a packet after they've
+         finished running the MWU command. *)
+      if sst.(round) == nx then
+        (sst, nil, nil)
+      else
+        match from with
+        | clientID x => 
+          match m with
+          | TO_SERVER m' => 
+            let sst' :=
+                mkServerState
+                  (M.add x.(Ix.val) m' sst.(actions_received))
+                  (* (M.add x.(Ix.val) true sst.(clients_received)) *)
+                  (S sst.(num_received))
+                  (sst.(round))
+            in if round_is_done sst' then
+                 (incr_round sst', packets_of sst', events_of sst')
+               else (sst', nil, nil)
+          | TO_CLIENT _ => (sst, nil, nil)
+          end
+        | serverID => (sst, nil, nil)
+        end.
   
   Definition server' : NodePkg node MSG event :=
     @mkNodePkg
@@ -293,6 +309,6 @@ Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
       server_init_state.
 
   Definition server : RNodePkg Ix.t MSG event := liftNodePkg server'.
-  
+
   End WE_NodePkg.
 End WE_NodePkg.

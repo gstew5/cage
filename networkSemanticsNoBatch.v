@@ -4,6 +4,9 @@ Require Import Permutation.
 Require Import simulations.
 Require Import listlemmas.
 
+(* This shouldn't be strictly necessary but it's convenient at the moment. *)
+Require Import FunctionalExtensionality.
+
 (** Not sure if something like this exists somewhere already or where
     to put this *)
 Ltac dec_same dec :=
@@ -28,7 +31,6 @@ Ltac dec_diff dec :=
                               end ] ] =>
     destruct (dec x y); try congruence
   end.
-
 
 Section NetworkSemantics.
 Set Implicit Arguments.  
@@ -818,9 +820,6 @@ Section intermediateSemantics.
       clear. induction l; auto.
       move=> [H0 | H1]; auto. congruence.
     Qed.
-
-    (* This shouldn't be strictly necessary but it's convenient at the moment. *)
-    Require Import FunctionalExtensionality.
 
     (* An initalization step at the low level decreases countUninit by 1 *)
     Lemma initStep_countUninit : forall w n st ps es,
