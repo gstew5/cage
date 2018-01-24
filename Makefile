@@ -121,6 +121,7 @@ VFILES:=bigops.v\
   lightserver.v\
   server.v\
   strings.v\
+  mwu_costvec.v\
   machine.v\
   staging.v\
   vector.v\
