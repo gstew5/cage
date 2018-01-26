@@ -82,7 +82,8 @@ Class ClientOracle {A} :=
 
 (** * Program *)
 
-Module MWU (A : MyOrderedType).
+
+Module MWUPre (A : MyOrderedType).
   Module A' := OrderedType_of_MyOrderedType A.
   Module M := Make A'.
   Module MFacts := Facts M.
@@ -257,19 +258,43 @@ Module MWU (A : MyOrderedType).
     Definition mwu (eps : D) (nx : N.t) : option cstate :=
       interp (mult_weights A.t nx) (init_cstate eps).
   End mwu.
-End MWU.
+End MWUPre.
+
+(* Note [MWU_Type]: 
+   ~~~~~~~~~~~~~~~~
+   The following module type is used in: 
+     - wenetwork.v
+     - we2wl.v 
+   to unify the module instantiations of MWU built in the MWUProof 
+   functor (below) and the WE_NodePkg functor (defined in we2wl.v). *)
+
+Module Type MWU_Type.
+  Declare Module A : MyOrderedType.
+  Module MWUPre := MWUPre A.
+  Include MWUPre.
+End MWU_Type.
   
-Module MWUProof (T : OrderedFinType).
-  Module A := MyOrderedType_of_OrderedFinType T.
-  Module MWU := MWU A.
+Module MWU (A : MyOrderedType) <: MWU_Type.
+  Module A := A.
+  Module MWUPre := MWUPre A. Include MWUPre.
+End MWU.  
+
+Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
+  Module A := T.
   Module M := MWU.M.
   Module MFacts := Facts M.
   Module MProps := Properties M.
   
   Import MWU.
 
+  Section OrderedFinType_Section.
+    Variables
+      (eq_mixin : Equality.mixin_of A.t)
+      (choice_mixin : choiceMixin (EqType A.t eq_mixin))
+      (fin_mixin : Finite.mixin_of (ChoiceType (EqType A.t eq_mixin) choice_mixin)).
+      
   Definition t : finType :=
-    FinType (ChoiceType (EqType A.t T.eq_mixin) T.choice_mixin) T.fin_mixin.
+    FinType (ChoiceType (EqType A.t eq_mixin) choice_mixin) fin_mixin.
   
   Lemma InA_ext A (P Q : A -> A -> Prop) l x :
     (forall a b, P a b <-> Q a b) ->
@@ -1362,5 +1387,8 @@ Module MWUProof (T : OrderedFinType).
   Qed.
   End mwuproof.
   End mwuProof.
+  End OrderedFinType_Section.    
   Print Assumptions interp_mult_weights_epsilon_no_regret.
 End MWUProof.
+
+

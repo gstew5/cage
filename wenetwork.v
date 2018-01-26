@@ -17,9 +17,12 @@ Require Import orderedtypes dyadic compile listlemmas cdist vector.
 
 Require Import networkSemanticsNoBatch weightslang weightsextract simulations.
 
-Module WE_NodePkg (A : MyOrderedType) (NUM_PLAYERS : BOUND).
+Module WE_NodePkg
+       (A : MyOrderedType)
+       (NUM_PLAYERS : BOUND)
+       (MWU : MWU_Type with Module A := A).
   Module Ix := MyOrdNatDepProps NUM_PLAYERS.
-  Module MW := MWU A.
+  Module MW := MWU.
   
   Section WE_NodePkg.
     Variable enum_ok : @Enum_ok A.t _.

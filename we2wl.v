@@ -17,9 +17,12 @@ Require Import weightslang weightsextract simulations.
 Require Import orderedtypes compile.
 Require Import wlnetwork wenetwork.
 
-Module WE2WL (T : OrderedFinType) (B : BOUND).
-  Module MWProof := MWUProof T. Import MWProof.
-  Module WE_Node := WE_NodePkg A B. Import WE_Node.
+Module WE2WL
+       (T : OrderedFinType)
+       (B : BOUND)
+       (MWU : MWU_Type with Module A := T).
+  Module MWProof := MWUProof T MWU. Import MWProof.
+  Module WE_Node := WE_NodePkg A B MWU. Import WE_Node.
   Section WE2WL.
     Variable enum_ok : @Enum_ok A.t _.
     Definition weNode := nodeINT Ix.t.
@@ -118,9 +121,9 @@ Module WE2WL (T : OrderedFinType) (B : BOUND).
                (or' : oracle_cT) :=
       True. (* ? *)
     
-    Check (@match_states (simpleClientOracle enum_ok)).
+(*    Check (@match_states simpleClientOracle enum_ok)).
     Check MW.cstate.
-    Check MWU.cstate.
+    Check MWU.cstate.*)
 
     (* Client states match.*)
     Inductive wewlClientStateMatch : weClientState -> wlClientState -> Prop :=
@@ -129,7 +132,7 @@ Module WE2WL (T : OrderedFinType) (B : BOUND).
           Some (coerce_nodeId weClientSt.(client_id)) = wlClientst.(wlClientId) ->
 
           (* TODO: MW.cstate and MWU.cstate are different types :/ *)
-          (* match_states wewlMatchOracle wlClientst.(wlClientSt) weClientSt.(client_cstate) -> *)
+          match_states wewlMatchOracle wlClientst.(wlClientSt) weClientSt.(client_cstate) -> 
 
           (* The iter counters are equal *)
           (wlClientst.(wlClientCom) =

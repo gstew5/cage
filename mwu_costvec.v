@@ -2,7 +2,7 @@ Set Implicit Arguments.
 Unset Strict Implicit.
 
 Require Import QArith NArith.
-Require Import ProofIrrelevance FunctionalExtensionality. (*FIXME: don't need funext*)
+Require Import ProofIrrelevance.
 
 From mathcomp Require Import ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
@@ -11,11 +11,12 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import dist weights numerics bigops games weightslang server smooth.
+Require Import compile dyadic vector orderedtypes.
 
 (** The server cost vector specific to multiplayer no-regret games in which 
     each client runs MWU *)
 
-Section mwu_cost_vec.
+Section highlevel_mwu_costvec.
   Local Open Scope ring_scope.  
   Variable A : finType.
   Variable a0 : A.
@@ -159,4 +160,15 @@ Section mwu_cost_vec.
            \sum_(p : {ffun 'I_N -> A}) \prod_(i0 < N) (f i0) (p i0) * (cost) i p).
      by rewrite marginal_unfold.
   Qed.
-End mwu_cost_vec.
+End highlevel_mwu_costvec.  
+(*
+Module lowlevel_mwu_costvec (A : MyOrderedType) (NUM_PLAYERS : BOUND).
+ Section lowlevel_mwu_costvec.
+  Variable enum_ok : @Enum_ok A.t _.
+  Variable epsQ : D.
+  Definition num_players := NUM_PLAYERS.n.
+  Context `{CCostInstance : CCostClass num_players A.t}.
+  Variable nx : N.t. (*num_iters*)
+  
+  Module 
+*)
