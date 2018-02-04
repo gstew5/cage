@@ -430,7 +430,7 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
   Class match_oracles : Prop :=
     mkMatchOracles {
       match_oracle_recv : forall (ct : oracle_cT) (t : oracle_T) ch s,
-        match_oracle_states t ct -> 
+        match_oracle_states t ct ->
         let: (m, ct') := mwu_recv ch ct in
         exists t',
         [/\ weightslang.oracle_recv t ch s t'
@@ -448,7 +448,7 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
         exists t',
         [/\ weightslang.oracle_send tx d ch' t'
           , match_oracle_states t' ct'
-          & ch=ch' ]                                
+          & ch=ch' ]
     }.
 
   Context (Hmatch_ora : match_oracles).

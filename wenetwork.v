@@ -50,7 +50,7 @@ Module WE_NodePkg
   Inductive MSG : Type :=
   | TO_SERVER : premsg -> MSG
   | TO_CLIENT : msg -> MSG.
-  
+
   Record ClientPkg : Type :=
     mkClientPkg
       { sent : premsg

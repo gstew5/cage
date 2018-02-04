@@ -1139,7 +1139,7 @@ Section relationalIntermediateNoBatch.
 
   Variable Rnetwork_desc : nodeINT -> RNodePkg.
 
-  Notation nodeState n := (rState (Rnetwork_desc n)).
+  Definition nodeState n := (rState (Rnetwork_desc n)).
   Notation serverNode := (Rnetwork_desc serverID).
   Notation serverState := (rState serverNode).
   Notation clientNode i := (Rnetwork_desc (clientID i)).

@@ -276,7 +276,11 @@ Section weightsLangNetwork.
     sentPacketMatch W mach_st /\
     clientIdsMatch W /\
     clientDestUniqueMatch W.
-
+  
+  Definition wlNetworkInitWorld :=
+    mkRWorld
+      (fun n => rPre_init (wlNetwork_desc n))
+      nil nil (fun n => false).
 
   (** Set up simulation record. *)
 

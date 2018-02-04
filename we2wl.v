@@ -17,6 +17,8 @@ Require Import weightslang weightsextract simulations.
 Require Import orderedtypes compile.
 Require Import wlnetwork wenetwork.
 
+(* TODO: match_oracles instance to be used in match_states. *)
+
 Module WE2WL
        (T : OrderedFinType)
        (B : BOUND)
@@ -41,7 +43,14 @@ Module WE2WL
     Variable eps : rat.
     Local Open Scope ring_scope.
     Hypothesis epsOk : (0%:R < eps <= 1 / 2%:R)%R.
-    Variable nx : N.t. (*num_iters*)    
+    Variable nx : N.t. (*num_iters*)
+
+    (* We want nx to be nonzero so that iters = 0 implies com = skip,
+    otherwise it could be the case that iters = 0 but com = Citer ... 0 *)
+    Variable nxPos : (N.zero < nx)%N.
+
+    Variable refineType : RefineTypeAxiomClass MW.A.enumerable.
+    Variable epsEq : rat_to_Q eps = Qred (D_to_Q epsQ).
 
     Definition weNetwork_desc (n : weNode) :=
       match n with
@@ -100,6 +109,9 @@ Module WE2WL
     Notation wlNode := (wlNode B.n).
     Notation wlWorld := (@wlWorld B.n [finType of A.t] A.t0 costClass
                                   (@serverCostRel) eps epsOk nx).
+    Notation wlInitWorld :=
+      (@wlNetworkInitWorld B.n [finType of A.t] A.t0 costClass
+                           (@serverCostRel) eps epsOk nx).
     Notation wlNetwork_desc :=
       (@wlNetwork_desc B.n [finType of A.t] A.t0 costClass
                        (@serverCostRel) eps epsOk nx).
@@ -112,43 +124,84 @@ Module WE2WL
       | clientID i => clientID (Ix.Ordinal_of_t i)
       end.
 
+    Variable t_of_ordinal : 'I_Ix.n -> Ix.t.
+    Variable ordinal_of_t_inv : forall n, (Ix.Ordinal_of_t (t_of_ordinal n)) = n.
+
+    Definition coerce_nodeId' (n : wlNode) : weNode :=
+      match n with
+      | serverID => serverID _
+      | clientID i => clientID (t_of_ordinal i)
+      end.
+
+    Lemma coerce_nodeId_inv (n : wlNode) :
+      coerce_nodeId (coerce_nodeId' n) = n.
+    Proof.
+      rewrite /coerce_nodeId /coerce_nodeId'.
+      destruct n; auto.
+      by rewrite ordinal_of_t_inv.
+    Qed.
+
     Notation oracle_cT := (@oracle_cT (simpleClientOracle enum_ok)).
 
     (** MATCH RELATION *)
 
-    Definition wewlMatchOracle
-               (or : machine.ClientPkg [finType of A.t])
-               (or' : oracle_cT) :=
-      True. (* ? *)
-    
-(*    Check (@match_states simpleClientOracle enum_ok)).
-    Check MW.cstate.
-    Check MWU.cstate.*)
+    Inductive wewlMatchOracleState
+      : machine.ClientPkg [finType of A.t] -> oracle_cT -> Prop :=
+    | wewlMatchOracleStateNone : forall wlOracleSt weOracleSt,
+        machine.sent wlOracleSt = None ->
+        machine.received wlOracleSt = None ->
+        sent weOracleSt = nil ->
+        (* the_msg (received weOracleSt) = nil -> *)
+        wewlMatchOracleState wlOracleSt weOracleSt
+    | wewlMatchOracleStateReceived : forall wlOracleSt weOracleSt cost_vec,
+        machine.sent wlOracleSt = None ->
+        sent weOracleSt = nil ->
+        machine.received wlOracleSt = Some cost_vec ->
+        match_maps cost_vec (MProps.of_list (the_msg (received weOracleSt))) ->
+        wewlMatchOracleState wlOracleSt weOracleSt
+    | wewlMatchOracleStateSent : forall wlOracleSt weOracleSt d,
+        machine.received wlOracleSt = None ->
+        the_msg (received weOracleSt) = nil ->
+        machine.sent wlOracleSt = Some d ->
+        match_maps d (MProps.of_list (sent weOracleSt)) ->
+        wewlMatchOracleState wlOracleSt weOracleSt.
 
-    (* Client states match.*)
+    (* TODO in order to use interp_step_plus in weightsextract.v. *)
+    Program Instance wewlMatchOracle
+      : @match_oracles MWU.A.eq_mixin MWU.A.choice_mixin MWU.A.fin_mixin _
+                       (simpleClientOracle enum_ok) _
+                       (machine.simpleClientOracle _) wewlMatchOracleState.
+    Next Obligation.
+    Admitted.
+    Next Obligation.
+    Admitted.
+
+    (* Client states match. *)
     Inductive wewlClientStateMatch : weClientState -> wlClientState -> Prop :=
-      | wewlClientStateMatch1 : forall weClientSt wlClientst (com : com A.t) n,
-          (* ids match *)
-          Some (coerce_nodeId weClientSt.(client_id)) = wlClientst.(wlClientId) ->
-
-          (* TODO: MW.cstate and MWU.cstate are different types :/ *)
-          match_states wewlMatchOracle wlClientst.(wlClientSt) weClientSt.(client_cstate) -> 
-
-          (* The iter counters are equal *)
-          (wlClientst.(wlClientCom) =
-           CSeq CSkip (CIter n (mult_weights_body _)) /\
-           weClientSt.(client_iters) = n) \/
-          (wlClientst.(wlClientCom) = CSkip /\
-           weClientSt.(client_iters) = N.zero) ->
-
-          wewlClientStateMatch weClientSt wlClientst.
+    | wewlClientStateMatch1 : forall weClientSt wlClientst n,
+        (* ids match *)
+        (wlClientst.(wlClientId) = None \/
+         Some (coerce_nodeId weClientSt.(client_id)) = wlClientst.(wlClientId)) ->
+        (* cstates match *)
+        match_states wewlMatchOracleState wlClientst.(wlClientSt) weClientSt.(client_cstate) -> 
+        (* the command and iter counter match *)
+        (wlClientst.(wlClientCom) = (mult_weights A.t nx) /\
+         weClientSt.(client_iters) = nx) \/
+        (wlClientst.(wlClientCom) =
+         CSeq CSkip (CIter n (mult_weights_body _)) /\
+         weClientSt.(client_iters) = n /\ n <> N.zero) \/
+        (wlClientst.(wlClientCom) = CSkip /\
+         weClientSt.(client_iters) = N.zero) ->
+        wewlClientStateMatch weClientSt wlClientst.
 
     (* Maybe there's a better way than N.of_nat (nat_of_ord a). *)
     Definition match_server_maps
                (s : {ffun 'I_B.n -> dist [finType of A.t] rat_realFieldType})
                (m : compile.M.t (list (A.t*D))) : Prop :=
       forall a,
-      exists q, compile.M.find (N.of_nat (nat_of_ord a)) m = Some q /\
+      (* exists q, compile.M.find (N.of_nat (nat_of_ord a)) m = Some q /\ *)
+      (*      match_maps (s a) (MProps.of_list q). *)
+      forall q, compile.M.find (N.of_nat (nat_of_ord a)) m = Some q ->
            match_maps (s a) (MProps.of_list q).
 
     (* Server states match. Not sure about round #. *)
@@ -158,7 +211,7 @@ Module WE2WL
       := match_server_maps wlServerSt.(wlReceived)
                                         weServerSt.(actions_received) /\
          num_received weServerSt = wlNumReceived wlServerSt.
-    
+
     (* The local states for every node match. *)
     Definition wewlLocalStateMatch
                (weLocalState : rLocalStateTy weNetwork_desc)
@@ -242,19 +295,86 @@ Module WE2WL
       (@wlNetworkSemantics B.n [finType of A.t] A.t0 costClass
                            (@serverCostRel) eps epsOk nx).
 
+    Lemma match_server_map_init :
+      match_server_maps
+        [ffun=> uniformDist (T:=[finType of A.t]) A.t0]
+        (compile.M.empty (seq.seq (A.t * D))).
+    Proof.
+      move=> a q Hfind a0.
+      have H0: (compile.M.find (elt:=seq.seq (A.t * D)) (N.of_nat a)
+                               (compile.M.empty (seq.seq (A.t * D))) = None).
+      { by apply compile.MFacts.empty_o. }
+      congruence.
+    Qed.
+
+    Lemma rAllClientsSentCorrectlyMatch (we_st : weWorld) (wl_st : wlWorld) :
+      rAllClientsSentCorrectly Ix.enumerable we_st ->
+      rAllClientsSentCorrectly (ordinalEnumerable Ix.n) wl_st.
+    Admitted.
+
     Lemma we2wl_init_diagram :
       forall we_st,
         init we_st ->
         (exists wl_st, (@init _ wlInit) wl_st) /\
         (forall wl_st, (@init _ wlInit) wl_st -> exists x, we2wlMatch x we_st wl_st).
-    Admitted.
+    Proof.
+      move=> we_st Hinitwe. split.
+      { exists wlInitWorld. rewrite /init /wlInit /wlNetworkHasInit /=.
+        split; auto. }
+      { move=> wl_st Hinitwl. exists tt.
+        destruct Hinitwl as [Hwl0 [Hwl1 [Hwl2 [Hwl3 Hwl4]]]].
+        destruct Hinitwe as [Hwe0 [Hwe1 [Hwe2 [Hwe3 Hwe4]]]].
+        constructor.
+        { move=> n. destruct n. rewrite Hwe0 Hwl0. split; auto.
+          { rewrite /match_server_maps. apply match_server_map_init. }
+          { rewrite Hwe1 Hwl1. rewrite /client_preinit. rewrite /wlClientPreInitState.
+            apply wewlClientStateMatch1 with nx; simpl.
+            { by left. }
+            { constructor; try (by constructor); auto.
+              { by apply match_maps_init. }
+              { by apply match_maps_init. } }
+            { by left; split; split. } } }
+        { by rewrite Hwe3 Hwl3; constructor. }
+        { by rewrite Hwe4 Hwl4; constructor. }
+        { by move=> n; rewrite Hwe2 Hwl2. } }
+    Qed.
 
     Lemma we2wl_final_diagram :
       forall x we_st wl_st,
         we2wlMatch x we_st wl_st ->
         final we_st ->
         (@final _ wlFinal) wl_st.
-    Admitted.
+    Proof.
+      move=> [] we_st wl_st Hmatch Hfinal.
+      destruct Hmatch as [Hmatch0 Hmatch1 Hmatch3 Hmatch4].
+      rewrite /wewlInitNodesMatch in Hmatch4.
+      rewrite /final /weNetworkHasFinal in Hfinal.
+      rewrite /final /wlFinal /wlNetworkHasFinal.
+      destruct Hfinal as [Hfinal0 [Hfinal1 Hfinal2]].
+      split.
+      { move=> n. specialize (Hfinal0 (coerce_nodeId' n)).
+        rewrite Hmatch4 in Hfinal0.
+        by rewrite coerce_nodeId_inv in Hfinal0. }
+      { split.
+        { by eapply rAllClientsSentCorrectlyMatch; eassumption. }
+        { rewrite /wewlLocalStateMatch in Hmatch0.
+          move=> i. specialize (Hmatch0 (coerce_nodeId' (clientID i))).
+          simpl in Hmatch0.
+          remember (rLocalState we_st (clientID (t_of_ordinal i))).
+          remember (rLocalState wl_st (clientID (Ix.Ordinal_of_t
+                                                   (t_of_ordinal i))))
+            as wlstate.
+          rewrite -Heqwlstate in Hmatch0.
+          destruct Hmatch0. destruct H1.
+          { destruct H1. rewrite Heqn in H2. rewrite Hfinal2 in H2.
+            rewrite <- H2 in nxPos. inversion nxPos. }
+          { destruct H1.
+            { destruct H1. destruct H2. rewrite Heqn in H2.
+              rewrite Hfinal2 in H2.
+              rewrite -H2 in H3. by exfalso; apply H3. }
+            { by rewrite Heqwlstate in H1; destruct H1;
+                rewrite ordinal_of_t_inv in H1. } } } }
+    Qed.
 
     Theorem we2wl_step_diagram :
       forall x we_st wl_st,
@@ -288,6 +408,6 @@ Module WE2WL
                    we2wl_init_diagram
                    we2wl_final_diagram
                    we2wl_step_diagram.
-    
+
   End WE2WL.
 End WE2WL.  
