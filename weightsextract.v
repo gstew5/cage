@@ -429,12 +429,12 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
   (** The oracular compilation interface *)
   Class match_oracles : Prop :=
     mkMatchOracles {
-      match_oracle_recv : forall (ct : oracle_cT) (t : oracle_T) ch s,
-        match_oracle_states t ct ->
+      match_oracle_recv : forall (ct : oracle_cT) (t : oracle_T) s ch,
+        match_oracle_states t ct -> 
         let: (m, ct') := mwu_recv ch ct in
+        match_maps s m -> 
         exists t',
         [/\ weightslang.oracle_recv t ch s t'
-          , match_maps s m
           & match_oracle_states t' ct']
 
     ; match_oracle_send :
@@ -1040,8 +1040,15 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
       exists CSkip.
       have Hora: match_oracle_states (weightslang.SOracleSt s) (SOracleSt tx).
       { by case: H2. }
-      generalize (match_oracle_recv (SChan tx) f Hora).
-      case Hrecv': (mwu_recv _ _) => // [m tx'] []sx' []Hrecv Hmaps Hora_states.
+      case Hrecv': (mwu_recv (SChan tx) (SOracleSt tx)) => [m tx'].
+      have Hmaps: match_maps f m.
+      { rewrite /match_maps/f => a; rewrite ffunE.
+        case: (recv_ok a (SOracleSt tx) (SChan tx)) => q []Hx Hy Hz.
+        rewrite /c; rewrite Hrecv'; rewrite Hrecv' /= in Hx.
+        exists q; rewrite Hx; split => //.
+        by rewrite rat_to_QK1 Qred_idem. }
+      generalize (match_oracle_recv f (SChan tx) Hora); rewrite Hrecv'.
+      move/(_ Hmaps); case => sx' []Hrecv Hora_states.
       exists
         (@mkState
            _
