@@ -157,6 +157,7 @@ Module WE2WL
         machine.sent wlOracleSt = None ->
         sent weOracleSt = nil ->
         machine.received wlOracleSt = Some cost_vec ->
+        (forall a, (0%:R <= cost_vec a <= 1%:R)%R) ->
         match_maps cost_vec (MProps.of_list (the_msg (received weOracleSt))) ->
         wewlMatchOracleState wlOracleSt weOracleSt
     | wewlMatchOracleStateSent : forall wlOracleSt weOracleSt d,
@@ -172,6 +173,28 @@ Module WE2WL
                        (simpleClientOracle enum_ok) _
                        (machine.simpleClientOracle _) wewlMatchOracleState.
     Next Obligation.
+      inversion H; subst.
+      { admit. (* Should be contradictory.. *) }
+      { have Hcost_vec: (s = cost_vec).
+        { admit. } (* ? *)
+        subst.
+        have received_ok : (forall (cost_vec0 : {ffun MWU.A.t -> rat}),
+                               None = Some cost_vec0 ->
+                               forall a, (0%:R <= cost_vec0 a <= 1%:R)%R).
+        { move=> cost_vec0 Hcv. inversion Hcv. }
+        exists (@machine.mkClientPkg _ None None (received_ok)).
+        split.
+        { by constructor. }
+        { by rewrite strings.print_Dvector_id; apply H4. }
+        { admit. (* ct should probably not be the same here *) } }
+      { exists (@machine.mkClientPkg _ (Some d) (machine.received t0)
+                                     (@machine.received_ok _ t0)).
+        split.
+        { admit. }
+        { eexists. split.
+          { admit. }
+          { admit. } }
+        { admit. }
     Admitted.
     Next Obligation.
     Admitted.
@@ -183,7 +206,13 @@ Module WE2WL
         (wlClientst.(wlClientId) = None \/
          Some (coerce_nodeId weClientSt.(client_id)) = wlClientst.(wlClientId)) ->
         (* cstates match *)
-        match_states wewlMatchOracleState wlClientst.(wlClientSt) weClientSt.(client_cstate) -> 
+        (* (wlClientst.(wlClientCom) = (mult_weights A.t nx) /\ *)
+        (*  @match_states_upto_oracle MWU.A.eq_mixin MWU.A.choice_mixin *)
+        (*                            MWU.A.fin_mixin (simpleClientOracle enum_ok) *)
+        (*                            _ wlClientst.(wlClientSt) *)
+        (*                                           weClientSt.(client_cstate) \/ *)
+         match_states wewlMatchOracleState
+                      wlClientst.(wlClientSt) weClientSt.(client_cstate) ->
         (* the command and iter counter match *)
         (wlClientst.(wlClientCom) = (mult_weights A.t nx) /\
          weClientSt.(client_iters) = nx) \/
@@ -327,10 +356,11 @@ Module WE2WL
         constructor.
         { move=> n. destruct n. rewrite Hwe0 Hwl0. split; auto.
           { rewrite /match_server_maps. apply match_server_map_init. }
-          { rewrite Hwe1 Hwl1. rewrite /client_preinit. rewrite /wlClientPreInitState.
+          { rewrite Hwe1 Hwl1 /client_preinit /wlClientPreInitState.
             apply wewlClientStateMatch1 with nx; simpl.
             { by left. }
-            { constructor; try (by constructor); auto.
+            { (* left. split; auto. *)
+              constructor; try (by constructor); auto. 
               { by apply match_maps_init. }
               { by apply match_maps_init. } }
             { by left; split; split. } } }
@@ -410,4 +440,4 @@ Module WE2WL
                    we2wl_step_diagram.
 
   End WE2WL.
-End WE2WL.  
+End WE2WL.

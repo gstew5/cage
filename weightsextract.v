@@ -418,7 +418,7 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
         pmf d = finfun (fun a => Q_to_rat (f a)) ->
         match_distrs l l' ->
         match_distrs [:: d & l] [:: f & l'].
-  
+
   (** The high-level oracle *)
   Context oracle_T  `{oracle: weightslang.ClientOracle t oracle_T oracle_chanty}.
   Notation "'state' t" := (@state t oracle_T oracle_chanty) (at level 50).
@@ -1028,7 +1028,7 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
         clear f.
         case: (recv_ok a (SOracleSt tx) (SChan tx)) => q [] -> [] H H3.
         rewrite -Q_to_rat1 ler_norml; apply/andP; split.
-        { rewrite -Q_to_rat_opp.        
+        { rewrite -Q_to_rat_opp.
           apply: Q_to_rat_le.
           move: (Qred_correct (D_to_Q q)) ->.
           apply: Qle_bool_imp_le.
@@ -1046,7 +1046,7 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
         (@mkState
            _
            _
-           _ 
+           _
            f
            pf
            (existT
@@ -1092,7 +1092,7 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
         (@mkState
            _
            _
-           _ 
+           _
            (weightslang.SCosts s)
            (weightslang.SCostsOk s)
            (weightslang.SPrevCosts s)
@@ -1387,8 +1387,6 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
   Qed.
   End mwuproof.
   End mwuProof.
-  End OrderedFinType_Section.    
+  End OrderedFinType_Section.
   Print Assumptions interp_mult_weights_epsilon_no_regret.
 End MWUProof.
-
-

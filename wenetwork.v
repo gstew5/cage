@@ -78,6 +78,8 @@ Module WE_NodePkg
              (pkg : ClientPkg)
              (_ : unit)
     : list (A.t*D) * ClientPkg
+    (* Should this clear the received field of pkg? simple_oracle_recv
+       in machine.v does. *)
     := (pkg.(received).(the_msg), pkg).
 
   Definition simple_oracle_send
