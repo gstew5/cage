@@ -71,6 +71,9 @@ Module WE_NodePkg
     by move => H3; right; apply: IH.
   Qed.
   
+  (* TODO: Should this just be @mkClientPkg nil nil? And then use
+     init_map in the init handler. That's how it's done in wlnetwork
+     so the match relation would be more straightforward. *)
   Definition init_ClientPkg : ClientPkg :=
     @mkClientPkg nil (mkMsg init_map_ok).
 
@@ -78,8 +81,8 @@ Module WE_NodePkg
              (pkg : ClientPkg)
              (_ : unit)
     : list (A.t*D) * ClientPkg
-    (* Should this clear the received field of pkg? simple_oracle_recv
-       in machine.v does. *)
+    (* TODO: Should this clear the received field of pkg?
+       simple_oracle_recv in machine.v does. *)
     := (pkg.(received).(the_msg), pkg).
 
   Definition simple_oracle_send

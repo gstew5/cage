@@ -46,7 +46,8 @@ Module WE2WL
     Variable nx : N.t. (*num_iters*)
 
     (* We want nx to be nonzero so that iters = 0 implies com = skip,
-    otherwise it could be the case that iters = 0 but com = Citer ... 0 *)
+    otherwise it could be the case that iters = 0 but
+    com = [CSeq ... (Citer 0 ...)] *)
     Variable nxPos : (N.zero < nx)%N.
 
     Variable refineType : RefineTypeAxiomClass MW.A.enumerable.
@@ -151,7 +152,7 @@ Module WE2WL
         machine.sent wlOracleSt = None ->
         machine.received wlOracleSt = None ->
         sent weOracleSt = nil ->
-        (* the_msg (received weOracleSt) = nil -> *)
+        the_msg (received weOracleSt) = nil ->
         wewlMatchOracleState wlOracleSt weOracleSt
     | wewlMatchOracleStateReceived : forall wlOracleSt weOracleSt cost_vec,
         machine.sent wlOracleSt = None ->
@@ -174,29 +175,29 @@ Module WE2WL
                        (machine.simpleClientOracle _) wewlMatchOracleState.
     Next Obligation.
       inversion H; subst.
-      { admit. (* Should be contradictory.. *) }
+      { admit. (* Should be contradictory because received is None *) }
       { have Hcost_vec: (s = cost_vec).
-        { admit. } (* ? *)
+        { rewrite strings.print_Dvector_id in H0.
+          rewrite /match_maps in H0 H5.
+          apply ffunP => a. specialize (H0 a). specialize (H5 a).
+          destruct H0 as [q [Hq0 Hq1]]. destruct H5 as [w [Hw0 Hw1]].
+          rewrite Hq0 in Hw0. inversion Hw0; subst. rewrite Hq1 in Hw1.
+          by apply rat_to_Q_inj. }
         subst.
         have received_ok : (forall (cost_vec0 : {ffun MWU.A.t -> rat}),
                                None = Some cost_vec0 ->
                                forall a, (0%:R <= cost_vec0 a <= 1%:R)%R).
         { move=> cost_vec0 Hcv. inversion Hcv. }
-        exists (@machine.mkClientPkg _ None None (received_ok)).
-        split.
+        exists (@machine.mkClientPkg _ None None (received_ok)). split.
         { by constructor. }
-        { by rewrite strings.print_Dvector_id; apply H4. }
         { admit. (* ct should probably not be the same here *) } }
-      { exists (@machine.mkClientPkg _ (Some d) (machine.received t0)
-                                     (@machine.received_ok _ t0)).
-        split.
-        { admit. }
-        { eexists. split.
-          { admit. }
-          { admit. } }
-        { admit. }
+      { admit. (* Should be contradictory because received is None *) }
     Admitted.
     Next Obligation.
+      inversion H; subst.
+      { admit. (* Should be contradictory because sent is None *) }
+      { admit. (* Should be contradictory because sent is None *) }
+      { admit. (* Provable case *) }
     Admitted.
 
     (* Client states match. *)
@@ -362,12 +363,13 @@ Module WE2WL
             { (* left. split; auto. *)
               constructor; try (by constructor); auto. 
               { by apply match_maps_init. }
-              { by apply match_maps_init. } }
+              { by apply match_maps_init. }
+              admit. }
             { by left; split; split. } } }
         { by rewrite Hwe3 Hwl3; constructor. }
         { by rewrite Hwe4 Hwl4; constructor. }
         { by move=> n; rewrite Hwe2 Hwl2. } }
-    Qed.
+    Admitted.
 
     Lemma we2wl_final_diagram :
       forall x we_st wl_st,
