@@ -453,6 +453,19 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
 
   Context (Hmatch_ora : match_oracles).
   
+  Inductive match_states_upto_oracle : state t -> cstate -> Prop :=
+  | mkMatchStatesUptoOracle :
+      forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs' ch
+             oracle_st coracle_st,
+        match_maps s m ->
+        match_costs_seq ss mm ->
+        match_maps w wc ->
+        rat_to_Q eps = Qred (D_to_Q epsc) ->
+        match_distrs outs outs' ->
+        match_states_upto_oracle
+          (@mkState _ _ _ s s_ok ss w w_ok eps eps_ok outs ch oracle_st)
+          (@mkCState _ m mm wc epsc outs' ch coracle_st).
+
   Inductive match_states : state t -> cstate -> Prop :=
   | mkMatchStates :
       forall s m s_ok ss mm w w_ok wc eps eps_ok epsc outs outs' ch
