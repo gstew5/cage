@@ -161,7 +161,9 @@ Module AxClientOracle (C : CONFIG).
     @mkOracle C.A.t 
       ax_st_ty empty_ax_st
       ax_chan ax_bogus_chan
+      (fun _ _ => true) (*presend*)
       (@recv num_players _ _)
+      (fun _ _ => true) (*prerecv*)     
       (@send num_players _ _ _ _ _)
       (@recv_ok num_players _ _ _ _ _)
       (@recv_nodup num_players _ _ _).

@@ -70,7 +70,9 @@ Class ClientOracle {A} :=
            ; oracle_init_state : T
            ; oracle_chanty : Type
            ; oracle_bogus_chan : oracle_chanty
-           ; oracle_recv : T -> oracle_chanty -> (list (A*D) * T) 
+           ; oracle_prerecv : T -> oracle_chanty -> bool
+           ; oracle_recv : T -> oracle_chanty -> (list (A*D) * T)
+           ; oracle_presend : T -> list (A*D) -> bool
            ; oracle_send : T -> list (A*D) -> (oracle_chanty * T)
            ; oracle_recv_ok : forall st ch a,
                exists d,
@@ -82,7 +84,8 @@ Class ClientOracle {A} :=
 
 (** * Program *)
 
-Module MWU (A : MyOrderedType).
+
+Module MWUPre (A : MyOrderedType).
   Module A' := OrderedType_of_MyOrderedType A.
   Module M := Make A'.
   Module MFacts := Facts M.
@@ -195,26 +198,32 @@ Module MWU (A : MyOrderedType).
                      (SOracleSt s))
            end
       | CRecv =>
-        let (c, st') := mwu_recv (SChan s) (SOracleSt s)
-        in Some (mkCState
-                   c
-                   (SCosts s :: SPrevCosts s)
-                   (SWeights s)
-                   (SEpsilon s)
-                   (SOutputs s)
-                   (SChan s)
-                   st')
+        if oracle_prerecv (SOracleSt s) (SChan s) 
+        then 
+          let (c, st') := mwu_recv (SChan s) (SOracleSt s)
+          in Some (mkCState
+                     c
+                     (SCosts s :: SPrevCosts s)
+                     (SWeights s)
+                     (SEpsilon s)
+                     (SOutputs s)
+                     (SChan s)
+                     st')
+        else None
       | CSend =>
-        let (ch, st') := mwu_send (SWeights s) (SOracleSt s) in
-        let d := weights_distr (SWeights s)
-        in Some (mkCState
-                   (SCosts s)
-                   (SPrevCosts s)
-                   (SWeights s)
-                   (SEpsilon s)
-                   (d :: SOutputs s)
-                   ch
-                   st')
+        if oracle_presend (SOracleSt s) (M.elements (SWeights s))
+        then 
+          let (ch, st') := mwu_send (SWeights s) (SOracleSt s) in
+          let d := weights_distr (SWeights s)
+          in Some (mkCState
+                     (SCosts s)
+                     (SPrevCosts s)
+                     (SWeights s)
+                     (SEpsilon s)
+                     (d :: SOutputs s)
+                     ch
+                     st')
+        else None
       | CSeq c1 c2 =>
         match interp c1 s with
         | None => None
@@ -257,19 +266,43 @@ Module MWU (A : MyOrderedType).
     Definition mwu (eps : D) (nx : N.t) : option cstate :=
       interp (mult_weights A.t nx) (init_cstate eps).
   End mwu.
-End MWU.
+End MWUPre.
+
+(* Note [MWU_Type]: 
+   ~~~~~~~~~~~~~~~~
+   The following module type is used in: 
+     - wenetwork.v
+     - we2wl.v 
+   to unify the module instantiations of MWU built in the MWUProof 
+   functor (below) and the WE_NodePkg functor (defined in we2wl.v). *)
+
+Module Type MWU_Type.
+  Declare Module A : MyOrderedType.
+  Module MWUPre := MWUPre A.
+  Include MWUPre.
+End MWU_Type.
   
-Module MWUProof (T : OrderedFinType).
-  Module A := MyOrderedType_of_OrderedFinType T.
-  Module MWU := MWU A.
+Module MWU (A : MyOrderedType) <: MWU_Type.
+  Module A := A.
+  Module MWUPre := MWUPre A. Include MWUPre.
+End MWU.  
+
+Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
+  Module A := T.
   Module M := MWU.M.
   Module MFacts := Facts M.
   Module MProps := Properties M.
   
   Import MWU.
 
+  Section OrderedFinType_Section.
+    Variables
+      (eq_mixin : Equality.mixin_of A.t)
+      (choice_mixin : choiceMixin (EqType A.t eq_mixin))
+      (fin_mixin : Finite.mixin_of (ChoiceType (EqType A.t eq_mixin) choice_mixin)).
+      
   Definition t : finType :=
-    FinType (ChoiceType (EqType A.t T.eq_mixin) T.choice_mixin) T.fin_mixin.
+    FinType (ChoiceType (EqType A.t eq_mixin) choice_mixin) fin_mixin.
   
   Lemma InA_ext A (P Q : A -> A -> Prop) l x :
     (forall a b, P a b <-> Q a b) ->
@@ -393,7 +426,7 @@ Module MWUProof (T : OrderedFinType).
         pmf d = finfun (fun a => Q_to_rat (f a)) ->
         match_distrs l l' ->
         match_distrs [:: d & l] [:: f & l'].
-  
+
   (** The high-level oracle *)
   Context oracle_T  `{oracle: weightslang.ClientOracle t oracle_T oracle_chanty}.
   Notation "'state' t" := (@state t oracle_T oracle_chanty) (at level 50).
@@ -423,7 +456,7 @@ Module MWUProof (T : OrderedFinType).
         exists t',
         [/\ weightslang.oracle_send tx d ch' t'
           , match_oracle_states t' ct'
-          & ch=ch' ]                                
+          & ch=ch' ]
     }.
 
   Context (Hmatch_ora : match_oracles).
@@ -950,7 +983,7 @@ Module MWUProof (T : OrderedFinType).
   Qed.
 
   Variable a0 : t.
-  
+
   Lemma interp_step_plus :
     forall (s : state t) (tx tx' : cstate) (c : com t),
       interp c tx = Some tx' ->
@@ -1003,7 +1036,7 @@ Module MWUProof (T : OrderedFinType).
         clear f.
         case: (recv_ok a (SOracleSt tx) (SChan tx)) => q [] -> [] H H3.
         rewrite -Q_to_rat1 ler_norml; apply/andP; split.
-        { rewrite -Q_to_rat_opp.        
+        { rewrite -Q_to_rat_opp.
           apply: Q_to_rat_le.
           move: (Qred_correct (D_to_Q q)) ->.
           apply: Qle_bool_imp_le.
@@ -1028,7 +1061,7 @@ Module MWUProof (T : OrderedFinType).
         (@mkState
            _
            _
-           _ 
+           _
            f
            pf
            (existT
@@ -1052,7 +1085,7 @@ Module MWUProof (T : OrderedFinType).
         by []. }
       inversion H2; subst. simpl in *.
       rewrite Hrecv' in H1.
-      inversion H1; subst.
+      move: H1; case: (oracle_prerecv _ _); inversion 1; subst; clear H1.
       by constructor; try solve[auto | constructor; auto]. }
     { intros s tx; inversion 1; subst; clear H.
       intros H2.
@@ -1074,7 +1107,7 @@ Module MWUProof (T : OrderedFinType).
         (@mkState
            _
            _
-           _ 
+           _
            (weightslang.SCosts s)
            (weightslang.SCostsOk s)
            (weightslang.SPrevCosts s)
@@ -1123,10 +1156,12 @@ Module MWUProof (T : OrderedFinType).
         apply/ffunP => x; rewrite 2!ffunE /weights_distr.
         case Hy: (M.find _ _) => // [q].
         by rewrite Q_to_rat_div. }
-      destruct (mwu_send wc) eqn:Hsendwc. inversion Hchst.
+      move: Hchst; case: (oracle_presend _ _).
+      destruct (mwu_send wc) eqn:Hsendwc; inversion 1; subst; clear Hchst.
       inversion Hsend'.
       constructor; auto.
-      constructor; auto. }
+      constructor; auto.
+      inversion 1. }
     { move => s t t'.
       case H: (interp c1 t) => [t''|].
       { move => H2 H3.
@@ -1319,14 +1354,17 @@ Module MWUProof (T : OrderedFinType).
       (0 < size (SPrevCosts tx))%N.
   Proof.
     rewrite /init_cstate /=; case: (update_weights _ _) => //= a.
+    case: (oracle_presend _ _) => //.
     destruct (mwu_send a) eqn:Hsend.
     case Hnx: nx => /= [//|p]; rewrite Pos2Nat.inj_iter => H.
     have [n ->]: exists n, Pos.to_nat p = n.+1.
     { apply: Pos2Nat.is_succ. }
     simpl.
     case: (nat_rect _ _) => // [s1].
+    destruct (oracle_prerecv _ _) eqn:Hpresend => //.
     destruct (mwu_recv (SChan s1)) eqn:Hrecv => /=.
     case: (update_weights _ _) => //= a1.
+    destruct (oracle_presend _ _) eqn:Hpresend1 => //.
     destruct (mwu_send a1) eqn:Hsenda1.
     inversion 1; subst => /=.
     case: (SPrevCosts _) => //.
@@ -1369,5 +1407,6 @@ Module MWUProof (T : OrderedFinType).
   Qed.
   End mwuproof.
   End mwuProof.
+  End OrderedFinType_Section.
   Print Assumptions interp_mult_weights_epsilon_no_regret.
 End MWUProof.
