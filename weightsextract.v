@@ -438,7 +438,8 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
   Class match_oracles : Prop :=
     mkMatchOracles {
       match_oracle_recv : forall (ct : oracle_cT) (t : oracle_T) s ch,
-        match_oracle_states t ct -> 
+        match_oracle_states t ct ->
+        oracle_prerecv ct ch = true ->  
         let: (m, ct') := mwu_recv ch ct in
         match_maps s m -> 
         exists t',
@@ -451,6 +452,7 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
                a0 eps (eps_ok : (0 < eps <= 1 / 2%:R)%R),
         match_oracle_states tx ct ->
         match_maps s m ->
+        oracle_presend ct (MProps.to_list m) = true ->          
         let: (ch, ct') := mwu_send m ct in
         let: d := p_aux_dist a0 eps_ok s_ok (cs:=[::]) (CMAX_nil (A:=t)) in
         exists t',
@@ -1055,7 +1057,8 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
         rewrite /c; rewrite Hrecv'; rewrite Hrecv' /= in Hx.
         exists q; rewrite Hx; split => //.
         by rewrite rat_to_QK1 Qred_idem. }
-      generalize (match_oracle_recv f (SChan tx) Hora); rewrite Hrecv'.
+      move: H1; case Hpre: (oracle_prerecv _ _); inversion 1; subst; clear H1.      
+      generalize (match_oracle_recv f Hora Hpre); rewrite Hrecv'.
       move/(_ Hmaps); case => sx' []Hrecv Hora_states.
       exists
         (@mkState
@@ -1084,8 +1087,8 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
         { by case: H2. }
         by []. }
       inversion H2; subst. simpl in *.
-      rewrite Hrecv' in H1.
-      move: H1; case: (oracle_prerecv _ _); inversion 1; subst; clear H1.
+      rewrite Hrecv' in H0.
+      move: H0; inversion 1; subst; clear H0.
       by constructor; try solve[auto | constructor; auto]. }
     { intros s tx; inversion 1; subst; clear H.
       intros H2.
@@ -1094,13 +1097,15 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
       { by case: H2. }
       have Hmaps: match_maps (weightslang.SWeights s) (SWeights tx).
       { by case: H2. }
+      move: H1; case Hpre: (oracle_presend _ _); try solve[inversion 1].
       generalize (match_oracle_send
                     (SChan tx)
                     (weightslang.SWeightsOk s)
                     a0
                     (weightslang.SEpsilonOk s)
                     Hora
-                    Hmaps).
+                    Hmaps
+                    Hpre).
       case Hsend': (mwu_send _ _) => [ch tx'].
       case => sx' [] Hsend Hora' Hchan.
       exists
@@ -1156,12 +1161,9 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
         apply/ffunP => x; rewrite 2!ffunE /weights_distr.
         case Hy: (M.find _ _) => // [q].
         by rewrite Q_to_rat_div. }
-      move: Hchst; case: (oracle_presend _ _).
-      destruct (mwu_send wc) eqn:Hsendwc; inversion 1; subst; clear Hchst.
-      inversion Hsend'.
+      inversion Hchst; subst.
       constructor; auto.
-      constructor; auto.
-      inversion 1. }
+      constructor; auto. }
     { move => s t t'.
       case H: (interp c1 t) => [t''|].
       { move => H2 H3.
