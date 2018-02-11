@@ -1292,7 +1292,15 @@ Section relationalIntermediateNoBatch.
   Definition upd_rInitNodes (n : nodeINT) (rInitNodes : nodeINT -> bool)
     : nodeINT -> bool :=
     fun n' => if nodeINTDec n n' then true else rInitNodes n'.
-  
+
+  Lemma upd_rInitNodes_diff n m s :
+    n <> m ->
+    upd_rInitNodes m s n = s n.
+  Proof.
+    move=> H; unfold upd_rInitNodes;
+            destruct (nodeINTDec m n); auto; congruence.
+  Qed.
+
   (** The relational intermediate network semantics step relation *)
   Inductive Rnetwork_step : RWorld -> RWorld -> Prop :=
   (* A single node initializes *)
