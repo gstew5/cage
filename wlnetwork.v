@@ -276,7 +276,7 @@ Section weightsLangNetwork.
     sentPacketMatch W mach_st /\
     clientIdsMatch W /\
     clientDestUniqueMatch W.
-  
+
   Definition wlNetworkInitWorld :=
     mkRWorld
       (fun n => rPre_init (wlNetwork_desc n))
@@ -1358,12 +1358,12 @@ Section weightsLangNetwork.
     by move: Contra => /ltP Contra; omega.
   Qed.
 
-  (* Dispatch common contradictory cases *)
+  (* Discharge common contradictory cases *)
   Ltac step_contra :=
     try match goal with
-        | [ H : step' _ CSkip _ _ _ |- _ ] => inversion H
-        | [ H : client_step _ CSkip _ _ _  |- _ ] => inversion H
-        | [ H : (?n < ?n%num)%N |- _ ] => inversion H
+        | [ H : step' _ CSkip _ _ _ |- _ ] => by inversion H
+        | [ H : client_step _ CSkip _ _ _  |- _ ] => by inversion H
+        | [ H : (?n < ?n%num)%N |- _ ] => by inversion H
         | [ H : 0%num <> 0%num /\ _ = _ \/ 0%num = 0%num /\ _ = CSkip |- _ ] =>
             by destruct H as [[_ H] | [_ H]]; inversion H
         | [ H : N.pos _ <> 0%num /\ _ = _ \/ N.pos _ = 0%num /\ _ = CSkip |- _ ] =>
@@ -1408,7 +1408,6 @@ Section weightsLangNetwork.
              (clients mach_st))
         (hist mach_st).
     exists mach_st'.
-
     pose st0 := {|
         SCosts := init_costs A;
         SCostsOk := init_costs_ok (A:=A);
@@ -1421,7 +1420,6 @@ Section weightsLangNetwork.
         SChan := tt;
         weightslang.SOracleSt := init_ClientPkg A |}.
     fold st0 in H2.
-
     inversion H2; subst.
     { rewrite /mult_weights in H. simpl in H.
       inversion H; subst. inversion H7. }
@@ -1440,7 +1438,6 @@ Section weightsLangNetwork.
          SChan := SChan st0;
          weightslang.SOracleSt := SOracleSt st0 |}.
       fold st1 in H9, H, H0, H8.
-
       inversion H0; subst.
       { by inversion H1; subst; inversion H11. }
       { inversion H1; subst. inversion H12; subst.
@@ -1465,10 +1462,8 @@ Section weightsLangNetwork.
           destruct (Hclientinit i) as [Hclientinit'].
           specialize (Hclientinit' Hinitnode).
           destruct Hclientinit' as [Hpreinit Hstate].
-
           split.
           { exists 2%N.
-
             pose mach_st0 :=
               mkMachineState
                 (upd i (CSeq (CSeq CSkip CSend)
@@ -1734,7 +1729,7 @@ Section weightsLangNetwork.
           exfalso. eapply client_step_plus_not_same. eassumption. }
         { by step_contra. } } }
   Qed.
-  
+
   Lemma client_recv_step (mach_st : machine_state)
         (w : wlWorld) i st ps es l1 l2 p u :
     rInitNodes w (clientID i) = true ->
@@ -1778,8 +1773,7 @@ Section weightsLangNetwork.
         { inversion H7; subst.
           { by inversion H8; subst; inversion H17; subst; step_contra. }
           { inversion H8; subst. inversion H18; subst.
-            
-      pose st0 :=
+     pose st0 :=
         {|
           SCosts := f;
           SCostsOk := pf;
@@ -1793,7 +1787,6 @@ Section weightsLangNetwork.
           SOutputs := SOutputs s''0;
           SChan := SChan s''0;
           weightslang.SOracleSt := t' |}.
-
       pose st0' :=
         {|
           SCosts := f;
@@ -1808,16 +1801,13 @@ Section weightsLangNetwork.
           SOutputs := SOutputs st;
           SChan := SChan st;
           weightslang.SOracleSt := t' |}.
-
       fold st0 in H8, H18, H9.
-
       inversion H9; subst.
       { by inversion H13; subst; step_contra. }
       { inversion H13; subst.
         { inversion H14; subst.
           { by inversion H15; subst; inversion H22; subst; step_contra. }
           { inversion H15; subst. inversion H23; subst.
-
             pose st1 :=
               {|
                 SCosts := SCosts st0;
@@ -1835,7 +1825,6 @@ Section weightsLangNetwork.
                 SOutputs := SOutputs st0;
                 SChan := SChan st0;
                 weightslang.SOracleSt := SOracleSt st0 |}.
-
             have pf0':
               (forall a : A,
                   0 <
@@ -1854,7 +1843,6 @@ Section weightsLangNetwork.
               destruct (Hclients i) as
                   [Hclients0 [Hclients1 [_ Hclients2]]].
               inversion Hclients1. by rewrite H26 H20 H27 H21. }
-
             pose st1' :=
               {|
                 SCosts := SCosts st0';
@@ -1872,16 +1860,13 @@ Section weightsLangNetwork.
                 SOutputs := SOutputs st0';
                 SChan := SChan st0';
                 weightslang.SOracleSt := SOracleSt st0' |}.
-
             fold st1 in H23, H15, H15.
-
             inversion H16; subst.
             { by inversion H17; subst; step_contra. }
             { inversion H17; subst; step_contra.
               { fold st1 in H19, H17, H16.
                 inversion H19; subst.
                 { inversion H20; subst. inversion H21; subst.
-
                   pose st2 :=
                     {|
                       SCosts := SCosts st1;
@@ -1899,7 +1884,6 @@ Section weightsLangNetwork.
                                              SOutputs st1;
                       SChan := ch;
                       weightslang.SOracleSt := t'0 |}.
-
                   pose st2' :=
                     {|
                       SCosts := SCosts st1';
@@ -1920,7 +1904,6 @@ Section weightsLangNetwork.
                   fold st2.
                   fold st2 in H20, H19, H14, H7, H0, H12, H11, Hrecv,
                               H9, H16.
-
                   pose com0 := CIter 1 (weightslang.mult_weights_body A).
                   pose com1 := weightslang.mult_weights_body A.
                   pose com2 := CSeq CSkip
@@ -1945,44 +1928,35 @@ Section weightsLangNetwork.
                   pose com4 := (@CSeq A CSkip CSend).
                   pose com5 := (@CSend A).
                   pose com6 := (@CSkip A).
-
                   pose mach_st0 :=
                     mkMachineState
                       (upd i (com0, st) (clients mach_st))
                       (hist mach_st).
-
                   pose mach_st1 :=
                     mkMachineState
                       (upd i (com1, st) (clients mach_st0))
                       (hist mach_st0).
-
                   pose mach_st2 :=
                     mkMachineState
                       (upd i (com2, st0') (clients mach_st1))
                       (hist mach_st1).
-
                   pose mach_st3 :=
                     mkMachineState
                       (upd i (com3, st0') (clients mach_st2))
                       (hist mach_st2).
-
                   pose mach_st4 :=
                     mkMachineState
                       (upd i (com4, st1') (clients mach_st3))
                       (hist mach_st3).
-
                   pose mach_st5 :=
                     mkMachineState
                       (upd i (com5, st1') (clients mach_st4))
                       (hist mach_st4).
-
                   pose mach_st6 :=
                     mkMachineState
                       (upd i (com6, st2') (clients mach_st5))
                       (hist mach_st5).
-
                   inversion Hrecv0 as [Hrecv1 Hrecv2 Hrecv3].
-
                   destruct (Hclients i) as
                       [Hclients0 [Hclients1 [_ Hclients2]]].
                   have Hin: (List.In p (rInFlight w)).
@@ -2343,7 +2317,6 @@ Section weightsLangNetwork.
                 inversion H19; subst; step_contra. }
               { inversion H8; subst.
                 inversion H19; subst. inversion H20; subst.
-
             pose st0 :=
               {|
                 SCosts := f;
@@ -2358,7 +2331,6 @@ Section weightsLangNetwork.
                 SOutputs := SOutputs s''0;
                 SChan := SChan s''0;
                 weightslang.SOracleSt := t' |}.
-
             pose st0' :=
               {|
                 SCosts := f;
@@ -2373,9 +2345,7 @@ Section weightsLangNetwork.
                 SOutputs := SOutputs st;
                 SChan := SChan st;
                 weightslang.SOracleSt := t' |}.
-
             fold st0 in H20, H9, H8, H19.
-
             inversion H9; subst.
             { inversion H13; subst. inversion H22; subst; step_contra. }
             { inversion H13; subst. inversion H23; subst; step_contra.
@@ -2384,7 +2354,6 @@ Section weightsLangNetwork.
                   inversion H26; subst; step_contra. }
                 { inversion H15; subst. inversion H26; subst.
                   inversion H27; subst.
-
                 pose st1 :=
                   {|
                     SCosts := SCosts st0;
@@ -2402,7 +2371,6 @@ Section weightsLangNetwork.
                     SOutputs := SOutputs st0;
                     SChan := SChan st0;
                     weightslang.SOracleSt := SOracleSt st0 |}.
-
                 have pf0':
                   (forall a : A,
                       0 <
@@ -2421,7 +2389,6 @@ Section weightsLangNetwork.
                   destruct (Hclients i) as
                       [Hclients0 [Hclients1 [_ Hclients2]]].
                   inversion Hclients1. by rewrite H30 H22 H31 H24. }
-
                 pose st1' :=
                   {|
                     SCosts := SCosts st0';
@@ -2439,17 +2406,14 @@ Section weightsLangNetwork.
                     SOutputs := SOutputs st0';
                     SChan := SChan st0';
                     weightslang.SOracleSt := SOracleSt st0' |}.
-
                 fold st1.
                 fold st1 in H27, H17, H15, H26.
-
       inversion H17; subst.
       { inversion H18; subst. inversion H29; subst; step_contra. }
       { inversion H18; subst. inversion H30; subst; step_contra.
         inversion H21; subst.
         { inversion H22; subst. inversion H32; subst.
           inversion H24; subst.
-
           pose com0 := CIter (N.succ (N.pos p0))
                              (weightslang.mult_weights_body A).
           pose com1 := CSeq (weightslang.mult_weights_body A)
@@ -2485,39 +2449,31 @@ Section weightsLangNetwork.
                                          (weightslang.mult_weights_body A)).
           pose com6 := CSeq CSkip (CIter (N.pred (N.succ (N.pos p0)))
                                          (weightslang.mult_weights_body A)).
-
           pose mach_st0 :=
             mkMachineState
               (upd i (com0, st) (clients mach_st))
               (hist mach_st).
-
           pose mach_st1 :=
             mkMachineState
               (upd i (com1, st) (clients mach_st0))
               (hist mach_st0).
-
           pose mach_st2 :=
             mkMachineState
               (upd i (com2, st0') (clients mach_st1))
               (hist mach_st1).
-
           pose mach_st3 :=
             mkMachineState
               (upd i (com3, st0') (clients mach_st2))
               (hist mach_st2).
-
           pose mach_st4 :=
             mkMachineState
               (upd i (com4, st1') (clients mach_st3))
               (hist mach_st3).
-
           pose mach_st5 :=
             mkMachineState
               (upd i (com5, st1') (clients mach_st4))
               (hist mach_st4).
-
           inversion Hrecv0 as [Hrecv1 Hrecv2 Hrecv3].
-
           pose st2 :=
             {|
               SCosts := SCosts st1;
@@ -2534,7 +2490,6 @@ Section weightsLangNetwork.
                                      (CMAX_nil (A:=A)) :: SOutputs st1;
               SChan := ch;
               weightslang.SOracleSt := t'0 |}.
-
           pose st2' :=
             {|
               SCosts := SCosts st1';
@@ -2551,14 +2506,11 @@ Section weightsLangNetwork.
                                      (CMAX_nil (A:=A)) :: SOutputs st1';
               SChan := ch;
               weightslang.SOracleSt := t'0 |}.
-
           pose mach_st6 :=
             mkMachineState
               (upd i (com6, st2') (clients mach_st5))
               (hist mach_st5).
-
           clear H21 H17 H14 H9 H0 H11 H7.
-
           destruct (Hclients i) as
               [Hclients0 [Hclients1 [_ Hclients2]]].
           have Hin: (List.In p (rInFlight w)).
@@ -2708,8 +2660,7 @@ Section weightsLangNetwork.
                   inversion Hmsg; subst.
                   pose proof HclientIds as Hid.
                   specialize (Hid i Hiniti).
-                  rewrite Hid in H5. by inversion H5; congruence. } }
-            }
+                  rewrite Hid in H5. by inversion H5; congruence. } } }
             { rewrite cats0. simpl.
               rewrite /upd !ffunE.
               destruct (i == i') eqn:Heq; rewrite Heq.
@@ -2893,7 +2844,6 @@ Section weightsLangNetwork.
             have Hle: (forall a b c, a + (b + c) <= 1 -> a + c <= 1)%coq_nat.
             { rewrite -!plusE. move=> a b c Habc. omega. }
             eapply Hle; eauto. } }
-
         { inversion H22; subst. inversion H33; subst.
           { pose st2 :=
               {|
@@ -3036,12 +2986,10 @@ Section weightsLangNetwork.
                                               (clientDistsFun
                                                  (rInFlight w)) i))
                                      (@serverCostRelOk _ _)).
-
       exists (mkMachineState [ffun i =>
                          let (com, st) := mach_st.(clients) i in
                          (com, clientSt' st i)]
                         (e' ++ mach_st.(hist))).
-
       split.
       { exists 0%N. simpl. eexists. split; auto.
         apply MSExpectedCost with

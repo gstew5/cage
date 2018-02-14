@@ -86,10 +86,10 @@ Module WE_NodePkg
              (pkg : ClientPkg)
              (_ : unit)
     : list (A.t*D) * ClientPkg
-    (* TODO: Should this clear the received field of pkg?
-       simple_oracle_recv in machine.v does. *)
-    (* := (pkg.(received).(the_msg), pkg). *)
+    (* Reset received to init_map to better match the behavior of the
+       machine oracle. *)
     := (init_map, pkg).
+  (* := (pkg.(received).(the_msg), pkg). *)
 
   Definition simple_oracle_send
              (pkg : ClientPkg)             
@@ -119,11 +119,13 @@ Module WE_NodePkg
   Definition premsg_eqMixin := seq_eqMixin A_D_eqType.
   Canonical premsg_eqType :=
     Eval hnf in EqType premsg premsg_eqMixin.
-
+  
+  (* received is neither nil nor equal to init_map. *)
   Definition simple_oracle_prerecv (pkg : ClientPkg) (_ : unit) : bool :=
     andb (negb (nilp pkg.(received).(the_msg)))
          (pkg.(received).(the_msg) != init_map).
 
+  (* sent is nil. *)
   Definition simple_oracle_presend (pkg : ClientPkg) (_ : seq (A.t * D)) : bool :=
     nilp pkg.(sent).
 
@@ -139,17 +141,8 @@ Module WE_NodePkg
       simple_oracle_presend
       simple_oracle_send
       _ _.
-  Next Obligation.
-    apply init_map_ok.
-    (* destruct st.(received) as [A B]. *)
-    (* destruct B as [B C]. *)
-    (* destruct (C a) as [d [B1 B2]]. *)
-    (* exists d; split; auto. *)
-  Qed.
-  Next Obligation.
-    apply init_map_NoDupA.
-    (* destruct st.(received) as [A B]; destruct B; auto. *)
-  Qed.
+  Next Obligation. by apply init_map_ok. Qed.
+  Next Obligation. by apply init_map_NoDupA. Qed.
 
   Record client_state :=
     mkClientState

@@ -2496,7 +2496,88 @@ Section semantics_lemmas.
     apply: step_trans.
     constructor.
     apply: step'_plus_mwu_iter; auto.
-  Qed.    
+  Qed.
+
+  Lemma step'_plus_CSeq1 c1 c1' c2 s s' :
+    step'_plus a0 c1 s c1' s' ->
+    step'_plus a0 (CSeq c1 c2) s (CSeq c1' c2) s'.
+  Proof.
+    move=> Hstep'. induction Hstep'; subst.
+    { by left; constructor. }
+    { by eright; eauto; constructor. }
+  Qed.
+
+  Inductive noIter : com A -> Prop :=
+  | NoIterSkip : noIter CSkip
+  | NoIterUpdate : forall f,  noIter (CUpdate f)
+  | NoIterRecv : noIter (CRecv)
+  | NoIterSend : noIter (CSend)
+  | NoIterSeq : forall c1 c2,
+      noIter c1 ->
+      noIter c2 ->
+      noIter (CSeq c1 c2).
+
+  Lemma step_preserves_noiter (c : com A) s c' s' :
+    noIter c ->
+    step a0 c s c' s' ->
+    noIter c'.
+  Proof.
+    move=> Hnoiter Hstep.
+    induction Hstep; subst; try constructor; inversion Hnoiter; auto.
+  Qed.
+
+  Lemma step_step'_noiter (c : com A) s c' s' :
+    noIter c ->
+    step a0 c s c' s' ->
+    step' a0 c s c' s'.
+  Proof.
+    by move=> Hnoiter Hstep; induction Hstep; subst; try constructor;
+               auto; inversion Hnoiter; apply IHHstep.
+  Qed.
+
+  Lemma step_step'_plus_noiter (c : com A) s c' s' :
+    noIter c ->
+    step a0 c s c' s' ->
+    step'_plus a0 c s c' s'.
+  Proof.
+    move=> Hgood Hstep.
+    induction Hstep; subst; simpl;
+      try (by repeat constructor); try assumption.
+    { inversion Hgood; subst. apply IHHstep in H1.
+      inversion H1; subst.
+      { by left; constructor. }
+      { by apply step'_plus_CSeq1. } }
+    { by inversion Hgood. }
+    { constructor. constructor. by inversion Hgood. }
+  Qed.
+
+  Lemma step_plus_step'_plus_noiter (c : com A) s c' s' :
+    noIter c ->
+    step_plus a0 c s c' s' ->
+    step'_plus a0 c s c' s'.
+  Proof.
+    move=> Hnoiter Hstep.
+    induction Hstep.
+    { apply step_step'_plus_noiter; auto. }
+    { eright. apply step_step'_noiter; eauto.
+      apply IHHstep. eapply step_preserves_noiter; eauto. }
+  Qed.
+
+  Lemma step_step'_mult_weights_init c s s' :
+    step_plus a0 (mult_weights_init A) s c s' ->
+    step'_plus a0 (mult_weights_init A) s c s'.
+  Proof.
+    by apply step_plus_step'_plus_noiter;
+      constructor; constructor.
+  Qed.
+
+  Lemma step_step'_mult_weights_body c s s' :
+    step_plus a0 (mult_weights_body A) s c s' ->
+    step'_plus a0 (mult_weights_body A) s c s'.
+  Proof.
+    by apply step_plus_step'_plus_noiter;
+      constructor; constructor; constructor.
+  Qed.
   (*END: MOVE ME ELSEWHERE*)  
   
   Lemma mult_weights_T :

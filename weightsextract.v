@@ -986,16 +986,6 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
 
   Variable a0 : t.
 
-  Lemma interp_step'_plus :
-    forall (s : state t) (tx tx' : cstate) (c : com t),
-      interp c tx = Some tx' ->
-      match_states s tx ->
-      exists c' s',
-        final_com c' /\
-        ((c=CSkip /\ s=s') \/ step'_plus a0 c s c' s') /\
-        match_states s' tx'.
-  Admitted.
-
   Lemma step'_plus_congruence1 a c1 c2 s s' :
     step'_plus a c1 s CSkip s' ->
     step'_plus a (CSeq c1 c2) s (CSeq CSkip c2) s'.
@@ -1320,6 +1310,24 @@ Module MWUProof (T : MyOrderedType) (MWU : MWU_Type with Module A := T).
       apply: H12.
       apply: H13. }
     inversion 1.
+  Qed.
+
+  Lemma interp_step'_plus :
+    forall (s : state t) (tx tx' : cstate) (c : com t),
+      noIter c ->
+      interp c tx = Some tx' ->
+      match_states s tx ->
+      exists c' s',
+        final_com c' /\
+        ((c=CSkip /\ s=s') \/ step'_plus a0 c s c' s') /\
+        match_states s' tx'.
+  Proof.
+    move=> s tx tx' c Hnoiter Hinterp Hmatch.
+    apply interp_step_plus with (s:=s) in Hinterp; auto.
+    destruct Hinterp as [c' [s' [Hfinal [Hstep Hmatch']]]].
+    exists c', s'. split; auto. split; auto.
+    destruct Hstep; auto.
+    { by right; apply step_plus_step'_plus_noiter. }
   Qed.
 
   Lemma findA_map1_Some1 a (l : list t) :
