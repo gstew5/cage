@@ -461,5 +461,35 @@ Section SmoothLemmas.
     }
     by rewrite H4 ExpectedCost_linear expectedValue_mull.
   Qed.
+
+  Lemma smooth_POA_lem
+        (d : dist [finType of state N T] rty) (t' : state N T) (eps : rty) :        
+    lambda of T / (1 - mu of T) * Cost t' + N%:R * eps / (1 - mu of T) =
+    ((lambda of T * Cost t') + (N%:R * eps))/(1 - mu of T).
+  Proof.
+    rewrite [ N%:R * eps / (1 - mu of T)]mulrC
+            [lambda of T / (1 - mu of T)] mulrC -mulrA
+            -[(1 - mu of T)^-1 * (lambda of T * Cost t')+
+             (1 - mu of T)^-1 * (N%:R * eps)] mulrDr mulrC => //.
+  Qed.
+
+  Lemma smooth_POA
+        (d : dist [finType of state N T] rty) (t' : state N T) (eps : rty) :
+    eCCE2 eps d ->
+    optimal t' ->
+    ExpectedCost d <= 
+    lambda of T / (1 - mu of T) * Cost t' + N%:R * eps / (1 - mu of T).
+  Proof.
+    move => Hecce Hopt.
+    pose proof (smooth_eCCE2 Hecce Hopt) as H2.    
+    rewrite smooth_POA_lem => //.
+    rewrite ler_pdivl_mulr.
+    rewrite mulrDr mulr1. rewrite mulrN. rewrite -ler_subr_addr.
+    rewrite opprK -addrA
+      [N%:R * eps + ExpectedCost d * mu of T] addrC addrA
+      [ExpectedCost d * mu of T] mulrC => //.
+    rewrite ltr_subr_addr add0r.
+    apply mu_lt1.
+  Qed.    
 End SmoothLemmas.
 Print Assumptions smooth_CCE.
