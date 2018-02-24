@@ -163,7 +163,7 @@ Module WE_NodePkg
   Definition event := M.t (list (A.t*D)).
 
   Definition MSG_of_cstate (id : node) (st : MW.cstate) : list (packet node MSG) :=
-    (id, TO_SERVER (st.(MW.SOracleSt).(sent)), serverID _) :: nil.
+    (serverID _, TO_SERVER (st.(MW.SOracleSt).(sent)), id) :: nil.
 
   (* TODO: actually install the cost vector, probably using MProps.of_list *)
   Definition install_cost_vec

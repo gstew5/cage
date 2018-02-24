@@ -1,12 +1,14 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
 
-
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
 Require Import compile.
+
+(* TODO: parameterize these lemmas by the map module so they don't
+         depend on compile.v *)
 
 Definition map_split {aT bT : Type} (m : M.t (aT*bT)) :=
     M.fold (fun i r acc =>
