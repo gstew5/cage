@@ -181,16 +181,13 @@ Module WE_NodePkg
         st.(MW.SOracleSt).(sent)
         st.(MW.SOracleSt).(received)).
 
-  (* TODO: update to check whether nx=0 *)
-  (* Although it shouldn't ever happen if the server is programmed to
-     not send response packets after the last round. *)
   Definition client_recv
              (m : MSG)
              (from : node)
              (cst : client_state)
     : client_state * seq (packet node MSG) * seq event
     := match m with
-       | TO_CLIENT m' => 
+       | TO_CLIENT m' =>
          let st := install_cost_vec m'.(the_msg) cst.(client_cstate)
          in match MW.interp (mult_weights_body A.t) st with
             | None =>
