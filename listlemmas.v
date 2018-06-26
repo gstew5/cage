@@ -288,12 +288,23 @@ Qed.
 
 Lemma mapPreservesPerm :
   forall A B (l1 l2 : list A) (f : A -> B),
-    Permutation l1 l2 -> 
+    Permutation l1 l2 ->
     Permutation (map f l1) (map f l2).
 Proof.
   move => A B l1 l2 f perm.
   induction perm; try solve [by constructor].
   apply (perm_trans IHperm1 IHperm2).
+Qed.
+
+Lemma mapPreservesPerm2 :
+  forall A B (l1 l2 : list A) (l3 : list B) (f : A -> B),
+    Permutation l1 l2 ->
+    Permutation (map f l2) l3 ->
+    Permutation (map f l1) l3.
+Proof.
+  move=> A B l1 l2 l3 f Hperm1 Hperm2.
+  by apply Permutation_trans with (map f l2);
+    auto; apply mapPreservesPerm.
 Qed.
 
 (********************)

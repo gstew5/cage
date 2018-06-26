@@ -70,10 +70,15 @@ Module WE_NodePkg
     { by move => ->; left. }
     by move => H3; right; apply: IH.
   Qed.
-  
-  (* TODO: Should this just be @mkClientPkg nil nil? And then use
-     init_map in the init handler. That's how it's done in wlnetwork
-     so the match relation would be more straightforward. *)
+
+  Lemma init_map_NoDupA : NoDupA (fun p q : A.t * D => p.1 = q.1) init_map.
+  Proof.
+    (* have H: (NoDupA (fun x : A.t => [eta eq x]) (enumerate A.t)). *)
+    have H: (NoDupA (fun x y : A.t => x = y) (enumerate A.t)).
+    { by apply enum_nodup. }
+    rewrite /init_map. admit. (* TODO: prove this generally in listlemmas.v *)
+  Admitted.
+
   Definition init_ClientPkg : ClientPkg :=
     @mkClientPkg nil (mkMsg init_map_ok).
 
@@ -81,15 +86,48 @@ Module WE_NodePkg
              (pkg : ClientPkg)
              (_ : unit)
     : list (A.t*D) * ClientPkg
-    (* TODO: Should this clear the received field of pkg?
-       simple_oracle_recv in machine.v does. *)
-    := (pkg.(received).(the_msg), pkg).
+    (* Reset received to init_map to better match the behavior of the
+       machine oracle. *)
+    := (init_map, pkg).
+  (* := (pkg.(received).(the_msg), pkg). *)
 
   Definition simple_oracle_send
              (pkg : ClientPkg)             
              (d : list (A.t*D))
     : unit * ClientPkg            
     := (tt, mkClientPkg d pkg.(received)).
+
+  Lemma A_D_eq_dec : forall a1 a2 : (A.t * D), {a1 = a2} + {a1 <> a2}.
+  Proof.
+    move=> a1 a2. destruct a1; destruct a2.
+    destruct (A.eq_dec t t0).
+      { apply A.eqP in e; subst.
+        destruct (Deq_dec d d0); subst.
+        { by left. }
+        { by right; congruence. } }
+      { by right=> Hcontra; apply n; apply A.eqP; inversion Hcontra. }
+  Qed.
+  Lemma A_D_eqP : Equality.axiom A_D_eq_dec.
+  Proof.
+    rewrite /Equality.axiom => x y.
+    destruct (A_D_eq_dec x y); constructor; by [].
+  Qed.
+  Definition A_D_eqMixin := EqMixin A_D_eqP.
+  Canonical A_D_eqType :=
+    Eval hnf in EqType _ A_D_eqMixin.
+
+  Definition premsg_eqMixin := seq_eqMixin A_D_eqType.
+  Canonical premsg_eqType :=
+    Eval hnf in EqType premsg premsg_eqMixin.
+  
+  (* received is neither nil nor equal to init_map. *)
+  Definition simple_oracle_prerecv (pkg : ClientPkg) (_ : unit) : bool :=
+    andb (negb (nilp pkg.(received).(the_msg)))
+         (pkg.(received).(the_msg) != init_map).
+
+  (* sent is nil. *)
+  Definition simple_oracle_presend (pkg : ClientPkg) (_ : seq (A.t * D)) : bool :=
+    nilp pkg.(sent).
 
   Program Instance simpleClientOracle : @ClientOracle A.t := 
     @weightsextract.mkOracle
@@ -98,18 +136,13 @@ Module WE_NodePkg
       init_ClientPkg
       unit
       tt
+      simple_oracle_prerecv
       simple_oracle_recv
+      simple_oracle_presend
       simple_oracle_send
       _ _.
-  Next Obligation.
-    destruct st.(received) as [A B].
-    destruct B as [B C].
-    destruct (C a) as [d [B1 B2]].
-    exists d; split; auto.
-  Qed.
-  Next Obligation.
-    destruct st.(received) as [A B]; destruct B; auto.
-  Qed.    
+  Next Obligation. by apply init_map_ok. Qed.
+  Next Obligation. by apply init_map_NoDupA. Qed.
 
   Record client_state :=
     mkClientState
@@ -130,7 +163,7 @@ Module WE_NodePkg
   Definition event := M.t (list (A.t*D)).
 
   Definition MSG_of_cstate (id : node) (st : MW.cstate) : list (packet node MSG) :=
-    (id, TO_SERVER (st.(MW.SOracleSt).(sent)), serverID _) :: nil.
+    (serverID _, TO_SERVER (st.(MW.SOracleSt).(sent)), id) :: nil.
 
   (* TODO: actually install the cost vector, probably using MProps.of_list *)
   Definition install_cost_vec
@@ -148,16 +181,13 @@ Module WE_NodePkg
         st.(MW.SOracleSt).(sent)
         st.(MW.SOracleSt).(received)).
 
-  (* TODO: update to check whether nx=0 *)
-  (* Although it shouldn't ever happen if the server is programmed to
-     not send response packets after the last round. *)
   Definition client_recv
              (m : MSG)
              (from : node)
              (cst : client_state)
     : client_state * seq (packet node MSG) * seq event
     := match m with
-       | TO_CLIENT m' => 
+       | TO_CLIENT m' =>
          let st := install_cost_vec m'.(the_msg) cst.(client_cstate)
          in match MW.interp (mult_weights_body A.t) st with
             | None =>
