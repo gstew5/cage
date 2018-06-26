@@ -21,6 +21,15 @@ Module Type CONFIG.
   Parameter num_players : nat.
   Parameter num_rounds : N.t.
   Parameter epsilon : D.
+
+  Definition A_cost_instance := A.cost_instance num_players.
+  Existing Instance A_cost_instance.
+
+  Axiom ccost_ok : forall (p : M.t A.t) (player : N), 
+      (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
+  Existing Instance A.enumerable.
+  Axiom enum_ok : @Enum_ok A.t _. 
+  
 End CONFIG.
 
 Module WireFormat_of_CONFIG (C : CONFIG).

@@ -252,6 +252,7 @@ Section generalTopology.
           else (checkSubPaths m' t)
   end.
 
+
 Definition isSimplestPath : nTuple N T -> bool :=
   fun t => negb (checkSubPaths N t).
 
@@ -485,6 +486,20 @@ Module Conf : CONFIG.
   Definition num_players := num_players.
   Definition num_rounds : N.t := 40.
   Definition epsilon := Dmake 1 2.
+
+  Definition A_cost_instance := A.cost_instance num_players.
+  Existing Instance A_cost_instance.
+
+  (*It should be possible to use a cgame instance for P8Scaled' to prove the following 
+    two lemmas:*)
+  (*Definition cgame_P8Scaled' : @cgame num_players [finType of A.t] _ _ _ _ _ _ _ _ _ _ _ _ _.*)
+  
+  Lemma enum_ok : @Enum_ok A.t _. Proof. Admitted.
+
+  Lemma ccost_ok : forall (p : M.t A.t) (player : N), 
+      (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
+  Proof. Admitted.
+
 End Conf.  
   
 Module Client := Client_of_CONFIG Conf.
