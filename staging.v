@@ -32,7 +32,9 @@ Module GameType_of_CONFIG (C : CONFIG).
   Axiom ccost_ok : forall (p : M.t C.A.t) (player : N), (*TODO: result of cgame*)
       (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
   Existing Instance C.A.enumerable.
+  Existing Instance C.A.showable.
   Axiom enum_ok : @Enum_ok C.A.t _. (*TODO: result of cgame*)
+  Existing Instance enum_ok.
   Definition gametype_instance : @GameType C.A.t C.num_players _ _ _ _ :=
     @mkGameType C.A.t C.num_players _ _ _ _ C.A.t0 ccost_ok.
 End GameType_of_CONFIG.
