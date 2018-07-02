@@ -210,7 +210,15 @@ End OrderedFinResource.
 Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
   Definition t := (A.t*B.t)%type.
   Definition t0 := (A.t0, B.t0).
+  Existing Instance A.enumerable.
+  Existing Instance B.enumerable.
+  Existing Instance A.cost_instance.
+  Existing Instance B.cost_instance.
   Definition enumerable  : Enumerable t := _.
+  Existing Instance A.cost_max.
+  Existing Instance B.cost_max.
+  Existing Instance A.showable.
+  Existing Instance B.showable.
   Definition cost_instance : forall N, CCostClass N t := _.
   Definition cost_max : forall N, CCostMaxClass N t := _.
   Definition show_prod (p : A.t*B.t) : string :=
@@ -365,7 +373,10 @@ Module OrderedSigma (T : OrderedPredType) <: MyOrderedType.
 
   Definition t := {x : T.t | @the_pred _ pred_instance x}%type.
   Definition t0 := exist the_pred T.a0 T.a0_pred.
-
+  Existing Instance T.enumerable.
+  Existing Instance T.cost_instance.
+  Existing Instance T.cost_max.
+  Existing Instance T.showable.
   Definition enumerable  : Enumerable t := _.
   Definition cost_instance : forall N, CCostClass N t := _.
   Definition cost_max : forall N, CCostMaxClass N t := _.
@@ -478,6 +489,7 @@ End SimplifyBoolableScalarType.
 Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
   Definition t := scalar scalar_val T.t.
   Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) scalar_val) T.t0.
+  Existing Instance T.showable.
   Definition enumerable : Enumerable t :=
     scalarEnumerableInstance _ T.enumerable scalar_val.
   Definition cost_instance (N : nat) :=
@@ -534,6 +546,8 @@ End BoolableOrderedScalar.
 Module BoolableOrderedSingleton (A : BoolableMyOrderedType) <: BoolableMyOrderedType.
   Definition t := singleton (A.t).
   Definition t0 := Wrap Singleton A.t0.
+  Existing Instance A.enumerable.
+  Existing Instance A.showable.
   Definition enumerable  : Enumerable t := _.
   Definition cost_instance : forall N, CCostClass N t := _.
   Definition cost_max : forall N, CCostMaxClass N t := _.
