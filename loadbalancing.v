@@ -213,7 +213,14 @@ Module Conf : CONFIG.
   Definition num_players := num_players'.
   Definition num_rounds : N.t := num_iters.
   Definition epsilon := eps.
-End Conf.  
+  Definition A_cost_instance := A.cost_instance num_players.
+  Lemma enum_ok : @Enum_ok A.t _. Proof. Admitted.
+
+  Existing Instance A_cost_instance.
+  Lemma ccost_ok : forall (p : M.t A.t) (player : N),
+       (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
+  Proof. Admitted.
+End Conf.
   
 Module Client := Client_of_CONFIG Conf.
 Module Server := Server_of_CONFIG Conf.
