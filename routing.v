@@ -12,7 +12,8 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics dyadic combinators games compile orderedtypes.
+Require Import numerics dyadic
+        ccombinators combinators games compile orderedtypes.
 Require Import lightserver staging.
 
 Local Open Scope ring_scope.
@@ -182,6 +183,7 @@ Section generalTopology.
           sink (coalescePathIter N N (source::nil) nT)
       then true
       else false.
+
 
   (* We now look at whether a given strategy is the simplest.
 
@@ -490,15 +492,83 @@ Module Conf : CONFIG.
   Definition A_cost_instance := A.cost_instance num_players.
   Existing Instance A_cost_instance.
 
-  (*It should be possible to use a cgame instance for P8Scaled' to prove the following 
-    two lemmas:*)
-  (*Definition cgame_P8Scaled' : @cgame num_players [finType of A.t] _ _ _ _ _ _ _ _ _ _ _ _ _.*)
-  
-  Lemma enum_ok : @Enum_ok A.t _. Proof. Admitted.
+  Hint Extern 4 (RefineTypeAxiomClass ?t)=>
+  refine (sigmaRefineTypeAxiomInstance _ _ _) : typeclass_instances.
 
-  Lemma ccost_ok : forall (p : M.t A.t) (player : N), 
+  Hint Extern 4 (CostClass ?n ?r ?t) =>
+  refine (sigmaCostInstance _) : typeclass_instances.
+
+  Hint Extern 1 (ScalarAxiomClass ?r )=> done : typeclass_instances.
+
+  Hint Extern 4 (CostAxiomClass ?c) =>
+  refine (sigmaCostAxiomInstance _ _ _ _ _) : typeclass_instances.
+
+  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
+  refine (sigmaRefineCostAxiomInstance _ _ _ _ _ _)
+    : typeclass_instances.
+
+  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
+  refine (sigmaCCostInstance _)
+    : typeclass_instances.
+
+  Hint Extern 4 (CostMaxAxiomClass ?cc ?cmc) =>
+  refine (sigmaCostMaxAxiomInstance _ _ _ _ _ _ _)
+    : typeclass_instances.
+
+  Hint Extern 4 (RefineCostMaxClass ?cc ?cmc) =>
+  compute; (try discriminate)
+    : typeclass_instances.
+
+  Hint Extern 4 (RefineTypeClass ?rtac) =>
+  refine  (sigmaRefineTypeInstance _ _ _)
+    : typeclass_instances.
+
+  Hint Extern 4 (RefineCostClass ?rtac) =>
+  refine (sigmaRefineCostInstance _ _)
+    : typeclass_instances.
+
+  Hint Extern 4 (CCostMaxMaxClass ?rtac ?m) =>
+  refine (scalarCostMaxMaxInstance _ _)
+    : typeclass_instances.
+  
+  Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
+  (* Typeclasses eauto := debug. *)
+
+  Instance ccostMaxInstance : CCostMaxClass num_players [finType of A.t] := _.
+
+
+  Instance ccostMaxMaxInstance : 
+    @CCostMaxMaxClass num_players [finType of A.t]
+                      ccostMaxInstance
+    A_cost_instance := _.
+  Proof.
+    refine (sigmaCostMaxMaxInstance _ _).
+  Qed.
+
+  Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _
+                         (@Build_game _ num_players _ _ _ _ _)
+                         (enumerateClass := A.enumerable)
+                         (H := refineTypeAxiomA) 
+                         (ccostMaxClass := ccostMaxInstance).
+
+  Existing Instance cgame_t.
+  
+  Lemma enum_ok : @Enum_ok [finType of A.t] _.
+  Proof. 
+    apply enum_ok; typeclasses eauto.
+  Qed.
+
+  Lemma ccost_ok : forall (p : M.t [finType of A.t]) (player : N), 
       (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
-  Proof. Admitted.
+  Proof. 
+    intros.
+    have: (0 <= ccostmax_fun <= 1)%DRed.
+    split;
+    compute; intros; discriminate.
+    intros.
+    apply ccost_ok_game with (ccostMaxClass := ccostMaxInstance) => //.
+    typeclasses eauto.
+  Qed.
 
 End Conf.  
   

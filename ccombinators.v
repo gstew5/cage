@@ -526,8 +526,358 @@ Proof.
   by rewrite N_to_D_to_Q /= rat_to_Q_N_to_Q.
 Qed.
 
+Ltac simp :=
+  repeat
+    match goal with
+    | H : ?x = true |- _ =>
+      apply Is_true_eq_left in H; unfold Is_true in H
+    | H : ?x = false |- _ =>
+      apply negbT in H; unfold negb in H
+    | H : context[(?x <= ?N)%N] |- _ =>
+      case: leP H => //; intros
+    | |- context[(?x <= ?N)%N] =>
+      apply /leP => //
+    end.
+
+Ltac my_omega :=
+  unfold Dlt,Qlt,Dle,Qle,Dle,D_to_Q,Qle in *; simpl;
+  simp; simpl in *; intros; omega.
+
+Lemma D_num_le_spec : forall (p p' : Z) ,
+    Z.le p p' -> 
+    Dle {| num := p; den := 1 |} {| num := p'; den := 1 |}%DRed.
+Proof.
+  intros.
+  my_omega.
+Qed.
+
+Lemma le_num_le : forall (n n' : N),
+    (n <= n')%num <-> le n n'.
+  split; intros.
+  apply N.le_equiv in H.
+  rewrite /N.le_alt in H.
+  destruct H.
+  apply Nat.le_equiv.
+  rewrite /Nat.le_alt.
+  exists x.
+  rewrite <- nat_of_add_bin.
+  rewrite H.
+  auto.  
+
+  apply N.le_equiv.
+  rewrite /N.le_alt.
+  apply Nat.le_equiv in H.
+  rewrite /Nat.le_alt in H.
+  destruct H.
+  exists (N.of_nat x).
+  replace n with (N.of_nat (nat_of_bin n)) by apply N_of_nat_of_bin.
+  rewrite -Nat2N.inj_add.
+  rewrite H.
+  apply N_of_nat_of_bin.
+Qed.    
+  
+Lemma Z_le_inj : forall (n n' : N),
+    (n <= n')%num -> (Z.le (NtoZ n) (NtoZ n')).
+Proof.
+  intros.
+  rewrite /NtoZ.
+  induction n => //;
+                   destruct n'; auto => //.
+Qed.
+Hint Resolve Z_le_inj.
+
+Lemma if_not_in_filterN_eq_filterSn : forall 
+    (l : list (BinNums.N * resource)) (N : BinNums.N) a,
+  ~SetoidList.InA (M.eq_key (elt:=resource)) (N, a) l->
+  (List.filter (fun p0 : BinNums.N * resource => (nat_of_bin p0.1 < N)%N) l) =
+  (List.filter (fun p0 : BinNums.N * resource => (nat_of_bin p0.1 < N.+1)%N) l).
+Proof.
+  assert (forall x y, {M.eq_key (elt := resource) x y} + {~ M.eq_key x y}).
+  destruct x, y; simpl.
+  apply M.E.eq_dec.
+  assert (forall x l, {SetoidList.InA (M.eq_key (elt:=resource)) x l}
+                      + {~ SetoidList.InA (M.eq_key (elt:=resource)) x l}).
+  apply SetoidList.InA_dec; intros; auto.
+  induction l => //.
+  intros N a0 H.
+  simpl.
+  case_eq (a.1 < N)%N => Hlt //.
+  have->: (a.1 < N.+1)%N; auto.
+  f_equal.
+  eapply IHl; eauto.
+  case_eq (a.1 < N.+1)%N => Hlt' //; eauto.
+  exfalso.
+  apply H.
+  constructor.
+  rewrite /M.eq_key /M.Raw.Proofs.PX.eqk /N.eq.
+  simpl.
+  destruct a; simpl in *.
+  apply nat_of_bin_inj.
+  my_omega.
+Qed.
+
+Lemma ctrafficN_relates_ctrafficSn :
+  forall (x : BinNums.N) l (N : BinNums.N)  a,
+    Datatypes.length
+      (List.filter (fun p0 : BinNums.N * resource=> (p0.1 < N)%N) l) = x
+    ->  
+    Datatypes.length
+      (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N.+1)%N) l) =
+    x.+1 -> 
+    ~ SetoidList.InA (M.eq_key (elt:=resource)) (N,a) l ->
+    (Datatypes.length
+       (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N.+1)%N) l)).+1 =
+    x
+.
+Proof.
+  intros.
+  apply if_not_in_filterN_eq_filterSn with (N0 := N) in H1.
+  rewrite <- H1 in *.
+  exfalso.
+  rewrite -> H0 in *.
+  omega.
+Qed.
+
+Lemma ctraffic_Sn_or_normal : forall (l : seq (BinNums.N * resource)) N,
+    let l' :=  (Datatypes.length
+       (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N.+1)%N) l))
+    in 
+    SetoidList.NoDupA (M.eq_key (elt:=resource)) l ->
+    l' =
+    (Datatypes.length
+    (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N)%N) l)).+1
+    \/
+    l' = 
+    (Datatypes.length
+       (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N)%N) l)).
+Proof.
+  intros l N l' H.
+  unfold l' in *.
+  clear l'.
+  move: N H.
+  induction l => //; auto.
+  move => N H.
+  inversion H as [| x l0 H2 H3 H1]; subst.
+  specialize (IHl N H3).
+  destruct IHl; simpl;
+  repeat match goal with
+         | |- context[if (?x < ?N)%N then _ else _] =>
+           let H := fresh "C" in case_eq ((x < N)%N); intros H
+  end; simpl; auto; simp; auto.
+  {
+    have: eq (S (nat_of_bin (@fst BinNums.N resource a))) (S N);
+      first by my_omega.
+    intros x.
+    inversion x.
+    subst.
+    clear n; clear C0; clear p; clear C; clear x.
+    right.
+    have:
+      exists (n:N), (Datatypes.length
+           (List.filter (fun p0 : N * resource => (p0.1 < a.1)%N) l)) = n
+           => [| H4].
+    destruct (Datatypes.length
+      (List.filter (fun p0 : N * resource => (p0.1 < a.1)%N) l)).
+    exists N0;
+    eauto.
+    exists (N.succ (N.of_nat n)).
+    rewrite - Nat2N.inj_succ.
+    rewrite of_bin_N_of_nat.
+    auto.
+    destruct H4.
+    rewrite -> H1 in *.
+    destruct a; simpl in *.
+    apply ctrafficN_relates_ctrafficSn with (a := r); auto.
+  }
+  exfalso.
+  my_omega.
+Qed.
+  
+Lemma filter_length_ltN_if_nodup : forall l N,
+    SetoidList.NoDupA (M.eq_key (elt:=resource)) l ->
+    (Datatypes.length
+      (List.filter (fun p : BinNums.N * resource => (p.1 < N)%N) l) <= N)%coq_nat.
+Proof.
+  intros.
+  induction N => //.
+  {
+    clear -H.
+    induction l => //;
+    simpl in *; 
+    inversion H; subst; auto.    
+  }
+    destruct (ctraffic_Sn_or_normal (l:=l) N); intuition; auto.
+Qed.
+    
+Lemma lt_fold : forall A (f f' : BinNums.N -> A -> N) l n n',
+    (n <= n')%num -> 
+    (forall (acc acc': N) x, (acc <= acc')%num ->  f acc x <= f' acc' x)%num-> 
+    (le (List.fold_left f l n) (List.fold_left f' l n')).
+Proof.
+  induction l => //.
+  intros.
+  simpl.
+  apply le_num_le => //.
+  intros.
+  specialize (IHl (f n a) (f' n' a)).
+  apply IHl; 
+  auto.
+Qed.
+
+Lemma lt_size : forall (N : N) (N0 : BinNums.N)
+                       (l : seq (BinNums.N * resource)),
+    le (List.fold_left
+    (fun (acc : BinNums.N) (p : BinNums.N * resource) =>
+     match p.2 with
+     | RYes => (acc + 1)%num
+     | RNo => acc
+     end) l
+    N0)
+  (List.fold_left (fun (a : BinNums.N) (_ : M.key * resource)
+                   => (N.add a 1)%N) l N0).
+Proof.
+  intros.
+  assert (N0 <= N0)%num by 
+  apply N.le_refl.
+  apply lt_fold with (f := (fun (acc : BinNums.N) (p : BinNums.N * resource) =>
+     match p.2 with
+     | RYes => (acc + 1)%num
+     | RNo => acc
+     end))
+                     (f' :=
+                        (fun (a : BinNums.N) (_ : M.key * resource) => (N.add a 1))) (l := l)
+                   in H; eauto.
+  intros.
+  case: x.2 => //.
+  apply N.add_le_mono_r; auto.
+  replace acc with (acc + 0)%num.
+  apply N.add_le_mono; auto.
+  compute; intros; discriminate.
+  case acc =>//.
+Qed.
+
+Lemma ctraffic_ltN_lt : forall (N : N) m,
+  ((ctraffic N m) <= N)%N.
+Proof.
+  move => N m.
+  rewrite /ctraffic.
+  rewrite M.fold_1.
+  rewrite ctraffic_subF.
+  specialize (M.elements_3w m); intros nodup.
+  specialize (filter_length_ltN_if_nodup N nodup).
+  generalize dependent (M.elements (elt:=resource) m) => l.
+  generalize dependent ((List.filter (fun p : BinNums.N * resource => (p.1 < N)%N) l)).
+  intros.
+  specialize (lt_size N).
+  intros.
+  specialize (H0 N0 l0 ).
+  generalize dependent ((fun (acc : BinNums.N) (p : BinNums.N * resource) =>
+      match p.2 with
+      | RYes => (acc + 1)%num
+      | RNo => acc
+      end)).
+  intros.
+  move: H0.
+  assert (forall n n', n = n' ->  (List.fold_left (fun (a : BinNums.N) (_ : M.key * resource) => N.add a 1) l0 n) = 
+      (List.fold_left (fun (a : BinNums.N) (_ : M.key * resource) => N.succ (N.of_nat (a)))l0 n')); auto.
+  {
+    clear.
+    induction l0 => //.
+    simpl in *.
+    intros.
+    rewrite (IHl0 (N.add n 1) (N.succ (N.of_nat n'))); subst; auto.
+    rewrite -Nat2N.inj_succ.
+    rewrite N.add_1_r.
+    rewrite Nat2N.inj_succ.
+    f_equal.
+    rewrite N_of_nat_of_bin => //.
+  }
+  rewrite (H0 N0 N0); auto.
+  clear H0.
+  intros.
+  apply /leP.
+  assert (forall n n',  n = N.of_nat n' ->  List.fold_left 
+         (fun (a : BinNums.N) (_ : M.key * resource) =>
+            N.succ (N.of_nat a)) l0 n =
+          N.of_nat (List.fold_left (fun (x : nat) (_ : M.key * resource) => x.+1) l0 n')).
+  {
+    clear.
+    induction l0 => //.
+    intros.
+    simpl in *.
+    rewrite N_of_nat_of_bin.
+    specialize (IHl0 (N.succ n) (n'.+1)).
+    rewrite IHl0; auto.
+    rewrite Nat2N.inj_succ.
+    f_equal.
+    auto.
+  }
+  specialize (H1 N0 O ).
+  rewrite H1 in H0; auto.
+  rewrite List.fold_left_length in H0.
+  simpl in *.
+  clear H1.
+  generalize dependent (List.fold_left n l0 0%num).
+  intros.
+  rewrite of_bin_N_of_nat in H0.
+  clear -H H0.
+  unfold M.key in H0.
+  unfold N.t in H0.
+  omega.
+Qed.
+
+Instance resourceCCostMaxMaxClassInstance N
+  : @CCostMaxMaxClass N [finType of resource] _
+                     _.
+Proof.
+  split;
+  rewrite /ccost_fun /resourceCCostInstance /ccostmax_fun;
+  rewrite /resourceCCostMaxInstance;
+  rewrite /resource_ccost.
+  +
+    case: (M.find (elt:=resource) i m) => r //.
+    case r => //.
+    {
+      rewrite /ctraffic.
+      apply MProps.fold_rec_weak => //.
+      intros.
+      case (k < N)%N => //.
+      case e => //.
+      unfold Dle in *.
+      rewrite N_to_D_plus.
+      rewrite Dadd_ok.
+      clear -H0.
+      my_omega.
+    }
+  +
+  rewrite /ccost_fun /resourceCCostInstance /ccostmax_fun.
+  rewrite /resourceCCostMaxInstance.
+  rewrite /resource_ccost.
+  case: (M.find (elt:=resource) i m).
+  move => a.
+  case a.
+  {
+    rewrite /N_to_D.
+    apply D_num_le_spec.
+    apply Z.mul_le_mono_nonneg_l => //.
+    apply Z_le_inj.
+    rewrite le_num_le.
+    rewrite of_bin_N_of_nat.
+    specialize ctraffic_ltN_lt.
+    intros.
+    specialize (H (N.of_nat N) m).
+    case: leP H => //.
+    intros H.
+    rewrite of_bin_N_of_nat in H.
+    auto.
+  }
+  all:
+  destruct N; 
+  compute; intros; discriminate; eauto.
+Qed.
+
 Instance resource_cgame N
-  : cgame (N:=N) (T:=[finType of resource]) _ _ _
+  : cgame (N:=N) (T:=[finType of resource]) _ _ _ _
       (resourceGame N).
 
 (** [NOTE Enumerable instances]
@@ -631,10 +981,25 @@ Section singletonCompilable.
             /singletonCostMaxInstance /singCCostMaxInstance => //.
   Qed.
 
+  Global Instance singCostMaxMaxInstance
+    : CCostMaxMaxClass  (singCCostMaxInstance N A) _.
+  Proof.
+    split; 
+    unfold CCostMaxMaxClass;
+    rewrite /ccostmax_fun/singCCostMaxInstance;
+    rewrite /ccost_fun /singCCostInstance.
+    all:
+    case: (M.find (elt:=singleton A) i m); intros;
+      [destruct boolify; eauto | ];
+          compute; intros; try discriminate.
+  Qed.
+
   Global Instance sing_cgame
   : @cgame N (singletonType A) _ _ _ (singletonCostInstance H0)
       _
-      _ (singletonCostMaxAxiomInstance _ A _) _ _ _ _ singRefineCostMaxInstance _.
+      _ (singletonCostMaxAxiomInstance _ A _) _
+      _ _ _ _ singRefineCostMaxInstance _.
+
 End singletonCompilable.
 
 Module SingletonCGameTest. Section singletonCGameTest.
@@ -743,6 +1108,18 @@ Section sigmaCompilable.
             /sigmaCCostMaxInstance => //.
   Qed.
 
+  Global Instance sigmaCostMaxMaxInstance (N : nat) (A : finType)
+         (ccostA : CCostClass N A)
+         (ccostMaxInstance : CCostMaxClass N A)
+         (predInstance : PredClass A)
+         (ccostMaxInstance : CCostMaxClass N A)
+         (ccostMaxMaxInstance : @CCostMaxMaxClass N A _ _ )
+    : CCostMaxMaxClass (T := [finType of {x : A | the_pred x}]) _ _.
+  Proof.
+    rewrite /CCostMaxMaxClass /ccost_fun /ccostmax_fun
+            /sigmaCCostInstance /sigmaCCostMaxInstance => //.
+  Defined.
+
   Global Instance sigma_cgame (N : nat) (A : finType)
            (predInstance : PredClass A)
            (costA : CostClass N rat_realFieldType A)
@@ -752,12 +1129,14 @@ Section sigmaCompilable.
            (ccostA : CCostClass N A)
            (ccostMaxA : CCostMaxClass N A)
            (refineCostMaxInstanceA : RefineCostMaxClass costMaxA ccostMaxA)
+           (ccostMaxMaxA : @CCostMaxMaxClass N A _ _)
            `(refineTypeA : RefineTypeClass A)
            (refineCostAxiomA : @RefineCostAxiomClass N A costA ccostA)
            (refineCostA : @RefineCostClass N A costA ccostA _)
            (gA : @game A N rat_realFieldType _ _ _ _)
-           (cgA : @cgame N A _ _ _ _ _ _ _ _ _ _ _ _ _)
+           (cgA : @cgame N A _ _ _ _ _ _ _ _ _ _ _ _ _ _ )
     : @cgame N [finType of {x : A | the_pred x}] _ _ _ _ _ _ _ _ _ _ _
+             _
              (sigmaCostMaxRefineInstance refineCostMaxInstanceA)
              (sigmaGameInstance N _ A predInstance gA) .  
 End sigmaCompilable.
@@ -807,12 +1186,8 @@ Instance prodCCostInstance
   : CCostClass N (aT*bT)
   :=
     (fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
-       match M.find i m with
-       | Some (a, b) =>
-         ccost i (map_split m).1 +
-         ccost i (map_split m).2
-       | _ => 0
-       end)%D.
+       (ccost i (map_split m).1 +
+         ccost i (map_split m).2))%D.
 
 Program Instance prodRefineCostAxiomInstance
         (N : nat) (aT bT : finType)
@@ -827,16 +1202,6 @@ Program Instance prodRefineCostAxiomInstance
       (@prodCostInstance N rat_realFieldType aT bT costA costB)
       (@prodCCostInstance N aT bT ccostA ccostB).
 Next Obligation.
-  rewrite /cost_fun /prodCostInstance /cost_fun
-          /ccost_fun /prodCCostInstance /ccost_fun.
-  rewrite /RefineCostAxiomClass in refineA, refineB.
-  rewrite (H i pf).
-  move: H.
-  have ->: (s (Ordinal (n:=N) (m:=i) pf) =
-            ((s (Ordinal (n:=N) (m:=i) pf)).1,
-             (s (Ordinal (n:=N) (m:=i) pf)).2)).
-  { by case: (s (Ordinal (n:=N) (m:=i) pf)). }
-  move => H.
   have H2: (D_to_Q ((ccost) i (map_split m).1) ==
             rat_to_Q
               ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1]))%coq_Qscope.
@@ -893,6 +1258,77 @@ Proof.
   by apply: Qplus_le_compat.
 Qed.
 
+
+Lemma split_lt_max :
+  forall (N : nat) aT bT
+         `(costA : CostClass N rat_realFieldType aT)
+         `(costB : CostClass N rat_realFieldType bT)
+         (ccostA : CCostClass N aT)
+         (ccostB : CCostClass N bT)
+         (ccostMaxA  : CCostMaxClass N aT)       
+         (ccostMaxB  : CCostMaxClass N bT)
+         (ccostMaxMaxA : @CCostMaxMaxClass N aT _ _ )
+         (ccostMaxMaxB : @CCostMaxMaxClass N bT _ _ )
+  (m : M.t (aT * bT)) i,
+    (0 <= (ccost_fun (N := N) i (map_split m).1) + (ccost_fun (N := N) i (map_split m).2) <=
+     ccostMaxA + ccostMaxB)%DRed.
+Proof.
+  intros.
+  generalize dependent ((map_split m).1) => ma.
+  generalize dependent ((map_split m).2) => mb.
+  have: (0 <= ccost_fun (N := N) i ma <= ccostMaxA)%DRed;
+    last move => H; eauto.
+  have: (0 <= (ccost_fun (N := N) i mb) <= ccostMaxB)%DRed;
+    last move => H1;
+  eauto.
+  generalize dependent ((ccost) i ma).
+  generalize dependent ((ccost) i mb).
+  intros.
+  unfold Dle in *.
+  rewrite !Dadd_ok.
+  destruct H1,H.
+  split.
+  2: apply Qplus_le_compat; auto.
+  clear -H0 H.
+  generalize dependent (D_to_Q d).
+  generalize dependent (D_to_Q d0).
+  intros.
+  unfold D_to_Q in *.
+  simpl in *.
+  assert (0 # 2 == 0)%Q => //.
+  rewrite -> H1 in *.
+  clear H1.
+  clear -H H0.
+  destruct q,q0 => //.
+  unfold Qle in *.
+  simpl in *.
+  ring_simplify in H.
+  ring_simplify in H0.
+  ring_simplify.
+  apply Z.add_nonneg_nonneg;
+  apply Z.mul_nonneg_nonneg => //.
+Qed.
+
+Instance prodCostMaxMaxInstance (N : nat) (aT bT : finType)
+         (costA : CostClass N rat_realFieldType aT)
+         (costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
+         (costB : CostClass N rat_realFieldType bT)
+         (costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
+         (ccostA : CCostClass N aT)
+         (ccostB : CCostClass N bT)
+         (ccostMaxA  : CCostMaxClass N aT)       
+         (ccostMaxB  : CCostMaxClass N bT)       
+         (ccostMaxMaxA : @CCostMaxMaxClass N aT _ _ )
+         (ccostMaxMaxB : @CCostMaxMaxClass N bT _ _ )
+  : @CCostMaxMaxClass N (aT*bT) _ _ .
+Proof.
+  rewrite /CCostMaxMaxClass;
+  rewrite /ccost_fun /ccostmax_fun
+          /prodCCostInstance /prodCCostMaxInstance.
+  intros.
+  apply split_lt_max => //.
+Qed.
+
 Instance prod_cgame (N : nat) (aT bT : finType)
          (costA : CostClass N rat_realFieldType aT)
          (costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
@@ -904,8 +1340,9 @@ Instance prod_cgame (N : nat) (aT bT : finType)
          `(refineTypeA : RefineTypeClass aT)
          (refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA)
          (refineCostA : @RefineCostClass N aT costA ccostA _)
+         (costMaxMaxA : @CCostMaxMaxClass N aT _ _)
          (gA : @game aT N rat_realFieldType _ _ _ _)
-         (cgA : @cgame N aT _ _ _ _ _ _ _ _ _ _ _ _ _)
+         (cgA : @cgame N aT _ _ _ _ _ _ _ _ _ _ _ _ _ _)
          (costB : CostClass N rat_realFieldType bT)
          (costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
          (ccostB : CCostClass N bT)
@@ -915,12 +1352,15 @@ Instance prod_cgame (N : nat) (aT bT : finType)
          (refineMaxB : RefineCostMaxClass costMaxB ccostMaxB)
          `(refineTypeB : RefineTypeClass bT)
          (refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB)
+         (costMaxMaxA : @CCostMaxMaxClass N bT _ _)
          (refineCostB : @RefineCostClass N bT costB ccostB _)
          (gB : @game bT N rat_realFieldType _ _ _ _)
-         (cgB : @cgame N bT _ _ _ _ _ _ _ _ _ _ _ _ _)
+         (cgB : @cgame N bT _ _ _ _ _ _ _ _ _ _ _ _ _ _)
   : @cgame N [finType of aT*bT] _ _ _ _ _ _ _ _ _ _ _
-           (prodRefineMaxCostInstance refineMaxA refineMaxB)
-           (prodGameInstance N _ _ _ gA gB) .  
+           _
+           _
+           (prodGameInstance N _ _ _ gA gB).
+
 
 Module ProdCGameTest. Section prodCGameTest.
   Context {A B : finType} {N : nat} `{cgame N A} `{cgame N B}.
@@ -969,7 +1409,7 @@ Section scalarCompilable.
   Global Program Instance scalarRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (scalarType scalar_val A) _.
   Next Obligation.
-    clear H1 H2 refineCostAxiomClass H0 refineCostClass ccostClass
+    clear H1 H2 ccostMaxMaxClass  refineCostAxiomClass H0 refineCostClass ccostClass
           costAxiomClass costMaxAxiomClass costClass.
     generalize H; clear H.
     rewrite /RefineTypeAxiomClass => H.
@@ -1013,7 +1453,7 @@ Section scalarCompilable.
     M.find i m = Some t ->
     M.find i (unwrapScalarTree m) = Some (unwrap t).
   Proof.
-    clear H H0 H1 H2 refineCostAxiomClass refineCostClass
+    clear H H0 H1 H2 ccostMaxMaxClass refineCostAxiomClass refineCostClass
           ccostClass costAxiomClass costMaxAxiomClass costClass.
     rewrite /unwrapScalarTree.
     apply MProps.fold_rec_weak.
@@ -1098,11 +1538,49 @@ Section scalarCompilable.
     apply le_rat_to_Q => //.
   Qed.
 
+  Global Instance scalarCostMaxMaxInstance 
+         `(scalarAxiomInstance : @ScalarAxiomClass _ scalar_val)
+         (ccostMaxMax : @CCostMaxMaxClass N A
+                                          _ _ )
+    : @CCostMaxMaxClass N  (scalarType scalar_val A) _ _.
+  Proof.
+    split;
+      rewrite /CCostMaxMaxClass;
+    unfold CCostMaxMaxClass in ccostMaxMax;
+    specialize (ccostMaxMax i (unwrapScalarTree m));
+    rewrite  /ccost_fun;
+    unfold Dle in *;
+    repeat rewrite Dmult_ok;
+    rewrite Qmult_comm;
+    destruct ccostMaxMax.
+    +
+      have: (D_to_Q 0 == 0)%Q => [|ZeroZero] //.
+      rewrite -> ZeroZero in *.
+      apply Qmult_le_0_compat => //; eauto.
+      have H5 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
+      rewrite -H5.
+      have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
+      { by apply: dyadic_rat_to_Q. }
+      apply le_rat_to_Q => //.
+    +
+        have->: (Qmult (D_to_Q (dyadic_rat_to_D Hdyadic))
+                     (D_to_Q ccostMaxClass) ==
+               Qmult (D_to_Q ccostMaxClass)
+                     (D_to_Q (dyadic_rat_to_D Hdyadic)))%coq_Qscope.
+      rewrite Qmult_comm => //.
+      apply Qmult_le_compat_r => //.
+      have H5 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
+      rewrite -H5.
+      have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
+      { by apply: dyadic_rat_to_Q. }
+      apply le_rat_to_Q => //.
+  Qed.
+
   Global Instance scalar_cgame
          `{scalarA : @ScalarAxiomClass _ scalar_val}
     : @cgame
         N (scalarType scalar_val A)
-        _ _ _ _ _ _ _ _ _ _ _ _
+        _ _ _ _ _ _ _ _ _ _ _ _ _
         (scalarGameInstance _ _ _ _ _).
 End scalarCompilable.
 
@@ -1148,7 +1626,7 @@ Section biasCompilable.
   Global Program Instance biasRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (biasType (projT1 q) A) _.
   Next Obligation.
-    clear H1 H2 refineCostAxiomClass  H0 refineCostClass
+    clear H1 H2 ccostMaxMaxClass refineCostAxiomClass  H0 refineCostClass
           ccostClass costAxiomClass costMaxAxiomClass costClass.
     generalize H; clear H.
     rewrite /RefineTypeAxiomClass => H.
@@ -1188,7 +1666,7 @@ Section biasCompilable.
     M.find i m = Some t ->
       M.find i (unwrapBiasTree m) = Some (unwrap t).
   Proof.
-    clear H H0 H1 H2 refineCostAxiomClass refineCostClass
+    clear H H0 H1 H2 ccostMaxMaxClass refineCostAxiomClass refineCostClass
           ccostClass costAxiomClass costMaxAxiomClass costClass.
     rewrite /unwrapBiasTree.
     apply MProps.fold_rec_weak.
@@ -1258,10 +1736,61 @@ Section biasCompilable.
     apply Qle_refl.
   Qed.
 
+  Global Instance biasCostMaxMaxInstance
+         `{@BiasAxiomClass rat_realFieldType q}
+         : @CCostMaxMaxClass N (biasType (projT1 q) A) _ _.
+  Proof.
+    split; 
+    rewrite /CCostMaxMaxClass;
+    unfold CCostMaxMaxClass in ccostMaxMaxClass;
+    clear H2;
+    rename ccostMaxMaxClass into H4;
+    specialize (H4 i (unwrapBiasTree m));
+    rewrite  /ccost_fun
+              /biasCCostInstance;
+    rewrite /ccostmax_fun
+            /biasCCostMaxInstance;
+    destruct H4;
+    unfold Dle in *; repeat rewrite Dadd_ok.
+    +
+      have: (D_to_Q 0 == 0)%Q => [| ZeroZero] //.
+      clear -H2 H3 ZeroZero.
+      rewrite -> ZeroZero in *.
+      {
+        move: H2;
+        clear H2.
+        generalize dependent
+                   (D_to_Q ((ccost) i (unwrapBiasTree (A:=A) (q:=projT1 q) m))).
+        unfold BiasAxiomClass in H3.
+        unfold bias_val in *.
+        have: (0 <= D_to_Q q)%Q => //.
+        {
+          apply le_rat_to_Q in H3=> //.
+          clear -H3.
+          move: H3.
+          have->: ((rat_to_Q 0) = 0)%Q => //.
+          rewrite <- dyadic_rat_to_Q => //.
+        }
+        intros H2 q0 H0.
+        generalize dependent (D_to_Q q).
+        intros.
+        unfold Qle in *.
+        simpl in *.
+        ring_simplify in H0.
+        ring_simplify in H1.
+        ring_simplify.
+        apply Z.add_nonneg_nonneg;
+          apply Z.mul_nonneg_nonneg => //.
+      }
+      repeat rewrite Dadd_ok.
+      apply Qplus_le_compat => //.
+      my_omega.
+  Qed.
+
   Global Instance bias_cgame `{@BiasAxiomClass rat_realFieldType q}
     : @cgame N (biasType (projT1 q) A) _ _ _ _ _ _
              (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
-             _ _ _ _ _(biasGameInstance _ _ _ _ _).
+             _ _ _ _ _ _ (biasGameInstance _ _ _ _ _).
 End biasCompilable.
 
 Module BiasCGameTest. Section biasCGameTest.
@@ -1313,8 +1842,16 @@ Section unitCompilable.
     rewrite /RefineCostMaxClass /unitCostMaxInstance /unitCCostMaxInstance.
     rewrite /rat_to_Q => //.
   Qed.
+  Global Instance unitCCostMaxMaxInstance
+         : @CCostMaxMaxClass N [finType of Unit] _ _.
+  Proof.
+    rewrite /CCostMaxMaxClass.
+    move => i m.
+    rewrite /ccost_fun /ccostmax_fun /unitCCostInstance
+            /unit_ccost /unitCCostMaxInstance => //.
+  Qed.
 
-  Global Instance unit_cgame : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _.
+  Global Instance unit_cgame : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _ _.
 End unitCompilable.
 
 (***************************

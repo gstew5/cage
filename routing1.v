@@ -256,14 +256,97 @@ Proof. by []. Qed.
 (*   apply: P3Scaled'_smooth_aux. *)
 (* Qed. *)
 
+Require Import ccombinators.
 Module Conf : CONFIG.
+
+  Hint Extern 4 (RefineTypeAxiomClass ?t)=>
+  refine (sigmaRefineTypeAxiomInstance _ _ _) : typeclass_instances.
+
+  Hint Extern 4 (CostClass ?n ?r ?t) =>
+  refine (sigmaCostInstance _) : typeclass_instances.
+
+  Hint Extern 1 (ScalarAxiomClass ?r )=> done : typeclass_instances.
+
+  Hint Extern 4 (CostAxiomClass ?c) =>
+  refine (sigmaCostAxiomInstance _ _ _ _ _) : typeclass_instances.
+
+  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
+  refine (sigmaRefineCostAxiomInstance _ _ _ _ _ _)
+    : typeclass_instances.
+
+  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
+  refine (sigmaCCostInstance _)
+    : typeclass_instances.
+
+  Hint Extern 4 (CostMaxAxiomClass ?cc ?cmc) =>
+  refine (sigmaCostMaxAxiomInstance _ _ _ _ _ _ _)
+    : typeclass_instances.
+
+  Hint Extern 4 (RefineCostMaxClass ?cc ?cmc) =>
+  compute; (try discriminate)
+    : typeclass_instances.
+
+  Hint Extern 4 (RefineTypeClass ?rtac) =>
+  refine  (sigmaRefineTypeInstance _ _ _)
+    : typeclass_instances.
+
+  Hint Extern 4 (RefineCostClass ?rtac) =>
+  refine (sigmaRefineCostInstance _ _)
+    : typeclass_instances.
+
+  Hint Extern 4 (CCostMaxMaxClass ?rtac ?m) =>
+  refine (scalarCostMaxMaxInstance _ _)
+    : typeclass_instances.
+
+
   Module A := P3Scaled'.
   Definition num_players := num_players.
   Definition num_rounds : N.t := num_iters.
   Definition epsilon := eps.
+  Definition A_cost_instance := A.cost_instance num_players.
+
+    Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
+    Existing Instance refineTypeAxiomA.
+    Instance ccostMaxInstance : CCostMaxClass num_players [finType of A.t] := _.
+
+  Instance ccostMaxMaxInstance : 
+    @CCostMaxMaxClass num_players [finType of A.t]
+                      ccostMaxInstance
+    (@A.cost_instance  num_players):= _.
+  Proof.
+    refine (sigmaCostMaxMaxInstance _ _).
+  Qed.
+
+  Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _
+                         (@Build_game _ num_players _ _ _ _ _)
+                         (enumerateClass := A.enumerable) 
+                    (H := refineTypeAxiomA).
+
+  Hint Resolve ccost_ok_game.
+  Lemma enum_ok : @Enum_ok [finType of A.t] _.
+  Proof. 
+    apply enum_ok; typeclasses eauto.
+  Qed.
+
+  Existing Instance A_cost_instance.
+
+  Lemma ccost_ok : forall (p : M.t [finType of A.t]) (player : N),
+       (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
+  Proof. 
+    intros.
+    have: (0 <= ccostmax_fun <= 1)%DRed.
+    split;
+    compute; intros; discriminate.
+    intros.
+    apply ccost_ok_game with (ccostMaxClass := ccostMaxInstance) => //.
+    typeclasses eauto.
+  Qed.
+    
 
   Eval compute in (@ccostmax_fun num_players P3.t (P3.cost_max num_players)).
   Eval compute in (@ccostmax_fun num_players P3Scaled.t (P3Scaled.cost_max num_players)).
+
+  
 End Conf.
 
 Module Client := Client_of_CONFIG Conf.
