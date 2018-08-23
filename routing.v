@@ -492,44 +492,6 @@ Module Conf : CONFIG.
   Definition A_cost_instance := A.cost_instance num_players.
   Existing Instance A_cost_instance.
 
-  Hint Extern 4 (RefineTypeAxiomClass ?t)=>
-  refine (sigmaRefineTypeAxiomInstance _ _ _) : typeclass_instances.
-
-  Hint Extern 4 (CostClass ?n ?r ?t) =>
-  refine (sigmaCostInstance _) : typeclass_instances.
-
-  Hint Extern 1 (ScalarAxiomClass ?r )=> done : typeclass_instances.
-
-  Hint Extern 4 (CostAxiomClass ?c) =>
-  refine (sigmaCostAxiomInstance _ _ _ _ _) : typeclass_instances.
-
-  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
-  refine (sigmaRefineCostAxiomInstance _ _ _ _ _ _)
-    : typeclass_instances.
-
-  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
-  refine (sigmaCCostInstance _)
-    : typeclass_instances.
-
-  Hint Extern 4 (CostMaxAxiomClass ?cc ?cmc) =>
-  refine (sigmaCostMaxAxiomInstance _ _ _ _ _ _ _)
-    : typeclass_instances.
-
-  Hint Extern 4 (RefineCostMaxClass ?cc ?cmc) =>
-  compute; (try discriminate)
-    : typeclass_instances.
-
-  Hint Extern 4 (RefineTypeClass ?rtac) =>
-  refine  (sigmaRefineTypeInstance _ _ _)
-    : typeclass_instances.
-
-  Hint Extern 4 (RefineCostClass ?rtac) =>
-  refine (sigmaRefineCostInstance _ _)
-    : typeclass_instances.
-
-  Hint Extern 4 (CCostMaxMaxClass ?rtac ?m) =>
-  refine (scalarCostMaxMaxInstance _ _)
-    : typeclass_instances.
   
   Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
   (* Typeclasses eauto := debug. *)

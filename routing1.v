@@ -259,45 +259,6 @@ Proof. by []. Qed.
 Require Import ccombinators.
 Module Conf : CONFIG.
 
-  Hint Extern 4 (RefineTypeAxiomClass ?t)=>
-  refine (sigmaRefineTypeAxiomInstance _ _ _) : typeclass_instances.
-
-  Hint Extern 4 (CostClass ?n ?r ?t) =>
-  refine (sigmaCostInstance _) : typeclass_instances.
-
-  Hint Extern 1 (ScalarAxiomClass ?r )=> done : typeclass_instances.
-
-  Hint Extern 4 (CostAxiomClass ?c) =>
-  refine (sigmaCostAxiomInstance _ _ _ _ _) : typeclass_instances.
-
-  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
-  refine (sigmaRefineCostAxiomInstance _ _ _ _ _ _)
-    : typeclass_instances.
-
-  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
-  refine (sigmaCCostInstance _)
-    : typeclass_instances.
-
-  Hint Extern 4 (CostMaxAxiomClass ?cc ?cmc) =>
-  refine (sigmaCostMaxAxiomInstance _ _ _ _ _ _ _)
-    : typeclass_instances.
-
-  Hint Extern 4 (RefineCostMaxClass ?cc ?cmc) =>
-  compute; (try discriminate)
-    : typeclass_instances.
-
-  Hint Extern 4 (RefineTypeClass ?rtac) =>
-  refine  (sigmaRefineTypeInstance _ _ _)
-    : typeclass_instances.
-
-  Hint Extern 4 (RefineCostClass ?rtac) =>
-  refine (sigmaRefineCostInstance _ _)
-    : typeclass_instances.
-
-  Hint Extern 4 (CCostMaxMaxClass ?rtac ?m) =>
-  refine (scalarCostMaxMaxInstance _ _)
-    : typeclass_instances.
-
 
   Module A := P3Scaled'.
   Definition num_players := num_players.
@@ -305,9 +266,9 @@ Module Conf : CONFIG.
   Definition epsilon := eps.
   Definition A_cost_instance := A.cost_instance num_players.
 
-    Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
-    Existing Instance refineTypeAxiomA.
-    Instance ccostMaxInstance : CCostMaxClass num_players [finType of A.t] := _.
+  Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
+  Existing Instance refineTypeAxiomA.
+  Instance ccostMaxInstance : CCostMaxClass num_players [finType of A.t] := _.
 
   Instance ccostMaxMaxInstance : 
     @CCostMaxMaxClass num_players [finType of A.t]
@@ -320,9 +281,8 @@ Module Conf : CONFIG.
   Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _
                          (@Build_game _ num_players _ _ _ _ _)
                          (enumerateClass := A.enumerable) 
-                    (H := refineTypeAxiomA).
+                         (H := refineTypeAxiomA).
 
-  Hint Resolve ccost_ok_game.
   Lemma enum_ok : @Enum_ok [finType of A.t] _.
   Proof. 
     apply enum_ok; typeclasses eauto.
