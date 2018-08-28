@@ -10,7 +10,8 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import dist weights numerics bigops games weightslang server smooth.
+Require Import OUVerT.dist MWU.weights
+        OUVerT.numerics OUVerT.bigops games MWU.weightslang server smooth.
 
 (** FIXME: This definition should replace [upto_oracle_eq] in weightslang.v *)
 Inductive upto_oracle_eq (A : finType) T T' chanty chanty'
@@ -556,6 +557,62 @@ Section machine_semantics.
     Definition timeAvg_fun :=
       finfun (fun i : 'I_(size (hist m)) =>
                 prod_dist (tnth (in_tuple m.(hist)) i)).
+
+Section timeAvg.
+  Variable T : finType.
+  Notation rty := rat_realFieldType.
+  (* the number of iterations (=size of history) *)  
+  Variable n : nat.
+  Variable n_pos : (0 : rty) < n%:R. 
+  (* the distributions at each iteration: *)
+  Variable s : {ffun 'I_n -> dist T rty}.
+  
+  Definition timeAvg_pmf : {ffun T -> rty} :=
+    finfun (fun x : T => (\sum_(i < n) s i x) / n%:R).
+
+  Lemma timeAvg_pmf_dist :
+    dist_axiom (T:=T) (rty:=rty) timeAvg_pmf.
+  Proof.
+    apply/andP; split.
+    { rewrite /timeAvg_pmf sum_ffunE' -mulr_suml mulrC exchange_big /=.
+      have ->: (\sum_(j < n) \sum_i (s j) i = n%:R).
+      { have ->: \sum_(j < n) \sum_i (s j) i = \sum_(j < n) 1.
+        { apply: congr_big => // i _; apply: dist_normalized. }
+        have H: (\sum_(j<n) 1)%N = n.
+        { rewrite bigop.sum1_size.
+          have ->: size (index_enum (ordinal_finType n)) = size (enum 'I_n).
+          { rewrite /enum_mem size_map //. }
+          apply: size_enum_ord. }
+        have <-: ((\sum_(j < n) 1)%N)%:R = (n%:R : rty) by rewrite H.
+        rewrite natr_sum //. }
+      rewrite mulVf => //.
+      apply/negP => H2; move: (eqP H2) => H2'; move: n_pos; rewrite H2' //. }
+    apply/forallP => x; rewrite /timeAvg_pmf ffunE.
+    rewrite mulrC pmulr_rge0; last by rewrite invr_gt0.
+    apply: sumr_ge0 => i _; apply: dist_positive.
+  Qed.
+
+  Definition timeAvg_dist : dist T rty := 
+    @mkDist _ _ timeAvg_pmf timeAvg_pmf_dist.
+
+  Lemma expectedValue_timeAvg f :
+    expectedValue timeAvg_dist f = (1/n%:R) * \sum_t (\sum_(i<n) (s i t) * f t).
+  Proof.
+    rewrite /expectedValue/expectedCondValue/timeAvg_dist/=/timeAvg_pmf.
+    rewrite mulrC mulr_suml.
+    apply: congr_big => // i _; rewrite ffunE.
+    rewrite -!mulr_suml mulrA mulr1 -2!mulrA.
+    by have ->: (n%:R^-1 * f i = f i / n%:R) by rewrite mulrC.
+  Qed.
+
+  Lemma expectedValue_timeAvg' f :
+    expectedValue timeAvg_dist f = (1/n%:R) * \sum_(i<n) \sum_t (s i t) * f t.
+  Proof.
+    rewrite expectedValue_timeAvg; f_equal.
+    by rewrite exchange_big.
+  Qed.
+End timeAvg.
+
     
     (* The time-averaged \sigma distribution *)
     Definition sigmaT : dist [finType of {ffun 'I_N -> A}] rat_realFieldType

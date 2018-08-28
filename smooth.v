@@ -7,7 +7,7 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import extrema dist games dynamics potential.
+Require Import OUVerT.extrema OUVerT.dist games dynamics potential.
 
 (** (\lambda,\mu)-Smooth Games
 

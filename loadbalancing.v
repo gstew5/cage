@@ -11,7 +11,8 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics combinators games compile orderedtypes dyadic.
+Require Import OUVerT.numerics combinators games compile
+        orderedtypes OUVerT.dyadic.
 Require Import lightserver staging.
 
 Local Open Scope ring_scope.
@@ -68,6 +69,7 @@ Instance UnitCCostMaxClass (N : nat)
   : CCostMaxClass N Unit := Dmake 0 1.
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
+
 Instance UnitEq : Eq Unit := fun x y => True.
 Instance UnitEqDec : Eq_Dec UnitEq.
 Proof.
@@ -228,5 +230,5 @@ Module Server := Server_of_CONFIG Conf.
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
 
-Extraction "runtime/mwu.ml" Client.mwu.
-Extraction "runtime/server.ml" Server.run.
+(* Extraction "runtime/mwu.ml" Client.mwu. *)
+(* Extraction "runtime/server.ml" Server.run. *)

@@ -8,8 +8,8 @@ Require Import QArith String Ascii.
 Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
-Require Import strings compile orderedtypes dyadic numerics cdist.
-
+Require Import OUVerT.strings compile orderedtypes
+        OUVerT.dyadic OUVerT.numerics cdist.
 (* A CONFIGuration specifies 
    - the ordered game type
    - the number of players 

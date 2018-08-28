@@ -11,98 +11,14 @@ From mathcomp Require Import seq.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import extrema numerics games dyadic strings
-        listlemmas.
+Require Import OUVerT.extrema OUVerT.numerics games
+        OUVerT.dyadic OUVerT.strings
+        OUVerT.listlemmas.
+Require Export OUVerT.compile.
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
 Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
-
-Module OrdNat
-  <: OrderedType.OrderedType.
-      Definition t := N.t.
-      Definition eq := N.eq.
-      Definition lt := N.lt.
-      Lemma eq_refl : forall x : t, eq x x.
-      Proof. apply: N.eq_refl. Qed.
-      Lemma eq_sym : forall x y : t, eq x y -> eq y x.
-      Proof. apply: N.eq_sym. Qed.                                      
-      Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
-      Proof. apply: N.eq_trans. Qed.  
-      Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-      Proof. apply: N.lt_trans. Qed.                                           
-      Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-      Proof. move=> x y H H2; rewrite /eq /N.eq in H2; subst x.
-             apply: (N.lt_irrefl _ H). Qed.
-      Lemma compare : forall x y : t, OrderedType.Compare lt eq x y.
-      Proof. move=> x y; case H: (N.eq_dec x y).
-             { by subst x; apply: OrderedType.EQ. }
-             case H2: (N.ltb x y).
-             { by apply: OrderedType.LT; rewrite /lt -N.ltb_lt. }
-             apply: OrderedType.GT.
-             have H3: N.le y x.
-             { by rewrite -N.ltb_ge H2. }
-             move: H3; rewrite N.lt_eq_cases; case => //.
-             by move => H3; subst y; elimtype False. Qed.
-      Lemma eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
-      Proof. apply: N.eq_dec. Qed.
-End OrdNat.
-      
-Module M := Make OrdNat. (* The type of shared states *)
-Module MFacts := Facts M.
-Module MProps := Properties M.
-
-(** OrdNatDep: A computational analogue of 'I_n *)
-
-Module Type BOUND.
-  Parameter n : nat.
-  Parameter n_gt0 : (0 < n)%nat.
-End BOUND.
-
-Module OrdNatDep (B : BOUND)
-  <: OrderedType.OrderedType.
-      Notation n := B.n.
-      Record t' : Type :=
-        mk { val :> N.t;
-             pf : (N.to_nat val < n)%nat }.
-      Definition t := t'.
-      Definition eq (x y : t) := N.eq (val x) (val y).
-      Definition lt (x y : t) := N.lt (val x) (val y).
-      Lemma eq_refl : forall x : t, eq x x.
-      Proof. case => x pf; apply: N.eq_refl. Qed.
-      Lemma eq_sym : forall x y : t, eq x y -> eq y x.
-      Proof. case => x pf; case => y pf'; apply: N.eq_sym. Qed.   
-      Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
-      Proof. case => x pf; case => y pf'; case => z pf''; apply: N.eq_trans. Qed.  
-      Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-      Proof. case => x pf; case => y pf'; case => z pf''; apply: N.lt_trans. Qed.        
-      Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-      Proof. case => x pf; case => y pf' H H2; rewrite /eq /N.eq in H2.
-             rewrite /lt H2 in H; apply: (N.lt_irrefl _ H). Qed.
-      Lemma compare : forall x y : t, OrderedType.Compare lt eq x y.
-      Proof.
-        case => x pf; case => y pf'; case H: (N.eq_dec x y).
-        { by subst x; apply: OrderedType.EQ. }
-        case H2: (N.ltb x y).
-        { by apply: OrderedType.LT; rewrite /lt -N.ltb_lt. }
-        apply: OrderedType.GT.
-        have H3: N.le y x.
-        { by rewrite -N.ltb_ge H2. }
-        move: H3; rewrite N.lt_eq_cases; case => //.
-        by move => H3; subst y; elimtype False. Qed.
-      Lemma eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
-      Proof. case => x pf; case => y pf'; apply: N.eq_dec. Qed.
-End OrdNatDep.
-
-Class Enumerable (T : Type) :=
-  enumerable_fun : list T.
-Notation "'enumerate' T" := (@enumerable_fun T _) (at level 30).
-
-Class RefineTypeAxiomClass (T : finType)
-      (enumerateClass : Enumerable T) :=
-  refineTypeAxiom_fun :
-    enumerate T =i enum T /\ uniq (enumerate T).
-Notation "'enumerateP' T" := (@refineTypeAxiom_fun T _ _) (at level 30).
 
 Class RefineTypeClass (T : finType)
       (enumerateClass : Enumerable T)
@@ -126,7 +42,6 @@ Class RefineCostAxiomClass N (T : finType)
           let: j' := Ordinal pf' in
           M.find j m = Some (s j')) ->
       Qeq (D_to_Q (ccost i m)) (rat_to_Q (cost i' s)).
-
 Class RefineCostClass N (T : finType)
       (costClass : CostClass N rat_realFieldType T)
       (ccostClass : CCostClass N T)
@@ -282,22 +197,22 @@ Class BoolableUnitAxiom
 (* We bundle up equality here to make it
     visible to the affine cost functions *)
   (** really this needn't be equality is probably better to rename it to relation *)
-Class Eq (A : Type) : Type :=
-  decEq : A -> A -> Prop.
+(* Class Eq (A : Type) : Type := *)
+(*   decEq : A -> A -> Prop. *)
 
-Class Eq_Dec (A : Type) (eq : Eq A) : Type :=
-  isDec : forall x y : A,  {eq x y} + {~ eq x y}.
+(* Class Eq_Dec (A : Type) (eq : Eq A) : Type := *)
+(*   isDec : forall x y : A,  {eq x y} + {~ eq x y}. *)
 
-Class Eq_Refl (A : Type) (eq :Eq A) : Type :=
-  isRefl : forall x : A, eq x x.
+(* Class Eq_Refl (A : Type) (eq :Eq A) : Type := *)
+(*   isRefl : forall x : A, eq x x. *)
 
-(** The game type package provided by MWU to the client network oracle *)
+(* (** The game type package provided by MWU to the client network oracle *) *)
 
-Class Enum_ok A `{Enumerable A} : Type :=
-  mkEnum_ok { 
-      enum_nodup : NoDupA (fun x : A => [eta eq x]) (enumerate A);
-      enum_total : forall a : A, In a (enumerate A)
-    }.
+(* Class Enum_ok A `{Enumerable A} : Type := *)
+(*   mkEnum_ok {  *)
+(*       enum_nodup : NoDupA (fun x : A => [eta eq x]) (enumerate A); *)
+(*       enum_total : forall a : A, In a (enumerate A) *)
+(*     }. *)
 
 
 Class GameType
@@ -308,7 +223,7 @@ Class GameType
       `{show_instance : Showable A}
   := mkGameType
        { a0 : A
-       ; ccost_ok : 
+       ; ccost_ok :
            forall (p : M.t A) (player : N),
              let: d := ccost player p in
              [/\ Dle (-D1) d & Dle d D1]

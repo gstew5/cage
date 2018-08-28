@@ -14,17 +14,17 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import strings.
-Require Import extrema dist numerics bigops dyadic.
+Require Import OUVerT.strings.
+Require Import OUVerT.extrema OUVerT.dist OUVerT.numerics
+        OUVerT.bigops OUVerT.dyadic.
 Require Import games compile smooth christodoulou combinators.
-Require Import listlemmas maplemmas subsettypes.
+Require Import OUVerT.listlemmas OUVerT.maplemmas subsettypes.
 
 Local Open Scope ring_scope.
 
 (******************************************
   Resource Games are Compilable
  ******************************************)
-
 Instance resourceEnumerableInstance : Enumerable resource := 
   [:: RYes; RNo].
 

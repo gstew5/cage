@@ -12,7 +12,9 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics combinators games compile orderedtypes dyadic.
+Require Import OUVerT.numerics
+        combinators games
+        compile orderedtypes OUVerT.dyadic.
 Require Import lightserver staging.
 Require Import routing.
 

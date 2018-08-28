@@ -12,7 +12,8 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import strings compile orderedtypes dyadic numerics dist games.
+Require Import OUVerT.strings compile OUVerT.orderedtypes
+        OUVerT.dyadic OUVerT.numerics OUVerT.dist games.
 
 Definition upd {A : finType} {T : Type}
            (a : A) (t : T) (s : {ffun A -> T}) :=

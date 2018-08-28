@@ -12,9 +12,9 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics dyadic combinators games compile orderedtypes.
-Require Import weightsextract client lightserver.
-
+Require Import OUVerT.numerics OUVerT.dyadic
+        combinators games compile orderedtypes.
+Require Import MWU.weightsextract client lightserver.
 (* 1. CONFIG -> GameType 
 
    FIXME: assumes ccost is in range. This is a result of refinement assumptions
@@ -54,8 +54,9 @@ Module Client_of_CONFIG (C : CONFIG).
   Existing Instance A_cost_instance.
   Module ClientOracle := AxClientOracle C.
   Existing Instance ClientOracle.client_ax_oracle.
-  Definition mwu0 (eps : D) (nx : N.t) :=
-    MWU.interp (weightslang.mult_weights C.A.t nx) (MWU.init_cstate eps).
+  Program Definition mwu0 (eps : D) (nx : N.t) :=
+    MWU.interp (weightslang.mult_weights C.A.t nx) (MWU.init_cstate eps (H1:= _)).
+  
   Definition mwu := mwu0 C.epsilon C.num_rounds.
 End Client_of_CONFIG.
 

@@ -13,7 +13,8 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import combinators games compile orderedtypes weightsextract.
+Require Import combinators games compile
+        orderedtypes MWU.weightsextract.
 
 
 (** [validPath] encodes the following topology (multi-paths are disallowed):
@@ -223,12 +224,14 @@ Module MWU := MWU P'.
 
 Existing Instance P'.enumerable.
 (*Why doesn' Coq discover this instance in the following definition?*)
-Definition mwu0 (eps : Q) (nx : N.t) :=
+Require Import client.
+Program Definition mwu0 eps  (nx : N.t) :=
   MWU.interp
     (weightslang.mult_weights P'.t nx)
-    (MWU.init_cstate eps).
-
-Definition mwu := mwu0 (Qmake 1 4) 20.
+    (@MWU.init_cstate _ _  eps).
+Next Obligation.
+  Admitted.
+Definition mwu := mwu0 ((dyadic.Dmake 1 4)) 20.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.

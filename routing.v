@@ -12,8 +12,9 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics dyadic
-        ccombinators combinators games compile orderedtypes.
+Require Import OUVerT.numerics OUVerT.dyadic
+        ccombinators combinators games
+        compile orderedtypes.
 Require Import lightserver staging.
 
 Local Open Scope ring_scope.
