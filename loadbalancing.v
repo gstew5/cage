@@ -12,7 +12,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import OUVerT.numerics combinators games compile
-        orderedtypes OUVerT.dyadic.
+        ccombinators orderedtypes OUVerT.dyadic.
 Require Import lightserver staging.
 
 Local Open Scope ring_scope.
@@ -216,12 +216,38 @@ Module Conf : CONFIG.
   Definition num_rounds : N.t := num_iters.
   Definition epsilon := eps.
   Definition A_cost_instance := A.cost_instance num_players.
-  Lemma enum_ok : @Enum_ok A.t _. Proof. Admitted.
+  Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
+
+  Instance ccostMaxInstance : CCostMaxClass num_players [finType of A.t] := _.
+
+  Instance ccostMaxMaxInstance : 
+    @CCostMaxMaxClass num_players [finType of A.t]
+                      ccostMaxInstance
+    A_cost_instance := _.
+  Proof.
+    refine (sigmaCostMaxMaxInstance _ _).
+  Qed.
+
+  Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _
+                         (@Build_game _ num_players _ _ _ _ _)
+                         (enumerateClass := A.enumerable)
+                         (H := refineTypeAxiomA) 
+                         (ccostMaxClass := ccostMaxInstance).
+
+  Lemma enum_ok : @Enum_ok [finType of A.t] _.
+  Proof. 
+    apply enum_ok; 
+    typeclasses eauto.
+  Qed.
 
   Existing Instance A_cost_instance.
-  Lemma ccost_ok : forall (p : M.t A.t) (player : N),
+  Lemma ccost_ok : forall (p : M.t [finType of A.t]) (player : N),
        (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
-  Proof. Admitted.
+  Proof. 
+    intros.
+    apply ccost_ok_game with (ccostMaxClass := ccostMaxInstance) => //.
+    typeclasses eauto.
+  Qed.
 End Conf.
   
 Module Client := Client_of_CONFIG Conf.
@@ -230,5 +256,5 @@ Module Server := Server_of_CONFIG Conf.
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
 
-(* Extraction "runtime/mwu.ml" Client.mwu. *)
-(* Extraction "runtime/server.ml" Server.run. *)
+Extraction "runtime/mwu.ml" Client.mwu.
+Extraction "runtime/server.ml" Server.run.
