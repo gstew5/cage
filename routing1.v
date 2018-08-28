@@ -13,8 +13,9 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
 Require Import OUVerT.numerics
-        combinators games
+        combinators games ccombinators
         compile orderedtypes OUVerT.dyadic.
+
 Require Import lightserver staging.
 Require Import routing.
 
@@ -258,10 +259,7 @@ Proof. by []. Qed.
 (*   apply: P3Scaled'_smooth_aux. *)
 (* Qed. *)
 
-Require Import ccombinators.
 Module Conf : CONFIG.
-
-
   Module A := P3Scaled'.
   Definition num_players := num_players.
   Definition num_rounds : N.t := num_iters.

@@ -530,47 +530,17 @@ Section gameDefs.
     \sum_t f t.
   Proof. by rewrite -(marginal_unfold f i) pair_big_dep //. Qed.
 
-  Lemma CE_CCE d : CE d -> CCE d.
-  Proof.
-    move => Hx i t_i'; rewrite /CE in Hx; move: (Hx i).
-    rewrite /expectedUnilateralCost /expectedUnilateralCondCost
-            /expectedCost /expectedCondCost /expectedValue /expectedCondValue.
-    move => Hy.
-    rewrite addr0.
-    have Hz:
-        \sum_(ti : T) \sum_(t : state N T | [pred tx | tx i == ti] t) d t * (cost) i t <=
-      \sum_(ti : T) (\sum_(t : state N T | [pred tx | tx i == ti] t) d t * (cost) i (upd i t t_i')).
-    { apply: ler_sum => tx _ //.
-      move: (Hy tx (t_i' i)) => Hw.
-      apply: ler_trans.
-      {  admit.
-          (* by apply: Hw; move => t <- Hs; apply: H2. *) }
-      (* rewrite addr0. *)
-    (*   apply: ler_sum => x; move/eqP => H2. *)
-    (*   rewrite upd1_upd; apply: lerr. } *)
-    (* have ->: \sum_t d t * (cost) i t = *)
-    (*          \sum_ti \sum_(t : state N T | [pred tx | tx i == ti] t) d t * (cost) i t. *)
-    (* { by rewrite -(sum1_sum _ i). } *)
-    (* have ->: *)
-    (*   \sum_t d t * (cost) i (((upd i) t) t_i') = *)
-    (*   \sum_ti \sum_(t : state N T | [pred tx | tx i == ti] t) *)
-    (*      d t * (cost) i (((upd i) t) t_i'). *)
-    (* { by rewrite -(sum1_sum _ i). } *)
-    (* rewrite mul1r. *)
-    (* by apply: Hz. *)
-  (* Qed. *)
-      Admitted.
-(** Mixed Nash Equilibria
-      ~~~~~~~~~~~~~~~~~~~~~
-      The expected cost of a unilateral deviation to state (t' i) is greater
-      or equal to the expected cost of distribution [d]. 
+(* (** Mixed Nash Equilibria *)
+(*       ~~~~~~~~~~~~~~~~~~~~~ *)
+(*       The expected cost of a unilateral deviation to state (t' i) is greater *)
+(*       or equal to the expected cost of distribution [d].  *)
 
-      NOTES: 
-      - [d] must be a product distribution, of the form 
-        [d_0 \times d_1 \times ... \times d_{#players-1}].
+(*       NOTES:  *)
+(*       - [d] must be a product distribution, of the form  *)
+(*         [d_0 \times d_1 \times ... \times d_{#players-1}]. *)
 
-      - [t'] must be a valid move for [i] from any state in the 
-        support of [d].
+(*       - [t'] must be a valid move for [i] from any state in the  *)
+(*         support of [d]. *)
    *)
   Definition MNE (f : {ffun 'I_N -> dist T rty}) : Prop :=
     CE (prod_dist f).

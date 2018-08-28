@@ -101,7 +101,6 @@ Module AxClientOracle (C : CONFIG).
     NoDupA (fun p q => p.1 = q.1) (cost_vector p player).
   Proof.
     rewrite /cost_vector -fold_left_rev_right.
-    About enum_nodup.
     generalize enum_nodup; move: (enumerate C.A.t) => l H.
     have H2: NoDupA (fun x : C.A.t => [eta eq x]) (List.rev l).
     { apply NoDupA_rev => //.

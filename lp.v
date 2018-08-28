@@ -207,33 +207,34 @@ Module LP (P : LINEAR_PROGRAM).
   
   Definition recv (st : state) (_ : chanty) : (list (M.t*D) * state) :=
     (cost_vector st, st).
-  
-  (* Program Definition lp_client_oracle : @ClientOracle M.t := *)
-  (*   @mkOracle *)
-  (*     M.t *)
-  (*     state *)
-  (*     init_state *)
-  (*     chanty *)
-  (*     bogus_chan *)
-  (*     recv *)
-  (*     send *)
-  (*     _ *)
-  (*     _. *)
-  (* Next Obligation.(*LP TODO*)  *)
-  (* Next Obligation.(*LP TODO*) *)
 
-  (* (** Hook up to MWU *) *)
+  Program Definition lp_client_oracle : @ClientOracle M.t :=
+    @mkOracle
+      M.t
+      state
+      init_state
+      chanty
+      bogus_chan
+      (fun _ _ => (true,_))
+      recv
+      (fun _ _ => true)
+      send
+      _
+      _.
+  Next Obligation. Admitted. (*LP TODO*)
+  Next Obligation. Admitted. (*LP TODO*)
+  (** Hook up to MWU *)
   
-  (* Existing Instance lp_client_oracle. *)
+  Existing Instance lp_client_oracle.
 
-  (* Require Import weightsextract. *)
+  Require Import MWU.weightsextract.
 
-  (* Module MWU := MWU M. *)
+  Module MWU := MWU M.
   
-  (* Definition mwu := *)
-  (*   MWU.interp *)
-  (*     (weightslang.mult_weights M.t P.num_rounds) *)
-  (*     (MWU.init_cstate P.eps). *)
+  Definition mwu :=
+    MWU.interp
+      (weightslang.mult_weights M.t P.num_rounds)
+      (MWU.init_cstate P.eps).
 End LP.
 
 (** TEST 1 *)
@@ -263,4 +264,4 @@ Module LP_P := LP P.
 Unset Extraction Optimize.
 Unset Extraction AutoInline.
 
-(* Extraction "runtime/lp.ml" LP_P.mwu. *)
+Extraction "runtime/lp.ml" LP_P.mwu.

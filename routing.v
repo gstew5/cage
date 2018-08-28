@@ -495,7 +495,6 @@ Module Conf : CONFIG.
 
   
   Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
-  (* Typeclasses eauto := debug. *)
 
   Instance ccostMaxInstance : CCostMaxClass num_players [finType of A.t] := _.
 

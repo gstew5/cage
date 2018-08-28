@@ -224,7 +224,7 @@ Module MWU := MWU P'.
 
 Existing Instance P'.enumerable.
 (*Why doesn' Coq discover this instance in the following definition?*)
-Require Import client.
+Require Import lp.
 Program Definition mwu0 eps  (nx : N.t) :=
   MWU.interp
     (weightslang.mult_weights P'.t nx)
