@@ -16,6 +16,8 @@ An introduction to the research ideas underlying Cage (in the form of a technica
 * Ssreflect 1.6.1
 * OCaml (>= 4.02.1)
 * Zarith OCaml library (>= 1.5)
+* Ohio University Verification Toolsuite (OUVerT)
+* Ohio University Verified Multiplicative Weights Update (MWU)
 
 ### [OPAM](https://opam.ocaml.org/) is the best way to install prereqs:
 
