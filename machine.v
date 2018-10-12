@@ -10,7 +10,9 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import dist weights numerics bigops games weightslang server smooth mwu_costvec.
+Require Import OUVerT.dist MWU.weights
+        OUVerT.numerics OUVerT.bigops games MWU.weightslang server smooth
+        mwu_costvec.
 
 (** FIXME: This definition should replace [upto_oracle_eq] in weightslang.v *)
 Inductive upto_oracle_eq (A : finType) T T' chanty chanty'
@@ -430,7 +432,7 @@ Section general_machine_semantics.
     Definition timeAvg_fun :=
       finfun (fun i : 'I_(size (hist m)) =>
                 prod_dist (tnth (in_tuple m.(hist)) i)).
-    
+
     (* The time-averaged \sigma distribution *)
     Definition sigmaT : dist [finType of {ffun 'I_N -> A}] rat_realFieldType
       := timeAvg_dist pf timeAvg_fun.

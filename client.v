@@ -12,7 +12,9 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import strings compile orderedtypes dyadic numerics cdist weightsextract lightserver.
+Require Import OUVerT.strings compile OUVerT.orderedtypes
+        OUVerT.dyadic OUVerT.numerics cdist MWU.weightsextract
+        lightserver.
 
 (** Axiomatized client oracle *)
 Axiom ax_st_ty : Type.
@@ -154,18 +156,24 @@ Module AxClientOracle (C : CONFIG).
   Qed.
   End clientCostVectorShim.
 
-  Instance client_ax_oracle
+  Program Instance client_ax_oracle
             {num_players : nat}
            `{GameType C.A.t num_players}
     : @ClientOracle C.A.t :=
     @mkOracle C.A.t 
       ax_st_ty empty_ax_st
       ax_chan ax_bogus_chan
-      (fun _ _ => true) (*presend*)
+      (fun _ _ => (true,_)) (*presend*)
       (@recv num_players _ _)
       (fun _ _ => true) (*prerecv*)     
       (@send num_players _ _ _ _ _)
-      (@recv_ok num_players _ _ _ _ _)
-      (@recv_nodup num_players _ _ _).
-    
+      _
+      _.
+  Next Obligation.
+    eauto using (@recv_ok num_players _ _ _ _ _).
+  Defined.
+  Next Obligation.
+    eauto using (@recv_nodup num_players _ _ _).
+  Defined.
+
 End AxClientOracle.

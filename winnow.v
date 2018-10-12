@@ -13,7 +13,9 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import strings compile orderedtypes dyadic numerics weightsextract vector.
+Require Import OUVerT.strings compile orderedtypes
+        OUVerT.dyadic OUVerT.numerics MWU.weightsextract
+        OUVerT.vector.
 
 Module Winnow (NumFeatures : BOUND) (NumConstraints : BOUND).
   Module Constraints := DConstraintMatrix NumFeatures NumConstraints. Import Constraints.  

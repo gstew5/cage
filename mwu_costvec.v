@@ -10,8 +10,12 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import dist weights numerics bigops games weightslang server smooth.
-Require Import compile dyadic vector orderedtypes.
+Require Import
+        OUVerT.dist MWU.weights OUVerT.numerics
+        OUVerT.bigops games MWU.weightslang server smooth.
+
+Require Import compile OUVerT.dyadic
+        OUVerT.vector orderedtypes.
 
 (** The server cost vector specific to multiplayer no-regret games in which 
     each client runs MWU *)

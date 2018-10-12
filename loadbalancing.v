@@ -11,22 +11,43 @@ From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import numerics combinators games compile orderedtypes dyadic.
+Require Import OUVerT.numerics combinators games compile
+        ccombinators orderedtypes OUVerT.dyadic.
 Require Import lightserver staging.
 
 Local Open Scope ring_scope.
+
+(*
+  The overall method for constructing loadbalancing games is
+  as follows:
+
+    1.) For each possible server an agent can choose, 
+        we construct an affine resource game.
+
+    2.) We combine each of these resource games using
+        our product combinator to produce a game over
+        the entire set of paths from agents to servers.
+
+    3.) To ensure that each agent directs traffic to one server
+        we combine our exactly_one_true predicate with the game
+        from 2.
+*)
 
 Section strategyPred.
   Variable N : nat. (* The number of elements *)
   Variable T : nat -> Type.
   Variable BoolableT : forall n, Boolable (T n).
 
+  (* A constructor for n-tuples *)
   Fixpoint nTuple (n : nat) (T : nat -> Type) : Type :=
     match n with
     | O => Unit
     | S n' => (nTuple n' T)*(T n)%type
     end.
 
+  (* Counts the number of elements in an n-tuple
+      which boolify to true (i.e how many
+      resources are used in a given strategy)  *)
   Fixpoint count_nTuple {n : nat} : nTuple n T -> nat :=
     match n with
     | O    => fun _  => 0%N
@@ -37,6 +58,8 @@ Section strategyPred.
                  count_nTuple nT.1
     end.
 
+  (* A predicate for determining when only
+     one element of the tuple boolifies to true *)
   Definition exactly_one_true {n : nat} (nT : nTuple n T) : bool:=
     count_nTuple nT == 1%N.
 End strategyPred.
@@ -46,6 +69,7 @@ Instance UnitCCostMaxClass (N : nat)
   : CCostMaxClass N Unit := Dmake 0 1.
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
+
 Instance UnitEq : Eq Unit := fun x y => True.
 Instance UnitEqDec : Eq_Dec UnitEq.
 Proof.
@@ -55,11 +79,13 @@ Instance UnitBoolableUnit : BoolableUnit UnitBoolableInstance := mkUnit.
 Program Instance UnitBoolableUnitAxiom : BoolableUnitAxiom UnitBoolableUnit.
 (*END MOVE*)
 
+
 (* Because standard Coq FMaps are parameterized over modules, which 
    aren't first-class in Coq, the following construction has to be 
    done by hand for each game type. *)
 Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 
+(* We construct the resource games corresponding to each edge *)
 Module RValues <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat 1.
@@ -84,7 +110,12 @@ Module RExpensive <: BoolableOrderedAffineType.
 End RExpensive.
 Module RAffineExpensive := OrderedAffine RExpensive.
 
-(** R*R*R affine game *)
+(*
+  Here we're building the game type (in modules)
+  corresponding to the prduct of all of these edges
+  constructed above.
+
+*)
 Module RUnit <: MyOrderedType := OrderedUnit.
 Module RAffine1 <: MyOrderedType := OrderedProd RUnit RAffine.
 Module RAffine2 <: MyOrderedType := OrderedProd RAffine1 RAffineExpensive.
@@ -156,7 +187,8 @@ Module P <: OrderedPredType.
     case H: (RValues.eq_dec' x x) => [pf|pf] => //.
     elimtype False; move {H}; apply: pf; apply RValues.eq_refl'.
   Qed.
-
+  (* We need to show that at least one element exists
+     in the strategy space resrticeted by our predicate *)
   Definition a0 : RAffine3Scaled.t.
   Proof.
    Ltac solve_r r :=
@@ -183,7 +215,40 @@ Module Conf : CONFIG.
   Definition num_players := num_players'.
   Definition num_rounds : N.t := num_iters.
   Definition epsilon := eps.
-End Conf.  
+  Definition A_cost_instance := A.cost_instance num_players.
+  Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
+
+  Instance ccostMaxInstance : CCostMaxClass num_players [finType of A.t] := _.
+
+  Instance ccostMaxMaxInstance : 
+    @CCostMaxMaxClass num_players [finType of A.t]
+                      ccostMaxInstance
+    A_cost_instance := _.
+  Proof.
+    refine (sigmaCostMaxMaxInstance _ _).
+  Qed.
+
+  Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _
+                         (@Build_game _ num_players _ _ _ _ _)
+                         (enumerateClass := A.enumerable)
+                         (H := refineTypeAxiomA) 
+                         (ccostMaxClass := ccostMaxInstance).
+
+  Lemma enum_ok : @Enum_ok [finType of A.t] _.
+  Proof. 
+    apply enum_ok; 
+    typeclasses eauto.
+  Qed.
+
+  Existing Instance A_cost_instance.
+  Lemma ccost_ok : forall (p : M.t [finType of A.t]) (player : N),
+       (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
+  Proof. 
+    intros.
+    apply ccost_ok_game with (ccostMaxClass := ccostMaxInstance) => //.
+    typeclasses eauto.
+  Qed.
+End Conf.
   
 Module Client := Client_of_CONFIG Conf.
 Module Server := Server_of_CONFIG Conf.

@@ -13,8 +13,9 @@ From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import strings.
-Require Import extrema dist numerics bigops.
+Require Import OUVerT.strings.
+Require Import OUVerT.extrema OUVerT.dist OUVerT.numerics
+        OUVerT.bigops.
 Require Import games compile smooth christodoulou.
 
 Local Open Scope ring_scope.

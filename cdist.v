@@ -12,7 +12,8 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
-Require Import strings compile orderedtypes dyadic numerics dist games.
+Require Import OUVerT.strings compile OUVerT.orderedtypes
+        OUVerT.dyadic OUVerT.numerics OUVerT.dist games.
 
 Definition upd {A : finType} {T : Type}
            (a : A) (t : T) (s : {ffun A -> T}) :=
@@ -484,6 +485,12 @@ Section functions.
     AM.fold m
       (fun _ (p : A*D) acc => let (a,d') := p in Dmax acc d')
       0%D.
+
+  Definition min_weight (m : AM.t (A*D)) : D :=
+    AM.fold m
+      (fun _ (p : A*D) acc => let (a,d') := p in Dmax d' acc)
+      0%D.
+
       
   (** Updates [w] according to [f], returning the new array map 
       together with any pairs (a,d) that are now mis-leveled (stored 
@@ -517,6 +524,7 @@ Section functions.
   (** The distribution's total weight *)
   Definition weight (w : t A) : D :=
     M.fold (fun i r d0 => Dadd r.(row_weight) d0) w D0.
+
 End functions.
 End DIST.
 

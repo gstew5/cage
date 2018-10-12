@@ -11,9 +11,10 @@ Import GRing.Theory Num.Def Num.Theory.
 Require Import Permutation.
 Require Import ProofIrrelevance.
 
-Require Import compile dist weights dyadic numerics bigops games.
+Require Import compile OUVerT.dist MWU.weights
+        OUVerT.dyadic OUVerT.numerics OUVerT.bigops games.
 Require Import machine networkSemanticsNoBatch listlemmas smooth.
-Require Import weightslang simulations.
+Require Import MWU.weightslang simulations.
 
 Section weightsLangNetwork.
   Variable N : nat.
@@ -35,7 +36,9 @@ Section weightsLangNetwork.
   Variable nx : N.t.    (* #iterations *)
   Instance ordinalEnumerable : Enumerable 'I_N := enum 'I_N.
 
-  Definition wlNode := (nodeINT 'I_N).
+  Inductive server : Type := | mk_server : server.
+
+  Definition wlNode := (node 'I_N server).
 
   Definition wlClientMsg := dist A rat_realFieldType.
   Definition wlServerMsg := {ffun A -> rat}.
@@ -46,8 +49,15 @@ Section weightsLangNetwork.
 
   Definition wlEvent := {ffun 'I_N -> dist A rat_realFieldType}.
 
-  Definition wlNodePkg := (nodePkgINT 'I_N wlMsg wlEvent).
-  Definition mkWlNodePkg := @mkRNodePkg 'I_N wlMsg wlEvent.
+  (* Notation nodeINT := (node client server). *)
+  (* Notation nodePkgINT := (nodePkg client server msgINT eventINT). *)
+  (* Variable network_descINT : nodeINT -> nodePkgINT. *)
+
+  Definition wlNodePkg := (nodePkg 'I_N server wlMsg wlEvent).
+
+  Definition mkWlNodePkg := 
+    @mkRNodePkg 'I_N server wlMsg wlEvent.
+    
   Definition wlPacket := (packet wlNode wlMsg).
   Definition mkWlPacket := (@mkPacket wlNode wlMsg).
 
@@ -65,6 +75,7 @@ Section weightsLangNetwork.
 
   Definition wlServerPreInitState :=
     mkWlServerState [ffun _ => uniformDist a0] 0.
+
   Definition wlServerInitState := wlServerPreInitState.
 
   Inductive wlServerInit
@@ -73,12 +84,15 @@ Section weightsLangNetwork.
       forall node, wlServerInit node (wlServerInitState, nil, nil).
 
   (** Rewritten in a similar fashion to rAllClientsSentCorrectly *)
-  Definition packetsToClients' (st : wlServerState) (ps : list wlPacket) :=
-    (forall i, exists pkt, List.In pkt ps /\ origin_of pkt = (serverID 'I_N) /\
-                 dest_of pkt = clientID i /\
+  Notation clientID n := (inl n).
+  Notation serverID := (inr mk_server).
+
+ Definition packetsToClients' (st : wlServerState) (ps : list wlPacket) :=
+   (forall i, exists pkt, List.In pkt ps /\ origin_of pkt = serverID /\                    dest_of pkt = clientID i /\
                  msg_of pkt = wlMsgServer (serverCostRel st.(wlReceived) i)) /\
     Permutation (map (@dest_of wlNode wlMsg) ps)
-                (map (@clientID 'I_N) (enumerate 'I_N)).
+                (map inl (enumerate 'I_N)).
+  
 
   Inductive wlServerRecv
     : wlMsg -> wlNode -> wlServerState ->
@@ -103,7 +117,6 @@ Section weightsLangNetwork.
 
 
   (** Client node package *)
-
   Notation com := (com A).
 
   Record wlClientState : Type :=
@@ -141,7 +154,7 @@ Section weightsLangNetwork.
         com' = CSeq CSkip (CIter nx mult_weights_body) ->
         st = mkWlClientState (Some n) com' clientPkgSt' ->
         (clientPkgSt').(SOracleSt).(sent) = Some d ->
-        pkt = mkWlPacket (serverID 'I_N)
+        pkt = mkWlPacket (serverID)
                        (wlMsgClient d) n ->
         wlClientInit n (st, pkt :: nil, nil).
 
@@ -163,7 +176,7 @@ Section weightsLangNetwork.
                          st.(wlClientCom) clientPkgSt com' clientPkgSt' ->
         clientPkgSt'.(SOracleSt).(sent) = Some d ->
         wlClientRecv m n st (mkWlClientState (Some id) com' clientPkgSt',
-                             mkWlPacket (serverID _) (wlMsgClient d) id :: nil,
+                             mkWlPacket (serverID) (wlMsgClient d) id :: nil,
                              nil).
 
   Definition wlClientPkg := mkWlNodePkg wlClientInit wlClientRecv
@@ -185,9 +198,18 @@ Section weightsLangNetwork.
     by right; move: Heq => /eqP.
   Defined.
 
-  Definition wlWorld := (@RWorld 'I_N wlMsg wlEvent wlNetwork_desc).
+  Definition wlWorld := (@RWorld 'I_N server wlMsg wlEvent wlNetwork_desc).
+  Lemma server_singleton : forall x y : server, x = y.
+  Proof.
+    case x,y => //.
+  Qed.
+
   Definition wlnetwork_step :=
-    (@Rnetwork_step 'I_N ordinalEnumerable ordinal_eq_dec wlMsg wlEvent
+    (@Rnetwork_step 'I_N server
+                    ordinalEnumerable ordinal_eq_dec
+                    wlMsg wlEvent
+                    mk_server
+                    server_singleton
                     wlNetwork_desc).
 
   Notation machine_state := (machine_state A N).
@@ -223,7 +245,7 @@ Section weightsLangNetwork.
       List.In pkt (rInFlight W) ->
       (forall i, origin_of pkt = clientID i ->
             exists d, msg_of pkt = wlMsgClient d) /\
-      (origin_of pkt = serverID 'I_N ->
+      (origin_of pkt = serverID ->
        exists cost_vec, msg_of pkt = wlMsgServer cost_vec).
 
   Definition tracesMatch
@@ -251,6 +273,9 @@ Section weightsLangNetwork.
     forall i, rInitNodes W (clientID i) = true ->
          wlClientId (rLocalState W (clientID i)) = Some (clientID i).
 
+  Notation nodeINTDec :=
+    (@nodeDec 'I_N server server_singleton ).
+
   Definition clientDestUniqueMatch (W : wlWorld) :=
     (forall i pkt pkt',
         List.In pkt (rInFlight W) ->
@@ -267,11 +292,11 @@ Section weightsLangNetwork.
       order on whether or not the server has been initialized. *)
   (** In hindsight this should probably be defined as an inductive. *)
   Definition wlMachineMatch (x : nat) (W : wlWorld) (mach_st : machine_state) :=
-    x = (if W.(rInitNodes) (serverID 'I_N) then 0%N else 1%N) /\
+    x = (if W.(rInitNodes) (serverID) then 0%N else 1%N) /\
     clientStatesMatch mach_st.(clients) W /\
     packetsWellFormed W /\
     tracesMatch mach_st.(hist) W.(rTrace) /\
-    rLocalState W (serverID 'I_N) = wlServerInitState /\
+    rLocalState W (serverID) = wlServerInitState /\
     initMatch W mach_st /\
     sentPacketMatch W mach_st /\
     clientIdsMatch W /\
@@ -287,7 +312,7 @@ Section weightsLangNetwork.
   Instance wlNetworkHasInit : hasInit wlWorld :=
     fun w =>
       (* Server in initial state *)
-      (w.(rLocalState) (serverID _) = wlServerInitState) /\
+      (w.(rLocalState) (serverID ) = wlServerInitState) /\
       (* All clients in initial state *)
       (forall i, w.(rLocalState) (clientID i) = wlClientPreInitState) /\
       (* All nodes marked as uninitialized *)
@@ -297,12 +322,16 @@ Section weightsLangNetwork.
       (* No events in the trace *)
       w.(rTrace) = nil.
 
+  Notation rAllClientsSentCorrectly :=
+    (@rAllClientsSentCorrectly 'I_N server ordinalEnumerable wlMsg wlEvent
+    mk_server wlNetwork_desc).
+
   Instance wlNetworkHasFinal : hasFinal wlWorld :=
     fun w =>
       (* All nodes marked as initialized *)
       (forall n, w.(rInitNodes) n = true) /\
       (* The final packets from all clients are in the buffer *)
-      rAllClientsSentCorrectly ordinalEnumerable w /\
+      rAllClientsSentCorrectly w /\
       (* All client commands are CSkip *)
       (forall i,
           (w.(rLocalState) (clientID i)).(wlClientCom) = CSkip).
@@ -345,7 +374,7 @@ Section weightsLangNetwork.
     { by exists machineInitState. }
     { move=> mach_st H0; subst.
       exists 1%N. split.
-      { by rewrite Hinit3. }
+      {  by rewrite Hinit3. }
       { split.
         { move=> i. simpl. split.
           { by rewrite ffunE; simpl; rewrite Hinit2. }
@@ -537,12 +566,12 @@ Section weightsLangNetwork.
     apply Decidable.not_or in Hin.
     destruct Hin.
     destruct (origin_of a) eqn:Horigin.
-    { by apply IHl. }
     { destruct (msg_of a) eqn:Hmsg.
       { simpl. move=> Contra. destruct Contra.
         { by subst; congruence. }
         { by apply IHl; assumption. } }
       { by apply IHl. } }
+    { by apply IHl. } 
   Qed.
 
   Lemma nodup_clientIdsDists (l : seq wlPacket) :
@@ -555,11 +584,11 @@ Section weightsLangNetwork.
     apply List.NoDup_cons_iff in Hnodup; destruct Hnodup.
     destruct (origin_of a) eqn:Horigin;
       destruct (msg_of a) eqn:Hmsg; rewrite Horigin.
-    { by apply IHl. }
-    { by apply IHl. }
     { by rewrite Hmsg; apply List.NoDup_cons; auto;
         apply notin_clientIdsDists. }
     { by rewrite Hmsg; apply IHl. }
+    { by apply IHl. }
+    { by apply IHl. }
   Qed.
 
   Lemma clientDistsFun_spec (l : list wlPacket) (i : 'I_N) pkt d :
@@ -585,7 +614,7 @@ Section weightsLangNetwork.
 
   Lemma clientsSentMatch u w mach_st :
     wlMachineMatch u w mach_st ->
-    rAllClientsSentCorrectly ordinalEnumerable w ->
+    rAllClientsSentCorrectly w ->
     all_clients_have_sent mach_st (clientDistsFun (rInFlight w)).
   Proof.
     move=> [Hmatch0 [Hmatch1 [Hmatch2 Hmatch3]]] H0.
@@ -664,7 +693,7 @@ Section weightsLangNetwork.
   Lemma recv_in_origin_server msg origin s s' ms es pkt :
     wlServerRecv msg origin s (s', ms, es) ->
     List.In pkt ms ->
-    origin_of pkt = serverID 'I_N.
+    origin_of pkt = serverID.
   Proof.
     move=> Hrecv Hin. simpl in Hrecv.
     inversion Hrecv.
@@ -679,17 +708,19 @@ Section weightsLangNetwork.
       { by eapply recv_pkt_dest_unique; eauto. }
       by rewrite Heq. }
   Qed.
+  Notation serverUpdate :=
+    (@serverUpdate 'I_N server wlMsg wlEvent mk_server wlNetwork_desc).
 
   Lemma update_in_origin_server st st' l l' e pkt :
-    serverUpdate wlNetwork_desc st l st' l' e ->
+    serverUpdate st l st' l' e ->
     List.In pkt l' ->
-    origin_of pkt = serverID 'I_N.
+    origin_of pkt = serverID.
   Proof.
     move=> Hupdate Hin.
     induction Hupdate. subst. inversion Hin.
     apply List.in_app_or in Hin. destruct Hin as [Hin | Hin].
     { by apply IHHupdate. }
-    { by eapply recv_in_origin_server; eauto. }
+    { eapply recv_in_origin_server; eauto.  }
   Qed.
 
   Lemma recv_ms_nil msg origin s s' ms es m :
@@ -733,7 +764,7 @@ Section weightsLangNetwork.
   Lemma update_numReceived l l' st e m :
     (m < N.-1)%N ->
     (length l <= m)%N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     (wlNumReceived st <= m)%N.
   Proof.
     move=> Hm Hlength Hupdate. generalize dependent m.
@@ -743,7 +774,7 @@ Section weightsLangNetwork.
     { remember m. destruct m.
       rewrite Heqn in Hlength. inversion Hlength.
       specialize (IHHupdate Heqw (n.-1)).
-      have H0: (wlNumReceived s' <= n.-1)%N.
+      have H2: (wlNumReceived s' <= n.-1)%N.
       { apply IHHupdate. apply ltnW. rewrite -(S_pred n 0); auto.
         destruct n. inversion Heqn. by apply/ ltP.
         by simpl in Hlength; destruct n; auto. }
@@ -753,16 +784,16 @@ Section weightsLangNetwork.
 
   Lemma update_packets_nil l l' st e :
     (length l < N)%N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     l' = nil.
   Proof.
     move=> Hlength Hupdate.
     remember wlServerInitState.
     induction Hupdate; auto.
-    have H0: (length tl < N.-1)%N.
+    have H2: (length tl < N.-1)%N.
     { simpl in Hlength.
       suff: (length tl + 1 < N.-1 + 1)%N.
-      { by move=> H0; rewrite ltn_add2r in H0. }
+      { by move=> H2; rewrite ltn_add2r in H2. }
       rewrite [(N.-1 + 1)%N]addn1. rewrite -(S_pred N 0).
       by rewrite addn1.
       have H0: (forall n m, n.+1 < m -> 0 < m)%N.
@@ -779,7 +810,7 @@ Section weightsLangNetwork.
 
   Lemma update_trace_nil l l' st e :
     (length l < N)%N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     e = nil.
   Proof.
     move=> Hlength Hupdate.
@@ -820,7 +851,7 @@ Section weightsLangNetwork.
 
   Lemma update_nodup st l l' e:
     (length l <= N)%N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     List.NoDup [seq dest_of pkt | pkt <- l'].
   Proof.
     move=> Hlength Hupdate.
@@ -832,7 +863,7 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma update_pkt_unique st l l' e pkt pkt' i:
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     (length l <= N)%N ->
     List.In pkt l' ->
     List.In pkt' l' ->
@@ -867,7 +898,7 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma update_exists_cost_vector pkt st st' l l' e' :
-    serverUpdate wlNetwork_desc st l st' l' e' ->
+    serverUpdate st l st' l' e' ->
     List.In pkt l' ->
     exists cost_vec, msg_of pkt = wlMsgServer cost_vec.
   Proof.
@@ -914,7 +945,7 @@ Section weightsLangNetwork.
   Lemma update_numReceived' l l' st e m :
     (m < N)%N ->
     (length l = m)%N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     (wlNumReceived st = m)%N.
   Proof.
     move=> H0 Hlength Hupdate.    
@@ -971,7 +1002,7 @@ Section weightsLangNetwork.
 
   Lemma update_init_state (w : wlWorld) st l l' e :
     (length l = N)%N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     st = wlServerInitState.
   Proof.
     move=> Hlength Hupdate.
@@ -991,7 +1022,7 @@ Section weightsLangNetwork.
   Lemma update_event_nil st l l' e m :
     (m < N)%N ->
     (length l = m)%N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     e = nil.
   Proof.
     move=> H0 Hlength Hupdate. generalize dependent m.
@@ -1058,7 +1089,7 @@ Section weightsLangNetwork.
   Lemma update_dist st l l' e m :
     (m < N)%N ->
     (length l = m)%N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st l' e ->
+    serverUpdate wlServerInitState l st l' e ->
     wlReceived st = clientDistsFun l.
   Proof.
     generalize dependent l. generalize dependent l'.
@@ -1073,7 +1104,10 @@ Section weightsLangNetwork.
     { eapply IHm; eauto. }
     simpl in H7.
     destruct (recv_origin_msg H7) as [[i Horigin] [d Hmsg]].
-    rewrite Horigin in H7. rewrite Hmsg in H7.
+    rewrite Horigin in H7.
+    unfold msg_of in *.
+    unfold Rmsg_of in *.
+    rewrite Hmsg in H7.
     have H1: (wlNumReceived s' = m).
     { eapply update_numReceived' with (l:=l'); eauto. }
     have H2: (wlReceived st = upd i d (wlReceived s')).
@@ -1086,7 +1120,7 @@ Section weightsLangNetwork.
 
   Lemma update_event s l l' e :
     length l = N ->
-    serverUpdate wlNetwork_desc wlServerInitState l s l' e ->
+    serverUpdate wlServerInitState l s l' e ->
     e = clientDistsFun l :: nil.
   Proof.
     move=> Hlength Hupdate.
@@ -1104,6 +1138,9 @@ Section weightsLangNetwork.
         by apply H2. }
       destruct (recv_origin_msg H6) as [[i Horigin] [d Hmsg]].
       have H3: (es' = upd i d (wlReceived s') :: nil).
+      unfold msg_of in *.
+      unfold origin_of in *.
+      unfold Rmsg_of in *.
       rewrite Horigin Hmsg in H6.
       eapply recv_trace_upd; eauto.
       have H4: (es = nil).
@@ -1119,7 +1156,7 @@ Section weightsLangNetwork.
     length (pkt :: tl) = N ->
     origin_of pkt = clientID i ->
     msg_of pkt = wlMsgClient d ->
-    serverUpdate wlNetwork_desc wlServerInitState tl s nil nil ->
+    serverUpdate wlServerInitState tl s nil nil ->
     wlServerRecv (wlMsgClient d) (clientID i) s (s', ps, dists :: nil) ->
     upd i d (wlReceived s) = dists /\
     packetsToClients' (mkWlServerState (upd i d (wlReceived s))
@@ -1134,7 +1171,7 @@ Section weightsLangNetwork.
 
   Lemma update_exists_pkt_aux st' l l' i dists :
     length l = N ->
-    serverUpdate wlNetwork_desc wlServerInitState l st' l' (dists :: nil) ->
+    serverUpdate wlServerInitState l st' l' (dists :: nil) ->
     exists pkt, List.In pkt l' /\
            dest_of pkt = clientID i /\
            msg_of pkt = wlMsgServer
@@ -1156,6 +1193,8 @@ Section weightsLangNetwork.
       subst. simpl in *.
       rewrite H2 in H6.
       destruct (recv_origin_msg H6) as [[i' Horigin] [d Hmsg]].
+      unfold Rmsg_of in *.
+      unfold msg_of in *.
       rewrite Horigin Hmsg in H6.
       have H0: (upd i' d (wlReceived s') = dists /\
                 packetsToClients'
@@ -1172,7 +1211,7 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma length_rInFlight_N (w : wlWorld) :
-    rAllClientsSentCorrectly ordinalEnumerable w ->
+    rAllClientsSentCorrectly w ->
     length (rInFlight w) = N.
   Proof.
     move=> H0.
@@ -1184,9 +1223,12 @@ Section weightsLangNetwork.
     by rewrite Hlen.
   Qed.
 
+  Notation msgToServerList :=
+    (@msgToServerList 'I_N server ordinal_eq_dec wlMsg mk_server
+                      server_singleton).
   Lemma msgToServerList_eq_rInFlight (w : wlWorld) :
-    rAllClientsSentCorrectly ordinalEnumerable w ->
-    (msgToServerList ordinal_eq_dec (rInFlight w) = rInFlight w).
+    rAllClientsSentCorrectly w ->
+    (msgToServerList (rInFlight w) = rInFlight w).
   Proof.
     move=> H0. rewrite /msgToServerList.
     rewrite all_filter_eq; auto.
@@ -1197,9 +1239,9 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma update_exists_pkt i (w : wlWorld) st' l' e' :
-    rAllClientsSentCorrectly ordinalEnumerable w ->
-    serverUpdate wlNetwork_desc wlServerInitState
-                 (msgToServerList ordinal_eq_dec (rInFlight w)) st' l' e' ->
+    rAllClientsSentCorrectly w ->
+    serverUpdate wlServerInitState
+                 (msgToServerList (rInFlight w)) st' l' e' ->
     exists pkt, List.In pkt l' /\
            dest_of pkt = clientID i /\
            msg_of pkt = wlMsgServer
@@ -1215,11 +1257,11 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma update_dest_count i (w : wlWorld) st' l' e' :
-    rAllClientsSentCorrectly ordinalEnumerable w ->
-    serverUpdate wlNetwork_desc wlServerInitState
-                 (msgToServerList ordinal_eq_dec (rInFlight w)) st' l' e' ->
+    rAllClientsSentCorrectly w ->
+    serverUpdate wlServerInitState
+                 (msgToServerList (rInFlight w)) st' l' e' ->
     (count
-       (fun pkt : packet (nodeINT 'I_N) wlMsg =>
+       (fun pkt : packet (node 'I_N server) wlMsg =>
           nodeINTDec ordinal_eq_dec (dest_of pkt) (clientID i)) l' <= 1)%N.
   Proof.
     move=> Hclientsent Hupdate.
@@ -1370,6 +1412,13 @@ Section weightsLangNetwork.
             by destruct H as [[_ H] | [H _]]; inversion H
         end.
 
+  Notation upd_rLocalState :=
+    (@upd_rLocalState 'I_N server ordinal_eq_dec wlMsg wlEvent server_singleton
+                      wlNetwork_desc).
+  Notation upd_rInitNodes :=
+    (@upd_rInitNodes 'I_N server  ordinal_eq_dec 
+                     server_singleton).
+
   Lemma client_init_step (mach_st : machine_state)
         (w : wlWorld) i st ps es u :
     rInitNodes w (clientID i) = false ->
@@ -1378,13 +1427,13 @@ Section weightsLangNetwork.
     exists mach_st' : machine_state,
       step_plus mach_st mach_st' /\
       wlMachineMatch
-        (if rInitNodes w (serverID 'I_N) then 0%N else 1%N)
+        (if rInitNodes w (serverID ) then 0%N else 1%N)
         {| rLocalState :=
-             upd_rLocalState ordinal_eq_dec (clientID i) st (rLocalState w);
+             upd_rLocalState (clientID i) st (rLocalState w);
            rInFlight := rInFlight w ++ ps;
            rTrace := rTrace w ++ es;
            rInitNodes :=
-             upd_rInitNodes ordinal_eq_dec (clientID i) (rInitNodes w) |}
+             upd_rInitNodes (clientID i) (rInitNodes w) |}
         mach_st'.
   Proof.
     move=> Hinitnode Hmatch Hinit.
@@ -1513,7 +1562,8 @@ Section weightsLangNetwork.
                   by destruct (i == x) eqn: Hix; rewrite Hix. } } }
             { inversion H5; subst.
       { split.
-      { by simpl; rewrite /upd_rInitNodes; destruct (nodeINTDec _ _ _). }
+        { by simpl; rewrite /upd_rInitNodes;
+            destruct (nodeINTDec _ _ _).  }
       { clear H8 H0 H H9 H3 H1 H12 H14 H4 H5 H2.
         split. simpl. rewrite /upd. move=> i'.
         specialize (Hclients' i').
@@ -1730,6 +1780,23 @@ Section weightsLangNetwork.
         { by step_contra. } } }
   Qed.
 
+Require Import ProofIrrelevance.
+Section distEquality.
+  Variable T : finType.
+  Variable rty : numDomainType.
+  Variable d1 d2 : dist T rty.
+  Lemma dist_eq :
+    pmf d1 = pmf d2 ->
+    d1 = d2.
+  Proof.
+    destruct d1; destruct d2=> /= H0; subst.
+    by f_equal; apply proof_irrelevance.
+  Qed.
+End distEquality.
+
+
+
+
   Lemma client_recv_step (mach_st : machine_state)
         (w : wlWorld) i st ps es l1 l2 p u :
     rInitNodes w (clientID i) = true ->
@@ -1743,7 +1810,7 @@ Section weightsLangNetwork.
       wlMachineMatch
         u
         {| rLocalState :=
-             upd_rLocalState ordinal_eq_dec (clientID i) st (rLocalState w);
+             upd_rLocalState (clientID i) st (rLocalState w);
            rInFlight := l1 ++ l2 ++ ps;
            rTrace := rTrace w ++ es;
            rInitNodes := rInitNodes w |}
@@ -2133,7 +2200,7 @@ Section weightsLangNetwork.
                           destruct Hin' as [Hin' | Hin'].
                           { move: (@list_in_count_pos
                                      _ pkt l1
-                                     (fun pkt : packet (nodeINT 'I_N) wlMsg =>
+                                     (fun pkt : packet (node 'I_N server) wlMsg =>
                                         nodeINTDec ordinal_eq_dec
                                                    (dest_of pkt) (clientID i')))
                             => Hcountpos.
@@ -2142,7 +2209,7 @@ Section weightsLangNetwork.
                               by destruct (nodeINTDec _ _ _). }
                           { move: (@list_in_count_pos
                                      _ pkt l2
-                                     (fun pkt : packet (nodeINT 'I_N) wlMsg =>
+                                     (fun pkt : packet (node 'I_N server) wlMsg =>
                                         nodeINTDec ordinal_eq_dec
                                                    (dest_of pkt) (clientID i')))
                             => Hcountpos.
@@ -2290,7 +2357,7 @@ Section weightsLangNetwork.
                     rewrite Hflight in Hdestcount.
                     rewrite count_cat in Hdestcount.
                     simpl in Hdestcount.
-                    destruct (nodeINTDec _ (serverID 'I_N) _).
+                    destruct (nodeINTDec _ (serverID) _).
                     congruence.
                     rewrite addn0.
                     move: Hdestcount => /leP Hdestcount.
@@ -2682,7 +2749,7 @@ Section weightsLangNetwork.
                   destruct Hin' as [Hin' | Hin'].
                   { move: (@list_in_count_pos
                              _ pkt l1
-                             (fun pkt : packet (nodeINT 'I_N) wlMsg =>
+                             (fun pkt : packet (node 'I_N server) wlMsg =>
                                 nodeINTDec ordinal_eq_dec
                                            (dest_of pkt) (clientID i')))
                     => Hcountpos.
@@ -2691,7 +2758,7 @@ Section weightsLangNetwork.
                       by destruct (nodeINTDec _ _ _). }
                   { move: (@list_in_count_pos
                              _ pkt l2
-                             (fun pkt : packet (nodeINT 'I_N) wlMsg =>
+                             (fun pkt : packet (node 'I_N server) wlMsg =>
                                 nodeINTDec ordinal_eq_dec
                                            (dest_of pkt) (clientID i')))
                     => Hcountpos.
@@ -2836,7 +2903,7 @@ Section weightsLangNetwork.
             rewrite Hflight in Hdestcount.
             rewrite count_cat in Hdestcount.
             simpl in Hdestcount.
-            destruct (nodeINTDec _ (serverID 'I_N) _).
+            destruct (nodeINTDec _ (serverID) _).
             congruence.
             rewrite addn0.
             move: Hdestcount => /leP Hdestcount.
@@ -2896,20 +2963,26 @@ Section weightsLangNetwork.
                                                        [Hmatch8
                                                           Hmatch9]]]]]]]].
       destruct n eqn:Hn.
-
-      (** Server init step *)
+      (** Client init step *)
+      { simpl in *.
+        by exists (if rInitNodes w (serverID) then 0%N else 1%N);
+               right; apply client_init_step with u. } 
       { simpl in H0, H, st.
+        destruct s.
         exists 0%N. left. split.
-        { by rewrite Hmatch1 H /natOrd. }
+        { 
+          red.
+          subst.
+          rewrite H => //.
+        }
         { split; simpl.
           { rewrite /upd_rInitNodes.
-            destruct (nodeINTDec _ (serverID 'I_N) (serverID 'I_N)); auto.
-            congruence. }
+            destruct (nodeINTDec ordinal_eq_dec serverID (serverID)); auto.            congruence. }
           { split.
             { rewrite /upd_rLocalState. move=> i /=.
               destruct (Hmatch2 i) as [Hmatch2_0 [Hmatch2_1 Hmatch2_2]].
               rewrite Hmatch2_0. split.
-              { destruct (nodeINTDec ordinal_eq_dec (serverID 'I_N)
+              { destruct (nodeINTDec ordinal_eq_dec (serverID)
                                      (clientID i)) eqn:Heq; auto.
                 { by inversion e. }
                 { by rewrite Heq. } }
@@ -2955,18 +3028,11 @@ Section weightsLangNetwork.
                       destruct (nodeINTDec _ _ _); auto.
                       by congruence. }
                     { by rewrite 2!cats0. } } } } } } } }
+      } 
 
-      (** Client init step *)
-      { simpl in *.
-        by exists (if rInitNodes w (serverID 'I_N) then 0%N else 1%N);
-               right; apply client_init_step with u. } }
-
-    (** Client recv step *)
-    { exists u%N; right; eapply client_recv_step; eauto. }
-
+    
     (** Server step *)
     { exists 0%N. right.
-
       set clientSt' := fun st i => @mkState
                                   _ _ _
                                   (SCosts st)
@@ -3028,7 +3094,10 @@ Section weightsLangNetwork.
                 destruct Hmatch1 as [Hmatch1 _].
                 destruct ((clients mach_st i)).
                 inversion Hclients; subst; auto. }
-              { move=> Contra; congruence. } }
+              { move=> Contra. 
+                simpl in *.
+                unfold networkSemanticsNoBatch.serverID in Contra.
+                congruence. } }
             { split.
               { rewrite -upd_rLocalState_diff.
                 specialize (Hmatch1 i).
@@ -3050,9 +3119,9 @@ Section weightsLangNetwork.
                   destruct H2 as [pkt' [H2 [H2' H2'']]].
                   rewrite Hmatch4 in H1.
                   have Heq: (pkt = pkt').
-                  { apply (@update_pkt_unique st'
-                                              (msgToServerList _ (rInFlight w))
-                                              l' e' pkt pkt' i H1); auto.
+                  { apply (@update_pkt_unique
+                             st' (msgToServerList (rInFlight w))
+                                        l' e' pkt pkt' i H1); auto.
                     rewrite /msgToServerList.
                     have Hlen: (length (rInFlight w) = N).
                     { destruct H0 as [_ H0].
@@ -3063,10 +3132,12 @@ Section weightsLangNetwork.
                       by rewrite Hlen'. }
                     move: (@filter_length_le
                              wlPacket wlNode (rInFlight w)
-                             (fun pkt => nodeINTDec ordinal_eq_dec
+                             (fun pkt => if nodeINTDec ordinal_eq_dec
                                                  (dest_of pkt)
-                                                 (serverID 'I_N))) => Hfilter.
-                    by rewrite Hlen in Hfilter. }
+                                                 (serverID) then true
+                          else false)) => Hfilter.
+                      by rewrite Hlen in Hfilter.
+                  }
                     by subst; rewrite H5 in H2''; inversion H2''. } } } }
             { split. move=> pkt /= HIn. split.
               { move=> i Horigin.
@@ -3097,6 +3168,7 @@ Section weightsLangNetwork.
                   by congruence. }
               split.
               { move=> i /= Hinit. 
+                unfold networkSemanticsNoBatch.serverID.
                 rewrite -upd_rLocalState_diff;
                   by [apply Hmatch7 | congruence]. }
               split.
@@ -3123,5 +3195,6 @@ Section weightsLangNetwork.
                  wlNetworkMachine_init_diagram
                  wlNetworkMachine_final_diagram
                  wlNetworkMachine_step_diagram.
+    (** Client recv step *)
 
 End weightsLangNetwork.

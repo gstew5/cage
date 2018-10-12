@@ -3,7 +3,7 @@ Set Implicit Arguments.
 Require Import Verdi.Verdi.
 Require Import StructTact.Fin.
 
-Require Import listlemmas networkSemantics.
+Require Import listlemmas networkSemanticsNoBatch.
 
 Section toVerdi.
   Variable N : nat.
@@ -24,7 +24,6 @@ Section toVerdi.
   Variable data : Type.
   Variable to_data : forall n, (network_desc n).(node_state) -> data.
   Variable from_data : forall n, data -> option (network_desc n).(node_state).
-  Hypothesis from_to_data : forall n s, from_data n (to_data n s) = Some s.
 
   Variable nodes : list node.
   Hypothesis all_nodes : forall n, List.In n nodes.
@@ -253,6 +252,8 @@ Section toVerdi.
 
   Notation network_step_star := (@network_step_star _ _ _ node_eq_dec network_desc).
 
+  Hypothesis from_to_data : forall n s, from_data n (to_data n s) = Some s.
+
   Lemma recv_simulation_step
         WORLD (WORLD' : World) TRACE p out net net' d l l0 xs ys p1 s :
     nwPackets net = xs ++ p :: ys ->
@@ -324,6 +325,7 @@ Section toVerdi.
           rewrite e.
           dec_same node_eq_dec.
           unfold eq_state. unfold eq_rect.
+          
           (* simpl in e0. simpl in n. generalize (from_to_data pDst). intro H1. *)
           (* specialize (H1 n). rewrite H1. *)
           destruct e0; auto.
@@ -493,5 +495,108 @@ Section toVerdi.
                 { unfold upd_initNodes; dec_same node_eq_dec. }
                 { unfold upd_initNodes; dec_diff node_eq_dec. } } } } } } }
   Qed.
+
+  Require Import simulations.
+  Require Import ssreflect.
+  
+  Definition unitOrd : unit -> unit -> Prop := fun _ _ => False.
+  Instance unitHasOrd  : hasOrd unit := unitOrd.
+  Program Instance unitHasTransOrd : hasTransOrd.
+  Program Instance unitHasWellfoundedOrd : hasWellfoundedOrd.
+  Solve Obligations with by constructor.
+
+  (* Instance World_hasStep : hasStep (World). *)
+  (* rewrite /hasStep; *)
+  (* apply network_step_star. *)
+  (* Defined. *)
+
+  (* Instance World_hasInit : hasInit World. *)
+  (* refine (fun x => _ = x).  *)
+  (* apply (mkWorld *)
+  (*   (fun n => pre_init (network_desc n)) *)
+  (*   nil *)
+  (*   nil *)
+  (*   (fun _ => false)). *)
+  (* Defined. *)
+
+  (* Instance World_hasFinal : hasFinal World := *)
+  (*   fun x => False. *)
+
+  (* Instance world_hasSemantics : *)
+  (*   semantics (H1 := World_hasStep). *)
+  Hint Extern 5 => constructor.
+  Notation world_hasSemantics :=
+    (@world_hasSemantics node msg event node_eq_dec network_desc).
+  Instance net_hasInit : hasInit Net.network := 
+    fun net => net= step_async_init.
+  Instance net_hasFinal : hasFinal network :=
+    fun x => False.
+
+  Instance net_hasStep : hasStep network :=
+    (fun s s' => exists TRACE',
+         step_async s s' TRACE').
+
+  Instance net_hasSemantics : semantics (H1 := net_hasStep).
+  Notation World_hasInit := (@World_hasInit node msg event network_desc).
+  Notation World_hasFinal := (@World_hasFinal node msg event network_desc).
+  Notation World_hasStep :=
+    (@World_hasStep node msg event node_eq_dec network_desc).
+
+               
+  Definition MatchesStates (_ : unit) 
+             (net : network) (world : World) : Prop :=
+    exists TRACE, (verdiMatch world net TRACE).
+
+  Lemma init_diagram : forall s : network,
+      init s ->
+      (exists t : World, @init _ World_hasInit t) /\
+      (forall t : World, @init _ World_hasInit t ->
+                         exists _ : unit, MatchesStates tt s t).
+  Proof.
+    move => net initNet;
+     split; eauto => w H; exists tt;
+       inversion initNet; inversion H; subst;
+    exists [];
+    split => /= //;
+    constructor;
+    rewrite /verdiMatch /state_match / trace_match /init_match /= //.
+  Qed.
+
+  Lemma step_diagram :
+    forall (x : unit) (s : network) (t : World),
+      MatchesStates x s t ->
+      forall s' : network,
+        @step (@network ToVerdi_BaseParams ToVerdi_MultiParams)
+              net_hasStep s s' ->
+        exists x' : unit,
+          ord x' x /\ MatchesStates x s' t \/
+          (exists t' : World,
+              @step_plus World World_hasInit World_hasFinal
+                         World_hasStep world_hasSemantics t t' /\
+              MatchesStates x s' t').
+  Proof.
+    rewrite /MatchesStates => x s t H net H0;
+    destruct H as [TRACE H];
+    intuition;
+    rewrite /step /net_hasStep in H0;
+    destruct H0 as [TRACE' H0];
+    destruct (@verdiSimulation s net TRACE TRACE' t H0 H);
+    exists x; right; eauto;
+    eexists;
+    split; intuition; eauto;
+      exists 0; esplit => /=; eauto. 
+Qed.
+
+  Program Definition simulation_World_to_network := 
+    mkSimulation
+      (S := network) (T := World)
+                 (sem_T := world_hasSemantics)
+                 net_hasSemantics
+                 unitHasWellfoundedOrd
+                 MatchesStates
+                 (* match_states *)
+                 init_diagram  (*init diagram *)
+                  (fun _ _ _ _ => id)  (* There is currently no final state *)
+                  step_diagram (* step_diagram *).
 
 End toVerdi.

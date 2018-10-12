@@ -12,10 +12,12 @@ Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
+Require Import wlnetwork.
+Require Import orderedtypes OUVerT.dyadic compile listlemmas cdist
+        OUVerT.vector.
 
-Require Import orderedtypes dyadic compile listlemmas cdist vector.
-
-Require Import networkSemanticsNoBatch weightslang weightsextract simulations.
+Require Import networkSemanticsNoBatch MWU.weightslang
+        MWU.weightsextract simulations.
 
 Module WE_NodePkg
        (A : MyOrderedType)
@@ -25,8 +27,14 @@ Module WE_NodePkg
   Module MW := MWU.
   
   Section WE_NodePkg.
+    Existing Instance A.enumerable.
     Variable enum_ok : @Enum_ok A.t _.
-    Definition node := nodeINT Ix.t.
+
+    Definition server_ty := wlnetwork.server.
+    Notation clientID n := (inl n).
+    Notation serverID := (inr mk_server).
+
+    Definition node := node Ix.t server_ty.
     Variable epsQ : D.
     Definition num_players := NUM_PLAYERS.n.
     Context `{CCostInstance : CCostClass num_players A.t}.
@@ -136,7 +144,7 @@ Module WE_NodePkg
       init_ClientPkg
       unit
       tt
-      simple_oracle_prerecv
+      (fun c _ => ((simple_oracle_prerecv c tt), c))
       simple_oracle_recv
       simple_oracle_presend
       simple_oracle_send
@@ -152,8 +160,11 @@ Module WE_NodePkg
       }.
 
   Definition client_preinit : client_state :=
-    mkClientState (serverID Ix.t) (*bogus! can be any node id*) nx (MW.init_cstate epsQ).
+    mkClientState serverID
+                  (*bogus! can be any node id*)
+                  nx (MW.init_cstate epsQ).
   
+  Existing Instance A.showable.
   Definition client_init (id : node) : client_state :=
     match MW.interp (mult_weights_init A.t) (MW.init_cstate epsQ) with
     | None => mkClientState id nx (MW.init_cstate epsQ)
@@ -163,7 +174,7 @@ Module WE_NodePkg
   Definition event := M.t (list (A.t*D)).
 
   Definition MSG_of_cstate (id : node) (st : MW.cstate) : list (packet node MSG) :=
-    (serverID _, TO_SERVER (st.(MW.SOracleSt).(sent)), id) :: nil.
+    (serverID, TO_SERVER (st.(MW.SOracleSt).(sent)), id) :: nil.
 
   (* TODO: actually install the cost vector, probably using MProps.of_list *)
   Definition install_cost_vec
@@ -194,7 +205,7 @@ Module WE_NodePkg
               (cst, nil, nil) 
             | Some st' => 
               (mkClientState cst.(client_id) (N.pred cst.(client_iters)) st',
-               (cst.(client_id), TO_SERVER (st'.(MW.SOracleSt).(sent)), serverID _) :: nil,
+               (cst.(client_id), TO_SERVER (st'.(MW.SOracleSt).(sent)), serverID) :: nil,
                nil)
             end
        | TO_SERVER _ => (cst, nil, nil)
@@ -209,9 +220,9 @@ Module WE_NodePkg
          | mkClientState x c cst => (mkClientState x c cst, MSG_of_cstate x cst, nil)
          end)
       client_recv
-      (mkClientState (serverID _ (*bogus*)) nx (MW.init_cstate epsQ)).
+      (mkClientState (serverID (*bogus*)) nx (MW.init_cstate epsQ)).
 
-  Definition client : RNodePkg Ix.t MSG event :=
+  Definition client : RNodePkg Ix.t server_ty MSG event :=
     liftNodePkg client'.
 
   Record server_state : Type :=
@@ -226,9 +237,9 @@ Module WE_NodePkg
   Definition round_is_done (sst : server_state) : bool :=
     num_received sst == num_players.
   
-  Definition events_of (sst : server_state) : list event :=
-    if round_is_done sst then sst.(actions_received) :: nil
-    else nil.
+  Definition events_of (sst : server_state) : option event :=
+    if round_is_done sst then Some sst.(actions_received) 
+    else None .
 
   Definition fun_of_map
              (m : M.t (list (A.t*D)))
@@ -301,7 +312,7 @@ Module WE_NodePkg
     let p := rprod_sample A.t0 num_players ds in
     List.fold_left
       (fun acc player =>
-         (clientID player, TO_CLIENT (cost_vector_msg p player), serverID _) :: acc)
+         (clientID player, TO_CLIENT (cost_vector_msg p player), serverID) :: acc)
       (enumerate Ix.t)
       nil.
 
@@ -331,7 +342,12 @@ Module WE_NodePkg
                   (S sst.(num_received))
                   (sst.(round))
             in if round_is_done sst' then
-                 (incr_round sst', packets_of sst', events_of sst')
+                 match events_of sst' with
+                 | Some e => 
+                   (incr_round sst', packets_of sst', e::nil)
+                 | None =>
+                   (incr_round sst', packets_of sst', nil)
+                 end
                else (sst', nil, nil)
           | TO_CLIENT _ => (sst, nil, nil)
           end
@@ -346,7 +362,7 @@ Module WE_NodePkg
       server_recv
       server_init_state.
 
-  Definition server : RNodePkg Ix.t MSG event := liftNodePkg server'.
+  Definition server : RNodePkg Ix.t server_ty MSG event := liftNodePkg server'.
 
   End WE_NodePkg.
 End WE_NodePkg.

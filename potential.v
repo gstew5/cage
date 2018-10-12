@@ -7,7 +7,7 @@ From mathcomp Require Import all_algebra.
 
 Import Num.Theory.
 
-Require Import extrema games dynamics.
+Require Import OUVerT.extrema games dynamics.
 
 (** * Potential Games *)
 

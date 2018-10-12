@@ -8,8 +8,10 @@ Require Import QArith.
 Require Import Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
 
-Require Import strings compile combinators ccombinators numerics dyadic.
-Require Import listlemmas maplemmas.
+Require Import OUVerT.strings compile combinators ccombinators
+        OUVerT.numerics OUVerT.dyadic OUVerT.orderedtypes.
+
+Require Import OUVerT.listlemmas OUVerT.maplemmas.
 (* Boolability is important to our construction of affine games,
       however, it is non-essential and problematic for more advanced
       games (e.g. the routing games shown in routing.v)
@@ -25,19 +27,9 @@ Require Import listlemmas maplemmas.
 
 (* Define the basic extension of OrderedType: MyOrderedType *)
 Module Type MyOrderedType.
-  Parameter t : Type.
-  Parameter t0 : t.
-  Parameter enumerable : Enumerable t.
+  Include MyOrderedType.
   Parameter cost_instance : forall N, CCostClass N t.
   Parameter cost_max : forall N, CCostMaxClass N t.
-  Parameter showable : Showable t.
-  Parameter eq : t -> t -> Prop.
-  Parameter lt : t -> t -> Prop.
-  Parameter lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-  Parameter lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-  Parameter compare : forall x y : t, Compare lt eq x y.
-  Parameter eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
-  Parameter eqP : forall x y, x = y <-> eq x y.
 End MyOrderedType.
 
 (* We extend MyOrderedType with boolability
@@ -57,22 +49,22 @@ Module SimplifyBoolable (A : BoolableMyOrderedType) <: MyOrderedType.
   Include A.
 End SimplifyBoolable.
 
-Module OrderedType_of_MyOrderedType (A : MyOrderedType)
-  <: OrderedType.OrderedType.
-      Definition t : Type := A.t.
-      Definition eq := A.eq.
-      Definition lt := A.lt.
-      Lemma eq_refl : forall x : t, eq x x.
-      Proof. by move => x; rewrite /eq -A.eqP. Qed.
-      Lemma eq_sym : forall x y : t, eq x y -> eq y x.
-      Proof. by move => x y; rewrite /eq -2!A.eqP. Qed.
-      Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
-      Proof. by move => x y z; rewrite /eq -3!A.eqP => -> ->. Qed.
-      Definition lt_trans := A.lt_trans.
-      Definition lt_not_eq := A.lt_not_eq.
-      Definition compare := A.compare.
-      Definition eq_dec := A.eq_dec.
-End OrderedType_of_MyOrderedType.
+(* Module OrderedType_of_MyOrderedType (A : MyOrderedType) *)
+(*   <: OrderedType.OrderedType. *)
+(*       Definition t : Type := A.t. *)
+(*       Definition eq := A.eq. *)
+(*       Definition lt := A.lt. *)
+(*       Lemma eq_refl : forall x : t, eq x x. *)
+(*       Proof. by move => x; rewrite /eq -A.eqP. Qed. *)
+(*       Lemma eq_sym : forall x y : t, eq x y -> eq y x. *)
+(*       Proof. by move => x y; rewrite /eq -2!A.eqP. Qed. *)
+(*       Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z. *)
+(*       Proof. by move => x y z; rewrite /eq -3!A.eqP => -> ->. Qed. *)
+(*       Definition lt_trans := A.lt_trans. *)
+(*       Definition lt_not_eq := A.lt_not_eq. *)
+(*       Definition compare := A.compare. *)
+(*       Definition eq_dec := A.eq_dec. *)
+(* End OrderedType_of_MyOrderedType. *)
 
 Module Type OrderedFinType.
   Include MyOrderedType.
@@ -188,9 +180,18 @@ Module BoolableOrderedResource <: BoolableMyOrderedType.
   Include OrderedResource.
   Definition boolable : Boolable t := _.
   Definition boolableUnit : BoolableUnit boolable := _.
-  Definition eq' : Eq t := _.
-  Definition eq_refl' : Eq_Refl eq' := _.
-  Definition eq_dec' : Eq_Dec eq' := _.
+  Definition eq' : Eq t.
+  unfold Eq.
+  apply eq.
+  Defined.
+  Definition eq_refl' : Eq_Refl eq'.
+  Proof.
+    red; intros; case: x => //.   
+  Defined.
+  Definition eq_dec' : Eq_Dec eq'.
+    red; intros; case: x; case y => //;
+    intuition.
+  Defined.
 End BoolableOrderedResource.
 
 Module OrderedFinResource <: OrderedFinType.
@@ -210,7 +211,15 @@ End OrderedFinResource.
 Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
   Definition t := (A.t*B.t)%type.
   Definition t0 := (A.t0, B.t0).
+  Existing Instance A.enumerable.
+  Existing Instance B.enumerable.
+  Existing Instance A.cost_instance.
+  Existing Instance B.cost_instance.
   Definition enumerable  : Enumerable t := _.
+  Existing Instance A.cost_max.
+  Existing Instance B.cost_max.
+  Existing Instance A.showable.
+  Existing Instance B.showable.
   Definition cost_instance : forall N, CCostClass N t := _.
   Definition cost_max : forall N, CCostMaxClass N t := _.
   Definition show_prod (p : A.t*B.t) : string :=
@@ -365,7 +374,10 @@ Module OrderedSigma (T : OrderedPredType) <: MyOrderedType.
 
   Definition t := {x : T.t | @the_pred _ pred_instance x}%type.
   Definition t0 := exist the_pred T.a0 T.a0_pred.
-
+  Existing Instance T.enumerable.
+  Existing Instance T.cost_instance.
+  Existing Instance T.cost_max.
+  Existing Instance T.showable.
   Definition enumerable  : Enumerable t := _.
   Definition cost_instance : forall N, CCostClass N t := _.
   Definition cost_max : forall N, CCostMaxClass N t := _.
@@ -478,6 +490,7 @@ End SimplifyBoolableScalarType.
 Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
   Definition t := scalar scalar_val T.t.
   Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) scalar_val) T.t0.
+  Existing Instance T.showable.
   Definition enumerable : Enumerable t :=
     scalarEnumerableInstance _ T.enumerable scalar_val.
   Definition cost_instance (N : nat) :=
@@ -534,6 +547,8 @@ End BoolableOrderedScalar.
 Module BoolableOrderedSingleton (A : BoolableMyOrderedType) <: BoolableMyOrderedType.
   Definition t := singleton (A.t).
   Definition t0 := Wrap Singleton A.t0.
+  Existing Instance A.enumerable.
+  Existing Instance A.showable.
   Definition enumerable  : Enumerable t := _.
   Definition cost_instance : forall N, CCostClass N t := _.
   Definition cost_max : forall N, CCostMaxClass N t := _.
@@ -642,6 +657,7 @@ Module OrderedAffinePred (A : BoolableOrderedAffineType) <: OrderedPredType.
   
     Instance boolablePres : PredClassPreservesBoolableUnit pred _ :=
       affinePredPreservesBoolableUnit _ _ _ _ _.      
+    
 End OrderedAffinePred.
   
 Module OrderedAffine (A : BoolableOrderedAffineType) <: BoolableMyOrderedType.

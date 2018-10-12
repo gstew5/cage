@@ -115,11 +115,11 @@ Record simulation
     }.
 
 Lemma step_plus_diagram 
-      {S T}
+      {S T ordS}
       `{sem_S : semantics S}
       `{sem_T : semantics T}
-      `{ord_S : hasWellfoundedOrd S}
-      `(sim_ST : simulation (ORD:=S) (sem_S:=sem_S) (sem_T:=sem_T))
+      `{ord_S' : hasWellfoundedOrd ordS}
+      `(sim_ST : simulation (ORD:=ordS) (sem_S:=sem_S) (sem_T:=sem_T))
   : forall x s t s',
     match_states sim_ST x s t ->
     step_plus s s' ->
@@ -151,21 +151,21 @@ Proof.
 Qed.  
 
 Lemma simulation_trans
-      {S T R}
+      {S T R ordS ordT}
       `{sem_S : semantics S}
       `{sem_T : semantics T}
       `{sem_R : semantics R}
-      `{ord_S : hasWellfoundedOrd S}
-      `{ord_T : hasWellfoundedOrd T}
-      `(sim_ST : simulation (ORD:=S) (sem_S:=sem_S) (sem_T:=sem_T))
-      `(sim_TR : simulation (ORD:=T) (sem_S:=sem_T) (sem_T:=sem_R))
-  : simulation (ORD:=(T*S)) (sem_S:=sem_S) (sem_T:=sem_R).
+      `{ord_S' : hasWellfoundedOrd ordS}
+      `{ord_T' : hasWellfoundedOrd ordT}
+      `(sim_ST : simulation (ORD:=ordS) (sem_S:=sem_S) (sem_T:=sem_T))
+      `(sim_TR : simulation (ORD:=ordT) (sem_S:=sem_T) (sem_T:=sem_R))
+  : simulation (ORD:=(ordT*ordS)) (sem_S:=sem_S) (sem_T:=sem_R).
 Proof.
   refine
-    (mkSimulation (ORD:=(T*S))
+    (mkSimulation (ORD:=(ordT*ordS))
        sem_S
        _
-       (fun (x : (T * S)) (s : S) (r : R) =>
+       (fun (x : (ordT * ordS)) (s : S) (r : R) =>
           exists t : T, match_states sim_ST (snd x) s t /\ match_states _ (fst x) t r) _ _ _).
   { (* init *)
     intros s A; destruct (init_diagram sim_ST) with s as [B1 B2]; auto.

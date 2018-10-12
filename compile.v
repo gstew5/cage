@@ -7,101 +7,18 @@ Require Import QArith.
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
+From mathcomp Require Import seq.
 
 Import GRing.Theory Num.Def Num.Theory.
 
-Require Import extrema numerics games dyadic strings.
-
+Require Import OUVerT.extrema OUVerT.numerics games
+        OUVerT.dyadic OUVerT.strings
+        OUVerT.listlemmas.
+Require Export OUVerT.compile.
 (*The computable state representation is an FMap over 
   player indices, represented as positive.*)
 Require Import Coq.FSets.FMapAVL Coq.FSets.FMapFacts.
 Require Import Structures.Orders NArith.
-
-Module OrdNat
-  <: OrderedType.OrderedType.
-      Definition t := N.t.
-      Definition eq := N.eq.
-      Definition lt := N.lt.
-      Lemma eq_refl : forall x : t, eq x x.
-      Proof. apply: N.eq_refl. Qed.
-      Lemma eq_sym : forall x y : t, eq x y -> eq y x.
-      Proof. apply: N.eq_sym. Qed.                                      
-      Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
-      Proof. apply: N.eq_trans. Qed.  
-      Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-      Proof. apply: N.lt_trans. Qed.                                           
-      Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-      Proof. move=> x y H H2; rewrite /eq /N.eq in H2; subst x.
-             apply: (N.lt_irrefl _ H). Qed.
-      Lemma compare : forall x y : t, OrderedType.Compare lt eq x y.
-      Proof. move=> x y; case H: (N.eq_dec x y).
-             { by subst x; apply: OrderedType.EQ. }
-             case H2: (N.ltb x y).
-             { by apply: OrderedType.LT; rewrite /lt -N.ltb_lt. }
-             apply: OrderedType.GT.
-             have H3: N.le y x.
-             { by rewrite -N.ltb_ge H2. }
-             move: H3; rewrite N.lt_eq_cases; case => //.
-             by move => H3; subst y; elimtype False. Qed.
-      Lemma eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
-      Proof. apply: N.eq_dec. Qed.
-End OrdNat.
-      
-Module M := Make OrdNat. (* The type of shared states *)
-Module MFacts := Facts M.
-Module MProps := Properties M.
-
-(** OrdNatDep: A computational analogue of 'I_n *)
-
-Module Type BOUND.
-  Parameter n : nat.
-  Parameter n_gt0 : (0 < n)%nat.
-End BOUND.
-
-Module OrdNatDep (B : BOUND)
-  <: OrderedType.OrderedType.
-      Notation n := B.n.
-      Record t' : Type :=
-        mk { val :> N.t;
-             pf : (N.to_nat val < n)%nat }.
-      Definition t := t'.
-      Definition eq (x y : t) := N.eq (val x) (val y).
-      Definition lt (x y : t) := N.lt (val x) (val y).
-      Lemma eq_refl : forall x : t, eq x x.
-      Proof. case => x pf; apply: N.eq_refl. Qed.
-      Lemma eq_sym : forall x y : t, eq x y -> eq y x.
-      Proof. case => x pf; case => y pf'; apply: N.eq_sym. Qed.   
-      Lemma eq_trans : forall x y z : t, eq x y -> eq y z -> eq x z.
-      Proof. case => x pf; case => y pf'; case => z pf''; apply: N.eq_trans. Qed.  
-      Lemma lt_trans : forall x y z : t, lt x y -> lt y z -> lt x z.
-      Proof. case => x pf; case => y pf'; case => z pf''; apply: N.lt_trans. Qed.        
-      Lemma lt_not_eq : forall x y : t, lt x y -> ~ eq x y.
-      Proof. case => x pf; case => y pf' H H2; rewrite /eq /N.eq in H2.
-             rewrite /lt H2 in H; apply: (N.lt_irrefl _ H). Qed.
-      Lemma compare : forall x y : t, OrderedType.Compare lt eq x y.
-      Proof.
-        case => x pf; case => y pf'; case H: (N.eq_dec x y).
-        { by subst x; apply: OrderedType.EQ. }
-        case H2: (N.ltb x y).
-        { by apply: OrderedType.LT; rewrite /lt -N.ltb_lt. }
-        apply: OrderedType.GT.
-        have H3: N.le y x.
-        { by rewrite -N.ltb_ge H2. }
-        move: H3; rewrite N.lt_eq_cases; case => //.
-        by move => H3; subst y; elimtype False. Qed.
-      Lemma eq_dec : forall x y : t, {eq x y} + {~ eq x y}.
-      Proof. case => x pf; case => y pf'; apply: N.eq_dec. Qed.
-End OrdNatDep.
-
-Class Enumerable (T : Type) :=
-  enumerable_fun : list T.
-Notation "'enumerate' T" := (@enumerable_fun T _) (at level 30).
-
-Class RefineTypeAxiomClass (T : finType)
-      (enumerateClass : Enumerable T) :=
-  refineTypeAxiom_fun :
-    enumerate T =i enum T /\ uniq (enumerate T).
-Notation "'enumerateP' T" := (@refineTypeAxiom_fun T _ _) (at level 30).
 
 Class RefineTypeClass (T : finType)
       (enumerateClass : Enumerable T)
@@ -125,7 +42,6 @@ Class RefineCostAxiomClass N (T : finType)
           let: j' := Ordinal pf' in
           M.find j m = Some (s j')) ->
       Qeq (D_to_Q (ccost i m)) (rat_to_Q (cost i' s)).
-
 Class RefineCostClass N (T : finType)
       (costClass : CostClass N rat_realFieldType T)
       (ccostClass : CCostClass N T)
@@ -138,6 +54,22 @@ Class RefineCostMaxClass (N : nat) (T : finType)
         (costMaxClass : CostMaxClass N rat_realFieldType T)
         (ccostMaxClass : CCostMaxClass N T)
   := refineCostMax_fun : rat_to_Q costMaxClass <= D_to_Q ccostMaxClass.
+
+Class CCostMaxMaxClass (N : nat) (T : Type)
+      (ccostMaxClass : CCostMaxClass N T)
+      (ccostClass : CCostClass N T)
+  := ccostMaxMax_fun :
+       forall (i : OrdNat.t) m,
+         (0 <= @ccost_fun N _ _ i m)%D /\ (@ccost_fun N _ _ i m <= @ccostmax_fun N _ _)%D.
+
+Lemma Dle_mult d dmax : (0 <= dmax -> d <= dmax -> d * Dlub dmax <= 1)%D.
+Proof.
+  rewrite /Dle => Hnonneg H; rewrite Dmult_ok.
+  apply: Qle_trans; last by apply: Dlub_mult_le1.
+  rewrite Dmult_ok; apply: Qmult_le_compat_r => //.
+  move: (Dlub_nonneg dmax Hnonneg); rewrite /Dle => H2.
+  move: H2; rewrite D_to_Q0 //.
+Qed.
 
 Lemma CCostMaxIsMax (N : nat) (T : finType)
         (costClass : CostClass N rat_realFieldType T)
@@ -243,6 +175,7 @@ Class cgame N (T : finType)
       `(refineCostClass : @RefineCostClass N T costClass ccostClass
                                            refineCostAxiomClass)
       (ccostMaxClass : CCostMaxClass N T)
+      (ccostMaxMaxClass : CCostMaxMaxClass ccostMaxClass ccostClass)
       (refineCCostMaxClass : RefineCostMaxClass costMaxClass ccostMaxClass)
       `(@game T N rat_realFieldType costClass costAxiomClass
               costMaxClass costMaxAxiomClass)
@@ -264,22 +197,23 @@ Class BoolableUnitAxiom
 (* We bundle up equality here to make it
     visible to the affine cost functions *)
   (** really this needn't be equality is probably better to rename it to relation *)
-Class Eq (A : Type) : Type :=
-  decEq : A -> A -> Prop.
+(* Class Eq (A : Type) : Type := *)
+(*   decEq : A -> A -> Prop. *)
 
-Class Eq_Dec (A : Type) (eq : Eq A) : Type :=
-  isDec : forall x y : A,  {eq x y} + {~ eq x y}.
+(* Class Eq_Dec (A : Type) (eq : Eq A) : Type := *)
+(*   isDec : forall x y : A,  {eq x y} + {~ eq x y}. *)
 
-Class Eq_Refl (A : Type) (eq :Eq A) : Type :=
-  isRefl : forall x : A, eq x x.
+(* Class Eq_Refl (A : Type) (eq :Eq A) : Type := *)
+(*   isRefl : forall x : A, eq x x. *)
 
-(** The game type package provided by MWU to the client network oracle *)
+(* (** The game type package provided by MWU to the client network oracle *) *)
 
-Class Enum_ok A `{Enumerable A} : Type :=
-  mkEnum_ok { 
-      enum_nodup : NoDupA (fun x : A => [eta eq x]) (enumerate A);
-      enum_total : forall a : A, In a (enumerate A)
-    }.
+(* Class Enum_ok A `{Enumerable A} : Type := *)
+(*   mkEnum_ok {  *)
+(*       enum_nodup : NoDupA (fun x : A => [eta eq x]) (enumerate A); *)
+(*       enum_total : forall a : A, In a (enumerate A) *)
+(*     }. *)
+
 
 Class GameType
       (A : Type) num_players
@@ -289,8 +223,118 @@ Class GameType
       `{show_instance : Showable A}
   := mkGameType
        { a0 : A
-       ; ccost_ok : 
+       ; ccost_ok :
            forall (p : M.t A) (player : N),
              let: d := ccost player p in
              [/\ Dle (-D1) d & Dle d D1]
        }.
+
+
+(** Some useful derived facts about a cgames **)
+
+Require Import QArith.
+(*Avoid clash with Ssreflect*)
+Delimit Scope Q_scope with coq_Qscope.
+
+Section gametype_of_cgame.
+  Variable N : nat.
+  Variable T : finType.
+  Context `{cgame N T}.
+
+  Lemma NoDupA_uniq : forall (l : list T),
+      SetoidList.NoDupA (fun x : T  => [eta eq x]) l
+               <-> mathcomp.ssreflect.seq.uniq l .
+    Proof.
+      clear.
+      split; intros H.
+      induction H as [| x l H1 H0]; auto.
+      +
+        simpl.
+        apply andb_true_iff.
+        split; [ | intuition].
+        inversion H0.
+        subst; auto.
+        subst.
+        unfold negb.
+        destruct (x \in x0 :: l0) eqn:H4.
+        apply listlemmas.list_in_iff in H4.
+        {
+          exfalso.
+          inversion H4.
+          subst.
+          apply H1.
+          constructor; eauto.
+          apply H1.
+          constructor 2.
+          apply SetoidList.In_InA with (eqA := eq) in H5; auto.
+        }
+        rewrite H4 => //.
+      +
+        induction l; auto.
+        auto.
+        simpl in *.
+        apply andb_true_iff in H.
+        destruct H.
+        clear H.
+        unfold negb in H0.
+        intuition.
+        constructor; auto.
+        intros Hnot.
+        apply SetoidList.InA_alt in Hnot.
+        destruct Hnot.
+        destruct H2.
+        subst.
+        apply listlemmas.list_in_iff in H4.
+        rewrite -> H4 in H0.
+        discriminate.
+    Qed.
+
+    Lemma enum_ok : @Enum_ok T _.
+    Proof. 
+      case H => [A0 A1].
+      constructor.
+      +
+        apply NoDupA_uniq.
+        auto.
+      +
+        intros.
+        apply listlemmas.list_in_iff.
+        rewrite A0.
+        apply mem_enum.
+    Qed.
+
+    Lemma ccost_ok_game : forall (p : M.t T) (player : OrdNat.t),
+        (0 <= ccostmax_fun <= 1)%DRed ->
+        (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
+    Proof. 
+      intros.
+      cut (0<= (ccost) player p <= 1)%DRed.
+      {
+        clear.
+        unfold Dle in *.
+        have->: (D_to_Q 0 == 0)%coq_Qscope => //.
+        have->: (D_to_Q (-(1)) == (-(1)))%coq_Qscope => //.
+        generalize (D_to_Q 1).
+        generalize (D_to_Q ((ccost) player p)).
+        intros.
+        destruct H.
+        split => //.
+        +
+          unfold Qle in *.
+          simpl in *.
+          ring_simplify.
+          ring_simplify in H0.
+          specialize (Pos2Z.neg_is_nonpos (Qden q)) => //; by
+              omega.
+      }
+      clear H2.
+      specialize (ccostMaxMaxClass player p).
+      clear -H3 ccostMaxMaxClass.
+      unfold Dle in *.
+      intuition.
+      apply Qle_trans with (y:= (D_to_Q ccostmax_fun)) => //.      
+    Qed.
+End gametype_of_cgame.
+
+
+
