@@ -176,6 +176,9 @@ Set Implicit Arguments.
   Instance World_hasStep : hasStep (World) := 
      network_step_star.
 
+  (* Variable pre_init : forall (n : NodePkg), node_state n. *)
+  (* Maybe *)
+
   Instance World_hasInit : hasInit World :=
     fun w =>
       w = 
@@ -636,7 +639,7 @@ Inductive Match_Int_Low : WorldINT -> WorldINT -> Prop :=
     
 
 Lemma INTsimulatesLOW : forall WLOW WLOW',
-        (network_step nodeDec WLOW WLOW') ->
+        (network_step_star nodeDec WLOW WLOW') ->
         forall WINT, Match_Int_Low WLOW WINT ->
         (exists WINT', network_stepINT WINT WINT' /\ Match_Int_Low WLOW' WINT')
         \/ (world_measure WLOW' < world_measure WLOW /\ Match_Int_Low WLOW' WINT).
@@ -653,23 +656,46 @@ Admitted.
 
   Program Instance natOrderWf : @hasWellfoundedOrd _ _ (hasTransOrdNat).
 
-  Instance WorldINT_hasInit : hasInit WorldINT :=
-    fun x => False.
+  (* Instance WorldINT_hasInit : hasInit WorldINT := *)
+  (*   fun x => False. *)
 
-  Instance WorldINT_hasFinal : hasFinal (WorldINT) := fun x => False.
+  (* Instance WorldINT_hasFinal : hasFinal (WorldINT) := fun x => False. *)
+
+  (* Instance WorldINT_hasStepLow : hasStep (WorldINT) := *)
+  (*   @World_hasStep node msg event nodeDec network_desc. *)
+  
+  (* (* Instance WorldINT_hasStepLow : hasStep (WorldINT) := *) *)
+  (* (*   fun x x' => network_step nodeDec x x'. *) *)
+  
+  (* Instance WorldINT_hasStep : hasStep WorldINT := *)
+  (*   fun w w' => network_stepINT w w'. *)
+
+  (* Instance WorldINT_hasSemantics : *)
+  (*   semantics (H1 := WorldINT_hasStep). *)
+
+  (* (* Program Instance worldINT_hasSemantics : *) *)
+  (* (*   semantics := *) *)
+  (* (*   @world_hasSemantics node msg event nodeDec network_desc. *) *)
+
+  (* Instance worldINTLow_hasSemantics : *)
+  (*   semantics (H1 := WorldINT_hasStepLow). *)
+  Instance WorldINT_hasInit : hasInit WorldINT := 
+    (@World_hasInit node msg event network_desc).
+
+  Instance WorldINT_hasFinal : hasFinal (WorldINT) :=
+    (@World_hasFinal node msg event network_desc).
 
   Instance WorldINT_hasStep : hasStep (WorldINT) :=
-    fun x x' => network_stepINT x x'.
+    network_stepINT.
 
   Instance WorldINT_hasStepLow : hasStep (WorldINT) :=
-    fun x x' => network_step nodeDec x x'.
+    @World_hasStep node msg event nodeDec network_desc.
 
-  Program Instance worldINT_hasSemantics :
+  Program Instance WorldINT_hasSemantics :
     semantics (H1 := WorldINT_hasStep) (X := WorldINT).
 
   Instance worldINTLow_hasSemantics :
     semantics (H1 := WorldINT_hasStepLow).
-
 
   Definition Matches_state (ord : nat) (low high : WorldINT) : Prop :=
     Match_Int_Low low high /\ world_measure low = ord.
@@ -682,19 +708,43 @@ Admitted.
           simulations.init t -> exists x : nat, Matches_state x s t).
   Proof.
     split.
-    +
-      exists s; auto.
-    +
+    { exists s; auto. }
+    {
+      move: H.
+      rewrite /simulations.init
+              /WorldINT_hasInit
+              /World_hasInit.
       move => t H0; exists (world_measure s);
                 rewrite /Matches_state; inversion H; inversion H0;
                   subst; split; constructor; auto.
-  Qed.
+      repeat split; auto; try constructor; try inversion 1.
+      {
+        apply infoFromInFlight_origin_None_spec => //.
+        move => HContra.
+        destruct HContra.
+        intuition.
+      }
+      {
+        rewrite /infoFromWorld.
+        simpl.
+        pose proof serverInitInfo.
+        unfold init in H0.
+        unfold pre_init.
+        simpl in *.
+        specialize (H0 n).
+        admit.
+      }
+      {
+        admit.
+      }
+  Admitted.
+
   Program Definition simulation_WorldINT :=
     @mkSimulation WorldINT WorldINT nat WorldINT_hasInit
                   WorldINT_hasFinal WorldINT_hasStepLow
                   worldINTLow_hasSemantics WorldINT_hasInit
                   WorldINT_hasFinal WorldINT_hasStep
-                  worldINT_hasSemantics natOrder hasTransOrdNat
+                  WorldINT_hasSemantics natOrder hasTransOrdNat
                   natOrderWf
                   Matches_state  (* match_states *)
                   init_diagram_WorldINT
@@ -702,7 +752,6 @@ Admitted.
                   _ (* step_diagram *)
   .
   Next Obligation.
-    assert (network_step nodeDec s s') by auto;
       unfold Matches_state in H;
       destruct H;
       apply INTsimulatesLOW with (WINT := t) in H0; auto;
@@ -713,7 +762,6 @@ Admitted.
                  rewrite /ord/natOrder; apply: leP; subst; auto | ];
         intuition.
   Defined.
-
 End intermediateSemantics.
 
 (** Rel level will need some adjustments, but they shouldn't be too bad **)
@@ -967,14 +1015,25 @@ Section relationalINTSimulation.
   Notation nodePkgINT := (NodePkg nodeINT msgINT eventINT).
   Variable network_descINT : nodeINT -> nodePkgINT.
   Notation packet := (packet nodeINT msgINT).
-  Notation mkRNodePkg := (@mkRNodePkg client server msgINT eventINT).
+  (* Notation mkRNodePkg := (liftNodePkg nodePkgINT). *)
+(* (@mkRNodePkg client server msgINT eventINT). *)
   
-  Notation WorldINT := (WorldINT network_descINT).
+  Notation World :=
+    (@World (node client server) msgINT eventINT
+    network_descINT).
+
+  (* Notation WorldINT := (WorldINT network_descINT). *)
   Notation Rnetwork_desc := (liftedNetwork_desc network_descINT).
   Notation RWorld := (RWorld Rnetwork_desc).
-  Notation network_stepINT :=
-    (@network_stepINT client server server_inhabited server_singleton
-                      msgINT eventINT clientDec network_descINT).
+
+  (* Notation network_stepINT := *)
+  (*   (@network_stepINT client server server_inhabited server_singleton *)
+  (*                     msgINT eventINT clientDec network_descINT). *)
+
+  (* Notation network_step_star := *)
+  (*   (@network_step_star (node client server) *)
+  (*                       msgINT eventINT clientDec network_descINT). *)
+
   Notation Rnetwork_step :=
     (@Rnetwork_step client server clientEnum clientDec
                     msgINT eventINT server_inhabited server_singleton
@@ -982,91 +1041,119 @@ Section relationalINTSimulation.
 
   Notation localStateTy := (localStateTy network_descINT).
   Notation rLocalStateTy := (rLocalStateTy Rnetwork_desc).
+  Definition unliftWorld (w : RWorld) : World := 
+    (mkWorld w.(rLocalState) w.(rInFlight) w.(rTrace) w.(rInitNodes)).
 
-  Definition RMatch (WINT : WorldINT) (RW : RWorld) : Prop :=
-    (forall n, WINT.(localState) n = RW.(rLocalState) n /\
-          WINT.(initNodes) n = RW.(rInitNodes) n) /\
-    WINT.(inFlight) = RW.(rInFlight) /\
-    WINT.(trace) = RW.(rTrace).
+  Definition RMatch (WINT : World) (RW : RWorld) : Prop :=
+    WINT = (unliftWorld RW).
 
-  (** The preinitialization state of a node *)
-  Definition rPre_initStateNode (n : nodeINT) :=
-    rPre_init (Rnetwork_desc n).
+    (* (forall n, WINT.(localState) n = RW.(rLocalState) n /\ *)
+    (*       WINT.(initNodes) n = RW.(rInitNodes) n) /\ *)
+    (* WINT.(inFlight) = RW.(rInFlight) /\ *)
+    (* WINT.(trace) = RW.(rTrace). *)
 
-  Definition preInitRWorld : RWorld -> Prop :=
-    fun w => forall n,
-        w.(rInitNodes) n = false /\
-        w.(rLocalState) n = rPre_initStateNode n /\
-        w.(rInFlight) = nil /\
-        w.(rTrace) = nil.
+  (* (* (** The preinitialization state of a node *) *) *)
+  (* Definition rPre_initStateNode (n : nodeINT) := *)
+  (*   rPre_init (Rnetwork_desc n). *)
 
-  Instance RWorld_hasInit : hasInit RWorld :=
-    fun x => preInitRWorld x.
+  (* Definition preInitRWorld : RWorld -> Prop := *)
+  (*   fun w => *)
+  (*     (forall n, w.(rInitNodes) n = false) /\ *)
+  (*     (forall n, w.(rLocalState) n = rPre_initStateNode n) /\ *)
+  (*     w.(rInFlight) = nil /\ *)
+  (*     w.(rTrace) = nil. *)
 
+
+  Instance RWorld_hasInit : hasInit RWorld := 
+  fun w => (@World_hasInit (node client server)
+                            msgINT eventINT
+                            network_descINT) (unliftWorld w).
+  
   Instance RWorldINT_hasFinal : hasFinal (RWorld) := fun x => False.
 
-  Instance RWorldINT_hasStep : hasStep (RWorld) :=
-    fun x x' =>  Rnetwork_step x x'.
+  Variable node_dec : (forall x y : (node client server), {x = y} + {x <> y}).
+
+  Instance RWorld_hasStep : hasStep RWorld := 
+    Rnetwork_step.
+
+  (* fun w w' => (@network_step (node client server) *)
+  (*                              msgINT eventINT *)
+  (*                              node_dec *)
+  (*                              network_descINT) *)
+  (*            (unliftWorld w) (unliftWorld w'). *)
 
   Instance intRel_hasSemantics :
-    semantics (X := RWorld) (H1 := RWorldINT_hasStep).
+    semantics (X := RWorld) (H1 := RWorld_hasStep).
 
   Definition unitOrd : unit -> unit -> Prop := fun _ _ => False.
   Instance unitHasOrd  : hasOrd unit := unitOrd.
   Program Instance unitHasTransOrd : hasTransOrd.
   Program Instance unitHasWellfoundedOrd : hasWellfoundedOrd.
-  Solve Obligations with by rewrite /ord /unitOrd; constructor => b H.
+  Solve Obligations with by rewrite /hasWellfoundedOrd;
+  rewrite /ord /unitOrd; constructor => y H1.
 
-  Notation worldINT_hasStep :=
-    (@WorldINT_hasStep client server server_inhabited server_singleton
-                       msgINT eventINT clientDec network_descINT).
+  (* Notation worldINT_hasStep := *)
+  (*   (@WorldINT_hasStep client server server_inhabited server_singleton *)
+  (*                      msgINT eventINT clientDec network_descINT). *)
+
+  (* Notation WorldINT_hasFinal := *)
+  (*   (@WorldINT_hasFinal client server  *)
+  (*                       msgINT eventINT network_descINT). *)
+
+  (* Notation worldINTLow_hasSemantics := *)
+  (*   (@worldINTLow_hasSemantics client server server_singleton *)
+  (*                             msgINT eventINT clientDec network_descINT). *)
 
 
-  Notation worldINTLow_hasSemantics :=
-    (@worldINTLow_hasSemantics client server server_singleton
-                              msgINT eventINT clientDec network_descINT).
-
-  Notation worldINT_hasSemantics :=
-  (@worldINT_hasSemantics client server server_inhabited server_singleton 
-                              msgINT eventINT clientDec network_descINT).
-
-
-  Notation WorldINT_hasStepLow := (@WorldINT_hasStepLow client server server_singleton msgINT eventINT
-       clientDec network_descINT).
-  Notation network_step :=
-    (network_step (nodeDec server_singleton clientDec)).
-
-  Theorem relationalINTSimulation :
-    forall WINT WINT' RW,
-      
-      network_step WINT WINT' ->
-      RMatch WINT RW ->
-      exists RW', Rnetwork_step RW RW' /\ RMatch WINT' RW'.
-  Proof.
-    Admitted.
+  Notation WorldINT_hasStep:=
+    (@WorldINT_hasStep client server server_inhabited
+                       server_singleton
+                       msgINT eventINT
+                       clientDec network_descINT).
   
-  Theorem step_diagram : forall (x : unit) (s : WorldINT) (t : RWorld),
-      RMatch s t ->
-      forall s' : WorldINT,
-        @step _ WorldINT_hasStepLow s s' ->
-        exists x' : unit,
-          ord x' x /\ RMatch s' t \/
-                      (exists t' : RWorld, step_plus t t' /\ RMatch s' t').
-    Proof.
-      exists tt. right.
-      destruct (relationalINTSimulation H0 H).
-      esplit; intuition; eauto.
-      exists 0; esplit => /=; eauto.
-    Qed.
+  Notation WorldINT_hasSemantics :=
+    (@WorldINT_hasSemantics 
+       client server server_inhabited
+                       server_singleton
+                       msgINT eventINT
+                       clientDec network_descINT).
 
-    Program Definition intRel_simulates_INT :=
-      mkSimulation (S := WorldINT) (T := RWorld)
-                   (sem_T := intRel_hasSemantics)
-                   worldINTLow_hasSemantics
-                   unitHasWellfoundedOrd
-                  (fun _ w r => RMatch w r)  (* match_states *)
-                  (fun _ H => match H with end)  (*init diagram *)
-                  (fun _ _ _ _ => id)  (* There is currently no final state *)
-                  step_diagram  (* step_diagram *).
+  Notation upd_rLocalState :=
+    (@upd_rLocalState client server clientDec
+                      msgINT eventINT server_singleton
+                      Rnetwork_desc).
 
+
+  Theorem step_diagram :
+forall (x : unit) (s : World) (t : RWorld),
+  RMatch s t ->
+  forall s' : World,
+  @network_stepINT client server server_inhabited server_singleton
+    msgINT eventINT clientDec network_descINT s s' ->
+  exists x' : unit,
+    @ord unit unitHasOrd x' x /\ RMatch s' t \/
+    (exists t' : RWorld,
+       @step_plus RWorld RWorld_hasInit RWorldINT_hasFinal
+         RWorld_hasStep intRel_hasSemantics t t' /\ 
+       RMatch s' t').
+Proof.
+  Admitted.
+
+Definition intRel_simulates_INT :
+    simulation (T := RWorld) (S := World) 
+               (sem_T := intRel_hasSemantics)
+               (sem_S := WorldINT_hasSemantics)
+               (ord_S := unitHasWellfoundedOrd) .
+refine (               
+      (mkSimulation _ _ (fun _ w r => RMatch w r)
+                    _
+                    (fun _ _ _ _ => id) step_diagram)).
+admit.
+Admitted.
+    (* (fun _ w r => RMatch w r)  (* match_states *) *)
+                  (* (fun _ H => match H with end)  (*init diagram *) *)
+                  (* (fun _ _ _ _ => id)  (* Final state match is general *) *)
+                  (* step_diagram  (* step_diagram *). *)
+
+      
 End relationalINTSimulation.

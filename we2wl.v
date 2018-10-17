@@ -157,17 +157,21 @@ Module WE2WL
     Notation clientID n := (inl n).
     Notation serverID := (inr mk_server).
 
-    Definition weNetwork_desc (n : weNode) :=
+    Definition weNetwork_desc' (n : weNode) := 
       match n with
-      | serverID   => server enum_ok epsQ nx
-      | clientID _ => client enum_ok epsQ nx
+      | serverID   => server' enum_ok epsQ nx
+      | clientID _ => client' enum_ok epsQ nx
       end.
+
+    Definition weNetwork_desc :=
+      liftedNetwork_desc weNetwork_desc'.
 
     Definition weMsg := MSG.
     Definition weEvent := event.
     Definition wePacket := packet weNode weMsg.
 
-    Definition weWorld := @RWorld Ix.t server_ty weMsg weEvent weNetwork_desc.
+    Definition weWorld :=
+      @RWorld Ix.t server_ty weMsg weEvent weNetwork_desc.
 
     Definition weClientState := @client_state enum_ok epsQ _ nx.
     Definition weServerState := server_state.
@@ -185,19 +189,33 @@ Module WE2WL
                      server_singleton
                      weNetwork_desc.
 
+    (* Instance RWorld_hasInit : hasInit RWorld := *)
+    (*   fun x => preInitRWorld x. *)
+
+    (* Instance RWorldINT_hasFinal : hasFinal (RWorld) := fun x => False. *)
+
+    (* Instance RWorldINT_hasStep : hasStep (RWorld) := *)
+    (*   fun x x' =>  Rnetwork_step x x'. *)
+
+    (* Instance intRel_hasSemantics : *)
+    (*   semantics (X := RWorld) (H1 := RWorldINT_hasStep). *)
+    
     Instance weNetworkHasInit : hasInit weWorld :=
-      fun w =>
-        (* Server in initial state *)
-        (w.(rLocalState) (serverID) =  server_init_state) /\
-        (* All clients in initial state *)
-        (forall i,
-            w.(rLocalState) (clientID i) = client_preinit enum_ok epsQ nx) /\
-        (* All nodes marked as uninitialized *)
-        (forall n, w.(rInitNodes) n = false) /\
-        (* No packets in flight *)
-        w.(rInFlight) = nil /\
-        (* No events in the trace *)
-        w.(rTrace) = nil.
+      (@RWorld_hasInit server_ty Ix.t weMsg weEvent weNetwork_desc').
+
+    (* Instance weNetworkHasInit : hasInit weWorld := *)
+    (*   fun w : weWorld => *)
+    (*     (* Server in initial state *) *)
+    (*     (w.(rLocalState) (serverID) = server_init_state) /\ *)
+    (*     (* All clients in initial state *) *)
+    (*     (forall i, *)
+    (*         w.(rLocalState) (clientID i) = client_preinit enum_ok epsQ nx) /\ *)
+    (*     (* All nodes marked as uninitialized *) *)
+    (*     (forall n, w.(rInitNodes) n = false) /\ *)
+    (*     (* No packets in flight *) *)
+    (*     w.(rInFlight) = nil /\ *)
+    (*     (* No events in the trace *) *)
+    (*     w.(rTrace) = nil. *)
 
   Notation rAllClientsSentCorrectly :=
     (@rAllClientsSentCorrectly Ix.t server_ty
@@ -205,37 +223,41 @@ Module WE2WL
     mk_server weNetwork_desc).
 
   Instance weNetworkHasFinal : hasFinal weWorld :=
-      fun w : weWorld =>
-        (* All nodes marked as initialized *)
-        (forall n, w.(rInitNodes) n = true) /\
-        (* The final packets from all clients are in the buffer *)
-        rAllClientsSentCorrectly w /\
-        (* (* All client commands are CSkip *) *)
-        (* (forall i, (w.(rLocalState) (clientID i)).1.2 = CSkip). *)
-        (forall i, client_iters
-                     (w.(rLocalState) (clientID i)) = BinNums.N0).
+    (@RWorldINT_hasFinal server_ty Ix.t weMsg weEvent weNetwork_desc').
 
-    Instance weNetworkHasStep : hasStep weWorld := weNetworkStep.
+  (* Instance weNetworkHasFinal : hasFinal weWorld := *)
+  (*     fun w : weWorld => *)
+  (*       (* All nodes marked as initialized *) *)
+  (*       (forall n, w.(rInitNodes) n = true) /\ *)
+  (*       (* The final packets from all clients are in the buffer *) *)
+  (*       rAllClientsSentCorrectly w /\ *)
+  (*       (* (* All client commands are CSkip *) *) *)
+  (*       (* (forall i, (w.(rLocalState) (clientID i)).1.2 = CSkip). *) *)
+  (*       (forall i, client_iters *)
+  (*                    (w.(rLocalState) (clientID i)) = BinNums.N0). *)
 
-    Instance weNetworkSemantics : @semantics weWorld _ _ _.
+  Instance weNetworkHasStep : hasStep weWorld := weNetworkStep.
 
-    Notation wlPacket := (wlPacket B.n [finType of A.t]).
-    Notation wlEvent := (wlEvent B.n [finType of A.t]).
-    Notation wlMsg := (wlMsg [finType of A.t]).
-    Notation wlNode := (wlNode B.n).
-    Notation wlWorld := (@wlWorld B.n [finType of A.t] A.t0 costClass
+    
+  Instance weNetworkSemantics : @semantics weWorld _ _ _.
+
+  Notation wlPacket := (wlPacket B.n [finType of A.t]).
+  Notation wlEvent := (wlEvent B.n [finType of A.t]).
+  Notation wlMsg := (wlMsg [finType of A.t]).
+  Notation wlNode := (wlNode B.n).
+  Notation wlWorld := (@wlWorld B.n [finType of A.t] A.t0 costClass
                                   (@serverCostRel) eps epsOk nx).
-    Notation wlInitWorld :=
-      (@wlNetworkInitWorld B.n [finType of A.t] A.t0 costClass
+  Notation wlInitWorld :=
+    (@wlNetworkInitWorld B.n [finType of A.t] A.t0 costClass
                            (@serverCostRel) eps epsOk nx).
-    Notation wlNetwork_desc :=
-      (@wlNetwork_desc B.n [finType of A.t] A.t0 costClass
+  Notation wlNetwork_desc :=
+    (@wlNetwork_desc B.n [finType of A.t] A.t0 costClass
                        (@serverCostRel) eps epsOk nx).
-    Notation wlClientState := (wlClientState B.n [finType of A.t]).
-    Notation wlServerState := (wlServerState B.n [finType of A.t]).
+  Notation wlClientState := (wlClientState B.n [finType of A.t]).
+  Notation wlServerState := (wlServerState B.n [finType of A.t]).
 
-    Program Definition coerce_nodeId (n : weNode) : wlNode :=
-      match n with
+  Program Definition coerce_nodeId (n : weNode) : wlNode :=
+    match n with
       | serverID => serverID
       | clientID i => clientID (Ix.Ordinal_of_t i)
       end.
@@ -661,27 +683,36 @@ Module WE2WL
         split; auto. }
       { move=> wl_st Hinitwl. exists tt.
         destruct Hinitwl as [Hwl0 [Hwl1 [Hwl2 [Hwl3 Hwl4]]]].
-        destruct Hinitwe as [Hwe0 [Hwe1 [Hwe2 [Hwe3 Hwe4]]]].
+        unfold init in Hinitwe.
+        unfold weNetworkHasInit in Hinitwe.
+        unfold RWorld_hasInit in Hinitwe.
+        unfold World_hasInit in Hinitwe.
+        (* unfold preInitRWorld in Hinitwe. *)
+        unfold unliftWorld in Hinitwe.
+        inversion Hinitwe.
+        (* destruct Hinitwe. as [Hwe0 [Hwe1 [Hwe2 Hwe3]]]. *)
         constructor.
+        move => n.
+        destruct n.
         {
-          move => n.
-          destruct n.
-          rewrite Hwl1 Hwe1.
-          
+          rewrite Hwl1 H0.
             apply wewlClientStateMatch1 with nx; simpl.
             { by left. }
-            { constructor; try (by constructor); auto. 
+            { constructor; try (by constructor); auto.
               { by apply match_maps_init. }
               { by apply match_maps_init. } }
             { by left; split; split. }
-            destruct s; auto.
-            rewrite Hwl0 Hwe0 => //.
         }
-        { by rewrite Hwe3 Hwl3; constructor. }
-        { by rewrite Hwe4 Hwl4; constructor. }
-        { by move=> n; rewrite Hwe2 Hwl2. }
-        { by move=> i _; rewrite Hwe1. }
-        { by move=> i pkt Hin; rewrite Hwe3 in Hin; inversion Hin. }
+        {
+          (destruct s; auto;
+                simpl in *;
+            rewrite Hwl0 H0 => //).
+        }
+        {  by rewrite Hwl3 H1; constructor. }
+        {  rewrite Hwl4 H2; constructor. }
+        { by move => n; rewrite H3 Hwl2. }
+        { by move=> i _; rewrite H0. }
+        { by move=> i pkt Hin; rewrite H1 in Hin; inversion Hin. }
         { congruence. } }
     Qed.
 
@@ -691,39 +722,46 @@ Module WE2WL
         final we_st ->
         (@final _ wlFinal) wl_st.
     Proof.
-      move=> [] we_st wl_st Hmatch Hfinal.
-      destruct Hmatch as [Hmatch0 Hmatch1 Hmatch3 Hmatch4].
-      rewrite /wewlInitNodesMatch in Hmatch4.
-      rewrite /final /weNetworkHasFinal in Hfinal.
-      rewrite /final /wlFinal /wlNetworkHasFinal.
-      destruct Hfinal as [Hfinal0 [Hfinal1 Hfinal2]].
-      split.
-      { move=> n. specialize (Hfinal0 (coerce_nodeId' n)).
-        rewrite Hmatch4 in Hfinal0.
-        by rewrite coerce_nodeId_inv in Hfinal0. }
-      { split.
-        { 
-          
-by eapply rAllClientsSentCorrectlyMatch; eassumption. }
-        { rewrite /wewlLocalStateMatch in Hmatch0.
-          move=> i. specialize (Hmatch0 (coerce_nodeId' (clientID i))).
-          simpl in Hmatch0.
-          remember (rLocalState we_st (clientID (t_of_ordinal i))).
-          remember (rLocalState wl_st (clientID (Ix.Ordinal_of_t
-                                                   (t_of_ordinal i))))
-            as wlstate.
-          rewrite -Heqwlstate in Hmatch0.
-          destruct Hmatch0. destruct H1.
-          { destruct H1. rewrite Heqn in H2. rewrite Hfinal2 in H2.
-            rewrite <- H2 in nxPos. inversion nxPos. }
-          { destruct H1.
-            { destruct H1. destruct H2. rewrite Heqn in H2.
-              rewrite Hfinal2 in H2.
-              rewrite -H2 in H3. by exfalso; apply H3. }
-            { 
-                by rewrite Heqwlstate in H1; destruct H1;
-                rewrite ordinal_of_t_inv in H1. } } } }
+      intros.
+      inversion H0.
     Qed.
+    (* Will probably need to update this 
+       to have a final state again after 
+       figure out the final state for the 
+     intRel  int simulation *)
+    (*   move=> [] we_st wl_st Hmatch Hfinal. *)
+    (*   destruct Hmatch as [Hmatch0 Hmatch1 Hmatch3 Hmatch4]. *)
+    (*   rewrite /wewlInitNodesMatch in Hmatch4. *)
+    (*   rewrite /final /weNetworkHasFinal in Hfinal. *)
+    (*   rewrite /final /wlFinal /wlNetworkHasFinal. *)
+    (*   destruct Hfinal as [Hfinal0 [Hfinal1 Hfinal2]]. *)
+    (*   split. *)
+    (*   { move=> n. specialize (Hfinal0 (coerce_nodeId' n)). *)
+    (*     rewrite Hmatch4 in Hfinal0. *)
+    (*     by rewrite coerce_nodeId_inv in Hfinal0. } *)
+    (*   { split. *)
+    (*     {  *)
+          
+    (*         by eapply rAllClientsSentCorrectlyMatch; eassumption. } *)
+    (*     { rewrite /wewlLocalStateMatch in Hmatch0. *)
+    (*       move=> i. specialize (Hmatch0 (coerce_nodeId' (clientID i))). *)
+    (*       simpl in Hmatch0. *)
+    (*       remember (rLocalState we_st (clientID (t_of_ordinal i))). *)
+    (*       remember (rLocalState wl_st (clientID (Ix.Ordinal_of_t *)
+    (*                                                (t_of_ordinal i)))) *)
+    (*         as wlstate. *)
+    (*       rewrite -Heqwlstate in Hmatch0. *)
+    (*       destruct Hmatch0. destruct H1. *)
+    (*       { destruct H1. rewrite Heqn in H2. rewrite Hfinal2 in H2. *)
+    (*         rewrite <- H2 in nxPos. inversion nxPos. } *)
+    (*       { destruct H1. *)
+    (*         { destruct H1. destruct H2. rewrite Heqn in H2. *)
+    (*           rewrite Hfinal2 in H2. *)
+    (*           rewrite -H2 in H3. by exfalso; apply H3. } *)
+    (*         {  *)
+    (*             by rewrite Heqwlstate in H1; destruct H1; *)
+    (*             rewrite ordinal_of_t_inv in H1. } } } } *)
+    (* Qed. *)
 
     Notation mult_weights_body := (mult_weights_body [finType of A.t]).
 
