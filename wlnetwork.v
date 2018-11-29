@@ -206,7 +206,8 @@ Section weightsLangNetwork.
 
   Definition wlnetwork_step :=
     (@Rnetwork_step 'I_N server
-                    ordinalEnumerable ordinal_eq_dec
+                    ordinalEnumerable
+                    ordinal_eq_dec
                     wlMsg wlEvent
                     mk_server
                     server_singleton
@@ -1795,8 +1796,6 @@ Section distEquality.
 End distEquality.
 
 
-
-
   Lemma client_recv_step (mach_st : machine_state)
         (w : wlWorld) i st ps es l1 l2 p u :
     rInitNodes w (clientID i) = true ->
@@ -3030,7 +3029,6 @@ End distEquality.
                     { by rewrite 2!cats0. } } } } } } } }
       } 
 
-    
     (** Server step *)
     { exists 0%N. right.
       set clientSt' := fun st i => @mkState
@@ -3186,6 +3184,10 @@ End distEquality.
                     (pkt:=pkt) (pkt':=pkt') (i:=i) in H5; auto. }
               { by move=> i /=; rewrite Hmatch4 in H1;
                            apply update_dest_count with (i:=i) in H1. } } } } }
+
+    (** Client recv step *)
+    { exists u%N; right. 
+      eapply client_recv_step; eauto. }
   Qed.
 
   Definition wlNetworkMachine_simulation :=

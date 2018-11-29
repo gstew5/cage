@@ -22,7 +22,7 @@ Module machine_to_verdi
   Module we2wl := WE2WL T B MWU.
   Import we2wl.
   Import WE_Node.
-
+  (* Import Proofs. *)
   Section simulations.
 
     Variable N : nat.
@@ -44,7 +44,7 @@ Module machine_to_verdi
 
   Variable nx : N.t.    (* #iterations *)
 
-  Import MWProof.
+  Import Proofs.MWUProof.
   Hypothesis costInstance :  @CostClass B.n rat_realFieldType [finType of A.t].
 
   Hypothesis nameMe : 
@@ -115,7 +115,7 @@ Module machine_to_verdi
       (S := weWorld)
       (T := wlWorld)
       (ORD := unit)
-      (sem_T :=  wlSemantics)
+      (sem_T := wlSemantics)
       (sem_S := weNetworkSemantics)
       (ord_S :=   we2wl.unitHasWellfoundedOrd)).
     eapply we2wl_simulation  => //;
@@ -353,11 +353,10 @@ Hypothesis hyp8 :
                weNetwork_desc' data to_data from_data nodes all_nodes
                nodes_nodup)).
 
-  Variable (msg_eq_dec : forall x y : weMsg, {x = y} + {x <> y}).
   Notation net_hasSemantics := 
     (@net_hasSemantics
        node weMsg
-       weEvent node_eq_dec msg_eq_dec weNetwork_desc'
+       weEvent node_eq_dec weMsgDec weNetwork_desc'
        data to_data
        from_data nodes all_nodes nodes_nodup).
 
@@ -457,3 +456,29 @@ Hypothesis hyp8 :
 
 End simulations.
 End machine_to_verdi.
+
+
+(* Module machine_to_verdi_inst *)
+(*        (T : orderedtypes.OrderedFinType) *)
+(*        (B : BOUND) *)
+(*        (MWU : MWU_Type with Module A := T). *)
+(*   Set Printing Implicit. *)
+(*   Module Import bleh := machine_to_verdi T B MWU. *)
+(*   Import we2wl. *)
+(*   Import WE_Node. *)
+(*   Import we2wl.MWProof. *)
+(*   Variable (serverCostRel : forall (A : finType) (N : nat), *)
+(*                          CostClass N rat_realFieldType A -> *)
+(*                          {ffun 'I_N -> dist.dist A rat_realFieldType} -> *)
+(*                          'I_N -> {ffun A -> rat}) . *)
+(*   Lemma network_simulates_machine : Type. *)
+(*   Proof. *)
+(*     Unset Printing Implicit. *)
+(*     pose proof (machine_simulates_network *)
+(*                 serverCostRel). *)
+    
+    
+(*     intros. *)
+    
+
+

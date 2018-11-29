@@ -636,8 +636,6 @@ Inductive Match_Int_Low : WorldINT -> WorldINT -> Prop :=
       (forall n, infoFromWorld WLOW n = infoFromWorld WINT n) ->
     Match_Int_Low WLOW WINT.
 
-    
-
 Lemma INTsimulatesLOW : forall WLOW WLOW',
         (network_step_star nodeDec WLOW WLOW') ->
         forall WINT, Match_Int_Low WLOW WINT ->
@@ -928,6 +926,34 @@ Section relationalIntermediateNoBatch.
      (fun pkt => if nodeINTDec (dest_of pkt) serverID
     then true else false) x].
 
+  Notation clientID n := (inl n).
+
+  (* Fixpoint recvAllMessagesToServer *)
+  (* (n : state (network_desc (inr server_inhabited))) *)
+  (* (l : list (packet node msg)) *)
+  (* : (state (network_desc (inr server_inhabited)) * *)
+  (*    list (packet node msg) * list event) :=  *)
+  (* match l with *)
+  (* | nil => (n, nil, nil) *)
+  (* | cons p l' => *)
+  (*     if nodeDec (dest_of p) (inr server_inhabited) *)
+  (*       then   *)
+  (*         let n' := (recv _ (msg_of p) (origin_of p) n) in *)
+  (*         let x := (recvAllMessagesToServer (fst (fst n')) l') in *)
+  (*           (fst (fst x), *)
+  (*            app (snd (fst n')) (snd (fst x)), *)
+  (*            app (snd n') (snd x)) *)
+  (*       else *)
+  (*         let x := (recvAllMessagesToServer n l') in *)
+  (*           (fst (fst x), cons p (snd (fst x)), (snd x)) *)
+  (* end.  *)
+
+  (* Definition rAllClientsSentCorrectly (w : RWorld) := *)
+  (*   (forall pkt : packet, List.In pkt (rInFlight w) -> dest_of pkt = serverID) /\ *)
+  (*   Permutation (map (@origin_of nodeINT msgINT) (rInFlight w)) *)
+  (*               (map inl (enumerate client)). *)
+
+
 Inductive Rnetwork_step :  RWorld -> RWorld -> Prop :=
 | RInitStep : forall (w : RWorld) (n : nodeINT)
                   (st : nodeState n)
@@ -943,7 +969,34 @@ Inductive Rnetwork_step :  RWorld -> RWorld -> Prop :=
 
   (* A single client handles a packet *)
   (* The server handles all client packets in one step *)
-  | RserverPacketStep : forall (w : RWorld)
+
+(** | RserverPacketStep :
+    forall w st ps es,
+      (rInitNodes w) serverID = true ->
+      
+      (* (forall n, exists p, origin_of p = inl n /\ *)
+      (*                      dest_of p = inr (server_inhabited) /\ *)
+      (*                      In p (rInFlight w)) -> *)
+      (* recvAllMessagesToServer *)
+      (*   (rLocalState w (inr server_inhabited)) (rInFlight w) = (st, ps, es) -> *)
+
+
+      rAllClientsSentCorrectly w ->
+      (* (forall pkt : packet, In pkt (rInFlight w) -> dest_of pkt = serverID) /\ *)
+      (* Permutation (map (origin_of (msg:=msgINT)) (rInFlight w)) *)
+      (*             (map inl (enumerate client)) -> *)
+
+
+      serverUpdate (rLocalState w serverID)
+                   (msgToServerList (rInFlight w)) st ps es ->
+
+      Rnetwork_step w (mkRWorld
+                          (upd_rLocalState 
+                            (inr server_inhabited) st (rLocalState w))
+                          ps es w.(rInitNodes))
+
+**)
+| RserverPacketStep : forall (w : RWorld)
                           (st': rState (Rnetwork_desc serverID))
                           (l' : list packet)
                           (e' : list eventINT),
@@ -954,9 +1007,23 @@ Inductive Rnetwork_step :  RWorld -> RWorld -> Prop :=
       Rnetwork_step
         w
         (mkRWorld (upd_rLocalState serverID st' (rLocalState w))
-                  l' (rTrace w ++ e') (rInitNodes w)).
-
-
+                  l' (rTrace w ++ e') (rInitNodes w))
+  (* A single client handles a packet *)
+  | RclientPacketStep : forall (w : RWorld) n
+                          (p : packet)
+                          (l1 l2 : list (packet))
+                          st
+                          (ps : list packet)
+                          (es : list eventINT),
+      (rInitNodes w) (clientID n) ->
+      rInFlight w = l1 ++ (p :: l2) ->
+      dest_of p = (clientID n) ->
+      rRecv (Rnetwork_desc (clientID n)) (msg_of p) (origin_of p)
+            (rLocalState w (clientID n)) (st, ps, es) ->
+      Rnetwork_step
+        w
+        (mkRWorld (upd_rLocalState (clientID n) st (rLocalState w))
+                  (l1 ++ l2 ++ ps) ((rTrace w) ++ es) (rInitNodes w)).
 
 End relationalIntermediateNoBatch.
 
@@ -1041,11 +1108,48 @@ Section relationalINTSimulation.
 
   Notation localStateTy := (localStateTy network_descINT).
   Notation rLocalStateTy := (rLocalStateTy Rnetwork_desc).
-  Definition unliftWorld (w : RWorld) : World := 
-    (mkWorld w.(rLocalState) w.(rInFlight) w.(rTrace) w.(rInitNodes)).
+  (** A couple coercion functions *)
+  Definition rLocalState_of_localState (ls : localStateTy)
+    : rLocalStateTy :=
+    fun n => ls n.
 
+  Definition rWorld_of_WorldINT (w : World) :=
+    mkRWorld (rLocalState_of_localState w.(localState))
+             w.(inFlight) w.(trace) w.(initNodes).
+
+  Definition unliftWorld (w : RWorld) : World :=
+    (mkWorld w.(rLocalState) w.(rInFlight) w.(rTrace) w.(rInitNodes)).
+  
   Definition RMatch (WINT : World) (RW : RWorld) : Prop :=
-    WINT = (unliftWorld RW).
+    (forall n, WINT.(localState) n = RW.(rLocalState) n /\
+          WINT.(initNodes) n = RW.(rInitNodes) n) /\
+    WINT.(inFlight) = RW.(rInFlight) /\
+    WINT.(trace) = RW.(rTrace) (* /\ *)
+    (* forall p (n : client), *)
+    (*   In p (inFlight WINT) -> *)
+    (*   origin_of p = inl n -> dest_of p = inr server_inhabited *)
+  .
+  
+
+    (* WINT = (unliftWorld RW). *)
+
+  Definition liftWorld (w  : World) :  RWorld.
+    destruct w.
+    unfold Rnetwork_desc in *.
+    unfold liftNodePkg in *.
+    unfold liftInit in *.
+    unfold liftRecv in *.
+    unfold rLocalStateTy in *.
+    refine (mkRWorld _  inFlight0 trace0 initNodes0).
+    apply localState0.
+  Defined.
+
+  (* Lemma lift_bi : forall s, *)
+  (*     s =  (liftWorld s). *)
+  (* Proof. *)
+  (*   case => s => //. *)
+  (* Qed. *)
+    
 
     (* (forall n, WINT.(localState) n = RW.(rLocalState) n /\ *)
     (*       WINT.(initNodes) n = RW.(rInitNodes) n) /\ *)
@@ -1124,36 +1228,242 @@ Section relationalINTSimulation.
                       Rnetwork_desc).
 
 
-  Theorem step_diagram :
-forall (x : unit) (s : World) (t : RWorld),
-  RMatch s t ->
-  forall s' : World,
-  @network_stepINT client server server_inhabited server_singleton
+  Theorem relationalINTSimulation :
+    forall s s' RW,
+      @network_stepINT client server server_inhabited server_singleton
     msgINT eventINT clientDec network_descINT s s' ->
-  exists x' : unit,
-    @ord unit unitHasOrd x' x /\ RMatch s' t \/
-    (exists t' : RWorld,
-       @step_plus RWorld RWorld_hasInit RWorldINT_hasFinal
-         RWorld_hasStep intRel_hasSemantics t t' /\ 
-       RMatch s' t').
-Proof.
+      RMatch s RW ->
+      exists RW', Rnetwork_step RW RW' /\ RMatch s' RW'.
+  Proof.
+    rewrite /RMatch=> /=.
+    intros.
+    subst.
+    inversion H; simpl in *.
+    {
+      eexists.
+      split;  intuition;
+        subst.
+      {
+        specialize (H5 n); intuition; subst.
+        eapply RInitStep with (n := n)
+                              (st := st) (ps := ps) (es := es).
+        {
+          rewrite -H4 => //.
+        }
+        {
+          rewrite /rInit /liftInit => //.
+        }
+      }
+      {
+        simpl in *.
+        destruct ((nodeDec server_singleton clientDec) n n0); subst.
+        rewrite upd_rLocalState_same
+                upd_localState_same => //.
+        assert (n0 <> n).
+        intros Hnot.
+        apply n1; auto.
+        eapply upd_localState_diff with (node_dec := nodeDec server_singleton clientDec) 
+          in H3.
+        rewrite <- H3.
+        assert (n0 <> n).
+        intros Hnot.
+        apply n1; auto.
+        eapply upd_rLocalState_diff with (clientDec :=  clientDec) 
+          in H4.
+        rewrite <- H4 => //.
+        specialize (H5 n0).
+        intuition.
+      }
+      {
+        simpl.
+        rewrite /upd_rInitNodes.
+        rewrite /upd_initNodes.
+        unfold is_left.
+        destruct (nodeDec server_singleton clientDec n n0); subst; auto.
+        specialize (H5 n0); intuition.      
+      }
+      {
+        rewrite H0 => //.
+      }
+      {
+        rewrite H7 => //.
+      }
+    }
+  {
+    simpl in *.
+    { 
+      eexists.
+      split;
+      subst.
+      {
+        intuition.
+        eapply RclientPacketStep with (n := n)
+            (st:=st) (ps:=ps) (es := es)=> //.
+        {
+          specialize (H5 (inl n)); intuition.
+          rewrite -H8 => //. }
+        { rewrite -H0 => //; eauto. }
+        {  apply H3.  }
+        {  simpl in *.  red.
+           rewrite /msg_of /origin_of.
+           specialize (H5 (inl n)).
+           intuition.
+           rewrite -H4 H6 => //.
+        }
+      }
+      {
+        repeat split; intros; intuition; auto.
+        {
+          simpl.
+          destruct ((nodeDec server_singleton clientDec) (inl n) n0);
+            subst.
+          rewrite upd_rLocalState_same
+                  upd_localState_same => //.
+          assert (n0 <> (inl n)) as H6.
+          { intros Hnot;  apply n1; auto. }
+          pose proof H6 as Hneq.
+          eapply
+            upd_localState_diff with (node_dec := nodeDec server_singleton clientDec)  in H6.
+          rewrite <- H6.
+          eapply upd_rLocalState_diff with (clientDec :=  clientDec) 
+            in Hneq.
+          rewrite <- Hneq => //.
+          specialize (H5 n0).
+          intuition.
+        }
+        {
+          simpl => //.
+          specialize (H5 n0) => //; intuition.
+        }
+        { rewrite H7 => //. }
+      }
+    }
+  }
+  {
+    eexists.
+    split; 
+    subst.
+    {
+      eapply RserverPacketStep; eauto.
+      {
+        destruct H0.
+        specialize (H0 (serverID client server_inhabited)).
+        intuition.
+        rewrite <- H5 => //.
+        admit.
+      }
+      {
+        red.
+        assert (NoDupA (fun p1 p2 =>
+                          notServerOrSameClient (origin_of p1) (origin_of p2))
+                       (rInFlight RW)).
+        { admit. }
+        split.
+        {
+          intros.
+          assert (
+              forall p (n : client),
+                In p (rInFlight RW) ->
+                origin_of p = (inl n) ->
+                dest_of p = inr server_inhabited).
+          { admit. }
+          eapply H5; eauto.
+          admit.
+        }
+        {
+          admit.
+        }
+      }
+      {
+        admit.
+      }
+    }
+    {
+  {
+    repeat split; intros; intuition; auto.
+        {
+          simpl.
+          destruct ((nodeDec server_singleton clientDec) (inr server_inhabited) n);
+            subst.
+          {
+            rewrite upd_rLocalState_same
+                  upd_localState_same => //.
+          }
+          {
+            erewrite <- upd_rLocalState_diff with
+                (clientDec := clientDec)                                            (server_singleton := server_singleton); eauto.
+            erewrite <- upd_localState_diff with
+             (node_dec := (nodeDec server_singleton clientDec)); eauto => //.
+            specialize (H3 n).
+            intuition.
+          }
+        }
+        {
+          simpl => //.
+          specialize (H3 n) => //; intuition.
+        }
+        {
+          rewrite <- H5.
+          simpl.
+          admit.
+        }
+  }
   Admitted.
 
-Definition intRel_simulates_INT :
+
+  Theorem step_diagram :
+    forall (x : unit) (s : World) (t : RWorld),
+      RMatch s t ->
+      forall s' : World,
+        @network_stepINT client server server_inhabited server_singleton
+                         msgINT eventINT clientDec network_descINT s s' ->
+        exists x' : unit,
+          @ord unit unitHasOrd x' x /\ RMatch s' t \/
+          (exists t' : RWorld,
+              @step_plus RWorld RWorld_hasInit RWorldINT_hasFinal
+                         RWorld_hasStep intRel_hasSemantics t t' /\ 
+              RMatch s' t').
+  Proof.
+    intros.
+    pose proof (@relationalINTSimulation 
+                  s s' t H0 H).
+    exists tt.
+    right.
+    destruct H1.
+    exists x0.
+    intuition.
+    red.
+    exists 0 => /=; eauto.
+  Qed.
+
+  Definition intRel_simulates_INT :
     simulation (T := RWorld) (S := World) 
                (sem_T := intRel_hasSemantics)
                (sem_S := WorldINT_hasSemantics)
                (ord_S := unitHasWellfoundedOrd) .
-refine (               
-      (mkSimulation _ _ (fun _ w r => RMatch w r)
-                    _
-                    (fun _ _ _ _ => id) step_diagram)).
-admit.
-Admitted.
-    (* (fun _ w r => RMatch w r)  (* match_states *) *)
-                  (* (fun _ H => match H with end)  (*init diagram *) *)
-                  (* (fun _ _ _ _ => id)  (* Final state match is general *) *)
-                  (* step_diagram  (* step_diagram *). *)
+    refine (               
+        (mkSimulation _ _ (fun _ w r => RMatch w r)
+                      _
+                      (fun _ _ _ _ => id) step_diagram)).
+    Proof.
+      rewrite /simulations.init /WorldINT_hasInit /RWorld_hasInit
+              /unliftWorld /= => s s_init.
+      split;
+        eauto.
+      {
+        inversion s_init;
+          exists (liftWorld s);
+          inversion s; subst => /= //.
+      }
+      {
+        move => t init_t.
+        exists tt.
+        red.
+        inversion s_init; subst.
+        inversion init_t; subst.
+        rewrite H0 H1 H2 H3 => //.
+      }  
+    Qed.
 
-      
 End relationalINTSimulation.
+
