@@ -44,7 +44,7 @@ CAMLFLAGS         := $(COQMF_CAMLFLAGS)
 HASNATDYNLINK     := $(COQMF_HASNATDYNLINK)
 
 Makefile.conf: 
-	coq_makefile ccombinators.v cdist.v christodoulou.v client.v combinators.v compile.v depfinfun.v dynamics.v games.v lightserver.v listlemmas.v loadbalancing2.v loadbalancing.v lp.v machine.v mwu_costvec.v networkSemanticsNoBatch.v networkSemantics.v orderedtypes.v potential.v routing1.v routing2.v routing_gen.v routing.v server.v simulations.v smooth.v staging.v subsettypes.v toverdi.v unifiedmachine.v vc.v we2wl.v wenetwork.v winnow.v wlnetwork.v -o Makefile
+	coq_makefile ccombinators.v cdist.v christodoulou.v client.v combinators.v compile.v depfinfun.v dynamics.v games.v InterpIterLemmas.v lightserver.v listlemmas.v loadbalancing2.v loadbalancing.v lp.v machine.v mwu_costvec.v networkSemanticsNoBatch.v networkSemantics.v orderedtypes.v potential.v routing1.v routing2.v routing_gen.v routing.v server.v simulations.v smooth.v staging.v subsettypes.v toverdi.v unifiedmachine.v vc.v verdi2machine.v we2wl.v wenetwork.v winnow.v wlnetwork.v -o Makefile
 
 # This file can be created by the user to hook into double colon rules or
 # add any other Makefile code he may need
