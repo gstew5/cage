@@ -31,11 +31,12 @@ Module machine_to_verdi
     Require Import OUVerT.dist OUVerT.numerics.
     Require Import QArith NArith.
 
-    Variable serverCostRel : forall (A : finType) (N : nat),
-                  CostClass N rat_realFieldType A ->
-                  {ffun 'I_N -> dist A rat_realFieldType} ->
-                  'I_N -> {ffun A -> rat}.
-
+    (* Variable serverCostRel : forall (A : finType) (N : nat), *)
+    (*               CostClass N rat_realFieldType A -> *)
+    (*               {ffun 'I_N -> dist A rat_realFieldType} -> *)
+    (*               'I_N -> {ffun A -> rat}. *)
+    Definition serverCostRel := mwu_costvec.mwu_cost_vec.
+    
   Variable ep : dyadic.D.
   Definition eps : rat := (numerics.Q_to_rat (dyadic.D_to_Q ep)).
 
@@ -108,7 +109,7 @@ Module machine_to_verdi
     
 
   Notation wlSemantics := 
-    (@we2wl.wlSemantics costInstance serverCostRel eps epsOk nx).
+    (@we2wl.wlSemantics costInstance eps epsOk nx).
 
   Definition intWl_simulates_intWe:
     (simulation
