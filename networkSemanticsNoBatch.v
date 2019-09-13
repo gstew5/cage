@@ -967,35 +967,7 @@ Inductive Rnetwork_step :  RWorld -> RWorld -> Prop :=
                   (rInFlight w ++ ps) (rTrace w ++ es)
                   (upd_rInitNodes n w.(rInitNodes)))
 
-  (* A single client handles a packet *)
   (* The server handles all client packets in one step *)
-
-(** | RserverPacketStep :
-    forall w st ps es,
-      (rInitNodes w) serverID = true ->
-      
-      (* (forall n, exists p, origin_of p = inl n /\ *)
-      (*                      dest_of p = inr (server_inhabited) /\ *)
-      (*                      In p (rInFlight w)) -> *)
-      (* recvAllMessagesToServer *)
-      (*   (rLocalState w (inr server_inhabited)) (rInFlight w) = (st, ps, es) -> *)
-
-
-      rAllClientsSentCorrectly w ->
-      (* (forall pkt : packet, In pkt (rInFlight w) -> dest_of pkt = serverID) /\ *)
-      (* Permutation (map (origin_of (msg:=msgINT)) (rInFlight w)) *)
-      (*             (map inl (enumerate client)) -> *)
-
-
-      serverUpdate (rLocalState w serverID)
-                   (msgToServerList (rInFlight w)) st ps es ->
-
-      Rnetwork_step w (mkRWorld
-                          (upd_rLocalState 
-                            (inr server_inhabited) st (rLocalState w))
-                          ps es w.(rInitNodes))
-
-**)
 | RserverPacketStep : forall (w : RWorld)
                           (st': rState (Rnetwork_desc serverID))
                           (l' : list packet)
@@ -1129,8 +1101,6 @@ Section relationalINTSimulation.
     (*   In p (inFlight WINT) -> *)
     (*   origin_of p = inl n -> dest_of p = inr server_inhabited *)
   .
-  
-
     (* WINT = (unliftWorld RW). *)
 
   Definition liftWorld (w  : World) :  RWorld.
@@ -1143,13 +1113,6 @@ Section relationalINTSimulation.
     refine (mkRWorld _  inFlight0 trace0 initNodes0).
     apply localState0.
   Defined.
-
-  (* Lemma lift_bi : forall s, *)
-  (*     s =  (liftWorld s). *)
-  (* Proof. *)
-  (*   case => s => //. *)
-  (* Qed. *)
-    
 
     (* (forall n, WINT.(localState) n = RW.(rLocalState) n /\ *)
     (*       WINT.(initNodes) n = RW.(rInitNodes) n) /\ *)
@@ -1231,7 +1194,7 @@ Section relationalINTSimulation.
   Theorem relationalINTSimulation :
     forall s s' RW,
       @network_stepINT client server server_inhabited server_singleton
-    msgINT eventINT clientDec network_descINT s s' ->
+      msgINT eventINT clientDec network_descINT s s' ->
       RMatch s RW ->
       exists RW', Rnetwork_step RW RW' /\ RMatch s' RW'.
   Proof.

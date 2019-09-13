@@ -519,7 +519,7 @@ Module MWUProofs
       apply: H12.
       apply: H13. }
     inversion 1.
-  Admitted.
+  Qed.
 
   Lemma interp_step'_plus :
     forall (s : state t) (tx tx' : MWU.MWUPre.cstate) (c : com t),

@@ -14,7 +14,7 @@ From mathcomp Require Import all_algebra.
 Import GRing.Theory Num.Def Num.Theory.
 Require Import wlnetwork.
 Require Import orderedtypes OUVerT.dyadic compile listlemmas cdist
-        OUVerT.vector.
+        OUVerT.vector OUVerT.dist.
 
 Require Import networkSemanticsNoBatch MWU.weightslang
         MWU.weightsextract simulations.
@@ -306,7 +306,8 @@ Module WE_NodePkg
 
   Definition cost_vector_msg p player : msg :=
     mkMsg (cost_vector_ok p player).
-  
+  About prod_sample.
+
   Definition packets_of (sst : server_state) : list (packet node MSG) :=
     let ds := fun_of_map (actions_received sst) in 
     let p := rprod_sample A.t0 num_players ds in
@@ -316,6 +317,19 @@ Module WE_NodePkg
       (enumerate Ix.t)
       nil.
 
+
+(* expectedValue *)
+(*   : forall A : Type, A -> nat -> (nat -> DIST.t A) -> M.t A *)
+
+(*expectedValue (prod_dist f) (fun x => cost i (upd i a x))).*)
+(* These definitions need to match up
+ (* Definition packetsToClients' (st : wlServerState) (ps : list wlPacket) := *)
+ (*   (forall i, exists pkt, List.In pkt ps /\ origin_of pkt = serverID /\                    dest_of pkt = clientID i /\ *)
+ (*                 msg_of pkt = wlMsgServer (serverCostRel st.(wlReceived) i)) /\ *)
+ (*    Permutation (map (@dest_of wlNode wlMsg) ps) *)
+ (*                (map inl (enumerate 'I_N)). *)
+
+*)
   Definition incr_round (sst : server_state) :=
     mkServerState sst.(actions_received) sst.(num_received) (S sst.(round)).
   
