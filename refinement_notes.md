@@ -32,3 +32,13 @@ At some point, we need to prove that these assumptions hold of the specific `WE`
 1. Finish LOW to INT (Sam)
 2. Finish INTRel(WE) to INTRel(WL) (Nate/Gordon)
 3. Prove that LOW to INT assumptions are satisfied by the WE MWU NodePkgs.
+
+
+# [we2wl.v]: holes
+ * `rAllClientsSentCorrectlyMatch `
+ * `interp_init_sent_some`
+ * `we2wl_step_diagram' `
+    * ServerStep 
+    * ClientStep  
+ * wenetwork semantics
+ * packets of should be changed to sampling in [wenetwork.v] function named (`packets_of`)
