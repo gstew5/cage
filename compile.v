@@ -22,7 +22,7 @@ Require Import Structures.Orders NArith.
 
 Class RefineTypeClass (T : finType)
       (enumerateClass : Enumerable T)
-      `(@RefineTypeAxiomClass T enumerateClass).
+      `(refineTypeAxiomCl : @RefineTypeAxiomClass T enumerateClass).
 
 (** An operational type class for "compiled" cost functions, 
     from positive player indices and maps (positive -> strategy) 
@@ -163,7 +163,7 @@ Qed.
     - equipped with a compilable cost function [ccostClass]. *)
 
 Class cgame N (T : finType)
-      `(RefineTypeClass T)
+      `(refineTypeClass : RefineTypeClass T)
       `(costClass : CostClass N rat_realFieldType T)
       (costAxiomClass : @CostAxiomClass N rat_realFieldType T costClass)
       (costMaxClass : CostMaxClass N rat_realFieldType T)
@@ -177,7 +177,7 @@ Class cgame N (T : finType)
       (ccostMaxClass : CCostMaxClass N T)
       (ccostMaxMaxClass : CCostMaxMaxClass ccostMaxClass ccostClass)
       (refineCCostMaxClass : RefineCostMaxClass costMaxClass ccostMaxClass)
-      `(@game T N rat_realFieldType costClass costAxiomClass
+      `(gameClass : @game T N rat_realFieldType costClass costAxiomClass
               costMaxClass costMaxAxiomClass)
 : Type := {}.
 
@@ -284,14 +284,14 @@ Section gametype_of_cgame.
         destruct Hnot.
         destruct H2.
         subst.
-        apply listlemmas.list_in_iff in H4.
-        rewrite -> H4 in H0.
+        apply listlemmas.list_in_iff in H3.
+        rewrite -> H3 in H0.
         discriminate.
     Qed.
 
     Lemma enum_ok : @Enum_ok T _.
     Proof. 
-      case H => [A0 A1].
+      case refineTypeAxiomCl => [A0 A1].
       constructor.
       +
         apply NoDupA_uniq.
@@ -327,9 +327,9 @@ Section gametype_of_cgame.
           specialize (Pos2Z.neg_is_nonpos (Qden q)) => //; by
               omega.
       }
-      clear H2.
+      clear H.
       specialize (ccostMaxMaxClass player p).
-      clear -H3 ccostMaxMaxClass.
+      clear - H0 ccostMaxMaxClass.
       unfold Dle in *.
       intuition.
       apply Qle_trans with (y:= (D_to_Q ccostmax_fun)) => //.      

@@ -231,7 +231,7 @@ Module Conf : CONFIG.
   Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _
                          (@Build_game _ num_players _ _ _ _ _)
                          (enumerateClass := A.enumerable)
-                         (H := refineTypeAxiomA) 
+                         (refineTypeAxiomCl := refineTypeAxiomA) 
                          (ccostMaxClass := ccostMaxInstance).
 
   Lemma enum_ok : @Enum_ok [finType of A.t] _.

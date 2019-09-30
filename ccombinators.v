@@ -1409,9 +1409,10 @@ Section scalarCompilable.
   Global Program Instance scalarRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (scalarType scalar_val A) _.
   Next Obligation.
-    clear H1 H2 ccostMaxMaxClass  refineCostAxiomClass H0 refineCostClass ccostClass
+    clear H gameClass ccostMaxMaxClass  refineCostAxiomClass refineCostClass ccostClass
           costAxiomClass costMaxAxiomClass costClass.
-    generalize H; clear H.
+    clear refineTypeClass.
+    generalize refineTypeAxiomCl; clear refineTypeAxiomCl.
     rewrite /RefineTypeAxiomClass => H.
     destruct H; split; last first.
     {
@@ -1453,8 +1454,8 @@ Section scalarCompilable.
     M.find i m = Some t ->
     M.find i (unwrapScalarTree m) = Some (unwrap t).
   Proof.
-    clear H H0 H1 H2 ccostMaxMaxClass refineCostAxiomClass refineCostClass
-          ccostClass costAxiomClass costMaxAxiomClass costClass.
+    clear H gameClass ccostMaxMaxClass refineCostAxiomClass refineCostClass
+          ccostClass costAxiomClass costMaxAxiomClass costClass refineTypeClass refineTypeAxiomCl.
     rewrite /unwrapScalarTree.
     apply MProps.fold_rec_weak.
     {
@@ -1486,18 +1487,18 @@ Section scalarCompilable.
         (@scalarCostInstance _ _ _ costClass scalar_val)
         _. 
   Next Obligation.
-    clear H H0 H1 H2
-          refineCostClass costAxiomClass.
+    clear refineTypeClass H gameClass
+          refineCostClass costAxiomClass refineTypeAxiomCl.
     rewrite /cost_fun /scalarCostInstance /cost_fun.
     rewrite /(ccost) /scalarCCostInstance /(ccost).
     rewrite [rat_to_Q (_ * _)] rat_to_Q_red.
     rewrite -rat_to_Q_red /scalar_val.
     rewrite rat_to_Q_mul Dmult_ok.
     generalize (Qeq_dec (rat_to_Q (projT1 dyadic_scalar_val)) 0%Q).
-    case => H0.
-    { rewrite H0 !Qmult_0_l => //.
+    case => refineTypeAxiomCl.
+    { rewrite refineTypeAxiomCl !Qmult_0_l => //.
       have ->: (D_to_Q dyadic_scalar_val == 0)%Q.
-      { by rewrite dyadic_rat_to_Q H0. }
+      { by rewrite dyadic_rat_to_Q refineTypeAxiomCl. }
       by rewrite Qmult_0_l. }
     have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
     { apply: dyadic_rat_to_Q. }
@@ -1507,9 +1508,9 @@ Section scalarCompilable.
     specialize (refineCostAxiomClass pf).
     rewrite -(@refineCostAxiomClass(unwrapScalarTree m)) => //.
     move => j pf'. 
-    specialize (H3 j pf').
-    apply unwrapScalarTree_spec in H3.
-    rewrite H3. f_equal.
+    specialize (H0 j pf').
+    apply unwrapScalarTree_spec in H0.
+    rewrite H0. f_equal.
     rewrite /unwrap_ffun. rewrite ffunE => //.
   Qed.
 
@@ -1626,9 +1627,9 @@ Section biasCompilable.
   Global Program Instance biasRefineTypeAxiomInstance
     : @RefineTypeAxiomClass (biasType (projT1 q) A) _.
   Next Obligation.
-    clear H1 H2 ccostMaxMaxClass refineCostAxiomClass  H0 refineCostClass
-          ccostClass costAxiomClass costMaxAxiomClass costClass.
-    generalize H; clear H.
+    clear gameClass ccostMaxMaxClass refineCostAxiomClass H  refineCostClass
+          ccostClass costAxiomClass costMaxAxiomClass costClass refineTypeClass.
+    generalize refineTypeAxiomCl; clear refineTypeAxiomCl.
     rewrite /RefineTypeAxiomClass => H.
     destruct H; split; last first.
     {
@@ -1666,7 +1667,7 @@ Section biasCompilable.
     M.find i m = Some t ->
       M.find i (unwrapBiasTree m) = Some (unwrap t).
   Proof.
-    clear H H0 H1 H2 ccostMaxMaxClass refineCostAxiomClass refineCostClass
+    clear refineTypeClass H gameClass ccostMaxMaxClass refineCostAxiomClass refineCostClass
           ccostClass costAxiomClass costMaxAxiomClass costClass.
     rewrite /unwrapBiasTree.
     apply MProps.fold_rec_weak.
@@ -1696,8 +1697,8 @@ Section biasCompilable.
   Global Program Instance biasRefineCostAxiomInstance
     : @RefineCostAxiomClass _ (biasType (projT1 q) A) (biasCostInstance costClass) _.
   Next Obligation.
-    clear H H0 H1 H2
-          refineCostClass costAxiomClass.
+    clear refineTypeClass H gameClass
+           costAxiomClass refineCostClass.
     rewrite /cost_fun /biasCostInstance /cost_fun.
     rewrite /(ccost) /biasCCostInstance /ccost_fun /(ccost).
     rewrite [rat_to_Q (_ + _)] rat_to_Q_red.
@@ -1713,9 +1714,9 @@ Section biasCompilable.
     specialize (refineCostAxiomClass pf) => H.
     rewrite ->(@refineCostAxiomClass(unwrapBiasTree m)) => //.
     move => j pf'. 
-    specialize (H3 j pf').
-    apply unwrapBiasTree_spec in H3.
-    rewrite H3. f_equal.
+    specialize (H0 j pf').
+    apply unwrapBiasTree_spec in H0.
+    rewrite H0. f_equal.
     rewrite /unwrap_ffun. rewrite ffunE => //.
   Qed.
 
@@ -1743,7 +1744,7 @@ Section biasCompilable.
     split; 
     rewrite /CCostMaxMaxClass;
     unfold CCostMaxMaxClass in ccostMaxMaxClass;
-    clear H2;
+    clear H gameClass;
     rename ccostMaxMaxClass into H4;
     specialize (H4 i (unwrapBiasTree m));
     rewrite  /ccost_fun
@@ -1754,29 +1755,28 @@ Section biasCompilable.
     unfold Dle in *; repeat rewrite Dadd_ok.
     +
       have: (D_to_Q 0 == 0)%Q => [| ZeroZero] //.
-      clear -H2 H3 ZeroZero.
+      clear -H0 H1 H ZeroZero.
       rewrite -> ZeroZero in *.
       {
-        move: H2;
-        clear H2.
+        move: H1;
         generalize dependent
                    (D_to_Q ((ccost) i (unwrapBiasTree (A:=A) (q:=projT1 q) m))).
-        unfold BiasAxiomClass in H3.
+        unfold BiasAxiomClass in H0.
         unfold bias_val in *.
         have: (0 <= D_to_Q q)%Q => //.
         {
-          apply le_rat_to_Q in H3=> //.
-          clear -H3.
-          move: H3.
+          apply le_rat_to_Q in H0=> //.
+          clear -H0.
+          move: H0.
           have->: ((rat_to_Q 0) = 0)%Q => //.
           rewrite <- dyadic_rat_to_Q => //.
         }
-        intros H2 q0 H0.
+        intros H2 q0 H1.
         generalize dependent (D_to_Q q).
         intros.
         unfold Qle in *.
         simpl in *.
-        ring_simplify in H0.
+        ring_simplify in H2.
         ring_simplify in H1.
         ring_simplify.
         apply Z.add_nonneg_nonneg;
