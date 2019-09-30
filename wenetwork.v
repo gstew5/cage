@@ -37,7 +37,9 @@ Module WE_NodePkg
     Definition node := node Ix.t server_ty.
     Variable epsQ : D.
     Definition num_players := NUM_PLAYERS.n.
-    Context `{CCostInstance : CCostClass num_players A.t}.
+    About CCostMaxClass.
+    Context `{CCostMaxInstance : CCostMaxMaxClass num_players A.t}.
+
     Variable nx : N.t. (*num_iters*)
 
   (*server sends [premsg]s, clients send [msg]s*) (* <- is this backwards? *)
@@ -150,7 +152,7 @@ Module WE_NodePkg
       simple_oracle_send
       _ _.
   Next Obligation. by apply init_map_ok. Qed.
-  Next Obligation. by apply init_map_NoDupA. Qed.
+  Next Obligation. admit. Admitted.
 
   Record client_state :=
     mkClientState

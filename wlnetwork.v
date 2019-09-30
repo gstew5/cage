@@ -96,7 +96,7 @@ Section weightsLangNetwork.
 
   Inductive wlServerRecv
     : wlMsg -> wlNode -> wlServerState ->
-      (wlServerState * list wlPacket * list wlEvent) -> Prop:=
+      (wlServerState * list wlPacket * list wlEvent) -> Prop :=
   | wlServerRecv1 :
       forall msg i st st',
         (st.(wlNumReceived).+1 < N)%nat ->

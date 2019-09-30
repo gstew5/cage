@@ -45,17 +45,21 @@ Module WE2WL
     Variable enum_ok : @Enum_ok A.t _.
     
     Definition weNode := node.
-    Variable epsQ : D.
+    (* Variable epsQ : D. *)
     Definition num_players := B.n.
     
-    Context {gameType : @GameType MWU.A.t Ix.n _ _ _ _}.
-
+    Context `{CCostMaxInstance : CCostMaxMaxClass (ccostClass := T.cost_instance Ix.n) Ix.n T.t}.
+    Notation ccostClass := (T.cost_instance Ix.n).
+    Context {gameType : @GameType MWU.A.t Ix.n ccostClass _ _ _}.
 
     Canonical A_eqType := Eval hnf in EqType A.t T.eq_mixin.
     Canonical A_choiceType := Eval hnf in ChoiceType A.t T.choice_mixin.
     Canonical A_finType := Eval hnf in FinType A.t T.fin_mixin.
 
+    (* Context `{Hgame : cgame B.n [finType of A.t] }. *)
     Context `{Hgame : game [finType of A.t] B.n rat_realFieldType}.
+      
+      
     (* Variable serverCostRel *)
     (*   : forall {A : finType} {N : nat} *)
     (*            (costInstance : CostClass N rat_realFieldType A), *)
@@ -77,15 +81,15 @@ Module WE2WL
     Variable nxPos : (N.zero < nx)%N.
 
     Variable refineType : RefineTypeAxiomClass MW.A.enumerable.
-    Variable epsEq : rat_to_Q eps = Qred (D_to_Q epsQ).
+    Variable epsEq : rat_to_Q eps = Qred (D_to_Q ccostMaxClass).
 
     Notation clientID n := (inl n).
     Notation serverID := (inr mk_server).
 
     Definition weNetwork_desc' (n : weNode) := 
       match n with
-      | serverID   => server' enum_ok epsQ nx
-      | clientID _ => client' enum_ok epsQ nx
+      | serverID   => server' enum_ok ccostMaxClass nx
+      | clientID _ => client' enum_ok ccostMaxClass nx
       end.
 
     Definition weNetwork_desc :=
@@ -98,7 +102,7 @@ Module WE2WL
     Definition weWorld :=
       @RWorld Ix.t server_ty weMsg weEvent weNetwork_desc.
 
-    Definition weClientState := @client_state enum_ok epsQ _ nx.
+    Definition weClientState := @client_state enum_ok _ _ _ nx.
     Definition weServerState := server_state.
 
     Definition ix_eq_dec (a1 a2 : Ix.t) : {a1 = a2} + {a1 <> a2}.
@@ -134,7 +138,7 @@ Module WE2WL
     (*     (w.(rLocalState) (serverID) = server_init_state) /\ *)
     (*     (* All clients in initial state *) *)
     (*     (forall i, *)
-    (*         w.(rLocalState) (clientID i) = client_preinit enum_ok epsQ nx) /\ *)
+    (*         w.(rLocalState) (clientID i) = client_preinit enum_ok ccostMaxClass nx) /\ *)
     (*     (* All nodes marked as uninitialized *) *)
     (*     (forall n, w.(rInitNodes) n = false) /\ *)
     (*     (* No packets in flight *) *)
@@ -307,7 +311,7 @@ Module WE2WL
         try rewrite ordinal_of_t_inv => //.
     Qed.
 
-    Notation simpleClientOracle := (@simpleClientOracle enum_ok epsQ _ nx).
+    Notation simpleClientOracle := (@simpleClientOracle enum_ok ccostMaxClass ccostClass _ nx).
     Notation oracle_cT := (@oracle_cT simpleClientOracle).
 
     (** MATCH RELATION *)
@@ -545,7 +549,7 @@ Module WE2WL
         rLocalState wl_st (clientID i) =
         (@wlClientPreInitState B.n [finType of A.t] _ epsOk nx) /\
         client_cstate (rLocalState we_st (clientID (t_of_ordinal i))) =
-        MW.init_cstate epsQ.
+        MW.init_cstate ccostMaxClass.
     Hint Unfold wewlInitMatch : Match.
 
     Definition wewlInitCom (wl_st : wlWorld) :=
@@ -620,6 +624,10 @@ Module WE2WL
     Lemma ordinalEn_perm_enum : Permutation (map inl (ordinalEnumerable Ix.n))
                  (map coerce_nodeId ((map inl (enumerate Ix.t)))).
     Proof.
+      unfold enumerable_fun.
+      unfold Ix.enumerable.
+      unfold Ix.enumerate_t.
+      clear.
       Admitted.
 
     Lemma rAllClientsSentCorrectlyMatch (we_st : weWorld) (wl_st : wlWorld) :
@@ -837,14 +845,14 @@ Module WE2WL
     Lemma update_weights_init_map_some_w :
       exists w, MW.update_weights (fun _ : A.t => EVal (QVal 1))
                              (@MW.init_cstate simpleClientOracle
-                                              _ epsQ) = Some w.
+                                              _ ccostMaxClass) = Some w.
     Proof.
         by rewrite /MW.update_weights /=; apply update_weights_some_w.
     Qed.
 
     Lemma interp_exists_some_t :
       exists t, MW.interp (mult_weights_init A.t)
-                      (@MW.init_cstate simpleClientOracle _ epsQ) = Some t.
+                      (@MW.init_cstate simpleClientOracle _ ccostMaxClass) = Some t.
     Proof.
       by simpl; move: update_weights_init_map_some_w
         => [w H0]; rewrite H0; eexists.
@@ -883,7 +891,7 @@ Module WE2WL
       wewlClientStateMatch (rLocalState w (clientID t0))
                            (rLocalState wl_st (clientID
                                                  (Ix.Ordinal_of_t t0))) ->
-      client_cstate (rLocalState w (clientID t0)) = MW.init_cstate epsQ ->
+      client_cstate (rLocalState w (clientID t0)) = MW.init_cstate ccostMaxClass ->
       wlClientSt (rLocalState wl_st (clientID (Ix.Ordinal_of_t t0))) =
       clientPkgPreInitState [finType of A.t] (eps:=eps) epsOk.
     Proof.
@@ -921,7 +929,7 @@ Module WE2WL
     Qed.
 
     Lemma interp_init_sent_some s' t':
-      MW.interp (mult_weights_init A.t) (MW.init_cstate epsQ) = Some t' ->
+      MW.interp (mult_weights_init A.t) (MW.init_cstate ccostMaxClass) = Some t' ->
       match_states (eq_mixin:=T.eq_mixin) (choice_mixin:=T.choice_mixin)
                    (fin_mixin:=T.fin_mixin) wewlMatchOracleState s' t' ->
       machine.sent (SOracleSt s') =
@@ -931,7 +939,7 @@ Module WE2WL
       simpl in Hinterp. 
       rewrite /MW.update_weights in Hinterp.
       move: update_weights_some_w' => Hupdate.
-      specialize (Hupdate (@MW.SWeights simpleClientOracle (MW.init_cstate epsQ))).
+      specialize (Hupdate (@MW.SWeights simpleClientOracle (MW.init_cstate ccostMaxClass))).
       destruct Hupdate as [q [Hupdate0 Hupdate1]].
       rewrite Hupdate0 in Hinterp. simpl in Hinterp. inversion Hinterp; subst.
       inversion Hmatch; subst.
@@ -951,6 +959,30 @@ Module WE2WL
       | nil => [ffun _ => 1]
       | hd :: tl => upd_map (convert_map tl) hd.1 (Q_to_rat (D_to_Q hd.2))
       end.
+
+
+    (* TODO add as an assumption that the we_dist was build using the costfun from 
+       ccostmaxmaxclass *)
+    Program Definition convert_weEvent' (we_dist : seq.seq (T.t * D)) :
+      dist [finType of T.t] rat_realFieldType :=
+      mkDist 
+        (pmf := [ffun a => Q_to_rat (MWU.weights_distr (MProps.of_list we_dist) a)])
+        _ .
+    Next Obligation.
+    Admitted.
+    (* clear. *)
+    (* unfold dist_axiom. *)
+    (* apply andb_true_iff. *)
+    (* split => //. *)
+    
+
+(* event = compile.M.t (seq.seq (T.t * D)) *)
+
+(* Notation wlEvent := (wlnetwork.wlEvent Ix.n [finType of A.t]) *)
+
+(* wlnetwork.wlEvent =  *)
+(* fun (N : nat) (A : finType) => {ffun 'I_N -> dist A rat_realFieldType} *)
+(*      : nat -> finType -> predArgType *)
 
     Definition premsg_of_MSG (m : MSG) : premsg :=
       match m with
@@ -1064,26 +1096,98 @@ Module WE2WL
       ).
 
 
-  Theorem we2wl_step_diagram' :
-      forall x we_st wl_st,
-        we2wlMatch x we_st wl_st ->
-        forall we_st',
-          weNetworkStep we_st we_st' ->
-          (exists wl_st', wlnetwork_step wl_st wl_st' /\
-                       we2wlMatch tt we_st' wl_st').
-  Proof.
-    move=> tt we_st wl_st Hmatch we_st' Hstep.
-    induction Hstep.
-    (** Init step *)
-    {
-      destruct n eqn:Hn.
+    (* Should generalize this instead of empty lists the list assoc with the world*)
+    Lemma local_states_same_match : forall w wl_st, 
+        we2wlMatch tt w wl_st -> 
+        we2wlMatch Datatypes.tt
+       {|
+         rLocalState := upd_rLocalState ix_eq_dec server_singleton
+          (networkSemanticsNoBatch.serverID Ix.t mk_server)
+          (rLocalState w (networkSemanticsNoBatch.serverID Ix.t mk_server))
+          (rLocalState w);
+         rInFlight := [::];
+         rTrace := rTrace w;
+         rInitNodes := rInitNodes w |}
+        {|
+         rLocalState := upd_rLocalState (ordinal_eq_dec (N:=Ix.n)) server_singleton
+                        (networkSemanticsNoBatch.serverID 'I_Ix.n mk_server)
+                        (rLocalState wl_st serverID) (rLocalState wl_st);
+         rInFlight := [::];
+         rTrace := rTrace wl_st;
+         rInitNodes := rInitNodes wl_st |}.
+    Proof.
+      clear.
+      intros w wl_st Hmatch.
+      inversion Hmatch.
+      constructor; simpl; try (by constructor; auto); auto.
       {
-        (** Client init step *)
+        clear -H.
+        red in H.
+        red.
+        intros.
+        specialize (H n).
+        destruct n; subst; auto.
+        {
+          rewrite <- upd_rLocalState_diff; 
+          try rewrite <- upd_rLocalState_diff; try discriminate; auto.
+        }
+        {
+          destruct s; auto.
+          do 2 rewrite upd_rLocalState_same.
+          auto.
+        }
+      }
+      {
+        red in H3.
+        red.
+        simpl.
+        intros.
+        specialize (H3 i).
+        apply H3 in H6.
+        destruct H6.
+        split; [ rewrite -H6 | rewrite <- H7].
+        all: rewrite <- upd_rLocalState_diff; [ reflexivity | discriminate ].
+      }
+      {
+        red.
+        clear -H4.
+        red in H4.
+        auto.
+      }
+      {
+        clear -H5.
+        red.
+        red in H5; auto.
+        intros.
+        simpl in *.
+        specialize (H5 i).
+        apply H5 in H.
+        rewrite <- upd_rLocalState_diff;
+        [ exact H | discriminate ].
+      }
+    Qed.
+
+
+      Theorem we2wl_step_diagram' :
+        forall x we_st wl_st,
+          we2wlMatch x we_st wl_st ->
+          forall we_st',
+            weNetworkStep we_st we_st' ->
+            (exists wl_st', wlnetwork_step wl_st wl_st' /\
+                            we2wlMatch tt we_st' wl_st').
+      Proof.
+        move=> tt we_st wl_st Hmatch we_st' Hstep.
+        induction Hstep.
+        (** Init step *)
+        {
+          destruct n eqn:Hn.
+          {
+            (** Client init step *)
         { rewrite /rInit in H0. simpl in H0. rewrite /client_init in H0.
           have Hinterp:
             (exists t', MW.interp (mult_weights_init A.t)
                                   (@MW.init_cstate simpleClientOracle
-                                                   _ epsQ) = Some t').
+                                                   _ ccostMaxClass) = Some t').
           { by apply interp_exists_some_t. }
           destruct Hinterp as [t' Hinterp].
           inversion Hmatch. pose proof H1 as Hstatematch.
@@ -1095,14 +1199,14 @@ Module WE2WL
           specialize (Hstep 
                         ( (wlClientSt (rLocalState
                                          wl_st (clientID (Ix.Ordinal_of_t t0)))))).
-          specialize (Hstep (MW.init_cstate epsQ) t').
+          specialize (Hstep (MW.init_cstate ccostMaxClass) t').
           specialize (Hstep (mult_weights_init [finType of A.t])).
           specialize (Hstep Hnoiter Hinterp).
 
           have Hinitfalse: (rInitNodes wl_st (clientID (Ix.Ordinal_of_t t0)) = false).
           { by rewrite H4 in H. }
           have Hinit: (client_cstate (rLocalState w (clientID t0)) =
-                       MW.init_cstate epsQ).
+                       MW.init_cstate ccostMaxClass).
           { by destruct (H5 (Ix.Ordinal_of_t t0) Hinitfalse) as [_ Hcstate];
               rewrite ordinal_of_t_inv2 in Hcstate; assumption. }
           rename H9 into Hms.
@@ -1178,8 +1282,8 @@ Module WE2WL
                      (machine.ClientPkg A_finType) unit s0 s_ok0 ss0 w1
                      w_ok0 eps1 eps_ok0 outs0 ch oracle_st0)
                   (@MWU.mkCState
-                     (@WE_Node.simpleClientOracle enum_ok epsQ
-                        (T.cost_instance WE_Node.num_players) nx) m mm
+                     (@WE_Node.simpleClientOracle enum_ok ccostMaxClass
+                        (T.cost_instance WE_Node.num_players) _ nx) m mm
                      wc epsc outs' ch coracle_st)
                                ) as P.
                     apply P in Hinterp; auto.
@@ -1407,98 +1511,155 @@ Module WE2WL
     }
     (************************* Server step *******************************)
     {
-      inversion H1.
+      eexists.
+      split.
       {
-        subst.
-        eexists.
-        split.
+        inversion Hmatch.
+        
+        eapply RserverPacketStep with (st' := (rLocalState wl_st serverID))
+                                  (l' := (rInFlight wl_st) (* ++ l' *))
+        (e' := (rTrace wl_st) (* ++ e' *)).
         {
+          clear -Hmatch H.
           inversion Hmatch.
-          rewrite /msgToServerList in H4.
-          eapply RserverPacketStep.
-          (* three subgoals *)
-          {
-            inversion Hmatch; auto.
-            rewrite / wewlInitNodesMatch  in H6.
-            rewrite H6 in H.
-            rewrite H => //.
-          } 
-          {
-            inversion Hmatch.
-            apply rAllClientsSentCorrectlyMatch in H3; auto.
-          }
-          {
-            instantiate (1 := [::]).
-            instantiate (1 := [::]).
-            red in H0.
-            destruct (rInFlight w) eqn:H10.
-            {
-              simpl in *.
-              clear -H3.
-              inversion H3.
-              subst.
-              apply serverUpdateNil.
-            }
-            {
-              clear -H0 H3 H4.
-              inversion H3.
-              subst.
-              destruct H0.
-              specialize (H p (in_eq _ _)).
-              simpl in H4.
-              rewrite H in H4.
-              rewrite nodeDec_Refl in H4.
-              inversion H4.
-            }
-          }
+          red in H3.
+          rewrite <- H.
+          (* Bug in something here if you just finish the proof with auto??????? *)
+          specialize (H3 (networkSemanticsNoBatch.serverID Ix.t mk_server)).
+          simpl in H3.
+          symmetry.
+          exact H3.
         }
         {
-          (* Match *)
+          eapply rAllClientsSentCorrectlyMatch; eauto;
+          inversion Hmatch => //.
+        }
+        {
           admit.
         }
       }
       {
-        eexists.
-        split.
-        (* Step *)
-        {
-          inversion Hmatch.
-          apply RserverPacketStep => //.
-          (* Init nodes *)
-          {
-            rewrite -H.
-            red in H12.
-            rewrite H12 => //.
-          }
-          (* all clients sent correctly *)
-          {
-            apply rAllClientsSentCorrectlyMatch with (wl_st := wl_st) in H0;
-            auto.
-          }
-          (* Server update *)
-          {
-            inversion H10.
-            {
-              exfalso.
-              (* there are packets in flight *)
-              admit.
-            }
-            rewrite -H17.
-            rewrite- H16 in H2.
-            (* instantiate (3 := *)
-            (*                (wlServerInitState, wlPs, st'.(wlReceived) :: nil)). *)
-            
-            (* Look at H2 *)
-            (* eapply serverUpdateCons. *)
+        admit.
+      }
 
-            admit.
-          }
-        }
-        (* Match *)
-        {
-          admit.
-        }
-      }
+(* Lemma serverUpdateMatch : forall w wl_st st' l' e', *)
+(*             we2wlMatch tt w wl_st  -> *)
+(*       serverUpdate mk_server weNetwork_desc *)
+(*                 (rLocalState w (networkSemanticsNoBatch.serverID Ix.t mk_server)) *)
+(*                 (msgToServerList ix_eq_dec mk_server server_singleton (rInFlight w)) st' l' e' -> *)
+(*   serverUpdate mk_server *)
+(*     (wlnetwork.wlNetwork_desc (N:=Ix.n) (A:=[finType of A.t]) A.t0 serverCostRel (eps:=eps) epsOk *)
+(*        nx) (rLocalState wl_st (networkSemanticsNoBatch.serverID 'I_Ix.n mk_server)) *)
+(*     (msgToServerList (ordinal_eq_dec (N:=Ix.n)) mk_server server_singleton (rInFlight wl_st)) *)
+(*     (rLocalState wl_st serverID) (rInFlight wl_st) (rTrace wl_st). *)
+(* Proof. *)
+(*   clear. *)
+(*   intros. *)
+(*   destruct w. *)
+(*   simpl in *. *)
+  
+
+(*   inversion H0. *)
+  
+
+(*       inversion H1. *)
+(*       { *)
+(*         subst. *)
+(*         rewrite <- H4 in *. *)
+(*         exists wl_st. *)
+(*         split. *)
+(*         { *)
+
+      (* inversion H1. *)
+      (* eexists. *)
+      (* split. *)
+      (*   { *)
+      (*     eapply RserverPacketStep with (e' := nil) (st' := (rLocalState wl_st serverID)) *)
+      (*                                   (l' := nil). *)
+      (*     (* three subgoals *) *)
+      (*     { *)
+      (*       inversion Hmatch; auto. *)
+      (*       rewrite / wewlInitNodesMatch  in H6. *)
+      (*       subst. *)
+      (*       rewrite -H => //. *)
+      (*       unfold wewlInitNodesMatch in H10. *)
+      (*       specialize (H10 serverID). *)
+      (*       auto. *)
+      (*     } *)
+      (*     { *)
+      (*       inversion Hmatch. *)
+      (*       eapply rAllClientsSentCorrectlyMatch; eauto. *)
+      (*     } *)
+      (*     { *)
+      (*       destruct H0. *)
+      (*       destruct (rInFlight w) eqn:H10. *)
+      (*       { *)
+      (*         subst. *)
+      (*         simpl in *. *)
+      (*         inversion Hmatch. *)
+      (*         rewrite H10 in H3. *)
+      (*         inversion H3. *)
+      (*         apply serverUpdateNil. *)
+      (*       } *)
+      (*       { *)
+      (*         specialize (H0 p (in_eq _ _)). *)
+      (*         simpl in H4. *)
+      (*         rewrite H0 in H4. *)
+      (*         rewrite nodeDec_Refl in H4. *)
+      (*         inversion H4. *)
+      (*       } *)
+      (*     } *)
+      (*   } *)
+      (*   { *)
+      (*     subst. *)
+      (*     do 2 rewrite -> app_nil_r. *)
+      (*     inversion Hmatch. *)
+      (*     apply local_states_same_match; auto. *)
+      (*   } *)
+      (*   { *)
+      (*     eexists. *)
+      (*     split. *)
+      (*     (* Step *) *)
+      (*     { *)
+      (*       apply RserverPacketStep => //. *)
+      (*       (* Init nodes *) *)
+      (*       { *)
+      (*         inversion Hmatch. *)
+      (*         rewrite -H. *)
+      (*         red in H12. *)
+      (*         rewrite H12 => //. *)
+      (*       } *)
+      (*       (* all clients sent correctly *) *)
+      (*       { *)
+      (*         inversion Hmatch. *)
+      (*         eapply rAllClientsSentCorrectlyMatch; *)
+      (*         eauto. *)
+      (*       } *)
+      (*     (* Server update *) *)
+      (*     { *)
+      (*       inversion Hmatch. *)
+      (*       inversion H10. *)
+      (*       { *)
+      (*         exfalso. *)
+      (*         (* there are packets in flight *) *)
+      (*         admit. *)
+      (*       } *)
+      (*       rewrite -H17. *)
+      (*       rewrite- H16 in H2. *)
+      (*       (* instantiate (3 := *) *)
+      (*       (*                (wlServerInitState, wlPs, st'.(wlReceived) :: nil)). *) *)
+            
+      (*       (* Look at H2 *) *)
+      (*       (* eapply serverUpdateCons. *) *)
+
+      (*       admit. *)
+      (*     } *)
+      (*   } *)
+      (*   (* Match *) *)
+      (*   { *)
+      (*     admit. *)
+      (*   } *)
+      (* } *)
     }
     (** Client packet step *)
     { pose proof H2 as Hrecv.
@@ -1509,7 +1670,7 @@ Module WE2WL
       rewrite Hmsg in H2.
       rewrite /liftRecv in H2.
       have Hinterp: (exists st', MW.interp (weightslang.mult_weights_body A.t)
-                                           (install_cost_vec (enum_ok:=enum_ok) (epsQ:=epsQ) (nx:=nx) (the_msg m)
+                                           (install_cost_vec (enum_ok:=enum_ok) (ccostMaxClass:=ccostMaxClass) (nx:=nx) (the_msg m)
                                                              (client_cstate (rLocalState w (clientID n)))) =
                                  Some st').
       { admit. }
@@ -1561,11 +1722,11 @@ Module WE2WL
                                  machine.received := Some w0;
                                  received_ok := w0_ok |}))).
             specialize (@Hstep
-                          (@install_cost_vec enum_ok epsQ
-                                             (T.cost_instance WE_Node.num_players) nx
+                          (@install_cost_vec enum_ok ccostMaxClass
+                                             (T.cost_instance WE_Node.num_players) _ nx
                                              (the_msg m)
-                                             (@client_cstate enum_ok epsQ
-                                                             (T.cost_instance WE_Node.num_players) nx
+                                             (@client_cstate enum_ok ccostMaxClass
+                                                             (T.cost_instance WE_Node.num_players) _ nx
                                                              (@rLocalState Ix.t server_ty weMsg weEvent
                                                                            weNetwork_desc w (@inl Ix.t server_ty n))))).
             eapply Proofs.interp_step'_plus_congruence with
