@@ -32,6 +32,7 @@ At some point, we need to prove that these assumptions hold of the specific `WE`
 1. Finish LOW to INT (Sam)
 2. Finish INTRel(WE) to INTRel(WL) (Nate/Gordon)
 3. Prove that LOW to INT assumptions are satisfied by the WE MWU NodePkgs.
+4. verdi2machine.v needs to be updated to reflect the addition type class constraints in wenetwork.
 
 
 # [we2wl.v]: holes
@@ -39,6 +40,7 @@ At some point, we need to prove that these assumptions hold of the specific `WE`
  * `interp_init_sent_some`
  * `we2wl_step_diagram' `
     * ServerStep 
+      * Cast we events to distributions, use the fact that the we cost_fun now is positive  
     * ClientStep  
  * wenetwork semantics
  * packets of should be changed to sampling in [wenetwork.v] function named (`packets_of`)
