@@ -963,10 +963,13 @@ Module WE2WL
 
     (* TODO add as an assumption that the we_dist was build using the costfun from 
        ccostmaxmaxclass *)
+    Definition convert_weDist_topmf (we_dist : seq.seq (T.t * D))  := 
+      [ffun a => Q_to_rat (MWU.weights_distr (MProps.of_list we_dist) a)].
+
     Program Definition convert_weEvent' (we_dist : seq.seq (T.t * D)) :
       dist [finType of T.t] rat_realFieldType :=
       mkDist 
-        (pmf := [ffun a => Q_to_rat (MWU.weights_distr (MProps.of_list we_dist) a)])
+        (pmf := convert_weDist_topmf we_dist)
         _ .
     Next Obligation.
     Admitted.
@@ -974,7 +977,33 @@ Module WE2WL
     (* unfold dist_axiom. *)
     (* apply andb_true_iff. *)
     (* split => //. *)
-    
+
+    (* TODO this needs to be dependent on how the weEvent was build. 
+       specifically with cost_fun which is constrained to be positive. *)
+    Definition wlEventOf_weEvent (e : weEvent) : wlEvent :=
+      [ffun n =>
+       match compile.M.find (elt:=seq.seq (T.t * D)) (Ix.val_of_Ordinal n) e with
+       | Some d => convert_weEvent' d
+       | None => uniformDist (T:=[finType of A.t]) A.t0
+       end].
+
+    Definition pmfOf_msg (msg : premsg) : {ffun [finType of A.t] -> rat_realFieldType} :=
+      convert_weDist_topmf msg.
+
+    Definition wlMsgOf_weMsg (weM : weMsg) : wlMsg := 
+      match weM with
+      | TO_SERVER msg => wlMsgServer (pmfOf_msg msg)
+      | TO_CLIENT msg => wlMsgServer (pmfOf_msg msg)
+      end.
+
+    (* Need to come back and rename variables here *)
+    Definition wlPacketOf_wePacket (wlP : packet weNode weMsg) :
+      packet wlNode wlMsg :=
+      let (p, w) := wlP in
+      let (w0, w1) := p in
+      (coerce_nodeId w0, wlMsgOf_weMsg w1, coerce_nodeId w).
+
+
 
 (* event = compile.M.t (seq.seq (T.t * D)) *)
 
@@ -983,6 +1012,11 @@ Module WE2WL
 (* wlnetwork.wlEvent =  *)
 (* fun (N : nat) (A : finType) => {ffun 'I_N -> dist A rat_realFieldType} *)
 (*      : nat -> finType -> predArgType *)
+
+  (* weMsg  Inductive MSG : Type :=  TO_SERVER : premsg -> MSG | TO_CLIENT : msg -> MSG *)
+  (* Inductive wlMsg (A : finType) : Type := *)
+  (*   wlMsgClient : wlClientMsg A -> wlnetwork.wlMsg A *)
+  (* | wlMsgServer : wlServerMsg A -> wlnetwork.wlMsg A *)
 
     Definition premsg_of_MSG (m : MSG) : premsg :=
       match m with
@@ -1514,11 +1548,9 @@ Module WE2WL
       eexists.
       split.
       {
-        inversion Hmatch.
-        
         eapply RserverPacketStep with (st' := (rLocalState wl_st serverID))
-                                  (l' := (rInFlight wl_st) (* ++ l' *))
-        (e' := (rTrace wl_st) (* ++ e' *)).
+                                  (l' := map wlPacketOf_wePacket l' )
+                                  (e' := (rTrace wl_st) ++ (map wlEventOf_weEvent e')).
         {
           clear -Hmatch H.
           inversion Hmatch.
@@ -1542,33 +1574,7 @@ Module WE2WL
         admit.
       }
 
-(* Lemma serverUpdateMatch : forall w wl_st st' l' e', *)
-(*             we2wlMatch tt w wl_st  -> *)
-(*       serverUpdate mk_server weNetwork_desc *)
-(*                 (rLocalState w (networkSemanticsNoBatch.serverID Ix.t mk_server)) *)
-(*                 (msgToServerList ix_eq_dec mk_server server_singleton (rInFlight w)) st' l' e' -> *)
-(*   serverUpdate mk_server *)
-(*     (wlnetwork.wlNetwork_desc (N:=Ix.n) (A:=[finType of A.t]) A.t0 serverCostRel (eps:=eps) epsOk *)
-(*        nx) (rLocalState wl_st (networkSemanticsNoBatch.serverID 'I_Ix.n mk_server)) *)
-(*     (msgToServerList (ordinal_eq_dec (N:=Ix.n)) mk_server server_singleton (rInFlight wl_st)) *)
-(*     (rLocalState wl_st serverID) (rInFlight wl_st) (rTrace wl_st). *)
-(* Proof. *)
-(*   clear. *)
-(*   intros. *)
-(*   destruct w. *)
-(*   simpl in *. *)
-  
 
-(*   inversion H0. *)
-  
-
-(*       inversion H1. *)
-(*       { *)
-(*         subst. *)
-(*         rewrite <- H4 in *. *)
-(*         exists wl_st. *)
-(*         split. *)
-(*         { *)
 
       (* inversion H1. *)
       (* eexists. *)
@@ -1621,7 +1627,9 @@ Module WE2WL
       (*     split. *)
       (*     (* Step *) *)
       (*     { *)
-      (*       apply RserverPacketStep => //. *)
+      (*       eapply RserverPacketStep with (st' := (rLocalState wl_st serverID))  *)
+      (*                                     (l' := map wlPacketOf_wePacket l' ) *)
+      (*                                     (e' := (rTrace wl_st) ++ (map wlEventOf_weEvent e')). *)
       (*       (* Init nodes *) *)
       (*       { *)
       (*         inversion Hmatch. *)
@@ -1646,20 +1654,31 @@ Module WE2WL
       (*       } *)
       (*       rewrite -H17. *)
       (*       rewrite- H16 in H2. *)
-      (*       (* instantiate (3 := *) *)
-      (*       (*                (wlServerInitState, wlPs, st'.(wlReceived) :: nil)). *) *)
+      (*       subst. *)
+      (*       rewrite map_app. *)
+      (*       eapply serverUpdateCons with  *)
+      (*           (es := rTrace wl_st) *)
+      (*           (es' := map wlEventOf_weEvent (es ++ es')) *)
+      (*           (ms := map wlPacketOf_wePacket ms) *)
+      (*           (ms' := map wlPacketOf_wePacket ms') *)
+      (*           (s'' := (rLocalState wl_st serverID)) *)
+      (*           (hd := wlP) *)
+      (*           (tl := wlPs). *)
             
-      (*       (* Look at H2 *) *)
-      (*       (* eapply serverUpdateCons. *) *)
+            (* instantiate (3 := *)
+            (*                (wlServerInitState, wlPs, st'.(wlReceived) :: nil)). *)
+            
+            (* Look at H2 *)
+            (* eapply serverUpdateCons. *)
 
-      (*       admit. *)
-      (*     } *)
-      (*   } *)
-      (*   (* Match *) *)
-      (*   { *)
-      (*     admit. *)
-      (*   } *)
-      (* } *)
+            admit.
+          }
+        }
+        (* Match *)
+        {
+          admit.
+        }
+      }
     }
     (** Client packet step *)
     { pose proof H2 as Hrecv.
