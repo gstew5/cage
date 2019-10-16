@@ -326,6 +326,7 @@ Module WE2WL
       forall a : M.key,
       exists q : D,
         M.find (elt:=D) a m = Some q /\
+        (* Q_to_rat (MWU.weights_distr m a) *)
         Q_to_rat ((Qred (D_to_Q q)) / (MWU.cGamma m))
         =
         (s a).
@@ -990,18 +991,32 @@ Module WE2WL
     Definition pmfOf_msg (msg : premsg) : {ffun [finType of A.t] -> rat_realFieldType} :=
       convert_weDist_topmf msg.
 
-    Definition wlMsgOf_weMsg (weM : weMsg) : wlMsg := 
+    Definition wlMsgOf_weMsg (weM : weMsg)
+               (dist_pf : dist_axiom (T:=[finType of A.t]) (rty:=rat_realFieldType)
+                                  match weM with
+                                  | TO_SERVER msg => (pmfOf_msg msg)
+                                  | TO_CLIENT msg => (pmfOf_msg msg)
+                                  end)
+      : wlMsg := 
       match weM with
-      | TO_SERVER msg => wlMsgServer (pmfOf_msg msg)
+      | TO_SERVER msg => wlMsgClient (mkDist dist_pf )
       | TO_CLIENT msg => wlMsgServer (pmfOf_msg msg)
       end.
 
+
+    
     (* Need to come back and rename variables here *)
-    Definition wlPacketOf_wePacket (wlP : packet weNode weMsg) :
+    Definition wlPacketOf_wePacket (wlP : packet weNode weMsg)
+               (dist_pf : dist_axiom (T:=[finType of A.t]) (rty:=rat_realFieldType)
+                                  match msg_of wlP with
+                                  | TO_SERVER msg => (pmfOf_msg msg)
+                                  | TO_CLIENT msg => (pmfOf_msg msg)
+                                  end)
+      :
       packet wlNode wlMsg :=
       let (p, w) := wlP in
       let (w0, w1) := p in
-      (coerce_nodeId w0, wlMsgOf_weMsg w1, coerce_nodeId w).
+      (coerce_nodeId w0, wlMsgOf_weMsg dist_pf , coerce_nodeId w).
 
 
 
@@ -1197,9 +1212,224 @@ Module WE2WL
         specialize (H5 i).
         apply H5 in H.
         rewrite <- upd_rLocalState_diff;
-        [ exact H | discriminate ].
+          [ exact H | discriminate ].
       }
     Qed.
+
+    Lemma packetMatch_eq : forall weP (wlP : wlPacket)
+                 (dist_pf : dist_axiom (T:=[finType of A.t]) (rty:=rat_realFieldType)
+                           match msg_of weP with
+                           | TO_SERVER msg => (pmfOf_msg msg)
+                           | TO_CLIENT msg => (pmfOf_msg msg)
+                           end)
+      ,
+        wewlPacketMatch weP wlP ->
+        wlPacketOf_wePacket dist_pf = wlP.
+    Proof.
+      clear.
+      intros weP wlP dist_pf H.
+      destruct weP.
+      simpl.
+      inversion H.
+      intuition.
+      destruct p.
+      simpl in *.
+      subst.
+      unfold dest_of in *.
+      simpl in *.
+      unfold msg_of,origin_of in *.
+      simpl in *.
+      destruct wlP.
+      simpl in *.
+      subst.
+      destruct p.
+      simpl in *.
+      subst.
+      {
+        (* If the messages match then wlMsgOf_weMsg will convert a we message to the 
+                   matching message. *)
+        red in H2.
+        rename m into w1.
+        rename w2 into w3.
+        destruct w1,w3 eqn:Hp.
+        {
+          rewrite /wlMsgOf_weMsg.
+          assert (pmfOf_msg p = w1).
+          {
+            rewrite /pmfOf_msg
+                    /convert_weDist_topmf.
+            red in H2.
+            assert ([ffun x => w1 x] =1 w1).
+            {
+              apply ffunE.
+            }
+            apply ffunP in H0.
+            unfold MWU.weights_distr.
+            rewrite -H0.
+            apply ffunP.
+            unfold eqfun.
+            intros.
+            do 2 rewrite ffunE.
+            destruct MWU.M.find eqn:Hf.
+            {
+              specialize (H2 x).
+              destruct H2.
+              intuition.
+              rewrite Hf in H2.
+              inversion H2.
+              subst.
+              rewrite -H3.
+              assert (forall x0, (Q_to_rat (Qred x0) = Q_to_rat x0)).
+              {
+                clear.
+                intros.
+                pose proof rat_to_QK2 as P.
+                rewrite- rat_to_QK1.
+                
+                specialize (P x0 (Q_to_rat (rat_to_Q (Q_to_rat x0)))).
+                rewrite -P; auto.
+                {
+                  do 2 rewrite cancel_rat_to_Q => //.
+                }
+              }
+              rewrite Q_to_rat_div.
+              rewrite -H1.
+              rewrite Q_to_rat_div.
+              auto.
+            }
+            {
+              specialize (H2 x).
+              destruct H2.
+              exfalso.
+              intuition.
+              rewrite Hf in H2.
+              inversion H2.
+            }
+          }
+          {
+            have->: (wlMsgClient (A:=[finType of A.t]) {| pmf := pmfOf_msg p; dist_ax := dist_pf |} =
+                    wlMsgClient (A:=[finType of A.t]) w1) => //.
+            {
+              f_equal.
+              apply dist_eq.
+              simpl.
+              auto.
+            }
+          }
+        }
+        {
+          contradiction.                  
+        }
+        {
+          contradiction.
+        }
+        {
+          rewrite /wlMsgOf_weMsg.
+          
+          assert (pmfOf_msg m = w1).
+          {
+            rewrite /pmfOf_msg
+                    /convert_weDist_topmf.
+            red in H2.
+            assert ([ffun x => w1 x] =1 w1).
+            {
+              apply ffunE.
+            }
+            apply ffunP in H0.
+            unfold MWU.weights_distr.
+            rewrite -H0.
+            apply ffunP.
+            unfold eqfun.
+            intros.
+            do 2 rewrite ffunE.
+            destruct MWU.M.find eqn:Hf.
+            {
+              specialize (H2 x).
+              destruct H2.
+              intuition.
+              rewrite Hf in H2.
+              inversion H2.
+              subst.
+              rewrite -H3.
+              assert (forall x0, (Q_to_rat (Qred x0) = Q_to_rat x0)).
+              {
+                clear.
+                intros.
+                pose proof rat_to_QK2 as P.
+                rewrite- rat_to_QK1.
+                
+                specialize (P x0 (Q_to_rat (rat_to_Q (Q_to_rat x0)))).
+                rewrite -P; auto.
+                {
+                  do 2 rewrite cancel_rat_to_Q => //.
+                }
+              }
+              rewrite Q_to_rat_div.
+              rewrite -H1.
+              rewrite Q_to_rat_div.
+              auto.
+            }
+            {
+              specialize (H2 x).
+              destruct H2.
+              exfalso.
+              intuition.
+              rewrite Hf in H2.
+              inversion H2.
+            }
+          }
+          {
+            rewrite H0.
+            auto.
+          }
+        }
+      }
+    Qed.
+
+    Lemma wemsgToServer_allCorrect
+      : forall (w : RWorld weNetwork_desc),
+        rAllClientsSentCorrectly w ->
+        (msgToServerList ix_eq_dec mk_server
+                         server_singleton (rInFlight w)) =
+        rInFlight w.
+    Proof.
+      clear.
+      move=> w H0. rewrite /msgToServerList.
+      rewrite all_filter_eq; auto.
+      apply all_Forall_true_iff, List.Forall_forall.
+      destruct H0 as [H0 _].
+      move=> pkt Hin; specialize (H0 pkt Hin).
+        by rewrite H0; destruct (nodeDec _ _ _).
+    Qed.
+
+    (* Lemma msg_to_server_map_eq : forall l, *)
+    (*     msgToServerList (ordinal_eq_dec (N:=Ix.n)) mk_server server_singleton *)
+    (*                     (map wlPacketOf_wePacket *)
+    (*                          (msgToServerList ix_eq_dec mk_server server_singleton l)) = *)
+    (*     map wlPacketOf_wePacket (msgToServerList ix_eq_dec mk_server server_singleton l). *)
+    (* Proof. *)
+    (*   clear. *)
+    (*   induction l; *)
+    (*     auto. *)
+    (*   simpl. *)
+    (*   case nodeDec => //. *)
+    (*   intros. *)
+    (*   simpl. *)
+    (*   rewrite IHl. *)
+    (*   case nodeDec => //. *)
+    (*   simpl. *)
+    (*   intros. *)
+    (*   exfalso. *)
+    (*   clear -e n. *)
+    (*   destruct a. *)
+    (*   simpl in *. *)
+    (*   destruct p; simpl in *; auto. *)
+    (*   unfold dest_of in *; simpl in*. *)
+    (*   subst. *)
+    (*   contradiction. *)
+    (* Qed. *)
+    
+
 
 
       Theorem we2wl_step_diagram' :
@@ -1548,15 +1778,29 @@ Module WE2WL
       eexists.
       split.
       {
+        (* Property of l' being constructed by cost_fun I think *)
+        assert (isDist : forall elt,
+                   In elt l' ->
+                 dist_axiom (T:=[finType of A.t]) (rty:=rat_realFieldType)
+                           match msg_of elt with
+                           | TO_SERVER msg => (pmfOf_msg msg)
+                           | TO_CLIENT msg => (pmfOf_msg msg)
+                           end).
+        {
+          admit.
+        }
+        
+        (* Won't compile at this point need to construct a sequence of distributions from l' 
+           given isDist.  Pushing to work on this at home *)
+          (*refine (map (fun elt => wlPacketOf_wePacket (isDist elt _ ) ) l')*)
         eapply RserverPacketStep with (st' := (rLocalState wl_st serverID))
-                                  (l' := map wlPacketOf_wePacket l' )
-                                  (e' := (rTrace wl_st) ++ (map wlEventOf_weEvent e')).
+                                      (l' := )
+                                  (e' := (map wlEventOf_weEvent e')).
         {
           clear -Hmatch H.
           inversion Hmatch.
           red in H3.
           rewrite <- H.
-          (* Bug in something here if you just finish the proof with auto??????? *)
           specialize (H3 (networkSemanticsNoBatch.serverID Ix.t mk_server)).
           simpl in H3.
           symmetry.
@@ -1567,117 +1811,46 @@ Module WE2WL
           inversion Hmatch => //.
         }
         {
+          assert (Heq: rInFlight wl_st = map wlPacketOf_wePacket (rInFlight w)).
+          {
+            inversion Hmatch.
+            clear -H3.
+            induction H3; auto.
+            simpl.
+            apply packetMatch_eq in H.
+            rewrite H.
+            rewrite IHwewlInFlightMatch.
+            auto.
+          }
+          assert ((msgToServerList (ordinal_eq_dec (N:=Ix.n)) mk_server server_singleton
+                                   (rInFlight wl_st)) = rInFlight wl_st).
+          {
+            clear - Hmatch H0 Heq.
+            red in H0.
+            apply wemsgToServer_allCorrect in H0.
+            rewrite -H0 in Heq.
+            rewrite Heq.
+            apply msg_to_server_map_eq.
+          }
+          rewrite H2.
+          rewrite Heq.
+          apply wemsgToServer_allCorrect in H0.
+          rewrite H0 in H1.
+          Set Printing All.
+          unfold weMsg, weEvent.
+          Unset Printing All.
+          clear H2 Heq H0.
+          induction H1.          
+          constructor.
+          simpl.
+          do 2 rewrite map_app.
+          econstructor; eauto.
           admit.
         }
       }
       {
         admit.
-      }
-
-
-
-      (* inversion H1. *)
-      (* eexists. *)
-      (* split. *)
-      (*   { *)
-      (*     eapply RserverPacketStep with (e' := nil) (st' := (rLocalState wl_st serverID)) *)
-      (*                                   (l' := nil). *)
-      (*     (* three subgoals *) *)
-      (*     { *)
-      (*       inversion Hmatch; auto. *)
-      (*       rewrite / wewlInitNodesMatch  in H6. *)
-      (*       subst. *)
-      (*       rewrite -H => //. *)
-      (*       unfold wewlInitNodesMatch in H10. *)
-      (*       specialize (H10 serverID). *)
-      (*       auto. *)
-      (*     } *)
-      (*     { *)
-      (*       inversion Hmatch. *)
-      (*       eapply rAllClientsSentCorrectlyMatch; eauto. *)
-      (*     } *)
-      (*     { *)
-      (*       destruct H0. *)
-      (*       destruct (rInFlight w) eqn:H10. *)
-      (*       { *)
-      (*         subst. *)
-      (*         simpl in *. *)
-      (*         inversion Hmatch. *)
-      (*         rewrite H10 in H3. *)
-      (*         inversion H3. *)
-      (*         apply serverUpdateNil. *)
-      (*       } *)
-      (*       { *)
-      (*         specialize (H0 p (in_eq _ _)). *)
-      (*         simpl in H4. *)
-      (*         rewrite H0 in H4. *)
-      (*         rewrite nodeDec_Refl in H4. *)
-      (*         inversion H4. *)
-      (*       } *)
-      (*     } *)
-      (*   } *)
-      (*   { *)
-      (*     subst. *)
-      (*     do 2 rewrite -> app_nil_r. *)
-      (*     inversion Hmatch. *)
-      (*     apply local_states_same_match; auto. *)
-      (*   } *)
-      (*   { *)
-      (*     eexists. *)
-      (*     split. *)
-      (*     (* Step *) *)
-      (*     { *)
-      (*       eapply RserverPacketStep with (st' := (rLocalState wl_st serverID))  *)
-      (*                                     (l' := map wlPacketOf_wePacket l' ) *)
-      (*                                     (e' := (rTrace wl_st) ++ (map wlEventOf_weEvent e')). *)
-      (*       (* Init nodes *) *)
-      (*       { *)
-      (*         inversion Hmatch. *)
-      (*         rewrite -H. *)
-      (*         red in H12. *)
-      (*         rewrite H12 => //. *)
-      (*       } *)
-      (*       (* all clients sent correctly *) *)
-      (*       { *)
-      (*         inversion Hmatch. *)
-      (*         eapply rAllClientsSentCorrectlyMatch; *)
-      (*         eauto. *)
-      (*       } *)
-      (*     (* Server update *) *)
-      (*     { *)
-      (*       inversion Hmatch. *)
-      (*       inversion H10. *)
-      (*       { *)
-      (*         exfalso. *)
-      (*         (* there are packets in flight *) *)
-      (*         admit. *)
-      (*       } *)
-      (*       rewrite -H17. *)
-      (*       rewrite- H16 in H2. *)
-      (*       subst. *)
-      (*       rewrite map_app. *)
-      (*       eapply serverUpdateCons with  *)
-      (*           (es := rTrace wl_st) *)
-      (*           (es' := map wlEventOf_weEvent (es ++ es')) *)
-      (*           (ms := map wlPacketOf_wePacket ms) *)
-      (*           (ms' := map wlPacketOf_wePacket ms') *)
-      (*           (s'' := (rLocalState wl_st serverID)) *)
-      (*           (hd := wlP) *)
-      (*           (tl := wlPs). *)
-            
-            (* instantiate (3 := *)
-            (*                (wlServerInitState, wlPs, st'.(wlReceived) :: nil)). *)
-            
-            (* Look at H2 *)
-            (* eapply serverUpdateCons. *)
-
-            admit.
-          }
-        }
-        (* Match *)
-        {
-          admit.
-        }
+        (* match *)
       }
     }
     (** Client packet step *)
