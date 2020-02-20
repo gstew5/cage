@@ -66,7 +66,7 @@ End strategyPred.
 
 (*MOVE:*)
 Instance UnitCCostMaxClass (N : nat) 
-  : CCostMaxClass N Unit := Dmake 0 1.
+  : CCostMaxClass N Unit := DD (Dmake 0 1).
 Instance UnitBoolableInstance : Boolable Unit :=
   fun _ => false.
 
@@ -100,8 +100,8 @@ Module RAffine := OrderedAffine RValues.
 
 Module RExpensive <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scalar := D_to_dyadic_rat (Dmake 40 1).
-  Definition bias := D_to_dyadic_rat (Dmake 1 1).
+  Definition scalar := D_to_dyadic_rat (DD (Dmake 40 1)).
+  Definition bias := D_to_dyadic_rat (DD (Dmake 1 1)).
   Lemma scalar_pos : 0 < projT1 scalar.
   Proof. by []. Qed.
   Lemma bias_pos : 0 < projT1 scalar.
@@ -162,7 +162,7 @@ Definition num_flows_per_player : nat := 3.
 Definition num_players' : nat :=
   num_players * num_flows_per_player.
 Definition num_iters : N.t := 50.
-Definition eps : D := Dmake 69 9. (*eps ~ 0.135 *)
+Definition eps : D := DD (Dmake 69 9). (*eps ~ 0.135 *)
 
 Module RAffine3Scalar <: OrderedScalarType.
   Include RAffine3.

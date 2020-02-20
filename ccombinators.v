@@ -545,7 +545,7 @@ Ltac my_omega :=
 
 Lemma D_num_le_spec : forall (p p' : Z) ,
     Z.le p p' -> 
-    Dle {| num := p; den := 1 |} {| num := p'; den := 1 |}%DRed.
+    Dle (DD {| num := p; den := 1 |}) (DD {| num := p'; den := 1 |})%DRed.
 Proof.
   intros.
   my_omega.
@@ -623,10 +623,10 @@ Lemma ctrafficN_relates_ctrafficSn :
     ->  
     Datatypes.length
       (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N.+1)%N) l) =
-    x.+1 -> 
+    S x -> 
     ~ SetoidList.InA (M.eq_key (elt:=resource)) (N,a) l ->
-    (Datatypes.length
-       (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N.+1)%N) l)).+1 =
+    (S (Datatypes.length
+       (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N.+1)%N) l))) =
     x
 .
 Proof.
@@ -644,8 +644,8 @@ Lemma ctraffic_Sn_or_normal : forall (l : seq (BinNums.N * resource)) N,
     in 
     SetoidList.NoDupA (M.eq_key (elt:=resource)) l ->
     l' =
-    (Datatypes.length
-    (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N)%N) l)).+1
+    (S (Datatypes.length
+    (List.filter (fun p0 : BinNums.N * resource => (p0.1 < N)%N) l)))
     \/
     l' = 
     (Datatypes.length
@@ -799,14 +799,14 @@ Proof.
   assert (forall n n',  n = N.of_nat n' ->  List.fold_left 
          (fun (a : BinNums.N) (_ : M.key * resource) =>
             N.succ (N.of_nat a)) l0 n =
-          N.of_nat (List.fold_left (fun (x : nat) (_ : M.key * resource) => x.+1) l0 n')).
+          N.of_nat (List.fold_left (fun (x : nat) (_ : M.key * resource) => S x) l0 n')).
   {
     clear.
     induction l0 => //.
     intros.
     simpl in *.
     rewrite N_of_nat_of_bin.
-    specialize (IHl0 (N.succ n) (n'.+1)).
+    specialize (IHl0 (N.succ n) (S n')).
     rewrite IHl0; auto.
     rewrite Nat2N.inj_succ.
     f_equal.
@@ -1827,7 +1827,7 @@ Section unitCompilable.
     : @RefineCostAxiomClass N [finType of Unit] _ _.
   Next Obligation.
     rewrite /(ccost) /(cost) /unitCostInstance /unitCCostInstance /unit_ccost.
-    by rewrite D_to_Q0 rat_to_Q0.
+    by rewrite DO_to_Q0 rat_to_Q0.
   Qed.
     
   Global Instance unitRefineCostInstance

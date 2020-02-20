@@ -121,7 +121,7 @@ Module LP (P : LINEAR_PROGRAM).
   Lemma zero_lt_lem : (N.to_nat 0 < MDepProps.n)%nat.
   Proof. apply: B.n_gt0. Qed.
 
-  Lemma index_vec_rec_lem1 x x' (pf : x = x'.+1) :
+  Lemma index_vec_rec_lem1 x x' (pf : x = S x') :
     (N.to_nat (N.of_nat x) <= MDepProps.n ->
      N.to_nat (N.of_nat x') < MDepProps.n)%nat.
   Proof.
@@ -135,7 +135,7 @@ Module LP (P : LINEAR_PROGRAM).
      N.to_nat (N.of_nat x) <= MDepProps.n)%nat.
   Proof. by rewrite Nat2N.id. Qed.
 
-  Lemma index_vec_rec_lem3 x x' (pf : x = x'.+1) :
+  Lemma index_vec_rec_lem3 x x' (pf : x = S x') :
     (x <= MDepProps.n ->
      x' <= MDepProps.n)%nat.
   Proof.
@@ -246,16 +246,16 @@ Module P : LINEAR_PROGRAM.
   
   Definition cs : A n num_constraints :=
     let c1 : constraint 2 :=
-        (VectorDef.cons _ (-(Dmake 3 1))%D _ (VectorDef.cons _ 1%D _ (VectorDef.nil _)), true) in
+        (VectorDef.cons _ (-(DD (Dmake 3 1)))%D _ (VectorDef.cons _ 1%D _ (VectorDef.nil _)), true) in
     let c2 : constraint 2 :=
-        (VectorDef.cons _ 1%D _ (VectorDef.cons _ (-(Dmake 3 1))%D _ (VectorDef.nil _)), true) in
+        (VectorDef.cons _ 1%D _ (VectorDef.cons _ (-(DD (Dmake 3 1)))%D _ (VectorDef.nil _)), true) in
     let c3 : constraint 2 := 
-        (VectorDef.cons _ 1%D _ (VectorDef.cons _ (-(Dmake 1 2))%D _ (VectorDef.nil _)), false) in
+        (VectorDef.cons _ 1%D _ (VectorDef.cons _ (-(DD (Dmake 1 2)))%D _ (VectorDef.nil _)), false) in
     let c4 : constraint n := (VectorDef.cons _ (-(1))%D _ (VectorDef.nil _), true) in
     let c5 : constraint n := (VectorDef.cons _ (1)%D _ (VectorDef.nil _), false) in    
     VectorDef.cons _ c5 _ (VectorDef.cons _ c4 _ (VectorDef.nil _)).
   
-  Definition eps := Dmake 1 2. (* eps = 1/4 *)
+  Definition eps : D := DD (Dmake 1 2). (* eps = 1/4 *)
   Definition num_rounds : N.t := 50.
 End P.  
 

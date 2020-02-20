@@ -38,7 +38,7 @@ Module WE_NodePkg
     Variable epsQ : D.
     Definition num_players := NUM_PLAYERS.n.
     About CCostMaxClass.
-    Context `{CCostMaxInstance : CCostMaxMaxClass num_players A.t}.
+    Context `{CCostInstance : CCostClass num_players A.t}.
 
     Variable nx : N.t. (*num_iters*)
 
@@ -72,7 +72,7 @@ Module WE_NodePkg
     NoDupA (fun p q : A.t * D => p.1 = q.1) init_map /\
     (forall a : A.t,
         exists d : D,
-          [/\ In (a, d) init_map, ({| num := -2; den := 1 |} <= d)%DRed & (d <= 1)%DRed]).
+          [/\ In (a, d) init_map, (DD {| num := -2; den := 1 |} <= d)%DRed & (d <= 1)%DRed]).
   Proof.
     case: enum_ok => H1 H2; split; first by apply: nodupa_fst_pair.
     move => a; exists 1%D; split => //; rewrite /init_map; move: (H2 a).
@@ -310,6 +310,32 @@ Module WE_NodePkg
     mkMsg (cost_vector_ok p player).
   About prod_sample.
 
+
+  Definition fun_of_map_seq :=
+    fun (m : M.t (seq (A.t * D))) (player : nat) =>
+      match @M.find (seq (A.t * D)) (N.of_nat player) m with
+      | Some l => l
+      | None => nil
+      end.
+
+  (* Definition cost_vector_expectation' (d : list (A.t * D)) (a : A.t) : D := 0. *)
+
+  (* Program Definition cost_vector_expectation (ds : Ix.t -> list (A.t * D)) (n : Ix.t) *)
+          
+  (*   : seq (A.t * D) :=  *)
+  (*   fold_left (fun a acc => *)
+  (*                fold_left (fun (p : Ix.t)  acc' => *)
+  (*                             (if negb (n == p) then  *)
+  (*                               cost_vector_expectation' (ds p) a *)
+  (*                             else *)
+  (*                               0%D) + acc'  *)
+  (*                          ) (enumerate Ix.t) 0 *)
+  (*             ) (enumerate A.t) [::]. *)
+
+
+
+  
+
   Definition packets_of (sst : server_state) : list (packet node MSG) :=
     let ds := fun_of_map (actions_received sst) in 
     let p := rprod_sample A.t0 num_players ds in
@@ -318,6 +344,8 @@ Module WE_NodePkg
          (clientID player, TO_CLIENT (cost_vector_msg p player), serverID) :: acc)
       (enumerate Ix.t)
       nil.
+
+
 
 
 (* expectedValue *)
@@ -382,3 +410,4 @@ Module WE_NodePkg
 
   End WE_NodePkg.
 End WE_NodePkg.
+

@@ -55,7 +55,7 @@ Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 
 Module R10Values <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scalar := D_to_dyadic_rat (Dmake 20 1).
+  Definition scalar := D_to_dyadic_rat (DD (Dmake 20 1)).
   Local Open Scope ring_scope.
   Lemma scalar_pos : 0 < projT1 scalar.
   Proof. by []. Qed.
@@ -169,7 +169,7 @@ Definition num_iters : N.t := 1000.
 (* Definition eps : D := Dmake 1 1. *)
 (* Definition eps : D := Dmake 54 9. (* ~ 0.105 *) *)
 (* Definition eps : D := Dmake 1 4. (* 0.0625 *) *)
-Definition eps : D := Dmake 1 5. (* 0.03125 ~ 0.03314532076 *)
+Definition eps : D := DD (Dmake 1 5). (* 0.03125 ~ 0.03314532076 *)
 
 Module P3Scalar <: OrderedScalarType.
   Include P3.

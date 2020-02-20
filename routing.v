@@ -317,7 +317,7 @@ Module R <: BoolableMyOrderedType := BoolableOrderedResource.
 (* For each edge we build up its corresponding type *)
 Module R5Values <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scalar := D_to_dyadic_rat (Dmake 100 1).
+  Definition scalar := D_to_dyadic_rat (DD (Dmake 100 1)).
   Definition bias := D_to_dyadic_rat 1%D.
   Lemma scalar_pos : 0 < projT1 scalar.
   Proof. by []. Qed.
@@ -329,7 +329,7 @@ Module R5 := OrderedAffine R5Values.
 
 Module R4Values <: BoolableOrderedAffineType.
   Include R.                    
-  Definition scalar := D_to_dyadic_rat (Dmake 60 1).
+  Definition scalar := D_to_dyadic_rat (DD (Dmake 60 1)).
   Definition bias := D_to_dyadic_rat 1%D.
   Lemma scalar_pos : 0 < projT1 scalar.
   Proof. by []. Qed.
@@ -342,7 +342,7 @@ Module R4 := OrderedAffine R4Values.
 Module R2Values <: BoolableOrderedAffineType.
   Include R.                    
   Definition scalar := D_to_dyadic_rat 1%D.
-  Definition bias := D_to_dyadic_rat (Dmake 100 1).
+  Definition bias := D_to_dyadic_rat (DD (Dmake 100 1)).
   Lemma scalar_pos : 0 < projT1 scalar.
   Proof. by []. Qed.
   Lemma bias_pos : 0 < projT1 scalar.
@@ -488,7 +488,7 @@ Module Conf : CONFIG.
   Module A := P8Scaled'.                
   Definition num_players := num_players.
   Definition num_rounds : N.t := 40.
-  Definition epsilon := Dmake 1 2.
+  Definition epsilon : D := DD (Dmake 1 2).
 
   Definition A_cost_instance := A.cost_instance num_players.
   Existing Instance A_cost_instance.

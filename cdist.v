@@ -443,15 +443,21 @@ Section functions.
   
   (** We assume all weights are between 0 and 1. *)
   
-  Definition level_of (d : D) : N.t :=
-    match d with
+  Definition level_of' (d : DO) : N.t :=
+    match d with 
     | Dmake (Zpos x) y => N.sub (N.pos y) (N.log2 (N.pos x))
     | Dmake 0 _ => 0
     | Dmake (Zneg _) _ => 0
     end.
 
-  Compute level_of (Dmake 1 1). (*=1*)
-  Compute level_of (Dmake 1 2). (*=2*)  
+  Definition level_of (d : D) : N.t :=
+    match d with
+    | DD d => level_of' d
+    | DQ q => 0 (* Place holder need to think about what this does. *)
+    end.
+      
+  Compute level_of (DD (Dmake 1 1)). (*=1*)
+  Compute level_of (DD (Dmake 1 2)). (*=2*)  
   (* level_of spec: forall d, 2^{-(level_of d)} <= d < 2^{-(level_of d) - 1}*)
 
   Program Definition add_weight (a : A) (d : D) (w : t A) : t A :=

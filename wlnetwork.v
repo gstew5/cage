@@ -759,7 +759,7 @@ Section weightsLangNetwork.
       rewrite -Nat.sub_1_r in Hreceived.
       destruct m. inversion Hpos.
       simpl in Hreceived. rewrite -minus_n_O in Hreceived.
-      by rewrite -[m.+1]addn1; apply leq_add; auto. }
+      by rewrite -[S m]addn1; apply leq_add; auto. }
   Qed.
 
   Lemma update_numReceived l l' st e m :
@@ -774,7 +774,7 @@ Section weightsLangNetwork.
     { by rewrite Heqw. }
     { remember m. destruct m.
       rewrite Heqn in Hlength. inversion Hlength.
-      specialize (IHHupdate Heqw (n.-1)).
+      specialize (IHHupdate Heqw (Nat.pred n)).
       have H2: (wlNumReceived s' <= n.-1)%N.
       { apply IHHupdate. apply ltnW. rewrite -(S_pred n 0); auto.
         destruct n. inversion Heqn. by apply/ ltP.
@@ -912,7 +912,7 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma recv_numReceived_0 msg origin s s' ms es :
-    wlNumReceived s = N.-1 ->
+    wlNumReceived s = (Nat.pred N) ->
     wlServerRecv msg origin s (s', ms, es) ->
     wlNumReceived s' = O.
   Proof.
@@ -925,7 +925,7 @@ Section weightsLangNetwork.
   Lemma recv_numReceived' msg origin s s' ms es m :
     (0 < m)%N ->
     (m < N)%N ->
-    wlNumReceived s = m.-1 ->
+    wlNumReceived s = (Nat.pred m) ->
     wlServerRecv msg origin s (s', ms, es) ->
     wlNumReceived s' = m.
   Proof.
@@ -969,7 +969,7 @@ Section weightsLangNetwork.
   Lemma gt0_neq0 n : (0 < n)%N -> n <> O.
   Proof. by move=> H C; rewrite C in H. Qed.
 
-  Lemma Snm_nPredm n m : n.+1 = m -> n = m.-1.
+  Lemma Snm_nPredm n m : S n = m -> n = (Nat.pred m).
   Proof. by move=> H0; rewrite -H0. Qed.
 
   Lemma predn_lt_n n : (0 < n)%N -> (n.-1 < n)%N.
@@ -989,7 +989,7 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma recv_init_state msg origin s s' ms es :
-    wlNumReceived s = N.-1 ->
+    wlNumReceived s = (Nat.pred N) ->
     wlServerRecv msg origin s (s', ms, es) ->
     s' = wlServerInitState.
   Proof.
@@ -1009,10 +1009,10 @@ Section weightsLangNetwork.
     move=> Hlength Hupdate.
     destruct l. simpl in Hlength. inversion Hupdate; auto.
     simpl in *.
-    have H0: (length l = N.-1).
+    have H0: (length l = (Nat.pred N)).
     { by apply Snm_nPredm. }
     inversion Hupdate; subst.
-    have H1: (wlNumReceived s' = N.-1).
+    have H1: (wlNumReceived s' = (Nat.pred N)).
     { eapply update_numReceived'; auto.
       { by apply predn_lt_n. }
       { eassumption. }
@@ -1031,11 +1031,11 @@ Section weightsLangNetwork.
     induction Hupdate; move=> m H0 Hlength; auto.
     have H1: (m.-1 < N)%N by apply lt_pred_l.
     simpl in Hlength.
-    have H2: (length tl = m.-1) by rewrite -Hlength.
-    specialize (IHHupdate Heqw m.-1 H1 H2).
+    have H2: (length tl = (Nat.pred m)) by rewrite -Hlength.
+    specialize (IHHupdate Heqw (Nat.pred m) H1 H2).
     rewrite IHHupdate. simpl in H.
     rewrite Heqw in Hupdate.
-    have H3: (wlNumReceived s' = m.-1).
+    have H3: (wlNumReceived s' = Nat.pred m).
     { eapply update_numReceived'; eauto. }
     simpl. eapply recv_es_nil with (m:=wlNumReceived s'); auto.
     rewrite H3. destruct m. inversion Hlength.
@@ -1061,7 +1061,7 @@ Section weightsLangNetwork.
   Qed.
 
   Lemma recv_trace_upd d i s s' ms es :
-    wlNumReceived s = N.-1 ->
+    wlNumReceived s = (Nat.pred N) ->
     wlServerRecv (wlMsgClient d) (clientID i) s (s', ms, es) ->
     es = upd i d (wlReceived s) :: nil.
   Proof.
@@ -1112,7 +1112,7 @@ Section weightsLangNetwork.
     have H1: (wlNumReceived s' = m).
     { eapply update_numReceived' with (l:=l'); eauto. }
     have H2: (wlReceived st = upd i d (wlReceived s')).
-    { eapply recv_upd with (m:=m.+1); auto.
+    { eapply recv_upd with (m:=S m); auto.
       by apply /ltP; omega.
       by apply H7. }
     rewrite Hreceived in H2.
@@ -1132,7 +1132,7 @@ Section weightsLangNetwork.
       { eapply update_dist with (m:=length l); auto.
         by simpl in Hlength; apply /ltP; omega.
         by apply H2. }
-      have H1: (wlNumReceived s' = N.-1).
+      have H1: (wlNumReceived s' = Nat.pred N).
       { eapply update_numReceived' with (l:=l); auto.
         by move: NPos => /ltP Hpos; apply /ltP; omega.
         by simpl in Hlength; omega.
@@ -1330,8 +1330,8 @@ Section weightsLangNetwork.
 
   Lemma lem3 n :
     (0 < n)%coq_nat ->
-    (((n + n)%coq_nat - 1)%coq_nat +
-     ((n + n)%coq_nat - 1)%coq_nat)%coq_nat.+1 =
+    S (((n + n)%coq_nat - 1)%coq_nat +
+     ((n + n)%coq_nat - 1)%coq_nat)%coq_nat =
     (((n + n)%coq_nat + (n + n)%coq_nat)%coq_nat -
      1)%coq_nat.
   Proof. omega. Qed.
@@ -2031,7 +2031,9 @@ End distEquality.
                   specialize (Hclients2 p cost_vector
                                         (conj Hin (conj Hdest H4))).
                   destruct H5 as [Hreceived Hsent].
-                  exists mach_st6. split. exists 6.
+                  exists mach_st6. split.
+                  Local Open Scope nat_scope.
+                  exists 6.
                   exists mach_st0. split.
                   { rewrite /mach_st0 /com0.
                     apply MSClientStep with (c:=fst ((clients mach_st) i))
@@ -2383,12 +2385,13 @@ End distEquality.
                 inversion H19; subst; step_contra. }
               { inversion H8; subst.
                 inversion H19; subst. inversion H20; subst.
+                Local Open Scope rat_scope.
             pose st0 :=
               {|
                 SCosts := f;
                 SCostsOk := pf;
                 SPrevCosts :=
-                  existT (fun c : {ffun A -> rat} => forall a : A, `|c a| <= 1)
+                  existT (fun c : {ffun A -> rat} => forall a : A, le_rat `|c a| 1)
                          (SCosts s''0) (SCostsOk s''0) :: SPrevCosts s''0;
                 weightslang.SWeights := SWeights s''0;
                 SWeightsOk := SWeightsOk s''0;
@@ -2402,7 +2405,7 @@ End distEquality.
                 SCosts := f;
                 SCostsOk := pf;
                 SPrevCosts :=
-                  existT (fun c : {ffun A -> rat} => forall a : A, `|c a| <= 1)
+                  existT (fun c : {ffun A -> rat} => forall a : A, le_rat `|c a| 1)
                          (SCosts st) (SCostsOk st) :: SPrevCosts st;
                 weightslang.SWeights := SWeights st;
                 SWeightsOk := SWeightsOk st;
@@ -2439,13 +2442,13 @@ End distEquality.
                     weightslang.SOracleSt := SOracleSt st0 |}.
                 have pf0':
                   (forall a : A,
-                      0 <
-                      [ffun a0 =>
+                      lt_rat 0
+                             ([ffun a0 =>
                        eval
                          (EBinop BMult (EWeight a0)
                                  (EBinop BMinus (EVal (QVal 1))
                                          (EBinop BMult EEps (ECost a0)))) st0']
-                        a).
+                        a)).
                 { unfold st0'. simpl. pose proof pf0 as pf'.
                   rewrite /st0 in pf'. simpl in pf'.
                   move=> a. specialize (pf' a).

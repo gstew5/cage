@@ -677,10 +677,10 @@ Module MyOrdNatDep (B : BOUND) <: MyOrderedType.
   Program Fixpoint enumerate_rec (m : nat) (pf : (m < n)%nat) : list t :=
     (match m as x return _ = x -> list t with
      | O => fun _ => t0 :: nil
-     | S m' => fun pf => @mk (N.of_nat m) _ :: enumerate_rec m' _
+     | S m' => fun pf : m = S m' => @mk (N.of_nat m) _ :: enumerate_rec m' _
      end) erefl.
   Next Obligation. by rewrite Nat2N.id. Qed.
-
+    
   Lemma lt_dec x y : ({x<y} + {x>=y})%nat.
   Proof.
     case H: (leq (S x) y); first by left.
@@ -899,7 +899,7 @@ Module MyOrdNatDepProps (B : BOUND).
     { destruct x as [vx pfx].
       move: (ltP pfx) (leP pf) => X Y.
       omega. }
-    have H: (n = n.-1.+1).
+    have H: (n = S (n.-1)).
     { rewrite (ltn_predK (m:=0)) => //. }
     symmetry in H.
     by apply: (enumerate_rec_total _ (gt0_pred_lt n pf) x H).
@@ -970,7 +970,7 @@ Module MyOrdNatDepProps (B : BOUND).
       { elim: (enum 'I_n) => // a l /= IH; f_equal => //.
         by case: a => // m i; rewrite /val_of_Ordinal Nat2N.id. }
       rewrite -val_enum_ord //. }
-    have ->: (n.-1.+1 = n).
+    have ->: (S (n.-1) = n).
     { move: (ltP pf) => Hx; omega. }
     by [].
   Qed.
