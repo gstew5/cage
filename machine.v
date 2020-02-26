@@ -146,25 +146,6 @@ Section general_machine_semantics.
       s.(SOracleSt).(received) = None /\ 
       s.(SOracleSt).(sent) = Some (f i).
 
-  (*FIXME: put in numerics*)
-  Lemma rat_to_R_opp_neq (n:nat) : rat_to_R n%:R = (-1)%R -> False.
-  Proof.
-    move => H.
-    suff: Rdefinitions.Rle 0 (rat_to_R n%:R).
-    { move => H2.
-      have H3: (Rdefinitions.Rlt (-1) 0).
-      { apply: Reals.RIneq.Ropp_lt_gt_0_contravar.
-        apply: Reals.RIneq.Rgt_lt.
-        apply: Reals.RIneq.Rlt_0_1. }
-      have H4: (Rdefinitions.Rlt (-1) (-1))%R.
-      { apply: Reals.RIneq.Rlt_le_trans; first by apply: H3.
-        rewrite -H; apply: H2. }
-      apply: (Reals.RIneq.Rlt_irrefl _ H4). }
-    rewrite -rat_to_R0; apply: rat_to_R_le.
-    change ((0:rat) <= n%:R).
-    apply: ler0n. 
-  Qed.    
-    
   Inductive server_sent_cost_vector
             (i : 'I_N) (f : {ffun 'I_N -> dist A rat_realFieldType})
     : machine_state -> machine_state -> Prop :=
@@ -856,9 +837,9 @@ Section mwu_machine_semantics.
     have ->:
       (Rdefinitions.Rmult
          (rat_to_R (size (hist m))%:R)
-         (rat_to_R (1 / (size (hist m))%:R)) = 1%R).
+         (rat_to_R (1 / (size (hist m))%:R)) = Raxioms.INR 1).
     { rewrite rat_to_R_mul rat_to_R1 Reals.Raxioms.Rmult_1_l.
-      have Hr: (rat_to_R (size (hist m))%:R <> 0%R).
+      have Hr: (rat_to_R (size (hist m))%:R <> Raxioms.INR 0).
       { case: (size (hist m)) pf => // n _.
         rewrite mulrS rat_to_R_plus rat_to_R1.
         move => H4; clear - H4.

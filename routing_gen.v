@@ -231,7 +231,7 @@ Program Definition mwu0 eps  (nx : N.t) :=
     (@MWU.init_cstate _ _  eps).
 Next Obligation.
   Admitted.
-Definition mwu := mwu0 ((dyadic.Dmake 1 4)) 20.
+Definition mwu  := mwu0 (dyadic.DD (dyadic.Dmake 1 4)) 20.
 
 Unset Extraction Optimize.
 Unset Extraction AutoInline.

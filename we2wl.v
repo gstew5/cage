@@ -18,12 +18,13 @@ Import GRing.Theory Num.Def Num.Theory.
 Require Import Permutation.
 Require Import ProofIrrelevance.
 
-(* Require Import MWU.weightsextract. *)
+Require Import MWU.weightsextract.
 Require Import MWU.weightslang.
 Require Import orderedtypes compile OUVerT.dist.
 Require InterpIterLemmas.
 Require Import simulations.
 Require Import Coq.FSets.FMapFacts.
+
 Module WE2WL
        (T : orderedtypes.OrderedFinType)
        (B : BOUND)
@@ -45,10 +46,10 @@ Module WE2WL
     Variable enum_ok : @Enum_ok A.t _.
     
     Definition weNode := node.
-    (* Variable epsQ : D. *)
+    Variable epsQ : D.
     Definition num_players := B.n.
     
-    Context `{CCostMaxInstance : CCostMaxMaxClass (ccostClass := T.cost_instance Ix.n) Ix.n T.t}.
+    (* Context `{CCostMaxInstance : CCostMaxMaxClass (ccostClass := T.cost_instance Ix.n) Ix.n T.t}. *)
     Notation ccostClass := (T.cost_instance Ix.n).
     Context {gameType : @GameType MWU.A.t Ix.n ccostClass _ _ _}.
 
@@ -81,15 +82,15 @@ Module WE2WL
     Variable nxPos : (N.zero < nx)%N.
 
     Variable refineType : RefineTypeAxiomClass MW.A.enumerable.
-    Variable epsEq : rat_to_Q eps = Qred (D_to_Q ccostMaxClass).
+    Variable epsEq : rat_to_Q eps = Qred (D_to_Q epsQ).
 
     Notation clientID n := (inl n).
     Notation serverID := (inr mk_server).
 
     Definition weNetwork_desc' (n : weNode) := 
       match n with
-      | serverID   => server' enum_ok ccostMaxClass nx
-      | clientID _ => client' enum_ok ccostMaxClass nx
+      | serverID   => server' enum_ok epsQ nx
+      | clientID _ => client' enum_ok epsQ nx
       end.
 
     Definition weNetwork_desc :=
@@ -102,7 +103,7 @@ Module WE2WL
     Definition weWorld :=
       @RWorld Ix.t server_ty weMsg weEvent weNetwork_desc.
 
-    Definition weClientState := @client_state enum_ok _ _ _ nx.
+    Definition weClientState := @client_state enum_ok epsQ _ nx.
     Definition weServerState := server_state.
 
     Definition ix_eq_dec (a1 a2 : Ix.t) : {a1 = a2} + {a1 <> a2}.
@@ -138,7 +139,7 @@ Module WE2WL
     (*     (w.(rLocalState) (serverID) = server_init_state) /\ *)
     (*     (* All clients in initial state *) *)
     (*     (forall i, *)
-    (*         w.(rLocalState) (clientID i) = client_preinit enum_ok ccostMaxClass nx) /\ *)
+    (*         w.(rLocalState) (clientID i) = client_preinit enum_ok epsQ nx) /\ *)
     (*     (* All nodes marked as uninitialized *) *)
     (*     (forall n, w.(rInitNodes) n = false) /\ *)
     (*     (* No packets in flight *) *)
@@ -311,7 +312,7 @@ Module WE2WL
         try rewrite ordinal_of_t_inv => //.
     Qed.
 
-    Notation simpleClientOracle := (@simpleClientOracle enum_ok ccostMaxClass ccostClass _ nx).
+    Notation simpleClientOracle := (@simpleClientOracle enum_ok epsQ ccostClass nx).
     Notation oracle_cT := (@oracle_cT simpleClientOracle).
 
     (** MATCH RELATION *)
@@ -387,7 +388,7 @@ Module WE2WL
                                      MWU.A.fin_mixin))))
              None (received_ok)).
         split.
-        { constructor; auto.  }
+        { constructor; auto. }
         {
           eright; simpl; eauto; simpl.
           { rewrite /match_maps in H0.
@@ -550,7 +551,7 @@ Module WE2WL
         rLocalState wl_st (clientID i) =
         (@wlClientPreInitState B.n [finType of A.t] _ epsOk nx) /\
         client_cstate (rLocalState we_st (clientID (t_of_ordinal i))) =
-        MW.init_cstate ccostMaxClass.
+        MW.init_cstate epsQ.
     Hint Unfold wewlInitMatch : Match.
 
     Definition wewlInitCom (wl_st : wlWorld) :=
@@ -846,14 +847,14 @@ Module WE2WL
     Lemma update_weights_init_map_some_w :
       exists w, MW.update_weights (fun _ : A.t => EVal (QVal 1))
                              (@MW.init_cstate simpleClientOracle
-                                              _ ccostMaxClass) = Some w.
+                                              _ epsQ) = Some w.
     Proof.
         by rewrite /MW.update_weights /=; apply update_weights_some_w.
     Qed.
 
     Lemma interp_exists_some_t :
       exists t, MW.interp (mult_weights_init A.t)
-                      (@MW.init_cstate simpleClientOracle _ ccostMaxClass) = Some t.
+                      (@MW.init_cstate simpleClientOracle _ epsQ) = Some t.
     Proof.
       by simpl; move: update_weights_init_map_some_w
         => [w H0]; rewrite H0; eexists.
@@ -892,7 +893,7 @@ Module WE2WL
       wewlClientStateMatch (rLocalState w (clientID t0))
                            (rLocalState wl_st (clientID
                                                  (Ix.Ordinal_of_t t0))) ->
-      client_cstate (rLocalState w (clientID t0)) = MW.init_cstate ccostMaxClass ->
+      client_cstate (rLocalState w (clientID t0)) = MW.init_cstate epsQ ->
       wlClientSt (rLocalState wl_st (clientID (Ix.Ordinal_of_t t0))) =
       clientPkgPreInitState [finType of A.t] (eps:=eps) epsOk.
     Proof.
@@ -930,7 +931,7 @@ Module WE2WL
     Qed.
 
     Lemma interp_init_sent_some s' t':
-      MW.interp (mult_weights_init A.t) (MW.init_cstate ccostMaxClass) = Some t' ->
+      MW.interp (mult_weights_init A.t) (MW.init_cstate epsQ) = Some t' ->
       match_states (eq_mixin:=T.eq_mixin) (choice_mixin:=T.choice_mixin)
                    (fin_mixin:=T.fin_mixin) wewlMatchOracleState s' t' ->
       machine.sent (SOracleSt s') =
@@ -940,7 +941,7 @@ Module WE2WL
       simpl in Hinterp. 
       rewrite /MW.update_weights in Hinterp.
       move: update_weights_some_w' => Hupdate.
-      specialize (Hupdate (@MW.SWeights simpleClientOracle (MW.init_cstate ccostMaxClass))).
+      specialize (Hupdate (@MW.SWeights simpleClientOracle (MW.init_cstate epsQ))).
       destruct Hupdate as [q [Hupdate0 Hupdate1]].
       rewrite Hupdate0 in Hinterp. simpl in Hinterp. inversion Hinterp; subst.
       inversion Hmatch; subst.
@@ -967,7 +968,7 @@ Module WE2WL
     Definition convert_weDist_topmf (we_dist : seq.seq (T.t * D))  := 
       [ffun a => Q_to_rat (MWU.weights_distr (MProps.of_list we_dist) a)].
 
-    Program Definition convert_weEvent' (we_dist : seq.seq (T.t * D)) :
+    Program Definition convert_weDist (we_dist : seq.seq (T.t * D)) :
       dist [finType of T.t] rat_realFieldType :=
       mkDist 
         (pmf := convert_weDist_topmf we_dist)
@@ -984,39 +985,27 @@ Module WE2WL
     Definition wlEventOf_weEvent (e : weEvent) : wlEvent :=
       [ffun n =>
        match compile.M.find (elt:=seq.seq (T.t * D)) (Ix.val_of_Ordinal n) e with
-       | Some d => convert_weEvent' d
+       | Some d => convert_weDist d
        | None => uniformDist (T:=[finType of A.t]) A.t0
        end].
 
     Definition pmfOf_msg (msg : premsg) : {ffun [finType of A.t] -> rat_realFieldType} :=
       convert_weDist_topmf msg.
 
-    Definition wlMsgOf_weMsg (weM : weMsg)
-               (dist_pf : dist_axiom (T:=[finType of A.t]) (rty:=rat_realFieldType)
-                                  match weM with
-                                  | TO_SERVER msg => (pmfOf_msg msg)
-                                  | TO_CLIENT msg => (pmfOf_msg msg)
-                                  end)
+    Program Definition wlMsgOf_weMsg (weM : weMsg)
       : wlMsg := 
       match weM with
-      | TO_SERVER msg => wlMsgClient (mkDist dist_pf )
+      | TO_SERVER msg => wlMsgClient (convert_weDist msg)
       | TO_CLIENT msg => wlMsgServer (pmfOf_msg msg)
       end.
 
-
-    
-    (* Need to come back and rename variables here *)
     Definition wlPacketOf_wePacket (wlP : packet weNode weMsg)
-               (dist_pf : dist_axiom (T:=[finType of A.t]) (rty:=rat_realFieldType)
-                                  match msg_of wlP with
-                                  | TO_SERVER msg => (pmfOf_msg msg)
-                                  | TO_CLIENT msg => (pmfOf_msg msg)
-                                  end)
       :
       packet wlNode wlMsg :=
-      let (p, w) := wlP in
-      let (w0, w1) := p in
-      (coerce_nodeId w0, wlMsgOf_weMsg dist_pf , coerce_nodeId w).
+      (* let (p, w) := wlP in *)
+      (* let (w0, w1) := p in *)
+      (coerce_nodeId (* w0 *) (dest_of wlP),
+       wlMsgOf_weMsg (msg_of wlP), coerce_nodeId (* w *) (origin_of wlP)).
 
 
 
@@ -1216,18 +1205,12 @@ Module WE2WL
       }
     Qed.
 
-    Lemma packetMatch_eq : forall weP (wlP : wlPacket)
-                 (dist_pf : dist_axiom (T:=[finType of A.t]) (rty:=rat_realFieldType)
-                           match msg_of weP with
-                           | TO_SERVER msg => (pmfOf_msg msg)
-                           | TO_CLIENT msg => (pmfOf_msg msg)
-                           end)
-      ,
+    Lemma packetMatch_eq : forall weP (wlP : wlPacket),
         wewlPacketMatch weP wlP ->
-        wlPacketOf_wePacket dist_pf = wlP.
+        wlPacketOf_wePacket weP = wlP.
     Proof.
       clear.
-      intros weP wlP dist_pf H.
+      intros weP wlP H.
       destruct weP.
       simpl.
       inversion H.
@@ -1249,8 +1232,6 @@ Module WE2WL
         (* If the messages match then wlMsgOf_weMsg will convert a we message to the 
                    matching message. *)
         red in H2.
-        rename m into w1.
-        rename w2 into w3.
         destruct w1,w3 eqn:Hp.
         {
           rewrite /wlMsgOf_weMsg.
@@ -1307,7 +1288,9 @@ Module WE2WL
             }
           }
           {
-            have->: (wlMsgClient (A:=[finType of A.t]) {| pmf := pmfOf_msg p; dist_ax := dist_pf |} =
+            unfold wlPacketOf_wePacket.
+            simpl.
+            have->: (wlMsgClient (A:=[finType of A.t]) (convert_weDist p) =
                     wlMsgClient (A:=[finType of A.t]) w1) => //.
             {
               f_equal.
@@ -1325,7 +1308,6 @@ Module WE2WL
         }
         {
           rewrite /wlMsgOf_weMsg.
-          
           assert (pmfOf_msg m = w1).
           {
             rewrite /pmfOf_msg
@@ -1379,6 +1361,8 @@ Module WE2WL
             }
           }
           {
+            unfold wlPacketOf_wePacket.
+            simpl.
             rewrite H0.
             auto.
           }
@@ -1402,34 +1386,59 @@ Module WE2WL
         by rewrite H0; destruct (nodeDec _ _ _).
     Qed.
 
-    (* Lemma msg_to_server_map_eq : forall l, *)
-    (*     msgToServerList (ordinal_eq_dec (N:=Ix.n)) mk_server server_singleton *)
-    (*                     (map wlPacketOf_wePacket *)
-    (*                          (msgToServerList ix_eq_dec mk_server server_singleton l)) = *)
-    (*     map wlPacketOf_wePacket (msgToServerList ix_eq_dec mk_server server_singleton l). *)
-    (* Proof. *)
-    (*   clear. *)
-    (*   induction l; *)
-    (*     auto. *)
-    (*   simpl. *)
-    (*   case nodeDec => //. *)
-    (*   intros. *)
-    (*   simpl. *)
-    (*   rewrite IHl. *)
-    (*   case nodeDec => //. *)
-    (*   simpl. *)
-    (*   intros. *)
-    (*   exfalso. *)
-    (*   clear -e n. *)
-    (*   destruct a. *)
-    (*   simpl in *. *)
-    (*   destruct p; simpl in *; auto. *)
-    (*   unfold dest_of in *; simpl in*. *)
-    (*   subst. *)
-    (*   contradiction. *)
-    (* Qed. *)
+    Lemma msg_to_server_map_eq : forall l,
+        msgToServerList (ordinal_eq_dec (N:=Ix.n)) mk_server server_singleton
+                        (map wlPacketOf_wePacket
+                             (msgToServerList ix_eq_dec mk_server server_singleton l)) =
+        map wlPacketOf_wePacket (msgToServerList ix_eq_dec mk_server server_singleton l).
+    Proof.
+      clear.
+      induction l;
+        auto.
+      simpl.
+      case nodeDec => //.
+      intros.
+      simpl.
+      rewrite IHl.
+      case nodeDec => //.
+      simpl.
+      intros.
+      exfalso.
+      clear -e n.
+      destruct a.
+      simpl in *.
+      destruct p; simpl in *; auto.
+      unfold dest_of in *; simpl in*.
+      subst.
+      contradiction.
+    Qed.
     
 
+    Program Fixpoint depMap (A B : Type) (P : A -> Prop)
+             (f : {x : A & P x} -> B) (l : list A)
+             (pf : forall x, In x l -> P x):
+      list B :=
+      (match l as l' return l = l' -> list B with
+      | [::] => fun _ => [::]
+      | h::t =>  fun peq => (f _) :: @depMap A B P f t _
+      end) Logic.eq_refl .
+    Next Obligation.
+      exists h.
+      apply pf.
+      apply in_eq.
+    Defined.
+    Next Obligation.
+      apply pf.
+      right.
+      auto.
+    Defined.
+
+    Lemma app_nil : forall A (l:list A), (l ++ [::]) = l.
+    Proof.
+      clear.
+      induction l; simpl; auto.
+      rewrite IHl; auto.
+    Qed.
 
 
       Theorem we2wl_step_diagram' :
@@ -1451,7 +1460,7 @@ Module WE2WL
           have Hinterp:
             (exists t', MW.interp (mult_weights_init A.t)
                                   (@MW.init_cstate simpleClientOracle
-                                                   _ ccostMaxClass) = Some t').
+                                                   _ epsQ) = Some t').
           { by apply interp_exists_some_t. }
           destruct Hinterp as [t' Hinterp].
           inversion Hmatch. pose proof H1 as Hstatematch.
@@ -1463,14 +1472,14 @@ Module WE2WL
           specialize (Hstep 
                         ( (wlClientSt (rLocalState
                                          wl_st (clientID (Ix.Ordinal_of_t t0)))))).
-          specialize (Hstep (MW.init_cstate ccostMaxClass) t').
+          specialize (Hstep (MW.init_cstate epsQ) t').
           specialize (Hstep (mult_weights_init [finType of A.t])).
           specialize (Hstep Hnoiter Hinterp).
 
           have Hinitfalse: (rInitNodes wl_st (clientID (Ix.Ordinal_of_t t0)) = false).
           { by rewrite H4 in H. }
           have Hinit: (client_cstate (rLocalState w (clientID t0)) =
-                       MW.init_cstate ccostMaxClass).
+                       MW.init_cstate epsQ).
           { by destruct (H5 (Ix.Ordinal_of_t t0) Hinitfalse) as [_ Hcstate];
               rewrite ordinal_of_t_inv2 in Hcstate; assumption. }
           rename H9 into Hms.
@@ -1546,8 +1555,8 @@ Module WE2WL
                      (machine.ClientPkg A_finType) unit s0 s_ok0 ss0 w1
                      w_ok0 eps1 eps_ok0 outs0 ch oracle_st0)
                   (@MWU.mkCState
-                     (@WE_Node.simpleClientOracle enum_ok ccostMaxClass
-                        (T.cost_instance WE_Node.num_players) _ nx) m mm
+                     (@WE_Node.simpleClientOracle enum_ok epsQ
+                        (T.cost_instance WE_Node.num_players) nx) m mm
                      wc epsc outs' ch coracle_st)
                                ) as P.
                     apply P in Hinterp; auto.
@@ -1778,23 +1787,9 @@ Module WE2WL
       eexists.
       split.
       {
-        (* Property of l' being constructed by cost_fun I think *)
-        assert (isDist : forall elt,
-                   In elt l' ->
-                 dist_axiom (T:=[finType of A.t]) (rty:=rat_realFieldType)
-                           match msg_of elt with
-                           | TO_SERVER msg => (pmfOf_msg msg)
-                           | TO_CLIENT msg => (pmfOf_msg msg)
-                           end).
-        {
-          admit.
-        }
-        
-        (* Won't compile at this point need to construct a sequence of distributions from l' 
-           given isDist.  Pushing to work on this at home *)
           (*refine (map (fun elt => wlPacketOf_wePacket (isDist elt _ ) ) l')*)
-        eapply RserverPacketStep with (st' := (rLocalState wl_st serverID))
-                                      (l' := )
+        apply RserverPacketStep with (st' := (rLocalState wl_st serverID))
+                                  (l' := map wlPacketOf_wePacket l')
                                   (e' := (map wlEventOf_weEvent e')).
         {
           clear -Hmatch H.
@@ -1862,7 +1857,7 @@ Module WE2WL
       rewrite Hmsg in H2.
       rewrite /liftRecv in H2.
       have Hinterp: (exists st', MW.interp (weightslang.mult_weights_body A.t)
-                                           (install_cost_vec (enum_ok:=enum_ok) (ccostMaxClass:=ccostMaxClass) (nx:=nx) (the_msg m)
+                                           (install_cost_vec (enum_ok:=enum_ok) (epsQ:=epsQ) (nx:=nx) (the_msg m)
                                                              (client_cstate (rLocalState w (clientID n)))) =
                                  Some st').
       { admit. }
@@ -1914,11 +1909,11 @@ Module WE2WL
                                  machine.received := Some w0;
                                  received_ok := w0_ok |}))).
             specialize (@Hstep
-                          (@install_cost_vec enum_ok ccostMaxClass
-                                             (T.cost_instance WE_Node.num_players) _ nx
+                          (@install_cost_vec enum_ok epsQ
+                                             (T.cost_instance WE_Node.num_players) nx
                                              (the_msg m)
-                                             (@client_cstate enum_ok ccostMaxClass
-                                                             (T.cost_instance WE_Node.num_players) _ nx
+                                             (@client_cstate enum_ok epsQ
+                                                             (T.cost_instance WE_Node.num_players) nx
                                                              (@rLocalState Ix.t server_ty weMsg weEvent
                                                                            weNetwork_desc w (@inl Ix.t server_ty n))))).
             eapply Proofs.interp_step'_plus_congruence with
