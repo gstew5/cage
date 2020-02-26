@@ -275,7 +275,7 @@ Section history.
   Proof.
     case: sut=> [][]s u t; case: sut'=> [][]s' u' t' H0.
     case: H0; move {s u t s' u' t'}=> s u t t' H0 H2.
-    by rewrite /hist2nat /= (cardD1 t' u) /in_mem /= H0.
+    unfold hist2nat. rewrite (cardD1 t' u). rewrite -> H0. auto.
   Qed.
 
   Variable halted : sT -> Prop.
