@@ -184,8 +184,8 @@ Module WE_NodePkg
           (st : MW.cstate)
     : MW.cstate :=
     MW.mkCState
-      st.(MW.SCosts)
-      st.(MW.SPrevCosts)
+      (MW.MProps.of_list cost_vec)
+      (st.(MW.SCosts) :: st.(MW.SPrevCosts))
       st.(MW.SWeights)
       st.(MW.SEpsilon)
       st.(MW.SOutputs)
@@ -310,40 +310,49 @@ Module WE_NodePkg
     mkMsg (cost_vector_ok p player).
   About prod_sample.
 
-
   Definition fun_of_map_seq :=
     fun (m : M.t (seq (A.t * D))) (player : nat) =>
       match @M.find (seq (A.t * D)) (N.of_nat player) m with
       | Some l => l
       | None => nil
       end.
-
-  (* Definition cost_vector_expectation' (d : list (A.t * D)) (a : A.t) : D := 0. *)
-
-  (* Program Definition cost_vector_expectation (ds : Ix.t -> list (A.t * D)) (n : Ix.t) *)
-          
-  (*   : seq (A.t * D) :=  *)
-  (*   fold_left (fun a acc => *)
-  (*                fold_left (fun (p : Ix.t)  acc' => *)
-  (*                             (if negb (n == p) then  *)
-  (*                               cost_vector_expectation' (ds p) a *)
-  (*                             else *)
-  (*                               0%D) + acc'  *)
-  (*                          ) (enumerate Ix.t) 0 *)
-  (*             ) (enumerate A.t) [::]. *)
-
-
-
   
+Local Open Scope D_scope.
 
-  Definition packets_of (sst : server_state) : list (packet node MSG) :=
-    let ds := fun_of_map (actions_received sst) in 
-    let p := rprod_sample A.t0 num_players ds in
-    List.fold_left
-      (fun acc player =>
-         (clientID player, TO_CLIENT (cost_vector_msg p player), serverID) :: acc)
-      (enumerate Ix.t)
-      nil.
+Definition ix_to_N (i : Ix.t) : N.t := 
+  match i with
+  | {| Ix.val := val |} => val
+  end.
+
+(* (\sum_(p | p i == a) \prod_(j < N | i != j) (f j) (p j) * (cost) i p)%R *)
+(* Trying to match this function from wlnetwork *)
+
+Definition cost_vector_expectation' (d : list (A.t * D)) (a : A.t) : D :=
+  0.
+
+Definition cost_vector_expectation_outer (ds : Ix.t -> list (A.t * D)) (n : Ix.t) a
+    : D :=
+    fold_left (fun (acc' : D) (p : Ix.t)  =>
+                      (if negb (N.eqb (ix_to_N n) (ix_to_N p)) then
+                         cost_vector_expectation' (ds p) a
+                       else
+                         0%D) + acc'
+                   ) (enumerate Ix.t) 0%D.
+  
+Definition cost_vector_expectation (ds : Ix.t -> list (A.t * D)) (n : Ix.t)
+  : list (A.t * D) :=
+  fold_left (fun acc a =>
+               (a, cost_vector_expectation_outer ds n a) :: acc
+            ) (enumerate A.t) [::].
+
+Definition packets_of (sst : server_state) : list (packet node MSG) :=
+  let ds := fun_of_map (actions_received sst) in 
+  let p := rprod_sample A.t0 num_players ds in
+  List.fold_left
+    (fun acc player =>
+       (clientID player, TO_CLIENT (cost_vector_msg p player), serverID) :: acc)
+    (enumerate Ix.t)
+    nil.
 
 
 
