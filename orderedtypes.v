@@ -751,7 +751,11 @@ Module MyOrdNatDepProps (B : BOUND).
     rewrite -app_assoc /=; f_equal.
     have ->: (n.+1 = n+1)%nat by rewrite addnC.
     move: 1%nat => nx; elim: n nx => //= n IH nx; f_equal.
-    have ->: (n.+1 +nx = n + nx.+1)%nat by rewrite addSn.
+    have ->: (n.+1 +nx = n + nx.+1)%nat.
+    {
+      rewrite addSn =>//.
+      rewrite plus_n_Sm => //.
+    }
     apply: IH.
   Qed.    
   

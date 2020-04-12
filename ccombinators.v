@@ -1049,8 +1049,7 @@ Section sigmaCompilable.
         destruct (to_sigma the_pred a) eqn:Ha. simpl. apply /andP.
         split. rewrite /in_mem. simpl. apply /negP. move=> Contra.
         rewrite /in_mem in H1. simpl in H1. move: H1=> /negP H1.
-        rewrite /pred_of_eq_seq in H1. rewrite /pred_of_eq_seq in Contra.
-        
+        rewrite /mem_seq in H1. rewrite /mem_seq in Contra.
         have H3: (mem_seq (T:=A) l a).
         { apply: mem_seq_filter. apply Ha. assumption. }
         contradiction.

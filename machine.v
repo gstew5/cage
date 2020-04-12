@@ -542,6 +542,9 @@ Section general_machine_semantics.
     rewrite rat_to_R_sum /timeAvg_fun /expectedValue/expectedCondValue.
     symmetry; rewrite -big_sum_index_enum; apply: big_sum_ext => // x.
     f_equal; apply: congr_big => // y _; rewrite ffunE //.
+    rewrite ffunE /= //.
+    unfold prod_pmf.
+    rewrite ffunE /= //.
   Qed.
 
   
@@ -556,14 +559,17 @@ Section general_machine_semantics.
     have ->:
      \sum_(i1 <-
         [seq i1 : {ffun 'I_N -> A} <- index_enum
-             (finfun_of_finType (ordinal_finType N) A)
+                                   _
+             (* (finfun_of_finType (ordinal_finType N) A) *)
         | i1 i == i0]) F i1 (upd i x i1) =
       \sum_(i1 <- 
         (map (upd i x)
           [seq i1 : {ffun 'I_N -> A} <- index_enum
-               (finfun_of_finType (ordinal_finType N) A)
+                                     _
+               (* (finfun_of_finType (ordinal_finType N) A) *)
           | i1 i == i0])) F i1 (upd i x i1).
-    { elim: (index_enum (finfun_of_finType (ordinal_finType N) A)).
+    { elim: (index_enum _
+            (* (finfun_of_finType (ordinal_finType N) A) *)).
       { by rewrite !big_nil. }
       move => a l IH /=; case: (a i == i0) => //=.
       rewrite 2!big_cons; f_equal; last by apply: IH.
@@ -574,10 +580,12 @@ Section general_machine_semantics.
       perm_eq 
       (map (upd i x)
          [seq i1 : {ffun 'I_N -> A} <- index_enum
-              (finfun_of_finType (ordinal_finType N) A)
+                                    _
+              (* (finfun_of_finType (ordinal_finType N) A) *)
          | i1 i == i0])
       ([seq i1 : {ffun 'I_N -> A} <- index_enum
-              (finfun_of_finType (ordinal_finType N) A)
+                                  _
+              (* (finfun_of_finType (ordinal_finType N) A) *)
          | i1 i == x]).
     { apply: uniq_perm_eq.
       { rewrite map_inj_in_uniq; first by apply: enum_uniq.

@@ -1522,7 +1522,7 @@ Module WE2WL
             red in H2.
             assert ([ffun x => w1 x] =1 w1).
             {
-              apply ffunE.
+              apply/ ffunE.
             }
             apply ffunP in H0.
             unfold MWU.weights_distr.
@@ -1595,7 +1595,7 @@ Module WE2WL
             red in H2.
             assert ([ffun x => w1 x] =1 w1).
             {
-              apply ffunE.
+              apply/ ffunE.
             }
             apply ffunP in H0.
             unfold MWU.weights_distr.
@@ -1895,7 +1895,6 @@ Module WE2WL
               pose proof Hmaps as Hmatch.
               red in Hmaps.
               apply/ ffunP.
-              red.
               intros.
               specialize (Hmaps x).
               rewrite ffunE.
@@ -1913,7 +1912,6 @@ Module WE2WL
                 apply dist_eq.
                 simpl.
                 apply/ ffunP.
-                red.
                 intros.
                 apply Hmaps in Hm.
                 specialize (Hm x).
