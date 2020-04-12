@@ -112,26 +112,10 @@ Module WE2WL
       right => H3; apply: pf; rewrite H3; apply: Ix.eq_refl.
     Defined.
 
-    Definition weNetworkStep :=
-      @Rnetwork_step Ix.t server_ty
-                     Ix.enumerable ix_eq_dec weMsg weEvent
-                     mk_server
-                     server_singleton
-                     weNetwork_desc.
-
-    (* Instance RWorld_hasInit : hasInit RWorld := *)
-    (*   fun x => preInitRWorld x. *)
-
-    (* Instance RWorldINT_hasFinal : hasFinal (RWorld) := fun x => False. *)
-
-    (* Instance RWorldINT_hasStep : hasStep (RWorld) := *)
-    (*   fun x x' =>  Rnetwork_step x x'. *)
-
-    (* Instance intRel_hasSemantics : *)
-    (*   semantics (X := RWorld) (H1 := RWorldINT_hasStep). *)
-    
     Instance weNetworkHasInit : hasInit weWorld :=
       (@RWorld_hasInit server_ty Ix.t weMsg weEvent weNetwork_desc').
+
+    About server_init_state.
 
     (* Instance weNetworkHasInit : hasInit weWorld := *)
     (*   fun w : weWorld => *)
@@ -152,19 +136,30 @@ Module WE2WL
                                Ix.enumerable weMsg weEvent
     mk_server weNetwork_desc).
 
-  Instance weNetworkHasFinal : hasFinal weWorld :=
-    (@RWorldINT_hasFinal server_ty Ix.t weMsg weEvent weNetwork_desc').
-
   (* Instance weNetworkHasFinal : hasFinal weWorld := *)
-  (*     fun w : weWorld => *)
-  (*       (* All nodes marked as initialized *) *)
-  (*       (forall n, w.(rInitNodes) n = true) /\ *)
-  (*       (* The final packets from all clients are in the buffer *) *)
-  (*       rAllClientsSentCorrectly w /\ *)
-  (*       (* (* All client commands are CSkip *) *) *)
-  (*       (* (forall i, (w.(rLocalState) (clientID i)).1.2 = CSkip). *) *)
-  (*       (forall i, client_iters *)
-  (*                    (w.(rLocalState) (clientID i)) = BinNums.N0). *)
+  (*   (@RWorldINT_hasFinal server_ty Ix.t weMsg weEvent weNetwork_desc'). *)
+
+  Instance weNetworkHasFinal : hasFinal weWorld :=
+      fun w : weWorld =>
+        round (w.(rLocalState) serverID)= nx%nat /\
+        (* All nodes marked as initialized *)
+        (forall n, w.(rInitNodes) n = true) /\
+        (* The final packets from all clients are in the buffer *)
+        rAllClientsSentCorrectly w /\
+        
+        (* (* All client commands are CSkip *) *)
+        (forall i, client_iters
+                     (w.(rLocalState) (clientID i)) = BinNums.N0)
+          
+  .
+    
+
+    Definition weNetworkStep :=
+      @Rnetwork_step Ix.t server_ty
+                     Ix.enumerable ix_eq_dec weMsg weEvent
+                     mk_server
+                     server_singleton
+                     weNetwork_desc weNetworkHasFinal.
 
   Instance weNetworkHasStep : hasStep weWorld := weNetworkStep.
 
@@ -324,13 +319,13 @@ Module WE2WL
     
     Program Definition match_maps_norm
             (s : (M.key -> rat)) (m : M.t D) : Prop:=
-      forall a : M.key,
+      (forall a : M.key,
       exists q : D,
         M.find (elt:=D) a m = Some q /\
         (* Q_to_rat (MWU.weights_distr m a) *)
         Q_to_rat ((Qred (D_to_Q q)) / (MWU.cGamma m))
         =
-        (s a).
+        (s a)).
 
     Inductive wewlMatchOracleState
       : machine.ClientPkg [finType of A.t] -> oracle_cT -> Prop :=
@@ -476,17 +471,31 @@ Module WE2WL
     Definition match_server_maps
                (s : {ffun 'I_B.n -> dist [finType of A.t] rat_realFieldType})
                (m : compile.M.t (list (A.t*D))) : Prop :=
-      forall a q, compile.M.find (N.of_nat (nat_of_ord a)) m = Some q ->
-                  match_maps_norm (s a) (MProps.of_list q).
-             (* match_maps (s a) (MProps.of_list q). *)
+      forall a q, 
+     (* (compile.M.find (N.of_nat (nat_of_ord a)) m = None /\ *)
+     (*  match_maps (eq_mixin:=MWU.A.eq_mixin) *)
+     (*             (choice_mixin:=MWU.A.choice_mixin) *)
+     (*             (fin_mixin:=MWU.A.fin_mixin) *)
+     (*             (s a) MW.init_map) *)
+     (*  \/ *)
+      (compile.M.find (N.of_nat (nat_of_ord a)) m
+                   = Some q ->
+                  match_maps_norm (s a) (MProps.of_list q)).
+    (* match_maps (s a) (MProps.of_list q). *)
 
     (* Server states match. Not sure about round #. *)
     Definition wewlServerStateMatch
                (weServerSt : weServerState)
                (wlServerSt : wlServerState)
-      := match_server_maps wlServerSt.(wlReceived)
+      :=
+        (* (forall a : 'I_B.n , exists q, *)
+        (*       compile.M.find (N.of_nat (nat_of_ord a)) *)
+        (*       weServerSt.(actions_received) = Some q) /\ *)
+              
+        match_server_maps wlServerSt.(wlReceived)
                                         weServerSt.(actions_received) /\
-         num_received weServerSt = wlNumReceived wlServerSt.
+         num_received weServerSt = wlNumReceived wlServerSt /\
+         round weServerSt = wlRound wlServerSt.
 
     (* The local states for every node match. *)
     Definition wewlLocalStateMatch
@@ -595,7 +604,20 @@ Module WE2WL
     Definition wlInit :=
       (@wlNetworkHasInit B.n [finType of A.t] A.t0 costClass
                          (@serverCostRel) eps epsOk nx).
-    Definition wlFinal :=
+
+  (* Instance wlNetworkHasFinal : hasFinal wlWorld :=  *)
+  (*   fun w => *)
+  (*     wlRound (w.(rLocalState) serverID)= nx%nat /\ *)
+  (*     (* All nodes marked as initialized *) *)
+  (*     (forall n, w.(rInitNodes) n = true) /\ *)
+  (*     (* The final packets from all clients are in the buffer *) *)
+  (*     networkSemanticsNoBatch.rAllClientsSentCorrectly *)
+  (*       (ordinalEnumerable Ix.n) mk_server  w /\ *)
+  (*     (* All client commands are CSkip *) *)
+  (*     (forall i, *)
+  (*         (w.(rLocalState) (clientID i)).(wlClientCom) = CSkip). *)
+
+    Definition wlFinal := 
       (@wlNetworkHasFinal B.n [finType of A.t] A.t0 costClass
                           (@serverCostRel) eps epsOk nx).
     Definition wlSemantics :=
@@ -607,14 +629,15 @@ Module WE2WL
         [ffun=> uniformDist (T:=[finType of A.t]) A.t0]
         (compile.M.empty (seq.seq (A.t * D))).
     Proof.
-      move=> a q Hfind a0.
+      red.
+      move => a q Hfind a0.
       have H0: (compile.M.find (elt:=seq.seq (A.t * D)) (N.of_nat a)
                                (compile.M.empty (seq.seq (A.t * D))) = None).
       { by apply compile.MFacts.empty_o. }
       congruence.
     Qed.
 
-    Lemma MapPerservesPerm
+    Lemma MapPreservesPerm
       : forall (A B : Type) (l1 l2 : seq.seq A) (f : A -> B),
        Permutation l1 l2 ->
        Permutation (map f l1) (map f l2).
@@ -628,9 +651,127 @@ Module WE2WL
     Proof.
       unfold enumerable_fun.
       unfold Ix.enumerable.
-      unfold Ix.enumerate_t.
       clear.
-      Admitted.
+      rewrite /ordinalEnumerable.
+      rewrite <- Ix.rev_enumerate_enum.
+      rewrite map_rev.
+      rewrite <- Permutation_rev.
+      induction Ix.enumerate_t as [| a l IHl];
+        [auto | simpl; rewrite IHl; auto].
+    Qed.
+
+    Definition isInverse (A B : Type) (f_inv : A -> B) (f : B -> A)
+      : Prop := forall x, f_inv (f x) = x.
+
+    Lemma map_inverse_eq :
+      forall A B (l : list B) (f : B -> A) (f_inv : A -> B),
+        isInverse f_inv f -> 
+        map f_inv (map f l) = l.
+    Proof.
+      clear.
+      move => A B l f f_inv Hinv.
+      red in Hinv.
+      induction l; auto.
+      simpl.
+      rewrite Hinv.
+      rewrite IHl; auto.
+    Qed.
+        
+    Hint Resolve N2Nat.id.
+    Hint Resolve Nat2N.id.
+
+    Lemma coerce_nodeId'_inv :
+      forall n : weNode, coerce_nodeId' (coerce_nodeId n) = n.
+    Proof.
+      rewrite /coerce_nodeId /coerce_nodeId';
+      destruct n; auto; try destruct s; auto.
+      f_equal.
+      apply Ix.eqP.
+      repeat red; auto.
+      simpl.
+      auto.
+    Qed.
+
+    Hint Resolve coerce_nodeId'_inv.
+
+    Lemma rAllClientsSentCorrectlyMatch_conv (we_st : weWorld) (wl_st : wlWorld) :
+      wewlInFlightMatch (rInFlight we_st) (rInFlight wl_st) ->
+      networkSemanticsNoBatch.rAllClientsSentCorrectly
+        (ordinalEnumerable Ix.n) mk_server wl_st -> 
+      rAllClientsSentCorrectly we_st.
+    Proof.
+      rewrite /rAllClientsSentCorrectly => Hmatch H0. destruct H0 as [H0 H1].
+      split.
+      { move=> pkt Hin. clear H1. induction Hmatch.
+        { subst. inversion Hin. }
+        { destruct Hin; subst.
+          { inversion H. specialize (H0 wlP (or_introl (erefl wlP))).
+            destruct H2 as [_ H2]. 
+            {
+              have->: dest_of pkt = networkSemanticsNoBatch.serverID Ix.t mk_server => //.
+              {
+                rewrite H0 in H2.
+                unfold weMsg, weEvent.              
+                clear -H2.
+                destruct pkt.
+                unfold dest_of in *.
+                simpl in *.
+                unfold coerce_nodeId in H2.
+                destruct p.
+                simpl in *.
+                destruct n0; auto.
+                inversion H2.
+                {
+                  destruct s.
+                  unfold Ix.t.
+                  by unfold networkSemanticsNoBatch.serverID.
+                }
+              }
+            }
+          }
+          { by apply IHHmatch; auto; move=> pkt0 Hin0; apply H0; right. } } }
+      { clear H0.
+        have->: (map (origin_of (msg := weMsg)) (rInFlight we_st) =
+                 (map coerce_nodeId' (map (origin_of (msg:=wlMsg)) (rInFlight wl_st)))).
+        {
+          unfold origin_of.
+          clear -Hmatch.
+          induction Hmatch; auto.
+          {
+            simpl.
+            f_equal; auto.
+            {
+              destruct wlP,weP.
+              simpl in *.
+              inversion H; auto.
+              intuition; auto.
+              {
+                simpl in *.
+                rewrite <- H0.
+                rewrite /coerce_nodeId' /coerce_nodeId.
+                destruct w0; simpl; auto.
+                {
+                  f_equal.
+                  apply Ix.eqP.
+                  red.
+                  simpl.
+                  rewrite -> N2Nat.id => //.
+                }
+                {
+                  destruct s; auto.
+                }
+              }
+            }
+          }
+        }
+        {
+          rewrite H1.
+          rewrite ordinalEn_perm_enum => //.
+          rewrite map_inverse_eq; auto.
+          red; auto.
+        }
+      }
+    Qed.
 
     Lemma rAllClientsSentCorrectlyMatch (we_st : weWorld) (wl_st : wlWorld) :
       wewlInFlightMatch (rInFlight we_st) (rInFlight wl_st) ->
@@ -665,17 +806,11 @@ Module WE2WL
         }
         {
           rewrite H1.
-          unfold enumerable_fun.
-          unfold ordinalEnumerable.
-          rewrite OUVerT.listlemmas.enum_ord_enum.
-          pose proof Ix.enum_ok.
-          pose proof mem_ord_enum.
-          destruct H.
-          admit.
+          rewrite ordinalEn_perm_enum => //.
         }
       }
-    Admitted.
-    
+    Qed.
+
     Lemma we2wl_init_diagram :
       forall we_st,
         init we_st ->
@@ -712,13 +847,136 @@ Module WE2WL
           (destruct s; auto;
                 simpl in *;
             rewrite Hwl0 H0 => //).
+          
+            (* red. *)
+            (* split; auto; try split; auto. *)
+            (* { *)
+            (*   simpl. *)
+            (*   intros. *)
+            (*   exists init_map. *)
+            (*   admit. *)
+            (* } *)
+            (* { *)
+            (*   red. *)
+            (*   intros. *)
+            (*   red. *)
+            (*   intros; auto. *)
+            (*   exists D1. *)
+            (*   unfold pre_init in H. *)
+            (*   simpl in H. *)
+            (*   split; auto. *)
+            (*   { *)
+            (*     admit. *)
+            (*   } *)
+            (*   { *)
+            (*     admit. *)
+                (* simpl. *)
+                (* unfold uniformDist. *)
+                (* rewrite ffunE. *)
+                (* simpl. *)
+                (* rewrite /uniform_dist. *)
+                (* rewrite ffunE. *)
+                (* rewrite Q_to_rat_div. *)
+                (* simpl. *)
+                (* have->: Q_to_rat 1 = 1 => //. *)
+                (* do 2 f_equal. *)
+                (* rewrite /MWU.cGamma. *)
+                (* assert (q = init_map). *)
+                (* { *)
+                (*   admit. *)
+                (* } *)
+                (* subst. *)
+                (* unfold init_map. *)
+                (* rewrite cardEdef. *)
+                (* unfold A.t. *)
+               (*  unfold A_finType in Henum. *)
+               (*  simpl in Henum. *)
+               (*  set s := (          *)
+               (* (@enum_mem *)
+               (*    (@Finite.Pack A.t *)
+               (*       (@Finite.Class A.t *)
+               (*          (@Choice.Class A.t T.eq_mixin T.choice_mixin) *)
+               (*          T.fin_mixin) A.t) *)
+               (*    (@mem A.t (predPredType A.t) *)
+               (*       (@sort_of_simpl_pred A.t (pred_of_argType A.t))))) *)
+               (*           ;    *)
+               (*           simpl in *. *)
+               (*  apply uniq_size_uniq with (s2:= s) *)
+               (*                                    in Huneq. *)
+               (*  unfold s in Huneq. *)
+                
+                
+                (* unfold A.t in Henum. *)
         }
         {  by rewrite Hwl3 H1; constructor. }
-        {  rewrite Hwl4 H2; constructor. }
+       {  rewrite Hwl4 H2; constructor. }
         { by move => n; rewrite H3 Hwl2. }
         { by move=> i _; rewrite H0. }
         { by move=> i pkt Hin; rewrite H1 in Hin; inversion Hin. }
         { congruence. } }
+    Admitted.
+
+    Lemma we2wl_final_diagram_conv :
+      forall x we_st wl_st,
+        we2wlMatch x we_st wl_st ->
+        (@final _ wlFinal) wl_st ->
+        final we_st.
+    Proof.
+      move=> [] we_st wl_st Hmatch Hfinal.
+      destruct Hmatch as [Hmatch0 Hmatch1 Hmatch3 Hmatch4].
+      rewrite /wewlInitNodesMatch in Hmatch4.
+      rewrite /final /weNetworkHasFinal in Hfinal.
+      rewrite /final /wlFinal /wlNetworkHasFinal.
+      destruct Hfinal as [Hfinalnx [Hfinal0 [Hfinal1 Hfinal2]]].
+      split.
+      {
+        clear -Hmatch0 Hfinalnx.
+        red in Hmatch0.
+        destruct  (Hmatch0 serverID).
+        intuition; subst; auto.
+      }
+      split.
+      { move=> n. specialize (Hfinal0 (coerce_nodeId n)).
+        by rewrite <- Hmatch4 in Hfinal0. }
+      { split.
+        {
+          eapply rAllClientsSentCorrectlyMatch_conv; eassumption.
+        }
+        { rewrite /wewlLocalStateMatch in Hmatch0.
+          move=> i. 
+          specialize (Hmatch0 ((clientID i))).
+          simpl in Hmatch0.
+          remember (rLocalState we_st (clientID i)).
+          remember (rLocalState wl_st (clientID (Ix.Ordinal_of_t i)))
+            as wlstate.
+          rewrite -Heqwlstate in Hmatch0.
+          destruct Hmatch0. destruct H1.
+          { destruct H1.
+            specialize (Hfinal2 (Ix.Ordinal_of_t i)).
+            clear -Hfinal2 H1 Heqwlstate.
+            rewrite <- Heqwlstate in Hfinal2.
+            rewrite Hfinal2 in H1.
+            inversion H1.
+          }
+          {
+            simpl in *.
+            destruct H1.
+            {
+              clear H.
+              destruct H1.
+              destruct H1.
+              specialize (Hfinal2 (Ix.Ordinal_of_t i)).
+              clear -Hfinal2 H1 Heqwlstate H.
+              rewrite <- Heqwlstate in Hfinal2.
+              rewrite Hfinal2 in H.
+              inversion H.
+            }
+            {
+              destruct H1; subst; auto.
+            }
+          }
+        }
+      }
     Qed.
 
     Lemma we2wl_final_diagram :
@@ -727,46 +985,44 @@ Module WE2WL
         final we_st ->
         (@final _ wlFinal) wl_st.
     Proof.
-      intros.
-      inversion H0.
+      move=> [] we_st wl_st Hmatch Hfinal.
+      destruct Hmatch as [Hmatch0 Hmatch1 Hmatch3 Hmatch4].
+      rewrite /wewlInitNodesMatch in Hmatch4.
+      rewrite /final /weNetworkHasFinal in Hfinal.
+      rewrite /final /wlFinal /wlNetworkHasFinal.
+      destruct Hfinal as [Hfinalnx [Hfinal0 [Hfinal1 Hfinal2]]].
+      split.
+      {
+        clear -Hmatch0 Hfinalnx.
+        red in Hmatch0.
+        destruct  (Hmatch0 serverID).
+        intuition; subst; auto.
+      }
+      split.
+      { move=> n. specialize (Hfinal0 (coerce_nodeId' n)).
+        rewrite Hmatch4 in Hfinal0.
+        by rewrite coerce_nodeId_inv in Hfinal0. }
+      { split.
+        { by eapply rAllClientsSentCorrectlyMatch; eassumption. }
+        { rewrite /wewlLocalStateMatch in Hmatch0.
+          move=> i. specialize (Hmatch0 (coerce_nodeId' (clientID i))).
+          simpl in Hmatch0.
+          remember (rLocalState we_st (clientID (t_of_ordinal i))).
+          remember (rLocalState wl_st (clientID (Ix.Ordinal_of_t
+                                                   (t_of_ordinal i))))
+            as wlstate.
+          rewrite -Heqwlstate in Hmatch0.
+          destruct Hmatch0. destruct H1.
+          { destruct H1. rewrite Heqn in H2. rewrite Hfinal2 in H2.
+            rewrite <- H2 in nxPos. inversion nxPos. }
+          { destruct H1.
+            { destruct H1. destruct H2. rewrite Heqn in H2.
+              rewrite Hfinal2 in H2.
+              rewrite -H2 in H3. by exfalso; apply H3. }
+            {
+                by rewrite Heqwlstate in H1; destruct H1;
+                rewrite ordinal_of_t_inv in H1. } } } }
     Qed.
-    (* Will probably need to update this 
-       to have a final state again after 
-       figure out the final state for the 
-     intRel  int simulation *)
-    (*   move=> [] we_st wl_st Hmatch Hfinal. *)
-    (*   destruct Hmatch as [Hmatch0 Hmatch1 Hmatch3 Hmatch4]. *)
-    (*   rewrite /wewlInitNodesMatch in Hmatch4. *)
-    (*   rewrite /final /weNetworkHasFinal in Hfinal. *)
-    (*   rewrite /final /wlFinal /wlNetworkHasFinal. *)
-    (*   destruct Hfinal as [Hfinal0 [Hfinal1 Hfinal2]]. *)
-    (*   split. *)
-    (*   { move=> n. specialize (Hfinal0 (coerce_nodeId' n)). *)
-    (*     rewrite Hmatch4 in Hfinal0. *)
-    (*     by rewrite coerce_nodeId_inv in Hfinal0. } *)
-    (*   { split. *)
-    (*     {  *)
-          
-    (*         by eapply rAllClientsSentCorrectlyMatch; eassumption. } *)
-    (*     { rewrite /wewlLocalStateMatch in Hmatch0. *)
-    (*       move=> i. specialize (Hmatch0 (coerce_nodeId' (clientID i))). *)
-    (*       simpl in Hmatch0. *)
-    (*       remember (rLocalState we_st (clientID (t_of_ordinal i))). *)
-    (*       remember (rLocalState wl_st (clientID (Ix.Ordinal_of_t *)
-    (*                                                (t_of_ordinal i)))) *)
-    (*         as wlstate. *)
-    (*       rewrite -Heqwlstate in Hmatch0. *)
-    (*       destruct Hmatch0. destruct H1. *)
-    (*       { destruct H1. rewrite Heqn in H2. rewrite Hfinal2 in H2. *)
-    (*         rewrite <- H2 in nxPos. inversion nxPos. } *)
-    (*       { destruct H1. *)
-    (*         { destruct H1. destruct H2. rewrite Heqn in H2. *)
-    (*           rewrite Hfinal2 in H2. *)
-    (*           rewrite -H2 in H3. by exfalso; apply H3. } *)
-    (*         {  *)
-    (*             by rewrite Heqwlstate in H1; destruct H1; *)
-    (*             rewrite ordinal_of_t_inv in H1. } } } } *)
-    (* Qed. *)
 
     Notation mult_weights_body := (mult_weights_body [finType of A.t]).
 
@@ -863,7 +1119,33 @@ Module WE2WL
     Lemma find_q_d1 x q :
       MWU.M.find (elt:=D) x MW.init_map = Some q ->
       q = D1.
-    Admitted.
+    Proof.
+      clear.
+      intros.
+      generalize dependent q.
+      unfold MW.init_map.
+      induction (enumerate MW.A.t); auto.
+      {
+        inversion 1.
+      }
+      {
+        intros.
+        simpl in H.
+        unfold MW.MProps.uncurry in H.
+        simpl in H.
+        destruct (MWU.A.eq_dec x a).
+        {
+          rewrite MFacts.add_eq_o in H; auto.
+          inversion H; auto.
+          symmetry; auto.
+        }
+        {
+          rewrite MW.MFacts.add_neq_o in H; auto.
+          intros Hnot;
+          symmetry in Hnot; auto.
+        }
+      }
+    Qed.
 
     Lemma match_maps_init_map_weights w :
       match_maps (eq_mixin:=MWU.A.eq_mixin)
@@ -946,6 +1228,9 @@ Module WE2WL
       rewrite Hupdate0 in Hinterp. simpl in Hinterp. inversion Hinterp; subst.
       inversion Hmatch; subst.
       simpl. inversion H12; subst. simpl in *.
+      unfold init_map in *.
+      unfold MW.init_map in *.
+      unfold MW.A.t in *.
       (* Hupdate1 implies q is not empty which contradicts H1 *)
       admit.
       simpl in *. rewrite H1. f_equal.
@@ -962,15 +1247,12 @@ Module WE2WL
       | hd :: tl => upd_map (convert_map tl) hd.1 (Q_to_rat (D_to_Q hd.2))
       end.
 
-
-    (* TODO add as an assumption that the we_dist was build using the costfun from 
-       ccostmaxmaxclass *)
-    Definition convert_weDist_topmf (we_dist : seq.seq (T.t * D))  := 
+    Definition convert_weDist_topmf (we_dist : seq.seq (T.t * D))  :=
       [ffun a => Q_to_rat (MWU.weights_distr (MProps.of_list we_dist) a)].
 
     Program Definition convert_weDist (we_dist : seq.seq (T.t * D)) :
       dist [finType of T.t] rat_realFieldType :=
-      mkDist 
+      mkDist
         (pmf := convert_weDist_topmf we_dist)
         _ .
     Next Obligation.
@@ -980,8 +1262,6 @@ Module WE2WL
     (* apply andb_true_iff. *)
     (* split => //. *)
 
-    (* TODO this needs to be dependent on how the weEvent was build. 
-       specifically with cost_fun which is constrained to be positive. *)
     Definition wlEventOf_weEvent (e : weEvent) : wlEvent :=
       [ffun n =>
        match compile.M.find (elt:=seq.seq (T.t * D)) (Ix.val_of_Ordinal n) e with
@@ -993,7 +1273,7 @@ Module WE2WL
       convert_weDist_topmf msg.
 
     Program Definition wlMsgOf_weMsg (weM : weMsg)
-      : wlMsg := 
+      : wlMsg :=
       match weM with
       | TO_SERVER msg => wlMsgClient (convert_weDist msg)
       | TO_CLIENT msg => wlMsgServer (pmfOf_msg msg)
@@ -1412,7 +1692,6 @@ Module WE2WL
       subst.
       contradiction.
     Qed.
-    
 
     Program Fixpoint depMap (A B : Type) (P : A -> Prop)
              (f : {x : A & P x} -> B) (l : list A)
@@ -1440,17 +1719,256 @@ Module WE2WL
       rewrite IHl; auto.
     Qed.
 
+    Definition wlServOf_weServ (s : server_state) : wlServerState := 
+      match s with
+      | {|
+        actions_received := actions_received0;
+        num_received := num_received0;
+        round := round0;
+      |} =>
+        mkWlServerState (wlEventOf_weEvent actions_received0)
+                        num_received0 round0
+        (* {| wlReceived := (wlEventOf_weEvent actions_received0); wlNumReceived := num_received0 |} *)
+      end.
 
-      Theorem we2wl_step_diagram' :
-        forall x we_st wl_st,
-          we2wlMatch x we_st wl_st ->
-          forall we_st',
-            weNetworkStep we_st we_st' ->
-            (exists wl_st', wlnetwork_step wl_st wl_st' /\
-                            we2wlMatch tt we_st' wl_st').
-      Proof.
+
+    Lemma we_wl_server_recv : forall hd s' s'' ms' es'
+          (wl_st : wlnetwork.wlWorld (N:=Ix.n) (A:=[finType of A.t]) A.t0 serverCostRel (eps:=eps) epsOk nx),
+        ~ round s' == nx -> 
+       server_recv enum_ok epsQ nx (Rmsg_of hd) (origin_of hd) s' = (s'', ms', es') -> 
+              wlServerRecv A.t0 serverCostRel (Rmsg_of (wlPacketOf_wePacket hd)) (coerce_nodeId (origin_of hd))
+             (wlServOf_weServ s') (wlServOf_weServ s'', map wlPacketOf_wePacket ms', map wlEventOf_weEvent es').
+    Proof.
+      move => hd s' s'' ms' es' wl_st HNotdone Hrecv.
+      unfold server_recv in Hrecv.
+      destruct (round s' == nx) eqn:Hr => //.
+    Admitted.
+(*       { *)
+(*         simpl in *. *)
+        
+(*         admit. *)
+(*       } *)
+(*       { *)
+(*         destruct (origin_of hd) eqn:Hod. *)
+(*         { *)
+(*           destruct (Rmsg_of hd) eqn:HhRmsg. *)
+(*           { *)
+(*             simpl in *. *)
+(*             destruct round_is_done eqn:HRdone. *)
+(*             { *)
+(*               simpl in *. *)
+(*               destruct events_of eqn:Hevents. *)
+(*               { *)
+(*                 simpl in *. *)
+(*                 inversion H. *)
+(*                 subst; simpl in *. *)
+(*                 clear H. *)
+(*                 pose proof wlServerRecv2. *)
+(*                 unfold upd in H. *)
+(*                 (* unfold wlEventOf_weEvent. *) *)
+(*                 specialize (H WE_Node.num_players). *)
+(*                 specialize (H [finType of T.t] A.t0 _ serverCostRel). *)
+(*                 unfold serverCostRel in *. *)
+(*                 unfold Rmsg_of. *)
+(*                 simpl. *)
+(*                 unfold wlMsgOf_weMsg. *)
+(*                 destruct hd. *)
+(*                 simpl in *. *)
+(*                 unfold msg_of. *)
+(*                 unfold Rmsg_of in *. *)
+(*                 rewrite HhRmsg. *)
+(*                 specialize (H (convert_weDist p)). *)
+(*                 simpl in *. *)
+(*                 specialize (H (wlServOf_weServ s') ). *)
+(*                 set st' := {| *)
+(*      wlReceived := [ffun n => match *)
+(*                                 compile.M.find (elt:=seq.seq (T.t * D)) (Ix.val_of_Ordinal n) *)
+(*                                   (compile.M.add (Ix.val t0) p (actions_received s')) *)
+(*                               with *)
+(*                               | Some d => convert_weDist d *)
+(*                               | None => uniformDist (T:=[finType of A.t]) A.t0 *)
+(*                               end]; *)
+(*      wlNumReceived := (num_received s').+1 |}. *)
+
+(*                 specialize (H st'). *)
+(*                 specialize (H (                map wlPacketOf_wePacket *)
+(*       (packets_of enum_ok epsQ nx *)
+(*          {| *)
+(*          actions_received := compile.M.add (Ix.val t0) p (actions_received s'); *)
+(*          num_received := (num_received s').+1; *)
+(*          round := round s' |}))). *)
+(*                 specialize (H (Ix.Ordinal_of_t t0)). *)
+(*                 assert ( H0 :  *)
+(* st' = *)
+(*       {| *)
+(*       wlReceived := [ffun b => if Ix.Ordinal_of_t t0 == b *)
+(*                                then convert_weDist p *)
+(*                                else *)
+(*                                 (wlReceived (wlServOf_weServ s')) b]; *)
+(*       wlNumReceived := wlNumReceived (wlServOf_weServ s') + 1; *)
+(*       wlRound := (wlRound (wlServOf_weServ s')).+1 |}). *)
+
+(*                 { *)
+(*                   admit. *)
+(*                 } *)
+(*                 assert (H1 : ((wlNumReceived (wlServOf_weServ s')).+1)%N = WE_Node.num_players). *)
+(*                 { *)
+(*                   admit. *)
+(*                 } *)
+(*                 pose proof H0 as Hst. *)
+(*                 specialize (H H1 H0). *)
+(*                 clear H0 H1. *)
+(*                 assert (H2 :  *)
+(*                           packetsToClients' mwu_cost_vec st' *)
+(*                                             (map wlPacketOf_wePacket *)
+(*                                                  (packets_of enum_ok epsQ nx *)
+(*                                          {| *)
+(*                                            actions_received := compile.M.add (Ix.val t0) p (actions_received s'); *)
+(*                                            num_received := (num_received s').+1; *)
+(*                                            round := round s' |}))). *)
+(*                 { *)
+(*                   admit. *)
+(*                 } *)
+(*                 specialize (H H2). *)
+(*                 clear H2. *)
+(*                 simpl in *. *)
+(*                 unfold wlEventOf_weEvent. *)
+(*                 unfold events_of in Hevents. *)
+(*                 rewrite HRdone in Hevents. *)
+(*                 inversion Hevents. *)
+(*                 subst. *)
+(*                 clear Hevents. *)
+(*                 simpl. *)
+(*                 rewrite /wlServerInitState /wlServerPreInitState in H. *)
+(*                 simpl in *. *)
+(*                 admit. *)
+(*               } *)
+(*               { *)
+(*                 admit. *)
+(*               } *)
+(*             } *)
+(*             { *)
+(*               admit. *)
+(*             } *)
+(*           } *)
+(*           { *)
+(*             admit. *)
+(*           } *)
+(*         } *)
+(*         { *)
+(*           destruct s; auto. *)
+(*           inversion H. *)
+(*           subst; auto. *)
+(*           simpl. *)
+(*           admit. *)
+(*         } *)
+(*       } *)
+(*     Admitted. *)
+
+    Lemma localStates_same : forall we_st wl_st,
+        wewlLocalStateMatch
+          (rLocalState we_st)
+          (rLocalState wl_st) ->
+
+          (rLocalState wl_st
+           (networkSemanticsNoBatch.serverID 'I_Ix.n mk_server)) =      
+        wlServOf_weServ
+          (rLocalState we_st
+           (networkSemanticsNoBatch.serverID Ix.t mk_server)).
+          Proof.
+            intros.
+            red in H.
+            specialize (H serverID).
+            simpl in H.
+            unfold wlServOf_weServ.
+            destruct we_st, wl_st; simpl in *.
+            inversion H as [Hmaps [ Har Hround ]].
+            unfold networkSemanticsNoBatch.serverID in *.
+            destruct (rLocalState serverID),
+            (rLocalState0 serverID);
+            simpl in *.
+            subst; auto.
+            f_equal.
+            {
+              clear -Hmaps.
+              unfold wlEventOf_weEvent.
+              pose proof Hmaps as Hmatch.
+              red in Hmaps.
+              apply/ ffunP.
+              red.
+              intros.
+              specialize (Hmaps x).
+              rewrite ffunE.
+              destruct (compile.M.find (elt:=seq.seq (T.t * D))
+                                       (Ix.val_of_Ordinal x)
+                                       actions_received0)
+                       eqn:Hm; auto.
+              {
+                specialize (Hmaps l).
+                simpl in *.
+                unfold A.t in Hmaps.
+                unfold Ix.val_of_Ordinal in Hm.
+                destruct x.
+                simpl in *.
+                apply dist_eq.
+                simpl.
+                apply/ ffunP.
+                red.
+                intros.
+                apply Hmaps in Hm.
+                specialize (Hm x).
+                destruct Hm.
+                destruct H.
+                unfold convert_weDist_topmf.
+                rewrite ffunE.
+                unfold MWU.weights_distr.
+                rewrite H; simpl.
+                auto.
+                rewrite <- H0.
+                assert (forall x0, (Q_to_rat (Qred x0) = Q_to_rat x0)).
+                {
+                  clear.
+                  intros.
+                  pose proof rat_to_QK2 as P.
+                  rewrite- rat_to_QK1.
+                  specialize (P x0 (Q_to_rat (rat_to_Q (Q_to_rat x0)))).
+                  rewrite -P; auto.
+                  {
+                    do 2 rewrite cancel_rat_to_Q => //.
+                  }
+                }
+                specialize (H1 (D_to_Q x0)).
+                clear -H1.
+                rewrite Q_to_rat_div.
+                rewrite Q_to_rat_div.
+                rewrite H1.
+                auto.
+              }
+              {
+                unfold uniformDist.
+                apply dist_eq.
+                simpl.
+                admit.
+                (* specialize (Hexists x). *)
+                (* destruct Hexists; subst. *)
+                (* unfold Ix.val_of_Ordinal in Hm. *)
+                (* destruct x; subst; auto. *)
+                (* rewrite H in Hm. *)
+                (* discriminate. *)
+              }
+            }
+          Admitted.
+
+    Theorem we2wl_step_diagram' :
+      forall x we_st wl_st,
+        we2wlMatch x we_st wl_st ->
+        forall we_st',
+          weNetworkStep we_st we_st' ->
+          (exists wl_st', wlnetwork_step wl_st wl_st' /\
+                          we2wlMatch tt we_st' wl_st').
+    Proof.
         move=> tt we_st wl_st Hmatch we_st' Hstep.
-        induction Hstep.
+        induction Hstep as [ | w st' l' e' Hfinal | ].
         (** Init step *)
         {
           destruct n eqn:Hn.
@@ -1787,10 +2305,15 @@ Module WE2WL
       eexists.
       split.
       {
-          (*refine (map (fun elt => wlPacketOf_wePacket (isDist elt _ ) ) l')*)
-        apply RserverPacketStep with (st' := (rLocalState wl_st serverID))
+        eapply RserverPacketStep with 
+            (st' := wlServOf_weServ st') 
                                   (l' := map wlPacketOf_wePacket l')
                                   (e' := (map wlEventOf_weEvent e')).
+        {
+          intros Hnot.
+          apply Hfinal.
+          eapply we2wl_final_diagram_conv; eauto.
+        }
         {
           clear -Hmatch H.
           inversion Hmatch.
@@ -1835,17 +2358,72 @@ Module WE2WL
           unfold weMsg, weEvent.
           Unset Printing All.
           clear H2 Heq H0.
-          induction H1.          
-          constructor.
-          simpl.
-          do 2 rewrite map_app.
-          econstructor; eauto.
-          admit.
+          simpl in *.
+          inversion Hmatch.
+          clear H2 H3 H4 H5 H6 H7.
+          (* { *)
+          (*   red in H0. *)
+          (*   specialize (H0 serverID). *)
+          (*   simpl in H0. *)
+          (*   inversion H0 as [Hmap [ Hnr Hr]]. *)
+          (*   clear Hnr Hr. *)
+          (*   red in Hmap. *)
+          apply localStates_same in H0.
+          rewrite H0.
+          unfold weMsg in *.
+          unfold weEvent in *.
+          generalize dependent (rInFlight w).
+          intros.
+          assert (HnotFinal : ~ wlRound
+               (wlServOf_weServ (rLocalState w (networkSemanticsNoBatch.serverID Ix.t mk_server))) == nx).
+          {
+            intros Hnot.
+            admit.
+          }
+          
+          revert H1.
+          revert HnotFinal.
+          move: ((rLocalState w (networkSemanticsNoBatch.serverID Ix.t mk_server))).
+          intros.
+          induction H1.
+          {
+            simpl.
+            constructor.
+          }
+          {
+            repeat subst.
+            do 2 rewrite map_app.
+            simpl in *.
+            econstructor 2 with (s' := (wlServOf_weServ s')); eauto.
+            apply we_wl_server_recv; auto.
+            {
+              intros Hnot.
+              exfalso.
+              apply Hfinal.
+              constructor; auto.
+              assert (final w) =>//.
+              {
+                admit.
+              (* constructor; auto. *)
+              (* pose proof HnotFinal. *)
+              (* TODO Got stuck trying to string the fact that 
+                   no server step could happen when 
+                   the round s' == nx, 
+                   since the state would be final. 
+                 *)
+              }
+              {
+                admit.
+              }
+            }
+          }
         }
       }
       {
+        {
         admit.
         (* match *)
+        }
       }
     }
     (** Client packet step *)

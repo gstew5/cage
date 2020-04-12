@@ -66,7 +66,8 @@ Section weightsLangNetwork.
   Record wlServerState :=
     mkWlServerState
       { wlReceived : {ffun 'I_N -> dist A rat_realFieldType} ;
-        wlNumReceived : nat
+        wlNumReceived : nat;
+        wlRound : nat ;
       }.
 
   Definition upd {A : finType} {T : Type}
@@ -74,7 +75,7 @@ Section weightsLangNetwork.
     finfun (fun b => if a==b then t else s b).
 
   Definition wlServerPreInitState :=
-    mkWlServerState [ffun _ => uniformDist a0] 0.
+    mkWlServerState [ffun _ => uniformDist a0] 0 0.
 
   Definition wlServerInitState := wlServerPreInitState.
 
@@ -92,7 +93,7 @@ Section weightsLangNetwork.
                  msg_of pkt = wlMsgServer (serverCostRel st.(wlReceived) i)) /\
     Permutation (map (@dest_of wlNode wlMsg) ps)
                 (map inl (enumerate 'I_N)).
-  
+
 
   Inductive wlServerRecv
     : wlMsg -> wlNode -> wlServerState ->
@@ -101,20 +102,21 @@ Section weightsLangNetwork.
       forall msg i st st',
         (st.(wlNumReceived).+1 < N)%nat ->
         st' = mkWlServerState (upd i msg st.(wlReceived))
-                              (st.(wlNumReceived) + 1) ->
+                              (st.(wlNumReceived) + 1) (st.(wlRound)) ->
         wlServerRecv (wlMsgClient msg) (clientID i) st (st', nil, nil)
   | wlServerRecv2 :
       forall msg st st' ps i,
         (st.(wlNumReceived).+1 = N)%nat ->
         st' = mkWlServerState (upd i msg st.(wlReceived))
-                              (st.(wlNumReceived) + 1) ->
+                              (st.(wlNumReceived) + 1) (S st.(wlRound))
+                              -> 
         packetsToClients' st' ps ->
         wlServerRecv (wlMsgClient msg) (clientID i) st
                      (wlServerInitState, ps, st'.(wlReceived) :: nil).
 
+
   Definition wlServerPkg := mkWlNodePkg wlServerInit wlServerRecv
                                         wlServerPreInitState.
-
 
   (** Client node package *)
   Notation com := (com A).
@@ -199,19 +201,11 @@ Section weightsLangNetwork.
   Defined.
 
   Definition wlWorld := (@RWorld 'I_N server wlMsg wlEvent wlNetwork_desc).
+
   Lemma server_singleton : forall x y : server, x = y.
   Proof.
     case x,y => //.
   Qed.
-
-  Definition wlnetwork_step :=
-    (@Rnetwork_step 'I_N server
-                    ordinalEnumerable
-                    ordinal_eq_dec
-                    wlMsg wlEvent
-                    mk_server
-                    server_singleton
-                    wlNetwork_desc).
 
   Notation machine_state := (machine_state A N).
   Notation machine_step := (@machine_step A a0 N _ (@serverCostRel)).
@@ -310,7 +304,7 @@ Section weightsLangNetwork.
 
   (** Set up simulation record. *)
 
-  Instance wlNetworkHasInit : hasInit wlWorld :=
+  Program Instance wlNetworkHasInit : hasInit wlWorld :=
     fun w =>
       (* Server in initial state *)
       (w.(rLocalState) (serverID ) = wlServerInitState) /\
@@ -321,14 +315,18 @@ Section weightsLangNetwork.
       (* No packets in flight *)
       w.(rInFlight) = nil /\
       (* No events in the trace *)
-      w.(rTrace) = nil.
+      w.(rTrace) = nil
+  .
+
 
   Notation rAllClientsSentCorrectly :=
     (@rAllClientsSentCorrectly 'I_N server ordinalEnumerable wlMsg wlEvent
     mk_server wlNetwork_desc).
 
+
   Instance wlNetworkHasFinal : hasFinal wlWorld :=
     fun w =>
+      wlRound (w.(rLocalState) serverID)= nx%nat /\
       (* All nodes marked as initialized *)
       (forall n, w.(rInitNodes) n = true) /\
       (* The final packets from all clients are in the buffer *)
@@ -336,6 +334,16 @@ Section weightsLangNetwork.
       (* All client commands are CSkip *)
       (forall i,
           (w.(rLocalState) (clientID i)).(wlClientCom) = CSkip).
+
+  Definition wlnetwork_step :=
+    (@Rnetwork_step 'I_N server
+                    ordinalEnumerable
+                    ordinal_eq_dec
+                    wlMsg wlEvent
+                    mk_server
+                    server_singleton
+                    wlNetwork_desc wlNetworkHasFinal).
+
 
   Instance wlNetworkHasStep : hasStep wlWorld := wlnetwork_step.
 
@@ -462,7 +470,7 @@ Section weightsLangNetwork.
     move=> x WORLD mach_st Hmatch Hfinal.
     constructor => i.
     destruct Hmatch as [Hmatch1 [Hmatch2 [Hmatch3 [Hmatch4 Hmatch5]]]].
-    destruct Hfinal as [Hfinal1 [Hfinal2 Hfinal3]].
+    destruct Hfinal as [Hfinalround [Hfinal1 [Hfinal2 Hfinal3]]].
     specialize (Hfinal3 i).
     destruct Hfinal3 as [Hfinal3 [Hfinal4 Hfinal5]].
     specialize (Hmatch2 i).
@@ -709,6 +717,7 @@ Section weightsLangNetwork.
       { by eapply recv_pkt_dest_unique; eauto. }
       by rewrite Heq. }
   Qed.
+
   Notation serverUpdate :=
     (@serverUpdate 'I_N server wlMsg wlEvent mk_server wlNetwork_desc).
 
@@ -1069,7 +1078,9 @@ Section weightsLangNetwork.
     inversion Hrecv.
     { subst. rewrite Hnum in H4.
       remember {| wlReceived := upd i d (wlReceived s);
-                  wlNumReceived := wlNumReceived s + 1 |} as s'.
+                  wlNumReceived := wlNumReceived s + 1;
+                  wlRound := wlRound s
+               |} as s'.
       rewrite -Heqs' in Hrecv.
       have H0: (wlNumReceived s' = O).
       { eapply recv_numReceived_0; eauto. }
@@ -1153,7 +1164,7 @@ Section weightsLangNetwork.
       by symmetry; eapply clientDistsFun_upd. }
   Qed.
 
-  Lemma update_trace_st_packets s s' pkt tl ps dists i d :
+  Lemma update_trace_st_packets s s' pkt tl ps dists i d r :
     length (pkt :: tl) = N ->
     origin_of pkt = clientID i ->
     msg_of pkt = wlMsgClient d ->
@@ -1161,7 +1172,7 @@ Section weightsLangNetwork.
     wlServerRecv (wlMsgClient d) (clientID i) s (s', ps, dists :: nil) ->
     upd i d (wlReceived s) = dists /\
     packetsToClients' (mkWlServerState (upd i d (wlReceived s))
-                                       ((wlNumReceived s).+1)) ps.
+                                       ((wlNumReceived s).+1) r) ps.
   Proof.
     move=> Hlength Horigin Hmsg Hupdate Hrecv.
     inversion Hrecv.
@@ -1200,10 +1211,12 @@ Section weightsLangNetwork.
       have H0: (upd i' d (wlReceived s') = dists /\
                 packetsToClients'
                   (mkWlServerState (upd i' d (wlReceived s'))
-                                   ((wlNumReceived s').+1)) ms').
-      { by eapply update_trace_st_packets with (tl:=l) (pkt:=p);
+                                   ((wlNumReceived s').+1) _ ) ms').
+      { 
+        intros r.
+          by eapply update_trace_st_packets with (tl:=l) (pkt:=p);
           auto; apply H6. }
-      destruct H0 as [Hdists Hpkts].
+      destruct (H0 0%nat) as [Hdists Hpkts].
       destruct Hpkts as [Hpkts _].
       specialize (Hpkts i).
       destruct Hpkts as [pkt' [Hpkts0 [Hpkts1 [Hpkts2 Hpkts3]]]].
@@ -3033,7 +3046,12 @@ End distEquality.
       } 
 
     (** Server step *)
-    { exists 0%N. right.
+    { 
+      rename H into Hfinal.
+      rename H0 into H.
+      rename H1 into H0.
+      rename H2 into H1.
+      exists 0%N. right.
       set clientSt' := fun st i => @mkState
                                   _ _ _
                                   (SCosts st)

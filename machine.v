@@ -161,6 +161,19 @@ Section general_machine_semantics.
       s'.(SOracleSt).(received) = Some (serverCostRel f i)->
       server_sent_cost_vector i f m m'. 
 
+  (** Final states are entered by running all clients to CSkip (MW 
+      clients have all sent) but not executing a server step. 
+      The clients' received cost vector buffers therefore remain empty. *)
+   Inductive final_state : machine_state -> Prop :=
+  | mkFinalState :
+      forall m : machine_state,
+        (forall (i : 'I_N),
+            exists s,
+              m.(clients) i = (CSkip,s) /\
+              (exists d, sent s.(SOracleSt) = Some d) /\
+              received s.(SOracleSt) = None) -> 
+        final_state m.
+
   Inductive machine_step : machine_state -> machine_state -> Prop :=
   (** Step client [i], as long as it hasn't yet sent a distribution. *)
   | MSClientStep :
@@ -177,25 +190,12 @@ Section general_machine_semantics.
   (** Once all clients have committed to a distribution, 
       calculate their new cost vectors and reset [sent] to None (thus 
       acknowledging the send). *) 
-  | MSExpectedCost :
+  | MSExpectedCost :  
       forall f m m',
         all_clients_have_sent m f ->
         (forall i, server_sent_cost_vector i f m m') ->
         m'.(hist) = [:: f & m.(hist)] ->
         machine_step m m'.
-
-  (** Final states are entered by running all clients to CSkip (MW 
-      clients have all sent) but not executing a server step. 
-      The clients' received cost vector buffers therefore remain empty. *)
-  Inductive final_state : machine_state -> Prop :=
-  | mkFinalState :
-      forall m : machine_state,
-        (forall (i : 'I_N),
-            exists s,
-              m.(clients) i = (CSkip,s) /\
-              (exists d, sent s.(SOracleSt) = Some d) /\
-              received s.(SOracleSt) = None) -> 
-        final_state m.
 
   Inductive machine_step_plus : machine_state -> machine_state -> Prop :=
   | step1 :
@@ -1099,7 +1099,6 @@ Section extract_oracle.
     m.(clients) i = (c,s) ->
     m'.(clients) i = (c',s') ->
     match_states s sx ->
-
     (* machine step, step by client j<>i *)
     (upto_oracle_eq s s' /\
      match_states s' sx /\
@@ -1143,7 +1142,7 @@ Section extract_oracle.
     by apply: (upto_oracle_trans (upto_oracle_sym Hupto) H6).
     rewrite H7 in H4; inversion H4; subst.
     by rewrite H8 in H5; inversion H5; subst.
-  Qed.      
+  Admitted.
 
   Lemma oracle_extractible_aux m m' (i : 'I_N) c s c' s' sx :
     machine_step_plus a0 mwu_cost_vec m m' ->
@@ -1162,6 +1161,7 @@ Section extract_oracle.
     { inversion 1; subst.
       move => H2 H3 Hmatch.
       case: (oracle_extractible_step H H2 H3 Hmatch).
+      {
       { case => H4; case => H5 H6.
         exists sx.
         split => //.
@@ -1169,6 +1169,7 @@ Section extract_oracle.
         case: (H1 i) => sy []; rewrite H3.
         subst c'.
         by inversion 1; subst. }
+      }
       case => sx' []Hmatch' H4.
       exists sx'; split => //.
       by right; constructor. }
@@ -1597,6 +1598,9 @@ Section mwuBounds.
       (mult_weights A nx,init_state A etaOk tt (init_ClientPkg A)).
   (* the game is smooth *)
   Context `{HSmooth : smooth A N rat_realFieldType}.
+
+  Instance gameOf_ : gameOf.
+
   Variable Hstep : machine_step_plus a0 mwu_cost_vec m m'.
   
   Lemma mwu_ultBounds :
@@ -1605,7 +1609,8 @@ Section mwuBounds.
     (lambda of A/(1 - mu of A)) * Cost S' + (N%:R*REGRET_BOUND)/(1 - mu of A).
   Proof.
     move => S' Hopt; apply: ultBounds => //.
-    apply: (all_clients_bounded_regret INIT_HIST FINAL_HIST Hstep FINAL_STATE Hclients).
+    
+    apply: (all_clients_bounded_regret INIT_HIST FINAL_HIST Hstep FINAL_STATE Hclients ).
     apply: REGRET_BOUND_ok.
   Qed.
 End mwuBounds.

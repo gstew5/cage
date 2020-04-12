@@ -37,7 +37,8 @@ Module WE_NodePkg
     Definition node := node Ix.t server_ty.
     Variable epsQ : D.
     Definition num_players := NUM_PLAYERS.n.
-    About CCostMaxClass.
+    (* About CCostMaxClass. *)
+    
     Context `{CCostInstance : CCostClass num_players A.t}.
 
     Variable nx : N.t. (*num_iters*)
@@ -178,7 +179,6 @@ Module WE_NodePkg
   Definition MSG_of_cstate (id : node) (st : MW.cstate) : list (packet node MSG) :=
     (serverID, TO_SERVER (st.(MW.SOracleSt).(sent)), id) :: nil.
 
-  (* TODO: actually install the cost vector, probably using MProps.of_list *)
   Definition install_cost_vec
           (cost_vec : list (A.t*D))
           (st : MW.cstate)
@@ -231,10 +231,21 @@ Module WE_NodePkg
     mkServerState
       { actions_received : M.t (list (A.t*D))
         ; num_received : nat
-        ; round : nat }.
+        ; round : nat 
+      }.
                               
+  Fixpoint N_range' (n : nat) : list N.t :=
+    match n with
+    | O => [::N.zero]
+    | S n' => N.of_nat n :: (N_range' n')
+    end.
+
   Definition server_init_state : server_state :=
-    mkServerState (M.empty _) 0 0.
+    mkServerState (* (MProps.of_list *)
+                  (*    (zip (N_range' num_players) *)
+                  (*         (mkseq (fun _ => init_map) num_players))) *)
+      (@M.empty (seq.seq (A.t *D)))
+                  0 0.
 
   Definition round_is_done (sst : server_state) : bool :=
     num_received sst == num_players.
@@ -317,58 +328,175 @@ Module WE_NodePkg
       | None => nil
       end.
   
-Local Open Scope D_scope.
+  Local Open Scope D_scope.
 
-Definition ix_to_N (i : Ix.t) : N.t := 
-  match i with
-  | {| Ix.val := val |} => val
-  end.
+  Definition ix_to_N (i : Ix.t) : N.t := 
+    match i with
+    | {| Ix.val := val |} => val
+    end.
 
-(* (\sum_(p | p i == a) \prod_(j < N | i != j) (f j) (p j) * (cost) i p)%R *)
-(* Trying to match this function from wlnetwork *)
+  (* (\sum_(p | p i == a) \prod_(j < N | i != j) (f j) (p j) * (cost) i p)%R *)
+  (* Trying to match this function from wlnetwork *)
 
-Definition cost_vector_expectation' (d : list (A.t * D)) (a : A.t) : D :=
-  0.
+  (* fix a players action and generate all posible action vectors *)
 
-Definition cost_vector_expectation_outer (ds : Ix.t -> list (A.t * D)) (n : Ix.t) a
-    : D :=
-    fold_left (fun (acc' : D) (p : Ix.t)  =>
-                      (if negb (N.eqb (ix_to_N n) (ix_to_N p)) then
-                         cost_vector_expectation' (ds p) a
-                       else
-                         0%D) + acc'
-                   ) (enumerate Ix.t) 0%D.
+  Fixpoint choose' (T : Type) (l : list T) (k : nat) : list (list T) :=
+    match k with
+    | O => (fold_left (fun (acc : list (list T)) (elt : T) => [::elt] :: acc) l [::])
+    | S k' =>
+      concat
+        (map (fun elt =>
+                fold_left (fun (acc : list (list T)) (elt' : T) =>
+                             ([::elt'] ++ elt) :: acc)
+                          l [::])
+             (choose' l k'))
+    end.
+
+  Definition choose (T : Type) (l : list T) (k : nat) : list (list T) :=
+    choose' l (k - 1).
+
+
+  Open Scope nat_scope.
+
+  Eval compute in (choose (1::2::3::nil) 3).
+
+  Close Scope nat_scope.
+  (* Definition chance (d : nat -> list (A.t * D)) (player : nat) (a : A.t) : D := *)
   
-Definition cost_vector_expectation (ds : Ix.t -> list (A.t * D)) (n : Ix.t)
-  : list (A.t * D) :=
-  fold_left (fun acc a =>
-               (a, cost_vector_expectation_outer ds n a) :: acc
-            ) (enumerate A.t) [::].
 
-Definition packets_of (sst : server_state) : list (packet node MSG) :=
-  let ds := fun_of_map (actions_received sst) in 
-  let p := rprod_sample A.t0 num_players ds in
-  List.fold_left
-    (fun acc player =>
-       (clientID player, TO_CLIENT (cost_vector_msg p player), serverID) :: acc)
-    (enumerate Ix.t)
-    nil.
+  Definition N_range (n : N.t) : list N.t :=
+    N_range' (N.to_nat n).
+  
+  Definition action_maps (player : nat) (a : A.t) : list (M.t A.t) := 
+    map (fun elt =>
+           let m := 
+               (MProps.of_list
+                  (zip (N_range' NUM_PLAYERS.n) elt)) in
+           match M.find (N.of_nat player) m with
+           | None => @M.empty A.t
+           | Some a' => 
+             if A.eq_dec a' a then
+               m
+             else
+               @M.empty A.t
+           end
+        )
+        (choose (enumerate A.t) (NUM_PLAYERS.n)).
 
+  Definition likelihood (ds : nat -> list (A.t * D)) (actions : M.t A.t) : D :=
+    M.fold (fun player action acc =>
+              let dp_player_map := MW.MProps.of_list (ds (N.to_nat player)) in
+              match MW.M.find action dp_player_map with
+              | None => 1
+              | Some prob => prob
+              end
+           ) actions 1.
 
+  Definition cost_vector_expectation_inner_prod
+             (ds : nat -> list (A.t * D)) (player : nat) (a : A.t) (actions : M.t A.t) : D :=
+    (likelihood ds actions) * ccost (N.of_nat player) actions.
 
+  (* Definition cost_vector_expectation' (d : nat -> list (A.t * D)) (player : nat) (a : A.t) : D := *)
+  (*   fold_left (fun acc elt => *)
+  (*                (likelihood d elt) * ccost (N.of_nat player) elt * acc) *)
+  (*             (action_maps player a) *)
+  (*                      1. *)
 
-(* expectedValue *)
-(*   : forall A : Type, A -> nat -> (nat -> DIST.t A) -> M.t A *)
+  Definition cost_vector_expectation_outer_sum (ds : nat -> list (A.t * D)) (player : nat)
+             (a : A.t) : D :=
+    fold_left (fun (acc : D) (actions : M.t A.t)  =>
+                 (cost_vector_expectation_inner_prod ds player a actions)
+                 + acc
+              ) (action_maps player a) 0%D.
+  
+  (* Need to normalize all these values *)
+  Definition cost_vector_expectation (ds : nat -> list (A.t * D)) (player : nat)
+    : list (A.t * D) :=
+    fold_left (fun acc a =>
+                 (a, cost_vector_expectation_outer_sum ds player a) :: acc
+              ) (enumerate A.t) [::].
 
-(*expectedValue (prod_dist f) (fun x => cost i (upd i a x))).*)
-(* These definitions need to match up
- (* Definition packetsToClients' (st : wlServerState) (ps : list wlPacket) := *)
- (*   (forall i, exists pkt, List.In pkt ps /\ origin_of pkt = serverID /\                    dest_of pkt = clientID i /\ *)
- (*                 msg_of pkt = wlMsgServer (serverCostRel st.(wlReceived) i)) /\ *)
- (*    Permutation (map (@dest_of wlNode wlMsg) ps) *)
- (*                (map inl (enumerate 'I_N)). *)
+  Lemma InA_fst_InA : forall A B a (f : A -> B) (l : list A),
+      InA (fun p q : A * B => p.1 = q.1) (a, f a)
+          (fold_right (fun y : A => [eta cons (y, f y)]) [::] l) -> 
+      InA eq a (fold_right (fun y : A => [eta cons y]) [::] l).
+  Proof.
+    intros.
+    induction l; auto.
+    simpl in H.
+    inversion H.
+    simpl in *.
+    inversion H; subst; auto.
+  Qed.
+    
+  Lemma fold_left_NoDupA_fst : forall (A B: Type) (l : list A)
+                                          (f : A -> B), 
+      NoDupA eq (fold_left (flip cons)  l [::]) -> 
+      NoDupA (fun p q : A * B => p.1 = q.1)
+             (fold_left (fun acc a => (a, f a)::acc) l [::]).
+    intros.
+    rewrite <- fold_left_rev_right in *.
+    induction (List.rev l); auto.
+    {
+      simpl; auto.
+    }
+    {
+      simpl in H.
 
-*)
+      unfold flip in H; simpl in H.
+      inversion H; subst; auto.
+      apply IHl0 in H3.
+      simpl.
+      constructor; auto.
+      intros Hnot.
+      apply H2; auto.
+      apply InA_fst_InA in Hnot; auto.
+    }
+  Qed.
+
+  Program Definition cost_vector_exp_msg (ds : nat -> list (A.t * D)) (n : nat) : msg :=
+    @mkMsg (cost_vector_expectation ds n) _.
+  Next Obligation.
+    red.
+    split; auto.
+    {
+      rewrite /cost_vector_expectation.
+      apply fold_left_NoDupA_fst.
+      rewrite <- fold_left_rev_right in *.
+      pose proof enum_nodup.
+      apply NoDupA_rev in H; auto.
+      induction (List.rev (enumerate A.t)); [simpl ;auto | ].
+      simpl.
+      inversion H; subst; auto.
+      apply IHl in H3.
+      unfold flip.
+      constructor; auto.
+      {
+        intros Hnot.
+        apply H2.
+        clear -Hnot.
+        induction l; auto.
+        {
+          simpl in Hnot.
+          inversion Hnot; auto.
+        }
+      }
+    }
+    {
+      admit.
+    }
+  Admitted.
+
+  Definition packets_of (sst : server_state) : list (packet node MSG) :=
+    let ds := fun_of_map_seq (actions_received sst) in 
+    (* let p := rprod_sample A.t0 num_players ds in *)
+    List.fold_left
+      (fun acc player =>
+         let player' := N.to_nat (ix_to_N player) in 
+         (clientID player, TO_CLIENT (cost_vector_exp_msg ds player'), serverID) :: acc)
+      (enumerate Ix.t)
+      nil.
+
   Definition incr_round (sst : server_state) :=
     mkServerState sst.(actions_received) sst.(num_received) (S sst.(round)).
   
@@ -398,6 +526,7 @@ Definition packets_of (sst : server_state) : list (packet node MSG) :=
                  match events_of sst' with
                  | Some e => 
                    (incr_round sst', packets_of sst', e::nil)
+                 (* (server_init_state, packets_of sst', e::nil) *)
                  | None =>
                    (incr_round sst', packets_of sst', nil)
                  end

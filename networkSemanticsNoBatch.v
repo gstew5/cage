@@ -141,6 +141,9 @@ Set Implicit Arguments.
   
   Open Scope list_scope.
 
+  Context {Hfinal : hasFinal World}.
+  (* Hypothesis Final : World -> Prop. *)
+
   (** Network operational semantics based on asynchronous message handlers *)
   Inductive network_step : World -> World -> Prop :=
 
@@ -158,6 +161,7 @@ Set Implicit Arguments.
   | packetStep : forall (w : World) (n : node) (p : packet)
                    (l1 l2 : list packet) (st : node_state (network_desc n))
                    (ps : list packet) (es : list event),
+      ~ final w -> 
       w.(initNodes) n = true -> 
       w.(inFlight) = l1 ++ (p :: l2) ->
       fst (fst p) = n ->
@@ -188,8 +192,7 @@ Set Implicit Arguments.
       initNodes := (fun _ => false)
     |}.
 
-  Instance World_hasFinal : hasFinal World :=
-    fun x => False.
+  Instance World_hasFinal : hasFinal World := Hfinal.
 
   Instance world_hasSemantics :
     semantics (H1 := World_hasStep).
@@ -567,6 +570,8 @@ Fixpoint recvAllMessagesToServer
             (fst (fst x), cons p (snd (fst x)), (snd x))
   end. 
 
+Context {HFinal : hasFinal WorldINT}.
+
 Inductive network_stepINT : WorldINT -> WorldINT -> Prop :=
 | initStepINT :
     forall w n st ps es,
@@ -591,6 +596,7 @@ Inductive network_stepINT : WorldINT -> WorldINT -> Prop :=
                               w.(initNodes))
 | serverStepINT :
     forall w st ps es,
+      ~ final w -> 
       (forall n, exists p, origin_of p = inl n /\
                            dest_of p = inr (server_inhabited) /\
                            In p (inFlight w)) ->
@@ -680,14 +686,14 @@ Admitted.
   Instance WorldINT_hasInit : hasInit WorldINT := 
     (@World_hasInit node msg event network_desc).
 
-  Instance WorldINT_hasFinal : hasFinal (WorldINT) :=
-    (@World_hasFinal node msg event network_desc).
+  Instance WorldINT_hasFinal : hasFinal (WorldINT) := HFinal. 
+    (* (@World_hasFinal node msg event network_desc). *)
 
   Instance WorldINT_hasStep : hasStep (WorldINT) :=
     network_stepINT.
 
   Instance WorldINT_hasStepLow : hasStep (WorldINT) :=
-    @World_hasStep node msg event nodeDec network_desc.
+    @World_hasStep node msg event nodeDec network_desc _ .
 
   Program Instance WorldINT_hasSemantics :
     semantics (H1 := WorldINT_hasStep) (X := WorldINT).
@@ -749,6 +755,9 @@ Admitted.
                   _ (* There is currently no final state *)
                   _ (* step_diagram *)
   .
+  Next Obligation.
+    admit.
+  Admitted.
   Next Obligation.
       unfold Matches_state in H;
       destruct H;
@@ -953,6 +962,7 @@ Section relationalIntermediateNoBatch.
   (*   Permutation (map (@origin_of nodeINT msgINT) (rInFlight w)) *)
   (*               (map inl (enumerate client)). *)
 
+Context {Hfinal : hasFinal RWorld}.
 
 Inductive Rnetwork_step :  RWorld -> RWorld -> Prop :=
 | RInitStep : forall (w : RWorld) (n : nodeINT)
@@ -972,6 +982,7 @@ Inductive Rnetwork_step :  RWorld -> RWorld -> Prop :=
                           (st': rState (Rnetwork_desc serverID))
                           (l' : list packet)
                           (e' : list eventINT),
+      ~ final w -> 
       (rInitNodes w) serverID = true ->
       rAllClientsSentCorrectly w ->
       serverUpdate (rLocalState w serverID)
@@ -1136,8 +1147,8 @@ Section relationalINTSimulation.
                             msgINT eventINT
                             network_descINT) (unliftWorld w).
   
-  Instance RWorldINT_hasFinal : hasFinal (RWorld) := fun x => False.
-
+  (* Instance RWorldINT_hasFinal : hasFinal (RWorld) := Hfinal. *)
+  Context {RWorldINT_hasFinal : hasFinal RWorld}.
   Variable node_dec : (forall x y : (node client server), {x = y} + {x <> y}).
 
   Instance RWorld_hasStep : hasStep RWorld := 
@@ -1190,14 +1201,27 @@ Section relationalINTSimulation.
                       msgINT eventINT server_singleton
                       Rnetwork_desc).
 
+  Context {intFinal : hasFinal ((WorldINT network_descINT))}.
+
+  Hypothesis final_diagram_contra : forall 
+      (RW : RWorld)
+      (s : WorldINT network_descINT),
+      RMatch s RW -> 
+      final RW -> 
+      final s.
+  
+  Hypothesis step_diagramR : forall (s : World) (t : RWorld), RMatch s t -> final s -> final t.
 
   Theorem relationalINTSimulation :
     forall s s' RW,
       @network_stepINT client server server_inhabited server_singleton
-      msgINT eventINT clientDec network_descINT s s' ->
+      msgINT eventINT clientDec network_descINT _  s s' ->
       RMatch s RW ->
       exists RW', Rnetwork_step RW RW' /\ RMatch s' RW'.
   Proof.
+    intros.
+    pose proof H0 as Hmatch.
+    move: s' H H0.
     rewrite /RMatch=> /=.
     intros.
     subst.
@@ -1312,7 +1336,7 @@ Section relationalINTSimulation.
         destruct H0.
         specialize (H0 (serverID client server_inhabited)).
         intuition.
-        rewrite <- H5 => //.
+        rewrite <- H6 => //.
         admit.
       }
       {
@@ -1330,7 +1354,7 @@ Section relationalINTSimulation.
                 origin_of p = (inl n) ->
                 dest_of p = inr server_inhabited).
           { admit. }
-          eapply H5; eauto.
+          eapply H6; eauto.
           admit.
         }
         {
@@ -1357,16 +1381,16 @@ Section relationalINTSimulation.
                 (clientDec := clientDec)                                            (server_singleton := server_singleton); eauto.
             erewrite <- upd_localState_diff with
              (node_dec := (nodeDec server_singleton clientDec)); eauto => //.
-            specialize (H3 n).
+            specialize (H4 n).
             intuition.
           }
         }
         {
           simpl => //.
-          specialize (H3 n) => //; intuition.
+          specialize (H4 n) => //; intuition.
         }
         {
-          rewrite <- H5.
+          rewrite <- H6.
           simpl.
           admit.
         }
@@ -1379,7 +1403,7 @@ Section relationalINTSimulation.
       RMatch s t ->
       forall s' : World,
         @network_stepINT client server server_inhabited server_singleton
-                         msgINT eventINT clientDec network_descINT s s' ->
+                         msgINT eventINT clientDec network_descINT _ s s' ->
         exists x' : unit,
           @ord unit unitHasOrd x' x /\ RMatch s' t \/
           (exists t' : RWorld,
@@ -1406,8 +1430,8 @@ Section relationalINTSimulation.
                (ord_S := unitHasWellfoundedOrd) .
     refine (               
         (mkSimulation _ _ (fun _ w r => RMatch w r)
-                      _
-                      (fun _ _ _ _ => id) step_diagram)).
+                      _ (ltac:(intros x; exact step_diagramR))
+                       step_diagram)).
     Proof.
       rewrite /simulations.init /WorldINT_hasInit /RWorld_hasInit
               /unliftWorld /= => s s_init.

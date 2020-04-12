@@ -5,6 +5,8 @@ Require Import StructTact.Fin.
 
 Require Import listlemmas networkSemanticsNoBatch.
 
+
+
 Section toVerdi.
   Variable N : nat.
   Variable node  : Type. (* The type of node identifiers *)
@@ -253,6 +255,13 @@ Section toVerdi.
   Notation network_step_star := (@network_step_star _ _ _ node_eq_dec network_desc).
 
   Hypothesis from_to_data : forall n s, from_data n (to_data n s) = Some s.
+  
+  Instance net_hasFinal : simulations.hasFinal network :=
+    fun x => False.
+
+  Instance world_hasFinal : simulations.hasFinal World :=
+    fun x => False.
+
 
   Lemma recv_simulation_step
         WORLD (WORLD' : World) TRACE p out net net' d l l0 xs ys p1 s :
@@ -496,10 +505,10 @@ Section toVerdi.
                 { unfold upd_initNodes; dec_diff node_eq_dec. } } } } } } }
   Qed.
 
-  Require Import simulations.
   Require Import ssreflect.
-  
+  Require Import simulations.  
   Definition unitOrd : unit -> unit -> Prop := fun _ _ => False.
+
   Instance unitHasOrd  : hasOrd unit := unitOrd.
   Program Instance unitHasTransOrd : hasTransOrd.
   Program Instance unitHasWellfoundedOrd : hasWellfoundedOrd.
@@ -529,8 +538,6 @@ Section toVerdi.
     (@world_hasSemantics node msg event node_eq_dec network_desc).
   Instance net_hasInit : hasInit Net.network := 
     fun net => net= step_async_init.
-  Instance net_hasFinal : hasFinal network :=
-    fun x => False.
 
   Instance net_hasStep : hasStep network :=
     (fun s s' => exists TRACE',
