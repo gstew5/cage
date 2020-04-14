@@ -149,10 +149,7 @@ Module WE2WL
         
         (* (* All client commands are CSkip *) *)
         (forall i, client_iters
-                     (w.(rLocalState) (clientID i)) = BinNums.N0)
-          
-  .
-    
+                     (w.(rLocalState) (clientID i)) = BinNums.N0).
 
     Definition weNetworkStep :=
       @Rnetwork_step Ix.t server_ty
@@ -162,7 +159,6 @@ Module WE2WL
                      weNetwork_desc weNetworkHasFinal.
 
   Instance weNetworkHasStep : hasStep weWorld := weNetworkStep.
-
     
   Instance weNetworkSemantics : @semantics weWorld _ _ _.
 
@@ -472,16 +468,20 @@ Module WE2WL
                (s : {ffun 'I_B.n -> dist [finType of A.t] rat_realFieldType})
                (m : compile.M.t (list (A.t*D))) : Prop :=
       forall a q, 
-     (* (compile.M.find (N.of_nat (nat_of_ord a)) m = None /\ *)
-     (*  match_maps (eq_mixin:=MWU.A.eq_mixin) *)
-     (*             (choice_mixin:=MWU.A.choice_mixin) *)
-     (*             (fin_mixin:=MWU.A.fin_mixin) *)
-     (*             (s a) MW.init_map) *)
-     (*  \/ *)
-      (compile.M.find (N.of_nat (nat_of_ord a)) m
-                   = Some q ->
-                  match_maps_norm (s a) (MProps.of_list q)).
+        (compile.M.find (N.of_nat (nat_of_ord a)) m = None -> 
+        (s a) = (uniformDist A.t0))
+          /\
+        (compile.M.find (N.of_nat (nat_of_ord a)) m
+         = Some q ->
+         match_maps_norm (s a) (MProps.of_list q)).
+
     (* match_maps (s a) (MProps.of_list q). *)
+
+      (* match_maps (eq_mixin:=MWU.A.eq_mixin) *)
+      (*            (choice_mixin:=MWU.A.choice_mixin) *)
+      (*            (fin_mixin:=MWU.A.fin_mixin) *)
+      (*            (s a) MW.init_map) *)
+
 
     (* Server states match. Not sure about round #. *)
     Definition wewlServerStateMatch
@@ -630,11 +630,19 @@ Module WE2WL
         (compile.M.empty (seq.seq (A.t * D))).
     Proof.
       red.
-      move => a q Hfind a0.
-      have H0: (compile.M.find (elt:=seq.seq (A.t * D)) (N.of_nat a)
+      move => a q.
+      split; auto.
+      {
+        move => Hfind.
+        rewrite ffunE => //.
+      }
+      {
+        move => Hfind a0.
+        have H0: (compile.M.find (elt:=seq.seq (A.t * D)) (N.of_nat a)
                                (compile.M.empty (seq.seq (A.t * D))) = None).
-      { by apply compile.MFacts.empty_o. }
-      congruence.
+        { by apply compile.MFacts.empty_o. }
+        congruence.
+      }
     Qed.
 
     Lemma MapPreservesPerm
@@ -847,66 +855,8 @@ Module WE2WL
           (destruct s; auto;
                 simpl in *;
             rewrite Hwl0 H0 => //).
-          
-            (* red. *)
-            (* split; auto; try split; auto. *)
-            (* { *)
-            (*   simpl. *)
-            (*   intros. *)
-            (*   exists init_map. *)
-            (*   admit. *)
-            (* } *)
-            (* { *)
-            (*   red. *)
-            (*   intros. *)
-            (*   red. *)
-            (*   intros; auto. *)
-            (*   exists D1. *)
-            (*   unfold pre_init in H. *)
-            (*   simpl in H. *)
-            (*   split; auto. *)
-            (*   { *)
-            (*     admit. *)
-            (*   } *)
-            (*   { *)
-            (*     admit. *)
-                (* simpl. *)
-                (* unfold uniformDist. *)
-                (* rewrite ffunE. *)
-                (* simpl. *)
-                (* rewrite /uniform_dist. *)
-                (* rewrite ffunE. *)
-                (* rewrite Q_to_rat_div. *)
-                (* simpl. *)
-                (* have->: Q_to_rat 1 = 1 => //. *)
-                (* do 2 f_equal. *)
-                (* rewrite /MWU.cGamma. *)
-                (* assert (q = init_map). *)
-                (* { *)
-                (*   admit. *)
-                (* } *)
-                (* subst. *)
-                (* unfold init_map. *)
-                (* rewrite cardEdef. *)
-                (* unfold A.t. *)
-               (*  unfold A_finType in Henum. *)
-               (*  simpl in Henum. *)
-               (*  set s := (          *)
-               (* (@enum_mem *)
-               (*    (@Finite.Pack A.t *)
-               (*       (@Finite.Class A.t *)
-               (*          (@Choice.Class A.t T.eq_mixin T.choice_mixin) *)
-               (*          T.fin_mixin) A.t) *)
-               (*    (@mem A.t (predPredType A.t) *)
-               (*       (@sort_of_simpl_pred A.t (pred_of_argType A.t))))) *)
-               (*           ;    *)
-               (*           simpl in *. *)
-               (*  apply uniq_size_uniq with (s2:= s) *)
-               (*                                    in Huneq. *)
-               (*  unfold s in Huneq. *)
-                
-                
-                (* unfold A.t in Henum. *)
+          split; auto.
+          apply match_server_map_init.
         }
         {  by rewrite Hwl3 H1; constructor. }
        {  rewrite Hwl4 H2; constructor. }
@@ -914,7 +864,7 @@ Module WE2WL
         { by move=> i _; rewrite H0. }
         { by move=> i pkt Hin; rewrite H1 in Hin; inversion Hin. }
         { congruence. } }
-    Admitted.
+    Qed.
 
     Lemma we2wl_final_diagram_conv :
       forall x we_st wl_st,
@@ -1946,16 +1896,18 @@ Module WE2WL
                 unfold uniformDist.
                 apply dist_eq.
                 simpl.
-                admit.
-                (* specialize (Hexists x). *)
-                (* destruct Hexists; subst. *)
-                (* unfold Ix.val_of_Ordinal in Hm. *)
-                (* destruct x; subst; auto. *)
-                (* rewrite H in Hm. *)
-                (* discriminate. *)
+                specialize (Hmaps nil). 
+                destruct Hmaps as [Hnone _].
+                unfold A.t in *.
+                unfold Ix.val_of_Ordinal in Hm.
+                destruct x.
+                simpl in *.
+                apply Hnone in Hm; auto.
+                rewrite Hm.
+                reflexivity.
               }
             }
-          Admitted.
+          Qed.
 
     Theorem we2wl_step_diagram' :
       forall x we_st wl_st,
@@ -2259,9 +2211,10 @@ Module WE2WL
               { move=> Hcontra; congruence. } } 
             { 
               destruct s.
-                by rewrite 2!upd_rLocalState_same;
-                  inversion H0; subst; split=> /= //. }
-
+                rewrite 2!upd_rLocalState_same;
+                  inversion H0; subst; split=> /= //.
+                apply match_server_map_init.
+            }
           }
           { move=> n0. rewrite /upd_rInitNodes.
             subst.
