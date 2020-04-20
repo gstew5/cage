@@ -60,7 +60,6 @@ Module WE2WL
     (* Context `{Hgame : cgame B.n [finType of A.t] }. *)
     Context `{Hgame : game [finType of A.t] B.n rat_realFieldType}.
       
-      
     (* Variable serverCostRel *)
     (*   : forall {A : finType} {N : nat} *)
     (*            (costInstance : CostClass N rat_realFieldType A), *)
@@ -141,7 +140,7 @@ Module WE2WL
 
   Instance weNetworkHasFinal : hasFinal weWorld :=
       fun w : weWorld =>
-        round (w.(rLocalState) serverID)= nx%nat /\
+        (round (w.(rLocalState) serverID) >= nx%nat)%N /\
         (* All nodes marked as initialized *)
         (forall n, w.(rInitNodes) n = true) /\
         (* The final packets from all clients are in the buffer *)
@@ -884,6 +883,9 @@ Module WE2WL
         red in Hmatch0.
         destruct  (Hmatch0 serverID).
         intuition; subst; auto.
+        rewrite H2.
+        clear -Hfinalnx.
+        exact Hfinalnx.
       }
       split.
       { move=> n. specialize (Hfinal0 (coerce_nodeId n)).
@@ -947,6 +949,8 @@ Module WE2WL
         red in Hmatch0.
         destruct  (Hmatch0 serverID).
         intuition; subst; auto.
+        admit.
+        
       }
       split.
       { move=> n. specialize (Hfinal0 (coerce_nodeId' n)).
@@ -972,7 +976,7 @@ Module WE2WL
             {
                 by rewrite Heqwlstate in H1; destruct H1;
                 rewrite ordinal_of_t_inv in H1. } } } }
-    Qed.
+      Admitted.
 
     Notation mult_weights_body := (mult_weights_body [finType of A.t]).
 
@@ -1182,10 +1186,60 @@ Module WE2WL
       unfold MW.init_map in *.
       unfold MW.A.t in *.
       (* Hupdate1 implies q is not empty which contradicts H1 *)
+      pose proof Hupdate1 as Hnot.
+      specialize (Hnot A.t0 1%D).
+      assert (M.find (elt:=D) A.t0
+           (MW.MProps.of_list (map (pair^~ 1%D) (enumerate T.t))) =
+         Some 1%D).
+      {
+        pose proof Hupdate0 as Hnot1.
+        clear -Hnot H1 Hnot1.
+        (* Do induction to get a different version of this proof 
+           for add using Some and None that q is not empty  *)
+        (* rewrite MW.MProps.fold_identity in Hnot1. *)
+        admit.
+      }
       admit.
-      simpl in *. rewrite H1. f_equal.
-      (* Hmm, we have that d = init_map, not init_dist, because the
-         interpreter is sending weights instead of distributions. *)
+      {
+        simpl in *. rewrite H1. f_equal.
+        red in H3.
+        rewrite /init_dist /p_aux_dist /p_aux.
+        apply dist_eq.
+        simpl.
+        destruct d.
+        simpl.
+        (* Since q is a bunch of ones I think we can get that 
+           this pmf is just a function that throws away it's argument 
+           and divides 1 by cGamma from Hupdate premises *)
+        assert (pmf = [ffun q0 =>
+                       Q_to_rat
+                         (Qred (D_to_Q 1%D) /
+                MWU.cGamma (MProps.of_list (MW.M.elements (elt:=D) q)))]).
+        admit.
+        rewrite H4.
+        clear H4.
+        apply eq_ffun.        
+        simpl.
+        (* Locate "=1". *)
+        unfold eqfun.
+        intros.
+        (* This is gonna annoying I know that q is a bunch of 
+           ones from Hupdate0 so I know that lookup will result in a 
+           1, but showing two finfun are equal when one is not *)
+      rewrite ffunE.
+      Print Ltac assert_fails.
+      Fail (rewrite <- match_maps_gamma_cGamma
+              with (m := (MProps.of_list (MW.M.elements (elt:=D) q))))
+           (* Lies *)
+      .
+      rewrite Q_to_rat_div.
+      pose proof MWU.A.fin_mixin.
+      unfold MWU.A.t in *.
+      unfold MWU.A.eq_mixin in *.
+      unfold MWU.A.choice_mixin in *.
+      rewrite <- match_maps_gamma_cGamma
+        with (s := (weights.init_weights [finType of T.t])) ; auto.
+      admit.
     Admitted.
     
     Definition upd_map (m : {ffun A.t -> rat}) (k : A.t) (v : rat) :=
@@ -1198,28 +1252,58 @@ Module WE2WL
       end.
 
     Definition convert_weDist_topmf (we_dist : seq.seq (T.t * D))  :=
-      [ffun a => Q_to_rat (MWU.weights_distr (MProps.of_list we_dist) a)].
+      (* p_aux eps (weights.init_weights T.t) *)
+      (* match we_dist with *)
+      (* | nil => [ffun => 1/ gamma (init_weights [finType of T.t])] *)
+      (* | _ =>  *)
+        [ffun a => Q_to_rat
+                     (MWU.weights_distr (MProps.of_list we_dist) a)].
+      (* end. *)
 
-    Program Definition convert_weDist (we_dist : seq.seq (T.t * D)) :
+    Program Definition convert_weDist
+            (* (we_dist : {l : seq.seq (T.t * D) | l <> nil}): *)
+            (we_dist : seq.seq (T.t * D))  : 
       dist [finType of T.t] rat_realFieldType :=
       mkDist
         (pmf := convert_weDist_topmf we_dist)
         _ .
     Next Obligation.
+      rewrite /dist_axiom.
+      case: andP; auto.
+      intros Hnot.
+      exfalso.
+      apply Hnot.
+      split.
+      {
+        (* p_aux. *)
+        rewrite /convert_weDist_topmf.
+        induction we_dist; auto.
+        (* Import MWU. *)
+        (* About p_aux. *)
+        {
+          set iw := (init_weights [finType of T.t]).
+          have: (\sum_t0 [ffun=> 1 / gamma (A:=[finType of T.t]) iw] t0 =
+                \sum_t0 [ffun => 1] t0 /
+                 (gamma (A:=[finType of T.t])
+                        iw)).
+          {
+            admit.
+          }
+          intros.
     Admitted.
-    (* clear. *)
-    (* unfold dist_axiom. *)
-    (* apply andb_true_iff. *)
-    (* split => //. *)
 
-    Definition wlEventOf_weEvent (e : weEvent) : wlEvent :=
+     Definition wlEventOf_weEvent (e : weEvent) : wlEvent :=
       [ffun n =>
        match compile.M.find (elt:=seq.seq (T.t * D)) (Ix.val_of_Ordinal n) e with
        | Some d => convert_weDist d
        | None => uniformDist (T:=[finType of A.t]) A.t0
        end].
+    (* Next Obligation. *)
+    (*   admit. *)
+    (* Admitted. *)
 
-    Definition pmfOf_msg (msg : premsg) : {ffun [finType of A.t] -> rat_realFieldType} :=
+    Definition pmfOf_msg (msg : premsg)
+      : {ffun [finType of A.t] -> rat_realFieldType} :=
       convert_weDist_topmf msg.
 
     Program Definition wlMsgOf_weMsg (weM : weMsg)
@@ -1228,6 +1312,9 @@ Module WE2WL
       | TO_SERVER msg => wlMsgClient (convert_weDist msg)
       | TO_CLIENT msg => wlMsgServer (pmfOf_msg msg)
       end.
+    (* Next Obligation. *)
+    (* admit. *)
+    (* Admitted. *)
 
     Definition wlPacketOf_wePacket (wlP : packet weNode weMsg)
       :
@@ -1684,10 +1771,10 @@ Module WE2WL
 
     Lemma we_wl_server_recv : forall hd s' s'' ms' es'
           (wl_st : wlnetwork.wlWorld (N:=Ix.n) (A:=[finType of A.t]) A.t0 serverCostRel (eps:=eps) epsOk nx),
-        ~ round s' == nx -> 
-       server_recv enum_ok epsQ nx (Rmsg_of hd) (origin_of hd) s' = (s'', ms', es') -> 
-              wlServerRecv A.t0 serverCostRel (Rmsg_of (wlPacketOf_wePacket hd)) (coerce_nodeId (origin_of hd))
-             (wlServOf_weServ s') (wlServOf_weServ s'', map wlPacketOf_wePacket ms', map wlEventOf_weEvent es').
+  ~ round s' == nx -> 
+  server_recv enum_ok epsQ nx (Rmsg_of hd) (origin_of hd) s' = (s'', ms', es') -> 
+  wlServerRecv A.t0 serverCostRel (Rmsg_of (wlPacketOf_wePacket hd)) (coerce_nodeId (origin_of hd))
+  (wlServOf_weServ s') (wlServOf_weServ s'', map wlPacketOf_wePacket ms', map wlEventOf_weEvent es').
     Proof.
       move => hd s' s'' ms' es' wl_st HNotdone Hrecv.
       unfold server_recv in Hrecv.
@@ -1878,7 +1965,7 @@ Module WE2WL
                   clear.
                   intros.
                   pose proof rat_to_QK2 as P.
-                  rewrite- rat_to_QK1.
+                  rewrite - rat_to_QK1.
                   specialize (P x0 (Q_to_rat (rat_to_Q (Q_to_rat x0)))).
                   rewrite -P; auto.
                   {
@@ -2256,6 +2343,8 @@ Module WE2WL
       eexists.
       split.
       {
+        
+
         eapply RserverPacketStep with 
             (st' := wlServOf_weServ st') 
                                   (l' := map wlPacketOf_wePacket l')
@@ -2291,6 +2380,7 @@ Module WE2WL
             rewrite IHwewlInFlightMatch.
             auto.
           }
+
           assert ((msgToServerList (ordinal_eq_dec (N:=Ix.n)) mk_server server_singleton
                                    (rInFlight wl_st)) = rInFlight wl_st).
           {
@@ -2303,6 +2393,8 @@ Module WE2WL
           }
           rewrite H2.
           rewrite Heq.
+          pose proof H0 as Hac.
+          pose proof H as Hinitn.
           apply wemsgToServer_allCorrect in H0.
           rewrite H0 in H1.
           Set Printing All.
@@ -2312,64 +2404,99 @@ Module WE2WL
           simpl in *.
           inversion Hmatch.
           clear H2 H3 H4 H5 H6 H7.
-          (* { *)
-          (*   red in H0. *)
-          (*   specialize (H0 serverID). *)
-          (*   simpl in H0. *)
-          (*   inversion H0 as [Hmap [ Hnr Hr]]. *)
-          (*   clear Hnr Hr. *)
-          (*   red in Hmap. *)
           apply localStates_same in H0.
           rewrite H0.
           unfold weMsg in *.
           unfold weEvent in *.
           generalize dependent (rInFlight w).
           intros.
-          assert (HnotFinal : ~ wlRound
-               (wlServOf_weServ (rLocalState w (networkSemanticsNoBatch.serverID Ix.t mk_server))) == nx).
-          {
-            intros Hnot.
-            admit.
-          }
-          
           revert H1.
-          revert HnotFinal.
           move: ((rLocalState w (networkSemanticsNoBatch.serverID Ix.t mk_server))).
           intros.
+          (* If the round is done there are no more elements of l to 
+             be processed so serverUpdateNil should apply *)
           induction H1.
           {
             simpl.
             constructor.
           }
           {
-            repeat subst.
-            do 2 rewrite map_app.
-            simpl in *.
-            econstructor 2 with (s' := (wlServOf_weServ s')); eauto.
-            apply we_wl_server_recv; auto.
-            {
-              intros Hnot.
-              exfalso.
-              apply Hfinal.
-              constructor; auto.
-              assert (final w) =>//.
-              {
-                admit.
-              (* constructor; auto. *)
-              (* pose proof HnotFinal. *)
-              (* TODO Got stuck trying to string the fact that 
-                   no server step could happen when 
-                   the round s' == nx, 
-                   since the state would be final. 
-                 *)
-              }
-              {
-                admit.
+            (* repeat subst. *)
+            (* do 2 rewrite map_app. *)
+            (* simpl in *. *)
+            (* repeat red in H2. *)
+            (* rewrite /server_recv in H2. *)
+            (* destruct (round s' == nx) eqn:Hr. *)
+            (* { *)
+            (*   (* inversion H2. *) *)
+            (*   (* subst. *) *)
+            (*   (* simpl in *. *) *)
+            (*   (* do 2 rewrite app_nil.               *) *)
+
+
+              
+            (*   (* constructor 2 with (wlServOf_weServ s''); auto. *) *)
+            (*   (* simpl. *) *)
+            (*   admit. *)
+              
+            (* } *)
+            
+              
+              
+            (* econstructor 2 with (s' := (wlServOf_weServ s')); eauto. *)
+            
+            (* apply we_wl_server_recv; auto. *)
+            (* { *)
+            (*   intros Hnot. *)
+            (*   exfalso. *)
+            (*   apply Hfinal. *)
+            (*   constructor; auto. *)
+            (*   { *)
+            (*     admit. *)
+            (*   } *)
+            (*   { *)
+            (*     split; auto. *)
+            (*     { *)
+            (*       inversion Hmatch. *)
+            (*       red in H6. *)
+            (*       move => n. *)
+            (*       destruct n; simpl in * =>//. *)
+            (*       { *)
+            (*         rewrite /rInitNodes. *)
+
+            (*         red in Hac. *)
+            (*         admit. *)
+                    
+            (*       } *)
+            (*       { *)
+            (*         destruct s0. *)
+            (*         auto. *)
+            (*       } *)
+            (*     } *)
+
+            (*       rewrite -> H6; auto. *)
+                  
+              
+            (*   (* constructor; auto. *) *)
+            (*   (* pose proof HnotFinal. *) *)
+            (*   (* TODO Got stuck trying to string the fact that  *)
+            (*        no server step could happen when  *)
+            (*        the round s' == nx,  *)
+            (*        since the state would be final.  *)
+            (*      *) *)
+            (*   } *)
+            (*   { *)
+            (*     inversion Hmatch. *)
+            (*     split; auto. *)
+            (*     admit. *)
+            (*     split; auto. *)
+
+            (*     admit. *)
+            admit.
+
               }
             }
           }
-        }
-      }
       {
         {
         admit.

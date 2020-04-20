@@ -326,7 +326,7 @@ Section weightsLangNetwork.
 
   Instance wlNetworkHasFinal : hasFinal wlWorld :=
     fun w =>
-      wlRound (w.(rLocalState) serverID)= nx%nat /\
+      (wlRound (w.(rLocalState) serverID) >= nx)%nat /\
       (* All nodes marked as initialized *)
       (forall n, w.(rInitNodes) n = true) /\
       (* The final packets from all clients are in the buffer *)
