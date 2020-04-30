@@ -229,7 +229,7 @@ Module WE_NodePkg
 
   Record server_state : Type :=
     mkServerState
-      { actions_received : M.t (list (A.t*D))
+      {   actions_received : M.t (list (A.t*D))
         ; num_received : nat
         ; round : nat 
       }.
@@ -497,8 +497,9 @@ Module WE_NodePkg
       (enumerate Ix.t)
       nil.
 
-  Definition incr_round (sst : server_state) :=
-    mkServerState sst.(actions_received) sst.(num_received) (S sst.(round)).
+  Definition incr_round (r : nat) :=
+    mkServerState  (@M.empty (seq.seq (A.t *D))) 0 r.
+    (* mkServerState sst.(actions_received) sst.(num_received) (S sst.(round)). *)
   
   Definition server_recv
              (m : MSG)
@@ -509,9 +510,9 @@ Module WE_NodePkg
       (* Do nothing if reached max number of rounds. This makes it
          impossible for clients to receive a packet after they've
          finished running the MWU command. *)
-      if sst.(round) == nx then
-        (sst, nil, nil)
-      else
+      (* if sst.(round) == nx then *)
+      (*   (sst, nil, nil) *)
+      (* else *)
         match from with
         | clientID x => 
           match m with
@@ -525,10 +526,10 @@ Module WE_NodePkg
             in if round_is_done sst' then
                  match events_of sst' with
                  | Some e => 
-                   (incr_round sst', packets_of sst', e::nil)
+                   (incr_round sst'.(round), packets_of sst', e::nil)
                  (* (server_init_state, packets_of sst', e::nil) *)
                  | None =>
-                   (incr_round sst', packets_of sst', nil)
+                   (incr_round sst'.(round), packets_of sst', nil)
                  end
                else (sst', nil, nil)
           | TO_CLIENT _ => (sst, nil, nil)

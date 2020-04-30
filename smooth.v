@@ -178,8 +178,8 @@ Proof. by rewrite sum_opp_upd -big_distrr /= mulN1r. Qed.
 Instance negativeCostSmoothnessAxiomInstance_of_payoffSmoothnessAxiomInstance
          `(payoffSmoothnessAxiomInstance : PayoffSmoothnessAxiomClass)
   : NegativeCostSmoothnessAxiomClass     
-      (negative_cost_game_of_payoff_game _ _ _ _) _
-      (negativeCostMuAxiomInstance_of_payoffMuAxiomInstance _ _ _).
+      (negative_cost_game_of_payoff_game _) _
+      (negativeCostMuAxiomInstance_of_payoffMuAxiomInstance _).
 Proof.
   rewrite /PayoffSmoothnessAxiomClass /mu_val in payoffSmoothnessAxiomInstance.
   rewrite /NegativeCostSmoothnessAxiomClass /Cost /cost_fun
