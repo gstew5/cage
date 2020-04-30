@@ -878,1050 +878,1050 @@ Proof.
   compute; intros; discriminate; eauto.
 Qed.
 
-(* Instance resource_cgame N *)
-(*   : cgame (N:=N) (T:=[finType of resource]) _ _ _ _ *)
-(*       (resourceGame N). *)
+Instance resource_cgame N
+  : cgame (N:=N) (T:=[finType of resource]) _ _ _ _
+      (resourceGame N).
 
-(* (** [NOTE Enumerable instances] *)
+(** [NOTE Enumerable instances] *)
 (*     ~~~~~~~~~~~~~~~~~~~~~~ *)
 (*     [Enumerable] instances should in general avoid using Ssreflect [enum].  *)
 (*     The reason is, extraction (and computation) of [enum ...] doesn't  *)
 (*     usually (or ever...?) result in usable OCaml terms. Instead,  *)
 (*     use the [enumerate] function of the underlying type to build the  *)
 (*     instance at the current type. *)
-(*     The example below illustrates the general problem: *) *)
+(*     The example below illustrates the general problem: *)
 
-(* Definition resources : list resource := Eval hnf in enum [finType of resource]. *)
-(* Extraction resources. *)
-(* (* let resources = *)
+Definition resources : list resource := Eval hnf in enum [finType of resource].
+Extraction resources.
+(* let resources = *)
 (*   filter *)
 (*     (pred_of_simpl *)
 (*       (pred_of_mem_pred *)
 (*         (mem predPredType (sort_of_simpl_pred pred_of_argType)))) *)
 (*     (Obj.magic Finite.EnumDef.enum *)
-(*       (Finite.clone resource_finType (Finite.coq_class resource_finType))) *) *)
-(* Definition resources' : list resource := Eval hnf in enumerate [finType of resource]. *)
-(* Extraction resources'. *)
-(* (* let resources' = *)
-(*   Cons (RYes, (Cons (RNo, Nil))) *) *)
+(*       (Finite.clone resource_finType (Finite.coq_class resource_finType))) *)
+Definition resources' : list resource := Eval hnf in enumerate [finType of resource].
+Extraction resources'.
+(* let resources' = *)
+(*   Cons (RYes, (Cons (RNo, Nil))) *)
 
 
-(* (********************************************* *)
+(********************************************* *)
 (*  Singleton Games are Compilable  *)
-(*  *********************************************) *)
+(*  *********************************************)
 
-(* Global Instance singCCostInstance (A : Type) `(Boolable A) N *)
-(*   : CCostClass N (singleton A) *)
-(*   :=       *)
-(*     (fun (i : OrdNat.t) (m : M.t (singleton A)) => *)
-(*       match M.find i m with *)
-(*       | Some t => if boolify t then 1 else 0 *)
-(*       | _ => 0 *)
-(*       end)%D. *)
+Global Instance singCCostInstance (A : Type) `(Boolable A) N
+  : CCostClass N (singleton A)
+  :=
+    (fun (i : OrdNat.t) (m : M.t (singleton A)) =>
+      match M.find i m with
+      | Some t => if boolify t then 1 else 0
+      | _ => 0
+      end)%D.
 
-(* Instance singCTypeInstance (A : Type) (EnumA : Enumerable A) *)
-(*     : Enumerable (singleton A) := map (@Wrap Singleton A) (enumerate A). *)
+Instance singCTypeInstance (A : Type) (EnumA : Enumerable A)
+    : Enumerable (singleton A) := map (@Wrap Singleton A) (enumerate A).
 
-(* Instance singCCostMaxInstance (N : nat) (A : Type) *)
-(*     : @CCostMaxClass N (singleton A) := 1%D. *)
+Instance singCCostMaxInstance (N : nat) (A : Type)
+    : @CCostMaxClass N (singleton A) := 1%D.
 
-(* Section singletonCompilable. *)
-(*   Context {A : finType} {N: nat} `{RefineTypeAxiomClass A} `{Boolable A}. *)
+Section singletonCompilable.
+  Context {A : finType} {N: nat} `{RefineTypeAxiomClass A} `{Boolable A}.
 
-(*   Global Program Instance singRefineTypeAxiomInstance *)
-(*     : @RefineTypeAxiomClass (singletonType A) (singCTypeInstance _). *)
-(*   Next Obligation. *)
-(*     generalize H => H1. clear H. case: H1 => H1 H2. *)
-(*     split; last first. *)
-(*     { *)
-(*       rewrite map_inj_uniq. apply H2. *)
-(*       rewrite /injective => x1 x2 H3. *)
-(*       inversion H3 => //. *)
-(*     } *)
-(*     rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance. *)
-(*     move => r. *)
-(*     apply /mapP. *)
-(*     case_eq (in_mem r (mem (enum_mem (T:=singletonType A) *)
-(*               (mem (sort_of_simpl_pred (pred_of_argType *)
-(*                 (Wrapper Singleton A))))))) => H3; rewrite H3. *)
-(*     { *)
-(*       move: H3. *)
-(*       case: r => x H3. *)
-(*       exists x; last by []. *)
-(*       rewrite H1 mem_enum. *)
-(*       rewrite mem_enum in H3 => //. *)
-(*     } *)
-(*     { *)
-(*       move => H4. *)
-(*       case: H4 => x H4 H5. *)
-(*       rewrite H5 in H3. *)
-(*       move/negP: H3 => H3. *)
-(*       apply H3 => //. *)
-(*       rewrite mem_enum => //. *)
-(*     } *)
-(*   Qed. *)
+  Global Program Instance singRefineTypeAxiomInstance
+    : @RefineTypeAxiomClass (singletonType A) (singCTypeInstance _).
+  Next Obligation.
+    generalize H => H1. clear H. case: H1 => H1 H2.
+    split; last first.
+    {
+      rewrite map_inj_uniq. apply H2.
+      rewrite /injective => x1 x2 H3.
+      inversion H3 => //.
+    }
+    rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance.
+    move => r.
+    apply /mapP.
+    case_eq (in_mem r (mem (enum_mem (T:=singletonType A)
+              (mem (sort_of_simpl_pred (pred_of_argType
+                (Wrapper Singleton A))))))) => H3; rewrite H3.
+    {
+      move: H3.
+      case: r => x H3.
+      exists x; last by [].
+      rewrite H1 mem_enum.
+      rewrite mem_enum in H3 => //.
+    }
+    {
+      move => H4.
+      case: H4 => x H4 H5.
+      rewrite H5 in H3.
+      move/negP: H3 => H3.
+      apply H3 => //.
+      rewrite mem_enum => //.
+    }
+  Qed.
 
-(*   Global Instance singRefineTypeInstance *)
-(*     : @RefineTypeClass (singletonType A)  _ _. *)
+  Global Instance singRefineTypeInstance
+    : @RefineTypeClass (singletonType A)  _ _.
 
-(*   Global Program Instance singRefineCostAxiomInstance `(Boolable A) *)
-(*     : RefineCostAxiomClass _ (singCCostInstance _ N). *)
-(*   Next Obligation. *)
-(*     rewrite /cost_fun /singletonCostInstance /cost_fun. *)
-(*     rewrite /ccost_fun /singCCostInstance /ccost_fun. *)
-(*     rewrite (H2 i pf). *)
-(*     case: (boolify (s (Ordinal (n := N) (m := i) pf))) => //. *)
-(*   Qed. *)
+  Global Program Instance singRefineCostAxiomInstance `(Boolable A)
+    : RefineCostAxiomClass _ (singCCostInstance _ N).
+  Next Obligation.
+    rewrite /cost_fun /singletonCostInstance /cost_fun.
+    rewrite /ccost_fun /singCCostInstance /ccost_fun.
+    rewrite (H2 i pf).
+    case: (boolify (s (Ordinal (n := N) (m := i) pf))) => //.
+  Qed.
   
-(*   Global Instance singRefineCostInstance *)
-(*     : @RefineCostClass N (singletonType A) _ _ _. *)
+  Global Instance singRefineCostInstance
+    : @RefineCostClass N (singletonType A) _ _ _.
 
-(*   Global Instance singRefineCostMaxInstance *)
-(*     : @RefineCostMaxClass N _ (singletonCostMaxInstance _ _) (singCCostMaxInstance N A). *)
-(*   Proof. *)
-(*     rewrite /RefineCostMaxClass /resourceCCostMaxInstance *)
-(*             /singletonCostMaxInstance /singCCostMaxInstance => //. *)
-(*   Qed. *)
+  Global Instance singRefineCostMaxInstance
+    : @RefineCostMaxClass N _ (singletonCostMaxInstance _ _) (singCCostMaxInstance N A).
+  Proof.
+    rewrite /RefineCostMaxClass /resourceCCostMaxInstance
+            /singletonCostMaxInstance /singCCostMaxInstance => //.
+  Qed.
 
-(*   Global Instance singCostMaxMaxInstance *)
-(*     : CCostMaxMaxClass  (singCCostMaxInstance N A) _. *)
-(*   Proof. *)
-(*     split;  *)
-(*     unfold CCostMaxMaxClass; *)
-(*     rewrite /ccostmax_fun/singCCostMaxInstance; *)
-(*     rewrite /ccost_fun /singCCostInstance. *)
-(*     all: *)
-(*     case: (M.find (elt:=singleton A) i m); intros; *)
-(*       [destruct boolify; eauto | ]; *)
-(*           compute; intros; try discriminate. *)
-(*   Qed. *)
+  Global Instance singCostMaxMaxInstance
+    : CCostMaxMaxClass  (singCCostMaxInstance N A) _.
+  Proof.
+    split;
+    unfold CCostMaxMaxClass;
+    rewrite /ccostmax_fun/singCCostMaxInstance;
+    rewrite /ccost_fun /singCCostInstance.
+    all:
+    case: (M.find (elt:=singleton A) i m); intros;
+      [destruct boolify; eauto | ];
+          compute; intros; try discriminate.
+  Qed.
 
-(*   Global Instance sing_cgame *)
-(*   : @cgame N (singletonType A) _ _ _ (singletonCostInstance H0) *)
-(*       _ *)
-(*       _ (singletonCostMaxAxiomInstance _ A _) _ *)
-(*       _ _ _ _ singRefineCostMaxInstance _. *)
+  Global Instance sing_cgame
+  : @cgame N (singletonType A) _ _ _ (singletonCostInstance H0)
+      _
+      _ (singletonCostMaxAxiomInstance _ A _) _
+      _ _ _ _ singRefineCostMaxInstance _.
 
-(* End singletonCompilable. *)
+End singletonCompilable.
 
-(* Module SingletonCGameTest. Section singletonCGameTest. *)
-(*   Context {A : finType} {N : nat} `{Boolable A}. *)
-(*   Variable i' : OrdNat.t. *)
-(*   Variable t' : M.t (singletonType A). *)
-(*   Check ccost_fun (N:=N) i' t'. *)
-(* End singletonCGameTest. End SingletonCGameTest.   *)
+Module SingletonCGameTest. Section singletonCGameTest.
+  Context {A : finType} {N : nat} `{Boolable A}.
+  Variable i' : OrdNat.t.
+  Variable t' : M.t (singletonType A).
+  Check ccost_fun (N:=N) i' t'.
+End singletonCGameTest. End SingletonCGameTest.
 
-(* (********************************************** *)
+(********************************************** *)
 (*   Sigma games are compilable  *)
-(*  **********************************************) *)
+(*  **********************************************)
 
-(* Instance sigmaCCostMaxInstance (N : nat) (A : Type) *)
-(*          (predInstance : PredClass A) *)
-(*          (ccostMaxInstance : CCostMaxClass N A) *)
-(*   : @CCostMaxClass N {x : A | the_pred x} := ccostMaxInstance. *)
+Instance sigmaCCostMaxInstance (N : nat) (A : Type)
+         (predInstance : PredClass A)
+         (ccostMaxInstance : CCostMaxClass N A)
+  : @CCostMaxClass N {x : A | the_pred x} := ccostMaxInstance.
 
-(* Section sigmaCompilable. *)
-(*   Global Instance sigmaEnumerableInstance (A : Type) *)
-(*            (enumerableInstance : Enumerable A) *)
-(*            (predInstance : PredClass A) *)
-(*     : Enumerable {x : A | the_pred x} := *)
-(*     filter_sigma the_pred (enumerate A). *)
+Section sigmaCompilable.
+  Global Instance sigmaEnumerableInstance (A : Type)
+           (enumerableInstance : Enumerable A)
+           (predInstance : PredClass A)
+    : Enumerable {x : A | the_pred x} :=
+    filter_sigma the_pred (enumerate A).
 
-(*   Global Program Instance sigmaRefineTypeAxiomInstance *)
-(*           (A : finType) *)
-(*           `(refineTypeAxiomInstanceA : RefineTypeAxiomClass A) *)
-(*           (predInstance : PredClass A) *)
-(*     : @RefineTypeAxiomClass [finType of {x : A | the_pred x}] _. *)
-(*   Next Obligation. *)
-(*     rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceA. *)
-(*     case: refineTypeAxiomInstanceA=> [H0 H1]. rewrite /eq_mem in H0. *)
-(*     split. *)
-(*     { move=> r. rewrite /enumerable_fun. rewrite /sigmaEnumerableInstance. *)
-(*       have ->: (r \in enum [finType of {x : A | the_pred x}]). *)
-(*       { apply mem_enum. } *)
-(*       have ->: (r \in filter_sigma the_pred (enumerate A)). *)
-(*       { apply list_in_iff, list_in_filter_sigma. *)
-(*         specialize (H0 (proj1_sig r)). apply list_in_iff. *)
-(*         rewrite H0. by apply mem_enum. } *)
-(*         by []. } *)
-(*     { rewrite /enumerable_fun /sigmaEnumerableInstance. clear H0. move: H1. *)
-(*       elim: (enumerate A). *)
-(*       - by []. *)
-(*       - move => a l IHl H1. simpl. simpl in H1. move: H1=> /andP [H1 H2]. *)
-(*         destruct (to_sigma the_pred a) eqn:Ha. simpl. apply /andP. *)
-(*         split. rewrite /in_mem. simpl. apply /negP. move=> Contra. *)
-(*         rewrite /in_mem in H1. simpl in H1. move: H1=> /negP H1. *)
-(*         rewrite /mem_seq in H1. rewrite /mem_seq in Contra. *)
-(*         have H3: (mem_seq (T:=A) l a). *)
-(*         { apply: mem_seq_filter. apply Ha. assumption. } *)
-(*         contradiction. *)
-(*         apply IHl; assumption. apply IHl; assumption. } *)
-(*   Qed. *)
+  Global Program Instance sigmaRefineTypeAxiomInstance
+          (A : finType)
+          `(refineTypeAxiomInstanceA : RefineTypeAxiomClass A)
+          (predInstance : PredClass A)
+    : @RefineTypeAxiomClass [finType of {x : A | the_pred x}] _.
+  Next Obligation.
+    rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceA.
+    case: refineTypeAxiomInstanceA=> [H0 H1]. rewrite /eq_mem in H0.
+    split.
+    { move=> r. rewrite /enumerable_fun. rewrite /sigmaEnumerableInstance.
+      have ->: (r \in enum [finType of {x : A | the_pred x}]).
+      { apply mem_enum. }
+      have ->: (r \in filter_sigma the_pred (enumerate A)).
+      { apply list_in_iff, list_in_filter_sigma.
+        specialize (H0 (proj1_sig r)). apply list_in_iff.
+        rewrite H0. by apply mem_enum. }
+        by []. }
+    { rewrite /enumerable_fun /sigmaEnumerableInstance. clear H0. move: H1.
+      elim: (enumerate A).
+      - by [].
+      - move => a l IHl H1. simpl. simpl in H1. move: H1=> /andP [H1 H2].
+        destruct (to_sigma the_pred a) eqn:Ha. simpl. apply /andP.
+        split. rewrite /in_mem. simpl. apply /negP. move=> Contra.
+        rewrite /in_mem in H1. simpl in H1. move: H1=> /negP H1.
+        rewrite /mem_seq in H1. rewrite /mem_seq in Contra.
+        have H3: (mem_seq (T:=A) l a).
+        { apply: mem_seq_filter. apply Ha. assumption. }
+        contradiction.
+        apply IHl; assumption. apply IHl; assumption. }
+  Qed.
 
-(*   Global Instance sigmaRefineTypeInstance (A : finType) *)
-(*            (predInstance : PredClass A) *)
-(*            `(refineTypeAxiomInstanceA : RefineTypeAxiomClass A) *)
-(*     : @RefineTypeClass [finType of {x : A | the_pred x}]  _ _. *)
+  Global Instance sigmaRefineTypeInstance (A : finType)
+           (predInstance : PredClass A)
+           `(refineTypeAxiomInstanceA : RefineTypeAxiomClass A)
+    : @RefineTypeClass [finType of {x : A | the_pred x}]  _ _.
 
-(*   Global Instance sigmaCCostInstance *)
-(*            (A : Type) N *)
-(*            (predInstance : PredClass A) *)
-(*            (ccostA : @CCostClass N A) *)
-(*     : CCostClass N {x : A | the_pred x} *)
-(*     := *)
-(*       fun (i : OrdNat.t) (m : M.t {x : A | the_pred x}) => *)
-(*         ccost i (M.map (fun x => proj1_sig x) m). *)
+  Global Instance sigmaCCostInstance
+           (A : Type) N
+           (predInstance : PredClass A)
+           (ccostA : @CCostClass N A)
+    : CCostClass N {x : A | the_pred x}
+    :=
+      fun (i : OrdNat.t) (m : M.t {x : A | the_pred x}) =>
+        ccost i (M.map (fun x => proj1_sig x) m).
   
-(*   Global Program Instance sigmaRefineCostAxiomInstance *)
-(*           (N : nat) (A : finType) *)
-(*           (predInstance : PredClass A) *)
-(*           (costA : CostClass N rat_realFieldType A) *)
-(*           (ccostA : CCostClass N A) *)
-(*           (refineA : RefineCostAxiomClass costA ccostA) *)
-(*     : @RefineCostAxiomClass *)
-(*         N [finType of {x : A | the_pred x}] *)
-(*         (@sigmaCostInstance N rat_realFieldType A _ costA) *)
-(*         (@sigmaCCostInstance A _ _ ccostA). *)
-(*   Next Obligation. *)
-(*     apply refineA=> j pf'; rewrite ffunE. *)
-(*     apply MProps.F.find_mapsto_iff, MProps.F.map_mapsto_iff. *)
-(*     specialize (H j pf'); apply MProps.F.find_mapsto_iff in H. *)
-(*     by exists (s (Ordinal (n:=N) (m:=j) pf')); split => //. *)
-(*   Qed. *)
+  Global Program Instance sigmaRefineCostAxiomInstance
+          (N : nat) (A : finType)
+          (predInstance : PredClass A)
+          (costA : CostClass N rat_realFieldType A)
+          (ccostA : CCostClass N A)
+          (refineA : RefineCostAxiomClass costA ccostA)
+    : @RefineCostAxiomClass
+        N [finType of {x : A | the_pred x}]
+        (@sigmaCostInstance N rat_realFieldType A _ costA)
+        (@sigmaCCostInstance A _ _ ccostA).
+  Next Obligation.
+    apply refineA=> j pf'; rewrite ffunE.
+    apply MProps.F.find_mapsto_iff, MProps.F.map_mapsto_iff.
+    specialize (H j pf'); apply MProps.F.find_mapsto_iff in H.
+    by exists (s (Ordinal (n:=N) (m:=j) pf')); split => //.
+  Qed.
 
-(*   Global Instance sigmaRefineCostInstance (N : nat) (A : finType) *)
-(*            (predInstance : PredClass A) *)
-(*            (costA : CostClass N rat_realFieldType A) *)
-(*            (ccostA : CCostClass N A) *)
-(*            (refineA : RefineCostAxiomClass costA ccostA) *)
-(*     : @RefineCostClass N [finType of {x : A | the_pred x}] _ _ _. *)
+  Global Instance sigmaRefineCostInstance (N : nat) (A : finType)
+           (predInstance : PredClass A)
+           (costA : CostClass N rat_realFieldType A)
+           (ccostA : CCostClass N A)
+           (refineA : RefineCostAxiomClass costA ccostA)
+    : @RefineCostClass N [finType of {x : A | the_pred x}] _ _ _.
 
-(*   Global Instance sigmaCostMaxRefineInstance (N : nat) (A : finType) *)
-(*            (predInstance : PredClass A) *)
-(*            (costMaxInstance : CostMaxClass N _ A) *)
-(*            (ccostMaxInstance : CCostMaxClass N A) *)
-(*            (refineCostMaxInstance : RefineCostMaxClass costMaxInstance ccostMaxInstance) *)
-(*     : @RefineCostMaxClass N A *)
-(*         (sigmaCostMaxInstance predInstance costMaxInstance) *)
-(*         (sigmaCCostMaxInstance predInstance ccostMaxInstance). *)
-(*   Proof. *)
-(*     rewrite /RefineCostMaxClass /sigmaCostMaxInstance *)
-(*             /sigmaCCostMaxInstance => //. *)
-(*   Qed. *)
+  Global Instance sigmaCostMaxRefineInstance (N : nat) (A : finType)
+           (predInstance : PredClass A)
+           (costMaxInstance : CostMaxClass N _ A)
+           (ccostMaxInstance : CCostMaxClass N A)
+           (refineCostMaxInstance : RefineCostMaxClass costMaxInstance ccostMaxInstance)
+    : @RefineCostMaxClass N A
+        (sigmaCostMaxInstance predInstance costMaxInstance)
+        (sigmaCCostMaxInstance predInstance ccostMaxInstance).
+  Proof.
+    rewrite /RefineCostMaxClass /sigmaCostMaxInstance
+            /sigmaCCostMaxInstance => //.
+  Qed.
 
-(*   Global Instance sigmaCostMaxMaxInstance (N : nat) (A : finType) *)
-(*          (ccostA : CCostClass N A) *)
-(*          (ccostMaxInstance : CCostMaxClass N A) *)
-(*          (predInstance : PredClass A) *)
-(*          (ccostMaxInstance : CCostMaxClass N A) *)
-(*          (ccostMaxMaxInstance : @CCostMaxMaxClass N A _ _ ) *)
-(*     : CCostMaxMaxClass (T := [finType of {x : A | the_pred x}]) _ _. *)
-(*   Proof. *)
-(*     rewrite /CCostMaxMaxClass /ccost_fun /ccostmax_fun *)
-(*             /sigmaCCostInstance /sigmaCCostMaxInstance => //. *)
-(*   Defined. *)
+  Global Instance sigmaCostMaxMaxInstance (N : nat) (A : finType)
+         (ccostA : CCostClass N A)
+         (ccostMaxInstance : CCostMaxClass N A)
+         (predInstance : PredClass A)
+         (ccostMaxInstance : CCostMaxClass N A)
+         (ccostMaxMaxInstance : @CCostMaxMaxClass N A _ _ )
+    : CCostMaxMaxClass (T := [finType of {x : A | the_pred x}]) _ _.
+  Proof.
+    rewrite /CCostMaxMaxClass /ccost_fun /ccostmax_fun
+            /sigmaCCostInstance /sigmaCCostMaxInstance => //.
+  Defined.
 
-(*   Global Instance sigma_cgame (N : nat) (A : finType) *)
-(*            (predInstance : PredClass A) *)
-(*            (costA : CostClass N rat_realFieldType A) *)
-(*            (costAxiomA : @CostAxiomClass N rat_realFieldType A costA) *)
-(*            (costMaxA : CostMaxClass N rat_realFieldType A) *)
-(*            (costMaxAxiomA : CostMaxAxiomClass _ _) *)
-(*            (ccostA : CCostClass N A) *)
-(*            (ccostMaxA : CCostMaxClass N A) *)
-(*            (refineCostMaxInstanceA : RefineCostMaxClass costMaxA ccostMaxA) *)
-(*            (ccostMaxMaxA : @CCostMaxMaxClass N A _ _) *)
-(*            `(refineTypeA : RefineTypeClass A) *)
-(*            (refineCostAxiomA : @RefineCostAxiomClass N A costA ccostA) *)
-(*            (refineCostA : @RefineCostClass N A costA ccostA _) *)
-(*            (gA : @game A N rat_realFieldType _ _ _ _) *)
-(*            (cgA : @cgame N A _ _ _ _ _ _ _ _ _ _ _ _ _ _ ) *)
-(*     : @cgame N [finType of {x : A | the_pred x}] _ _ _ _ _ _ _ _ _ _ _ *)
-(*              _ *)
-(*              (sigmaCostMaxRefineInstance refineCostMaxInstanceA) *)
-(*              (sigmaGameInstance N _ A predInstance gA) .   *)
-(* End sigmaCompilable. *)
+  Global Instance sigma_cgame (N : nat) (A : finType)
+           (predInstance : PredClass A)
+           (costA : CostClass N rat_realFieldType A)
+           (costAxiomA : @CostAxiomClass N rat_realFieldType A costA)
+           (costMaxA : CostMaxClass N rat_realFieldType A)
+           (costMaxAxiomA : CostMaxAxiomClass _ _)
+           (ccostA : CCostClass N A)
+           (ccostMaxA : CCostMaxClass N A)
+           (refineCostMaxInstanceA : RefineCostMaxClass costMaxA ccostMaxA)
+           (ccostMaxMaxA : @CCostMaxMaxClass N A _ _)
+           `(refineTypeA : RefineTypeClass A)
+           (refineCostAxiomA : @RefineCostAxiomClass N A costA ccostA)
+           (refineCostA : @RefineCostClass N A costA ccostA _)
+           (gA : @game A N rat_realFieldType _ _ _ _)
+           (cgA : @cgame N A _ _ _ _ _ _ _ _ _ _ _ _ _ _ )
+    : @cgame N [finType of {x : A | the_pred x}] _ _ _ _ _ _ _ _ _ _ _
+             _
+             (sigmaCostMaxRefineInstance refineCostMaxInstanceA)
+             (sigmaGameInstance N _ A predInstance gA) .
+End sigmaCompilable.
 
-(* (*************************************** *)
+(*************************************** *)
 (*   Product Games are compilable  *)
-(*  ***************************************) *)
+(*  ***************************************)
 
-(* Instance prodEnumerableInstance (aT bT : Type) *)
-(*          (enumerableA : Enumerable aT) *)
-(*          (enumerableB : Enumerable bT) *)
-(*   : Enumerable (aT*bT) := *)
-(*   List.list_prod (enumerate aT) (enumerate bT). *)
+Instance prodEnumerableInstance (aT bT : Type)
+         (enumerableA : Enumerable aT)
+         (enumerableB : Enumerable bT)
+  : Enumerable (aT*bT) :=
+  List.list_prod (enumerate aT) (enumerate bT).
 
-(* Program Instance prodRefineTypeAxiomInstance *)
-(*         (aT bT : finType) *)
-(*         `(refineTypeAxiomInstanceA : RefineTypeAxiomClass aT) *)
-(*         `(refineTypeAxiomInstanceB : RefineTypeAxiomClass bT) *)
-(*   : @RefineTypeAxiomClass [finType of aT*bT] _. *)
-(* Next Obligation. *)
-(*   rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceA. *)
-(*   rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceB. *)
-(*   case: refineTypeAxiomInstanceA=> [HA0 HA1]. *)
-(*   case: refineTypeAxiomInstanceB=> [HB0 HB1]. *)
-(*   split. *)
-(*   { move => r. rewrite mem_enum. case: r. move => a b. *)
-(*     rewrite /prodEnumerableInstance /enumerable_fun. *)
-(*     rewrite /eq_mem in HA0. rewrite /eq_mem in HB0. *)
-(*     have H: (List.In (a, b) (List.list_prod (enumerate aT) (enumerate bT))). *)
-(*     { apply List.in_prod_iff. split; apply list_in_iff. *)
-(*       - by rewrite HA0; apply mem_enum. *)
-(*       - by rewrite HB0; apply mem_enum. } *)
-(*     apply list_in_iff in H. by rewrite H. } *)
-(*     by apply: list_prod_uniq; assumption. *)
-(* Qed. *)
+Program Instance prodRefineTypeAxiomInstance
+        (aT bT : finType)
+        `(refineTypeAxiomInstanceA : RefineTypeAxiomClass aT)
+        `(refineTypeAxiomInstanceB : RefineTypeAxiomClass bT)
+  : @RefineTypeAxiomClass [finType of aT*bT] _.
+Next Obligation.
+  rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceA.
+  rewrite /RefineTypeAxiomClass in refineTypeAxiomInstanceB.
+  case: refineTypeAxiomInstanceA=> [HA0 HA1].
+  case: refineTypeAxiomInstanceB=> [HB0 HB1].
+  split.
+  { move => r. rewrite mem_enum. case: r. move => a b.
+    rewrite /prodEnumerableInstance /enumerable_fun.
+    rewrite /eq_mem in HA0. rewrite /eq_mem in HB0.
+    have H: (List.In (a, b) (List.list_prod (enumerate aT) (enumerate bT))).
+    { apply List.in_prod_iff. split; apply list_in_iff.
+      - by rewrite HA0; apply mem_enum.
+      - by rewrite HB0; apply mem_enum. }
+    apply list_in_iff in H. by rewrite H. }
+    by apply: list_prod_uniq; assumption.
+Qed.
 
-(* Instance prodRefineTypeInstance (aT bT : finType) *)
-(*          `(refineTypeAxiomInstanceA : RefineTypeAxiomClass aT) *)
-(*          `(refineTypeAxiomInstanceB : RefineTypeAxiomClass bT) *)
-(*   : @RefineTypeClass [finType of aT*bT]  _ _. *)
+Instance prodRefineTypeInstance (aT bT : finType)
+         `(refineTypeAxiomInstanceA : RefineTypeAxiomClass aT)
+         `(refineTypeAxiomInstanceB : RefineTypeAxiomClass bT)
+  : @RefineTypeClass [finType of aT*bT]  _ _.
 
-(* Instance prodCCostInstance *)
-(*        N  *)
-(*        (aT bT : Type) *)
-(*        `(ccostA : CCostClass N aT) *)
-(*        `(ccostB : CCostClass N bT) *)
-(*   : CCostClass N (aT*bT) *)
-(*   := *)
-(*     (fun (i : OrdNat.t) (m : M.t (aT*bT)) => *)
-(*        (ccost i (map_split m).1 + *)
-(*          ccost i (map_split m).2))%D. *)
+Instance prodCCostInstance
+       N
+       (aT bT : Type)
+       `(ccostA : CCostClass N aT)
+       `(ccostB : CCostClass N bT)
+  : CCostClass N (aT*bT)
+  :=
+    (fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
+       (ccost i (map_split m).1 +
+         ccost i (map_split m).2))%D.
 
-(* Program Instance prodRefineCostAxiomInstance *)
-(*         (N : nat) (aT bT : finType) *)
-(*         (costA : CostClass N rat_realFieldType aT) *)
-(*         (costB : CostClass N rat_realFieldType bT) *)
-(*         (ccostA : CCostClass N aT) *)
-(*         (ccostB : CCostClass N bT) *)
-(*         (refineA : RefineCostAxiomClass costA ccostA) *)
-(*         (refineB : RefineCostAxiomClass costB ccostB) *)
-(*   : @RefineCostAxiomClass *)
-(*       N [finType of aT*bT] *)
-(*       (@prodCostInstance N rat_realFieldType aT bT costA costB) *)
-(*       (@prodCCostInstance N aT bT ccostA ccostB). *)
-(* Next Obligation. *)
-(*   have H2: (D_to_Q ((ccost) i (map_split m).1) == *)
-(*             rat_to_Q *)
-(*               ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1]))%coq_Qscope. *)
-(*   { apply: refineA => j pf'. *)
-(*     rewrite ffunE. *)
-(*     specialize (H j pf'). *)
-(*     move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H. *)
-(*     apply map_split_spec in H. *)
-(*     case: H => H0 H1. *)
-(*     apply H0. } *)
-(*   have H3: (D_to_Q ((ccost) i (map_split m).2) == *)
-(*             rat_to_Q *)
-(*               ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2]))%Q. *)
-(*   { apply refineB. move => j pf'. *)
-(*     rewrite ffunE. *)
-(*     specialize (H j pf'). *)
-(*     move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H. *)
-(*     apply map_split_spec in H. *)
-(*     case: H => H0 H1. *)
-(*     apply H1. } *)
-(*   rewrite /ccost_fun in H2, H3. *)
-(*   rewrite Dadd_ok. *)
-(*   rewrite H2 H3 [rat_to_Q (_ + _)] rat_to_Q_red. *)
-(*   by apply Qeq_sym; rewrite -rat_to_Q_red rat_to_Q_plus. *)
-(* Qed. *)
+Program Instance prodRefineCostAxiomInstance
+        (N : nat) (aT bT : finType)
+        (costA : CostClass N rat_realFieldType aT)
+        (costB : CostClass N rat_realFieldType bT)
+        (ccostA : CCostClass N aT)
+        (ccostB : CCostClass N bT)
+        (refineA : RefineCostAxiomClass costA ccostA)
+        (refineB : RefineCostAxiomClass costB ccostB)
+  : @RefineCostAxiomClass
+      N [finType of aT*bT]
+      (@prodCostInstance N rat_realFieldType aT bT costA costB)
+      (@prodCCostInstance N aT bT ccostA ccostB).
+Next Obligation.
+  have H2: (D_to_Q ((ccost) i (map_split m).1) ==
+            rat_to_Q
+              ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).1]))%coq_Qscope.
+  { apply: refineA => j pf'.
+    rewrite ffunE.
+    specialize (H j pf').
+    move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
+    apply map_split_spec in H.
+    case: H => H0 H1.
+    apply H0. }
+  have H3: (D_to_Q ((ccost) i (map_split m).2) ==
+            rat_to_Q
+              ((cost) (Ordinal (n:=N) (m:=i) pf) [ffun j => (s j).2]))%Q.
+  { apply refineB. move => j pf'.
+    rewrite ffunE.
+    specialize (H j pf').
+    move: H. case: (s (Ordinal (n:=N) (m:=j) pf')) => a b H.
+    apply map_split_spec in H.
+    case: H => H0 H1.
+    apply H1. }
+  rewrite /ccost_fun in H2, H3.
+  rewrite Dadd_ok.
+  rewrite H2 H3 [rat_to_Q (_ + _)] rat_to_Q_red.
+  by apply Qeq_sym; rewrite -rat_to_Q_red rat_to_Q_plus.
+Qed.
 
-(* Instance prodRefineCostInstance (N : nat) (aT bT : finType) *)
-(*          (costA : CostClass N rat_realFieldType aT) *)
-(*          (costB : CostClass N rat_realFieldType bT) *)
-(*          (ccostA : CCostClass N aT) *)
-(*          (ccostB : CCostClass N bT) *)
-(*          (refineA : RefineCostAxiomClass costA ccostA) *)
-(*          (refineB : RefineCostAxiomClass costB ccostB) *)
-(*   : @RefineCostClass N [finType of aT*bT] _ _ _. *)
+Instance prodRefineCostInstance (N : nat) (aT bT : finType)
+         (costA : CostClass N rat_realFieldType aT)
+         (costB : CostClass N rat_realFieldType bT)
+         (ccostA : CCostClass N aT)
+         (ccostB : CCostClass N bT)
+         (refineA : RefineCostAxiomClass costA ccostA)
+         (refineB : RefineCostAxiomClass costB ccostB)
+  : @RefineCostClass N [finType of aT*bT] _ _ _.
 
-(* Instance prodCCostMaxInstance (N : nat) (aT bT : Type) *)
-(*          (ccostMaxA : CCostMaxClass N aT) *)
-(*          (ccostMaxB : CCostMaxClass N bT) *)
-(*   : CCostMaxClass N (aT*bT) := (ccostMaxA + ccostMaxB)%D.  *)
+Instance prodCCostMaxInstance (N : nat) (aT bT : Type)
+         (ccostMaxA : CCostMaxClass N aT)
+         (ccostMaxB : CCostMaxClass N bT)
+  : CCostMaxClass N (aT*bT) := (ccostMaxA + ccostMaxB)%D.
 
-(* Instance prodRefineMaxCostInstance (N : nat) (aT bT : finType) *)
-(*          (costMaxA   : CostMaxClass N _ aT) *)
-(*          (ccostMaxA  : CCostMaxClass N aT) *)
-(*          (refineMaxA : RefineCostMaxClass costMaxA ccostMaxA) *)
-(*          (costMaxB   : CostMaxClass N _ bT) *)
-(*          (ccostMaxB  : CCostMaxClass N bT)        *)
-(*          (refineMaxB : RefineCostMaxClass costMaxB ccostMaxB) *)
-(*   : RefineCostMaxClass *)
-(*       (prodCostMaxInstance costMaxA costMaxB) *)
-(*       (prodCCostMaxInstance ccostMaxA ccostMaxB). *)
-(* Proof. *)
-(*   rewrite /RefineCostMaxClass /prodCostMaxInstance /prodCCostMaxInstance *)
-(*           rat_to_Q_plus Dadd_ok. *)
-(*   by apply: Qplus_le_compat. *)
-(* Qed. *)
-
-
-(* Lemma split_lt_max : *)
-(*   forall (N : nat) aT bT *)
-(*          `(costA : CostClass N rat_realFieldType aT) *)
-(*          `(costB : CostClass N rat_realFieldType bT) *)
-(*          (ccostA : CCostClass N aT) *)
-(*          (ccostB : CCostClass N bT) *)
-(*          (ccostMaxA  : CCostMaxClass N aT)        *)
-(*          (ccostMaxB  : CCostMaxClass N bT) *)
-(*          (ccostMaxMaxA : @CCostMaxMaxClass N aT _ _ ) *)
-(*          (ccostMaxMaxB : @CCostMaxMaxClass N bT _ _ ) *)
-(*   (m : M.t (aT * bT)) i, *)
-(*     (0 <= (ccost_fun (N := N) i (map_split m).1) + (ccost_fun (N := N) i (map_split m).2) <= *)
-(*      ccostMaxA + ccostMaxB)%DRed. *)
-(* Proof. *)
-(*   intros. *)
-(*   generalize dependent ((map_split m).1) => ma. *)
-(*   generalize dependent ((map_split m).2) => mb. *)
-(*   have: (0 <= ccost_fun (N := N) i ma <= ccostMaxA)%DRed; *)
-(*     last move => H; eauto. *)
-(*   have: (0 <= (ccost_fun (N := N) i mb) <= ccostMaxB)%DRed; *)
-(*     last move => H1; *)
-(*   eauto. *)
-(*   generalize dependent ((ccost) i ma). *)
-(*   generalize dependent ((ccost) i mb). *)
-(*   intros. *)
-(*   unfold Dle in *. *)
-(*   rewrite !Dadd_ok. *)
-(*   destruct H1,H. *)
-(*   split. *)
-(*   2: apply Qplus_le_compat; auto. *)
-(*   clear -H0 H. *)
-(*   generalize dependent (D_to_Q d). *)
-(*   generalize dependent (D_to_Q d0). *)
-(*   intros. *)
-(*   unfold D_to_Q in *. *)
-(*   simpl in *. *)
-(*   assert (0 # 2 == 0)%Q => //. *)
-(*   rewrite -> H1 in *. *)
-(*   clear H1. *)
-(*   clear -H H0. *)
-(*   destruct q,q0 => //. *)
-(*   unfold Qle in *. *)
-(*   simpl in *. *)
-(*   ring_simplify in H. *)
-(*   ring_simplify in H0. *)
-(*   ring_simplify. *)
-(*   apply Z.add_nonneg_nonneg; *)
-(*   apply Z.mul_nonneg_nonneg => //. *)
-(* Qed. *)
-
-(* Instance prodCostMaxMaxInstance (N : nat) (aT bT : finType) *)
-(*          (costA : CostClass N rat_realFieldType aT) *)
-(*          (costAxiomA : @CostAxiomClass N rat_realFieldType aT costA) *)
-(*          (costB : CostClass N rat_realFieldType bT) *)
-(*          (costAxiomB : @CostAxiomClass N rat_realFieldType bT costB) *)
-(*          (ccostA : CCostClass N aT) *)
-(*          (ccostB : CCostClass N bT) *)
-(*          (ccostMaxA  : CCostMaxClass N aT)        *)
-(*          (ccostMaxB  : CCostMaxClass N bT)        *)
-(*          (ccostMaxMaxA : @CCostMaxMaxClass N aT _ _ ) *)
-(*          (ccostMaxMaxB : @CCostMaxMaxClass N bT _ _ ) *)
-(*   : @CCostMaxMaxClass N (aT*bT) _ _ . *)
-(* Proof. *)
-(*   rewrite /CCostMaxMaxClass; *)
-(*   rewrite /ccost_fun /ccostmax_fun *)
-(*           /prodCCostInstance /prodCCostMaxInstance. *)
-(*   intros. *)
-(*   apply split_lt_max => //. *)
-(* Qed. *)
-
-(* Instance prod_cgame (N : nat) (aT bT : finType) *)
-(*          (costA : CostClass N rat_realFieldType aT) *)
-(*          (costAxiomA : @CostAxiomClass N rat_realFieldType aT costA) *)
-(*          (ccostA : CCostClass N aT) *)
-(*          (costMaxA : CostMaxClass N rat_realFieldType aT) *)
-(*          (ccostMaxA  : CCostMaxClass N aT) *)
-(*          (costMaxAxiomA : CostMaxAxiomClass costA _) *)
-(*          (refineMaxA : RefineCostMaxClass costMaxA ccostMaxA) *)
-(*          `(refineTypeA : RefineTypeClass aT) *)
-(*          (refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA) *)
-(*          (refineCostA : @RefineCostClass N aT costA ccostA _) *)
-(*          (costMaxMaxA : @CCostMaxMaxClass N aT _ _) *)
-(*          (gA : @game aT N rat_realFieldType _ _ _ _) *)
-(*          (cgA : @cgame N aT _ _ _ _ _ _ _ _ _ _ _ _ _ _) *)
-(*          (costB : CostClass N rat_realFieldType bT) *)
-(*          (costAxiomB : @CostAxiomClass N rat_realFieldType bT costB) *)
-(*          (ccostB : CCostClass N bT) *)
-(*          (ccostMaxB : CCostMaxClass N bT) *)
-(*          (costMaxB : CostMaxClass N rat_realFieldType bT) *)
-(*          (costMaxAxiomB : CostMaxAxiomClass costB _) *)
-(*          (refineMaxB : RefineCostMaxClass costMaxB ccostMaxB) *)
-(*          `(refineTypeB : RefineTypeClass bT) *)
-(*          (refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB) *)
-(*          (costMaxMaxA : @CCostMaxMaxClass N bT _ _) *)
-(*          (refineCostB : @RefineCostClass N bT costB ccostB _) *)
-(*          (gB : @game bT N rat_realFieldType _ _ _ _) *)
-(*          (cgB : @cgame N bT _ _ _ _ _ _ _ _ _ _ _ _ _ _) *)
-(*   : @cgame N [finType of aT*bT] _ _ _ _ _ _ _ _ _ _ _ *)
-(*            _ *)
-(*            _ *)
-(*            (prodGameInstance N _ _ _ gA gB). *)
+Instance prodRefineMaxCostInstance (N : nat) (aT bT : finType)
+         (costMaxA   : CostMaxClass N _ aT)
+         (ccostMaxA  : CCostMaxClass N aT)
+         (refineMaxA : RefineCostMaxClass costMaxA ccostMaxA)
+         (costMaxB   : CostMaxClass N _ bT)
+         (ccostMaxB  : CCostMaxClass N bT)
+         (refineMaxB : RefineCostMaxClass costMaxB ccostMaxB)
+  : RefineCostMaxClass
+      (prodCostMaxInstance costMaxA costMaxB)
+      (prodCCostMaxInstance ccostMaxA ccostMaxB).
+Proof.
+  rewrite /RefineCostMaxClass /prodCostMaxInstance /prodCCostMaxInstance
+          rat_to_Q_plus Dadd_ok.
+  by apply: Qplus_le_compat.
+Qed.
 
 
-(* Module ProdCGameTest. Section prodCGameTest. *)
-(*   Context {A B : finType} {N : nat} `{cgame N A} `{cgame N B}. *)
-(*   Variable i' : OrdNat.t. *)
-(*   Variable t' : M.t (A*B). *)
-(*   Check ccost_fun (N:=N) i' t'. *)
-(* End prodCGameTest. End ProdCGameTest. *)
+Lemma split_lt_max :
+  forall (N : nat) aT bT
+         `(costA : CostClass N rat_realFieldType aT)
+         `(costB : CostClass N rat_realFieldType bT)
+         (ccostA : CCostClass N aT)
+         (ccostB : CCostClass N bT)
+         (ccostMaxA  : CCostMaxClass N aT)
+         (ccostMaxB  : CCostMaxClass N bT)
+         (ccostMaxMaxA : @CCostMaxMaxClass N aT _ _ )
+         (ccostMaxMaxB : @CCostMaxMaxClass N bT _ _ )
+  (m : M.t (aT * bT)) i,
+    (0 <= (ccost_fun (N := N) i (map_split m).1) + (ccost_fun (N := N) i (map_split m).2) <=
+     ccostMaxA + ccostMaxB)%DRed.
+Proof.
+  intros.
+  generalize dependent ((map_split m).1) => ma.
+  generalize dependent ((map_split m).2) => mb.
+  have: (0 <= ccost_fun (N := N) i ma <= ccostMaxA)%DRed;
+    last move => H; eauto.
+  have: (0 <= (ccost_fun (N := N) i mb) <= ccostMaxB)%DRed;
+    last move => H1;
+  eauto.
+  generalize dependent ((ccost) i ma).
+  generalize dependent ((ccost) i mb).
+  intros.
+  unfold Dle in *.
+  rewrite !Dadd_ok.
+  destruct H1,H.
+  split.
+  2: apply Qplus_le_compat; auto.
+  clear -H0 H.
+  generalize dependent (D_to_Q d).
+  generalize dependent (D_to_Q d0).
+  intros.
+  unfold D_to_Q in *.
+  simpl in *.
+  assert (0 # 2 == 0)%Q => //.
+  rewrite -> H1 in *.
+  clear H1.
+  clear -H H0.
+  destruct q,q0 => //.
+  unfold Qle in *.
+  simpl in *.
+  ring_simplify in H.
+  ring_simplify in H0.
+  ring_simplify.
+  apply Z.add_nonneg_nonneg;
+  apply Z.mul_nonneg_nonneg => //.
+Qed.
 
-(* (******************************************* *)
+Instance prodCostMaxMaxInstance (N : nat) (aT bT : finType)
+         (costA : CostClass N rat_realFieldType aT)
+         (costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
+         (costB : CostClass N rat_realFieldType bT)
+         (costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
+         (ccostA : CCostClass N aT)
+         (ccostB : CCostClass N bT)
+         (ccostMaxA  : CCostMaxClass N aT)
+         (ccostMaxB  : CCostMaxClass N bT)
+         (ccostMaxMaxA : @CCostMaxMaxClass N aT _ _ )
+         (ccostMaxMaxB : @CCostMaxMaxClass N bT _ _ )
+  : @CCostMaxMaxClass N (aT*bT) _ _ .
+Proof.
+  rewrite /CCostMaxMaxClass;
+  rewrite /ccost_fun /ccostmax_fun
+          /prodCCostInstance /prodCCostMaxInstance.
+  intros.
+  apply split_lt_max => //.
+Qed.
+
+Instance prod_cgame (N : nat) (aT bT : finType)
+         (costA : CostClass N rat_realFieldType aT)
+         (costAxiomA : @CostAxiomClass N rat_realFieldType aT costA)
+         (ccostA : CCostClass N aT)
+         (costMaxA : CostMaxClass N rat_realFieldType aT)
+         (ccostMaxA  : CCostMaxClass N aT)
+         (costMaxAxiomA : CostMaxAxiomClass costA _)
+         (refineMaxA : RefineCostMaxClass costMaxA ccostMaxA)
+         `(refineTypeA : RefineTypeClass aT)
+         (refineCostAxiomA : @RefineCostAxiomClass N aT costA ccostA)
+         (refineCostA : @RefineCostClass N aT costA ccostA _)
+         (costMaxMaxA : @CCostMaxMaxClass N aT _ _)
+         (gA : @game aT N rat_realFieldType _ _ _ _)
+         (cgA : @cgame N aT _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+         (costB : CostClass N rat_realFieldType bT)
+         (costAxiomB : @CostAxiomClass N rat_realFieldType bT costB)
+         (ccostB : CCostClass N bT)
+         (ccostMaxB : CCostMaxClass N bT)
+         (costMaxB : CostMaxClass N rat_realFieldType bT)
+         (costMaxAxiomB : CostMaxAxiomClass costB _)
+         (refineMaxB : RefineCostMaxClass costMaxB ccostMaxB)
+         `(refineTypeB : RefineTypeClass bT)
+         (refineCostAxiomB : @RefineCostAxiomClass N bT costB ccostB)
+         (costMaxMaxA : @CCostMaxMaxClass N bT _ _)
+         (refineCostB : @RefineCostClass N bT costB ccostB _)
+         (gB : @game bT N rat_realFieldType _ _ _ _)
+         (cgB : @cgame N bT _ _ _ _ _ _ _ _ _ _ _ _ _ _)
+  : @cgame N [finType of aT*bT] _ _ _ _ _ _ _ _ _ _ _
+           _
+           _
+           (prodGameInstance N _ _ _ gA gB).
+
+
+Module ProdCGameTest. Section prodCGameTest.
+  Context {A B : finType} {N : nat} `{cgame N A} `{cgame N B}.
+  Variable i' : OrdNat.t.
+  Variable t' : M.t (A*B).
+  Check ccost_fun (N:=N) i' t'.
+End prodCGameTest. End ProdCGameTest.
+
+(******************************************* *)
 (*  Scalar Games are Compilable  *)
-(*  *******************************************) *)
+(*  *******************************************)
 
-(* Instance scalarEnumerableInstance *)
-(*          (A : Type) *)
-(*          `(Enumerable A) *)
-(*          `(ScalarClass) *)
-(*   : Enumerable (scalar scalar_val A) :=  *)
-(*     map (@Wrap (Scalar scalar_val) A) (enumerate A). *)
+Instance scalarEnumerableInstance
+         (A : Type)
+         `(Enumerable A)
+         `(ScalarClass)
+  : Enumerable (scalar scalar_val A) :=
+    map (@Wrap (Scalar scalar_val) A) (enumerate A).
 
-(* Definition unwrapScalarTree *)
-(*            A `(ScalarClass) : M.t (scalar scalar_val A) -> M.t A := *)
-(*   fun m : (M.t (scalar scalar_val A)) => *)
-(*     M.fold (fun i r acc => *)
-(*               M.add i (unwrap r) acc) *)
-(*       m (M.empty A).     *)
+Definition unwrapScalarTree
+           A `(ScalarClass) : M.t (scalar scalar_val A) -> M.t A :=
+  fun m : (M.t (scalar scalar_val A)) =>
+    M.fold (fun i r acc =>
+              M.add i (unwrap r) acc)
+      m (M.empty A).
 
-(* Global Instance scalarCCostInstance *)
-(*          N (A : Type) *)
-(*          `(Enumerable A) *)
-(*          `(CCostClass N A) *)
-(*          `(DyadicScalarClass) *)
-(*   : CCostClass N (scalar scalar_val A) *)
-(*   := *)
-(*     fun (i : OrdNat.t) (m : M.t (@scalar _ scalar_val A)) => *)
-(*       (dyadic_scalar_val * ccost i (unwrapScalarTree m))%D. *)
+Global Instance scalarCCostInstance
+         N (A : Type)
+         `(Enumerable A)
+         `(CCostClass N A)
+         `(DyadicScalarClass)
+  : CCostClass N (scalar scalar_val A)
+  :=
+    fun (i : OrdNat.t) (m : M.t (@scalar _ scalar_val A)) =>
+      (dyadic_scalar_val * ccost i (unwrapScalarTree m))%D.
 
-(* Instance scalarCCostMaxInstance *)
-(*          N (A : Type) *)
-(*          `(cmax : CCostMaxClass N A) *)
-(*          `(DyadicScalarClass) *)
-(*   : @CCostMaxClass N (scalar scalar_val A) := (dyadic_scalar_val * cmax)%D. *)
+Instance scalarCCostMaxInstance
+         N (A : Type)
+         `(cmax : CCostMaxClass N A)
+         `(DyadicScalarClass)
+  : @CCostMaxClass N (scalar scalar_val A) := (dyadic_scalar_val * cmax)%D.
 
-(* Section scalarCompilable. *)
-(*   Context {A N} `{Hdyadic: DyadicScalarClass} `{cgame N A}. *)
+Section scalarCompilable.
+  Context {A N} `{Hdyadic: DyadicScalarClass} `{cgame N A}.
 
-(*   Global Program Instance scalarRefineTypeAxiomInstance *)
-(*     : @RefineTypeAxiomClass (scalarType scalar_val A) _. *)
-(*   Next Obligation. *)
-(*     clear H gameClass ccostMaxMaxClass  refineCostAxiomClass refineCostClass ccostClass *)
-(*           costAxiomClass costMaxAxiomClass costClass. *)
-(*     clear refineTypeClass. *)
-(*     generalize refineTypeAxiomCl; clear refineTypeAxiomCl. *)
-(*     rewrite /RefineTypeAxiomClass => H. *)
-(*     destruct H; split; last first. *)
-(*     { *)
-(*       rewrite map_inj_uniq. apply H. *)
-(*       rewrite /injective => x1 x2 H3. *)
-(*       inversion H3 => //. *)
-(*     } *)
-(*     rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance. *)
-(*     move => r. *)
-(*     apply /mapP. *)
-(*     case_eq (in_mem *)
-(*                r (mem *)
-(*                   (enum_mem *)
-(*                      (T:=scalarType (rty:=rat_realFieldType) scalar_val A) *)
-(*                      (mem (sort_of_simpl_pred (pred_of_argType *)
-(*               (Wrapper (Scalar (rty:=rat_realFieldType) scalar_val) A))))))) *)
-(*       => H3; rewrite H3. *)
-(*     { *)
-(*       move: H3. *)
-(*       case: r => x H3. *)
-(*       exists x; last by []. *)
-(*       rewrite H0 mem_enum. *)
-(*       rewrite mem_enum in H3 => //. *)
-(*     } *)
-(*     { *)
-(*       move => H4. *)
-(*       case: H4 => x H4 H5. *)
-(*       rewrite H5 in H3. *)
-(*       move/negP: H3 => H3. *)
-(*       apply H3 => //. *)
-(*       rewrite mem_enum => //. *)
-(*     } *)
-(*   Qed. *)
+  Global Program Instance scalarRefineTypeAxiomInstance
+    : @RefineTypeAxiomClass (scalarType scalar_val A) _.
+  Next Obligation.
+    clear H gameClass ccostMaxMaxClass  refineCostAxiomClass refineCostClass ccostClass
+          costAxiomClass costMaxAxiomClass costClass.
+    clear refineTypeClass.
+    generalize refineTypeAxiomCl; clear refineTypeAxiomCl.
+    rewrite /RefineTypeAxiomClass => H.
+    destruct H; split; last first.
+    {
+      rewrite map_inj_uniq. apply H.
+      rewrite /injective => x1 x2 H3.
+      inversion H3 => //.
+    }
+    rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance.
+    move => r.
+    apply /mapP.
+    case_eq (in_mem
+               r (mem
+                  (enum_mem
+                     (T:=scalarType (rty:=rat_realFieldType) scalar_val A)
+                     (mem (sort_of_simpl_pred (pred_of_argType
+              (Wrapper (Scalar (rty:=rat_realFieldType) scalar_val) A)))))))
+      => H3; rewrite H3.
+    {
+      move: H3.
+      case: r => x H3.
+      exists x; last by [].
+      rewrite H0 mem_enum.
+      rewrite mem_enum in H3 => //.
+    }
+    {
+      move => H4.
+      case: H4 => x H4 H5.
+      rewrite H5 in H3.
+      move/negP: H3 => H3.
+      apply H3 => //.
+      rewrite mem_enum => //.
+    }
+  Qed.
 
-(*   Global Instance scalarRefineTypeInstance *)
-(*     : @RefineTypeClass (scalarType scalar_val A)  _ _. *)
+  Global Instance scalarRefineTypeInstance
+    : @RefineTypeClass (scalarType scalar_val A)  _ _.
 
-(*   Lemma unwrapScalarTree_spec i (t : scalarType scalar_val A) m: *)
-(*     M.find i m = Some t -> *)
-(*     M.find i (unwrapScalarTree m) = Some (unwrap t). *)
-(*   Proof. *)
-(*     clear H gameClass ccostMaxMaxClass refineCostAxiomClass refineCostClass *)
-(*           ccostClass costAxiomClass costMaxAxiomClass costClass refineTypeClass refineTypeAxiomCl. *)
-(*     rewrite /unwrapScalarTree. *)
-(*     apply MProps.fold_rec_weak. *)
-(*     { *)
-(*       move => mo m' a' H0 H1 H2. *)
-(*       have H3: (forall (k : M.key) e, *)
-(*         M.MapsTo k e mo <-> M.MapsTo k e m'); *)
-(*           first by apply MProps.F.Equal_mapsto_iff; apply H0. *)
-(*       apply M.find_2 in H2. apply H3 in H2. apply M.find_1 in H2. *)
-(*       apply H1. apply H2. *)
-(*     } *)
-(*     { *)
-(*       move => H. inversion H. *)
-(*     } *)
-(*     { *)
-(*       move => k e a' m' H0 IH. case: e. move => a0 H2 /=. *)
-(*       rewrite MProps.F.add_o. case: (MProps.F.eq_dec k i) => H3 //. *)
-(*       generalize H2; clear H2. *)
-(*       rewrite MProps.F.add_eq_o. move => H2. inversion H2. *)
-(*       split => []. by []. apply IH. *)
-(*       generalize H2; clear H2. *)
-(*       rewrite MProps.F.add_neq_o. move => H2. inversion H2 => //. *)
-(*       by []. *)
-(*     } *)
-(*   Qed. *)
+  Lemma unwrapScalarTree_spec i (t : scalarType scalar_val A) m:
+    M.find i m = Some t ->
+    M.find i (unwrapScalarTree m) = Some (unwrap t).
+  Proof.
+    clear H gameClass ccostMaxMaxClass refineCostAxiomClass refineCostClass
+          ccostClass costAxiomClass costMaxAxiomClass costClass refineTypeClass refineTypeAxiomCl.
+    rewrite /unwrapScalarTree.
+    apply MProps.fold_rec_weak.
+    {
+      move => mo m' a' H0 H1 H2.
+      have H3: (forall (k : M.key) e,
+        M.MapsTo k e mo <-> M.MapsTo k e m');
+          first by apply MProps.F.Equal_mapsto_iff; apply H0.
+      apply M.find_2 in H2. apply H3 in H2. apply M.find_1 in H2.
+      apply H1. apply H2.
+    }
+    {
+      move => H. inversion H.
+    }
+    {
+      move => k e a' m' H0 IH. case: e. move => a0 H2 /=.
+      rewrite MProps.F.add_o. case: (MProps.F.eq_dec k i) => H3 //.
+      generalize H2; clear H2.
+      rewrite MProps.F.add_eq_o. move => H2. inversion H2.
+      split => []. by []. apply IH.
+      generalize H2; clear H2.
+      rewrite MProps.F.add_neq_o. move => H2. inversion H2 => //.
+      by [].
+    }
+  Qed.
 
-(*   Global Program Instance scalarRefineCostAxiomInstance *)
-(*     : @RefineCostAxiomClass *)
-(*         N (scalarType scalar_val A) *)
-(*         (@scalarCostInstance _ _ _ costClass scalar_val) *)
-(*         _.  *)
-(*   Next Obligation. *)
-(*     clear refineTypeClass H gameClass *)
-(*           refineCostClass costAxiomClass refineTypeAxiomCl. *)
-(*     rewrite /cost_fun /scalarCostInstance /cost_fun. *)
-(*     rewrite /(ccost) /scalarCCostInstance /(ccost). *)
-(*     rewrite [rat_to_Q (_ * _)] rat_to_Q_red. *)
-(*     rewrite -rat_to_Q_red /scalar_val. *)
-(*     rewrite rat_to_Q_mul Dmult_ok. *)
-(*     generalize (Qeq_dec (rat_to_Q (projT1 dyadic_scalar_val)) 0%Q). *)
-(*     case => refineTypeAxiomCl. *)
-(*     { rewrite refineTypeAxiomCl !Qmult_0_l => //. *)
-(*       have ->: (D_to_Q dyadic_scalar_val == 0)%Q. *)
-(*       { by rewrite dyadic_rat_to_Q refineTypeAxiomCl. } *)
-(*       by rewrite Qmult_0_l. } *)
-(*     have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q. *)
-(*     { apply: dyadic_rat_to_Q. } *)
-(*     apply Qmult_inj_l => //. *)
-(*     move: refineCostAxiomClass; clear refineCostAxiomClass. *)
-(*     rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass. *)
-(*     specialize (refineCostAxiomClass pf). *)
-(*     rewrite -(@refineCostAxiomClass(unwrapScalarTree m)) => //. *)
-(*     move => j pf'.  *)
-(*     specialize (H0 j pf'). *)
-(*     apply unwrapScalarTree_spec in H0. *)
-(*     rewrite H0. f_equal. *)
-(*     rewrite /unwrap_ffun. rewrite ffunE => //. *)
-(*   Qed. *)
+  Global Program Instance scalarRefineCostAxiomInstance
+    : @RefineCostAxiomClass
+        N (scalarType scalar_val A)
+        (@scalarCostInstance _ _ _ costClass scalar_val)
+        _.
+  Next Obligation.
+    clear refineTypeClass H gameClass
+          refineCostClass costAxiomClass refineTypeAxiomCl.
+    rewrite /cost_fun /scalarCostInstance /cost_fun.
+    rewrite /(ccost) /scalarCCostInstance /(ccost).
+    rewrite [rat_to_Q (_ * _)] rat_to_Q_red.
+    rewrite -rat_to_Q_red /scalar_val.
+    rewrite rat_to_Q_mul Dmult_ok.
+    generalize (Qeq_dec (rat_to_Q (projT1 dyadic_scalar_val)) 0%Q).
+    case => refineTypeAxiomCl.
+    { rewrite refineTypeAxiomCl !Qmult_0_l => //.
+      have ->: (D_to_Q dyadic_scalar_val == 0)%Q.
+      { by rewrite dyadic_rat_to_Q refineTypeAxiomCl. }
+      by rewrite Qmult_0_l. }
+    have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
+    { apply: dyadic_rat_to_Q. }
+    apply Qmult_inj_l => //.
+    move: refineCostAxiomClass; clear refineCostAxiomClass.
+    rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass.
+    specialize (refineCostAxiomClass pf).
+    rewrite -(@refineCostAxiomClass(unwrapScalarTree m)) => //.
+    move => j pf'.
+    specialize (H0 j pf').
+    apply unwrapScalarTree_spec in H0.
+    rewrite H0. f_equal.
+    rewrite /unwrap_ffun. rewrite ffunE => //.
+  Qed.
 
-(*   Global Instance scalarRefineCostInstance *)
-(*     : @RefineCostClass N (scalarType scalar_val A) *)
-(*         (@scalarCostInstance N _ A costClass _) _ _. *)
+  Global Instance scalarRefineCostInstance
+    : @RefineCostClass N (scalarType scalar_val A)
+        (@scalarCostInstance N _ A costClass _) _ _.
 
-(*   Global Instance scalarRefineCostMaxInstance *)
-(*          `(scalarAxiomInstance : @ScalarAxiomClass _ scalar_val) *)
-(*     : @RefineCostMaxClass *)
-(*         N (scalarType scalar_val A) *)
-(*         (scalarCostMaxInstance costMaxClass scalar_val) *)
-(*         (scalarCCostMaxInstance ccostMaxClass dyadic_scalar_val). *)
-(*   Proof. *)
-(*     rewrite /RefineCostMaxClass /scalarCostMaxInstance /scalarCCostMaxInstance. *)
-(*     rewrite rat_to_Q_mul Dmult_ok. *)
-(*     rewrite /scalar_val. *)
-(*     have ->: (rat_to_Q (projT1 dyadic_scalar_val) == D_to_Q dyadic_scalar_val)%Q. *)
-(*     { by rewrite dyadic_rat_to_Q. } *)
-(*     rewrite Qmult_comm [Qmult (D_to_Q _) _]Qmult_comm. *)
-(*     apply Qmult_le_compat_r => //. *)
-(*     have H3 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0. *)
-(*     rewrite -H3. *)
-(*     have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q. *)
-(*     { by apply: dyadic_rat_to_Q. } *)
-(*     apply le_rat_to_Q => //. *)
-(*   Qed. *)
+  Global Instance scalarRefineCostMaxInstance
+         `(scalarAxiomInstance : @ScalarAxiomClass _ scalar_val)
+    : @RefineCostMaxClass
+        N (scalarType scalar_val A)
+        (scalarCostMaxInstance costMaxClass scalar_val)
+        (scalarCCostMaxInstance ccostMaxClass dyadic_scalar_val).
+  Proof.
+    rewrite /RefineCostMaxClass /scalarCostMaxInstance /scalarCCostMaxInstance.
+    rewrite rat_to_Q_mul Dmult_ok.
+    rewrite /scalar_val.
+    have ->: (rat_to_Q (projT1 dyadic_scalar_val) == D_to_Q dyadic_scalar_val)%Q.
+    { by rewrite dyadic_rat_to_Q. }
+    rewrite Qmult_comm [Qmult (D_to_Q _) _]Qmult_comm.
+    apply Qmult_le_compat_r => //.
+    have H3 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
+    rewrite -H3.
+    have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
+    { by apply: dyadic_rat_to_Q. }
+    apply le_rat_to_Q => //.
+  Qed.
 
-(*   Global Instance scalarCostMaxMaxInstance  *)
-(*          `(scalarAxiomInstance : @ScalarAxiomClass _ scalar_val) *)
-(*          (ccostMaxMax : @CCostMaxMaxClass N A *)
-(*                                           _ _ ) *)
-(*     : @CCostMaxMaxClass N  (scalarType scalar_val A) _ _. *)
-(*   Proof. *)
-(*     split; *)
-(*       rewrite /CCostMaxMaxClass; *)
-(*     unfold CCostMaxMaxClass in ccostMaxMax; *)
-(*     specialize (ccostMaxMax i (unwrapScalarTree m)); *)
-(*     rewrite  /ccost_fun; *)
-(*     unfold Dle in *; *)
-(*     repeat rewrite Dmult_ok; *)
-(*     rewrite Qmult_comm; *)
-(*     destruct ccostMaxMax. *)
-(*     + *)
-(*       have: (D_to_Q 0 == 0)%Q => [|ZeroZero] //. *)
-(*       rewrite -> ZeroZero in *. *)
-(*       apply Qmult_le_0_compat => //; eauto. *)
-(*       have H5 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0. *)
-(*       rewrite -H5. *)
-(*       have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q. *)
-(*       { by apply: dyadic_rat_to_Q. } *)
-(*       apply le_rat_to_Q => //. *)
-(*     + *)
-(*         have->: (Qmult (D_to_Q (dyadic_rat_to_D Hdyadic)) *)
-(*                      (D_to_Q ccostMaxClass) == *)
-(*                Qmult (D_to_Q ccostMaxClass) *)
-(*                      (D_to_Q (dyadic_rat_to_D Hdyadic)))%coq_Qscope. *)
-(*       rewrite Qmult_comm => //. *)
-(*       apply Qmult_le_compat_r => //. *)
-(*       have H5 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0. *)
-(*       rewrite -H5. *)
-(*       have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q. *)
-(*       { by apply: dyadic_rat_to_Q. } *)
-(*       apply le_rat_to_Q => //. *)
-(*   Qed. *)
+  Global Instance scalarCostMaxMaxInstance
+         `(scalarAxiomInstance : @ScalarAxiomClass _ scalar_val)
+         (ccostMaxMax : @CCostMaxMaxClass N A
+                                          _ _ )
+    : @CCostMaxMaxClass N  (scalarType scalar_val A) _ _.
+  Proof.
+    split;
+      rewrite /CCostMaxMaxClass;
+    unfold CCostMaxMaxClass in ccostMaxMax;
+    specialize (ccostMaxMax i (unwrapScalarTree m));
+    rewrite  /ccost_fun;
+    unfold Dle in *;
+    repeat rewrite Dmult_ok;
+    rewrite Qmult_comm;
+    destruct ccostMaxMax.
+    +
+      have: (D_to_Q 0 == 0)%Q => [|ZeroZero] //.
+      rewrite -> ZeroZero in *.
+      apply Qmult_le_0_compat => //; eauto.
+      have H5 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
+      rewrite -H5.
+      have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
+      { by apply: dyadic_rat_to_Q. }
+      apply le_rat_to_Q => //.
+    +
+        have->: (Qmult (D_to_Q (dyadic_rat_to_D Hdyadic))
+                     (D_to_Q ccostMaxClass) ==
+               Qmult (D_to_Q ccostMaxClass)
+                     (D_to_Q (dyadic_rat_to_D Hdyadic)))%coq_Qscope.
+      rewrite Qmult_comm => //.
+      apply Qmult_le_compat_r => //.
+      have H5 : rat_to_Q 0 = 0%Q by rewrite rat_to_Q0.
+      rewrite -H5.
+      have ->: (D_to_Q dyadic_scalar_val == rat_to_Q (projT1 dyadic_scalar_val))%Q.
+      { by apply: dyadic_rat_to_Q. }
+      apply le_rat_to_Q => //.
+  Qed.
 
-(*   Global Instance scalar_cgame *)
-(*          `{scalarA : @ScalarAxiomClass _ scalar_val} *)
-(*     : @cgame *)
-(*         N (scalarType scalar_val A) *)
-(*         _ _ _ _ _ _ _ _ _ _ _ _ _ *)
-(*         (scalarGameInstance _ _ _ _ _). *)
-(* End scalarCompilable. *)
+  Global Instance scalar_cgame
+         `{scalarA : @ScalarAxiomClass _ scalar_val}
+    : @cgame
+        N (scalarType scalar_val A)
+        _ _ _ _ _ _ _ _ _ _ _ _ _
+        (scalarGameInstance _ _ _ _ _).
+End scalarCompilable.
 
-(* Module ScalarCGameTest. Section scalarCGameTest. *)
-(*   Context {A : finType} {N : nat} `{cgame N A} *)
-(*           `{Hdyad: DyadicScalarClass} *)
-(*           `{scalarA : @ScalarAxiomClass _ scalar_val}. *)
-(*   Variable i' : OrdNat.t. *)
-(*   Variable t' : M.t (@scalarType rat_realFieldType scalar_val A). *)
-(*   Check ccost_fun (N:=N) i' t'. *)
-(* End scalarCGameTest. End ScalarCGameTest. *)
+Module ScalarCGameTest. Section scalarCGameTest.
+  Context {A : finType} {N : nat} `{cgame N A}
+          `{Hdyad: DyadicScalarClass}
+          `{scalarA : @ScalarAxiomClass _ scalar_val}.
+  Variable i' : OrdNat.t.
+  Variable t' : M.t (@scalarType rat_realFieldType scalar_val A).
+  Check ccost_fun (N:=N) i' t'.
+End scalarCGameTest. End ScalarCGameTest.
 
-(* (********************************** *)
+(********************************** *)
 (*  Bias Games are Compilable  *)
-(*  **********************************) *)
+(*  **********************************)
 
-(* Definition unwrapBiasTree A (q : rat) : M.t (bias q A) -> M.t A := *)
-(*   fun m : (M.t (bias q A)) => *)
-(*     M.fold (fun i r acc => *)
-(*               M.add i (unwrap r) acc) *)
-(*       m (M.empty A).     *)
+Definition unwrapBiasTree A (q : rat) : M.t (bias q A) -> M.t A :=
+  fun m : (M.t (bias q A)) =>
+    M.fold (fun i r acc =>
+              M.add i (unwrap r) acc)
+      m (M.empty A).
 
-(* Global Instance biasCCostInstance *)
-(*          N (A : Type) *)
-(*          `(Enumerable A) `(CCostClass N A) *)
-(*          (q : DRat) *)
-(*   : CCostClass N (bias (projT1 q) A) *)
-(*   := *)
-(*     fun (i : OrdNat.t) (m : M.t (bias (projT1 q) A)) => *)
-(*       (q + ccost i (unwrapBiasTree m))%D. *)
+Global Instance biasCCostInstance
+         N (A : Type)
+         `(Enumerable A) `(CCostClass N A)
+         (q : DRat)
+  : CCostClass N (bias (projT1 q) A)
+  :=
+    fun (i : OrdNat.t) (m : M.t (bias (projT1 q) A)) =>
+      (q + ccost i (unwrapBiasTree m))%D.
   
-(* Instance biasCCostMaxInstance N (A : Type) `(cmax : CCostMaxClass N A) (q : DRat) *)
-(*   : @CCostMaxClass N (bias (projT1 q) A) := (q + cmax)%D. *)
+Instance biasCCostMaxInstance N (A : Type) `(cmax : CCostMaxClass N A) (q : DRat)
+  : @CCostMaxClass N (bias (projT1 q) A) := (q + cmax)%D.
 
-(* Instance biasCTypeInstance A (q : DRat) *)
-(*          `(Enumerable A) *)
-(*   : Enumerable (bias (projT1 q) A) := *)
-(*   map (@Wrap (Bias (projT1 q)) A) (enumerate A). *)
+Instance biasCTypeInstance A (q : DRat)
+         `(Enumerable A)
+  : Enumerable (bias (projT1 q) A) :=
+  map (@Wrap (Bias (projT1 q)) A) (enumerate A).
 
-(* Section biasCompilable. *)
-(*   Context {A N} {q : DRat} `{cgame N A}. *)
+Section biasCompilable.
+  Context {A N} {q : DRat} `{cgame N A}.
 
-(*   Global Program Instance biasRefineTypeAxiomInstance *)
-(*     : @RefineTypeAxiomClass (biasType (projT1 q) A) _. *)
-(*   Next Obligation. *)
-(*     clear gameClass ccostMaxMaxClass refineCostAxiomClass H  refineCostClass *)
-(*           ccostClass costAxiomClass costMaxAxiomClass costClass refineTypeClass. *)
-(*     generalize refineTypeAxiomCl; clear refineTypeAxiomCl. *)
-(*     rewrite /RefineTypeAxiomClass => H. *)
-(*     destruct H; split; last first. *)
-(*     { *)
-(*       rewrite map_inj_uniq. apply H. *)
-(*       rewrite /injective => x1 x2 H3. *)
-(*       inversion H3 => //. *)
-(*     } *)
-(*     rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance. *)
-(*     move => r. *)
-(*     apply /mapP. *)
-(*     case_eq (in_mem r (mem (enum_mem (T:=biasType (rty:=rat_realFieldType) q A) *)
-(*               (mem (sort_of_simpl_pred (pred_of_argType *)
-(*                 (Wrapper (Bias (rty:=rat_realFieldType) q) A))))))) => H3; rewrite H3. *)
-(*     { *)
-(*       move: H3. *)
-(*       case: r => x H3. *)
-(*       exists x; last by []. *)
-(*       rewrite H0 mem_enum. *)
-(*       rewrite mem_enum in H3 => //. *)
-(*     } *)
-(*     { *)
-(*       move => H4. *)
-(*       case: H4 => x H4 H5. *)
-(*       rewrite H5 in H3. *)
-(*       move/negP: H3 => H3. *)
-(*       apply H3 => //. *)
-(*       rewrite mem_enum => //. *)
-(*     } *)
-(*   Qed. *)
+  Global Program Instance biasRefineTypeAxiomInstance
+    : @RefineTypeAxiomClass (biasType (projT1 q) A) _.
+  Next Obligation.
+    clear gameClass ccostMaxMaxClass refineCostAxiomClass H  refineCostClass
+          ccostClass costAxiomClass costMaxAxiomClass costClass refineTypeClass.
+    generalize refineTypeAxiomCl; clear refineTypeAxiomCl.
+    rewrite /RefineTypeAxiomClass => H.
+    destruct H; split; last first.
+    {
+      rewrite map_inj_uniq. apply H.
+      rewrite /injective => x1 x2 H3.
+      inversion H3 => //.
+    }
+    rewrite /(enumerate Wrapper Singleton A) /singCTypeInstance.
+    move => r.
+    apply /mapP.
+    case_eq (in_mem r (mem (enum_mem (T:=biasType (rty:=rat_realFieldType) q A)
+              (mem (sort_of_simpl_pred (pred_of_argType
+                (Wrapper (Bias (rty:=rat_realFieldType) q) A))))))) => H3; rewrite H3.
+    {
+      move: H3.
+      case: r => x H3.
+      exists x; last by [].
+      rewrite H0 mem_enum.
+      rewrite mem_enum in H3 => //.
+    }
+    {
+      move => H4.
+      case: H4 => x H4 H5.
+      rewrite H5 in H3.
+      move/negP: H3 => H3.
+      apply H3 => //.
+      rewrite mem_enum => //.
+    }
+  Qed.
 
-(*   Global Instance biasRefineTypeInstance *)
-(*     : @RefineTypeClass (biasType (projT1 q) A)  _ _. *)
+  Global Instance biasRefineTypeInstance
+    : @RefineTypeClass (biasType (projT1 q) A)  _ _.
 
-(*   Lemma unwrapBiasTree_spec i (t : biasType (projT1 q) A) m: *)
-(*     M.find i m = Some t -> *)
-(*       M.find i (unwrapBiasTree m) = Some (unwrap t). *)
-(*   Proof. *)
-(*     clear refineTypeClass H gameClass ccostMaxMaxClass refineCostAxiomClass refineCostClass *)
-(*           ccostClass costAxiomClass costMaxAxiomClass costClass. *)
-(*     rewrite /unwrapBiasTree. *)
-(*     apply MProps.fold_rec_weak. *)
-(*     { *)
-(*       move => mo m' a' H0 H1 H2. *)
-(*       have H3: (forall (k : M.key) e, *)
-(*         M.MapsTo k e mo <-> M.MapsTo k e m'); *)
-(*           first by apply MProps.F.Equal_mapsto_iff; apply H0. *)
-(*       apply M.find_2 in H2. apply H3 in H2. apply M.find_1 in H2. *)
-(*       apply H1. apply H2. *)
-(*     } *)
-(*     { *)
-(*       move => H. inversion H. *)
-(*     } *)
-(*     { *)
-(*       move => k e a' m' H0 IH. case: e. move => a0 H2 /=. *)
-(*       rewrite MProps.F.add_o. case: (MProps.F.eq_dec k i) => H3 //. *)
-(*       generalize H2; clear H2. *)
-(*       rewrite MProps.F.add_eq_o. move => H2. inversion H2. *)
-(*       split => []. by []. apply IH. *)
-(*       generalize H2; clear H2. *)
-(*       rewrite MProps.F.add_neq_o. move => H2. inversion H2 => //. *)
-(*       by []. *)
-(*     } *)
-(*   Qed. *)
+  Lemma unwrapBiasTree_spec i (t : biasType (projT1 q) A) m:
+    M.find i m = Some t ->
+      M.find i (unwrapBiasTree m) = Some (unwrap t).
+  Proof.
+    clear refineTypeClass H gameClass ccostMaxMaxClass refineCostAxiomClass refineCostClass
+          ccostClass costAxiomClass costMaxAxiomClass costClass.
+    rewrite /unwrapBiasTree.
+    apply MProps.fold_rec_weak.
+    {
+      move => mo m' a' H0 H1 H2.
+      have H3: (forall (k : M.key) e,
+        M.MapsTo k e mo <-> M.MapsTo k e m');
+          first by apply MProps.F.Equal_mapsto_iff; apply H0.
+      apply M.find_2 in H2. apply H3 in H2. apply M.find_1 in H2.
+      apply H1. apply H2.
+    }
+    {
+      move => H. inversion H.
+    }
+    {
+      move => k e a' m' H0 IH. case: e. move => a0 H2 /=.
+      rewrite MProps.F.add_o. case: (MProps.F.eq_dec k i) => H3 //.
+      generalize H2; clear H2.
+      rewrite MProps.F.add_eq_o. move => H2. inversion H2.
+      split => []. by []. apply IH.
+      generalize H2; clear H2.
+      rewrite MProps.F.add_neq_o. move => H2. inversion H2 => //.
+      by [].
+    }
+  Qed.
 
-(*   Global Program Instance biasRefineCostAxiomInstance *)
-(*     : @RefineCostAxiomClass _ (biasType (projT1 q) A) (biasCostInstance costClass) _. *)
-(*   Next Obligation. *)
-(*     clear refineTypeClass H gameClass *)
-(*            costAxiomClass refineCostClass. *)
-(*     rewrite /cost_fun /biasCostInstance /cost_fun. *)
-(*     rewrite /(ccost) /biasCCostInstance /ccost_fun /(ccost). *)
-(*     rewrite [rat_to_Q (_ + _)] rat_to_Q_red. *)
-(*     rewrite Dadd_ok. *)
-(*     rewrite -rat_to_Q_red. *)
-(*     rewrite rat_to_Q_plus /scalar_val. *)
-(*     rewrite /bias_val. *)
-(*     have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q. *)
-(*     { by apply: dyadic_rat_to_Q. } *)
-(*     move: (Qeq_dec (rat_to_Q q) 0%Q). *)
-(*     move: refineCostAxiomClass; clear refineCostAxiomClass. *)
-(*     rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass. *)
-(*     specialize (refineCostAxiomClass pf) => H. *)
-(*     rewrite ->(@refineCostAxiomClass(unwrapBiasTree m)) => //. *)
-(*     move => j pf'.  *)
-(*     specialize (H0 j pf'). *)
-(*     apply unwrapBiasTree_spec in H0. *)
-(*     rewrite H0. f_equal. *)
-(*     rewrite /unwrap_ffun. rewrite ffunE => //. *)
-(*   Qed. *)
+  Global Program Instance biasRefineCostAxiomInstance
+    : @RefineCostAxiomClass _ (biasType (projT1 q) A) (biasCostInstance costClass) _.
+  Next Obligation.
+    clear refineTypeClass H gameClass
+           costAxiomClass refineCostClass.
+    rewrite /cost_fun /biasCostInstance /cost_fun.
+    rewrite /(ccost) /biasCCostInstance /ccost_fun /(ccost).
+    rewrite [rat_to_Q (_ + _)] rat_to_Q_red.
+    rewrite Dadd_ok.
+    rewrite -rat_to_Q_red.
+    rewrite rat_to_Q_plus /scalar_val.
+    rewrite /bias_val.
+    have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
+    { by apply: dyadic_rat_to_Q. }
+    move: (Qeq_dec (rat_to_Q q) 0%Q).
+    move: refineCostAxiomClass; clear refineCostAxiomClass.
+    rewrite /RefineCostAxiomClass /(ccost) => refineCostAxiomClass.
+    specialize (refineCostAxiomClass pf) => H.
+    rewrite ->(@refineCostAxiomClass(unwrapBiasTree m)) => //.
+    move => j pf'.
+    specialize (H0 j pf').
+    apply unwrapBiasTree_spec in H0.
+    rewrite H0. f_equal.
+    rewrite /unwrap_ffun. rewrite ffunE => //.
+  Qed.
 
-(*   Global Instance biasRefineCostInstance *)
-(*     : @RefineCostClass N (biasType (projT1 q) A) (biasCostInstance costClass) _ _. *)
+  Global Instance biasRefineCostInstance
+    : @RefineCostClass N (biasType (projT1 q) A) (biasCostInstance costClass) _ _.
 
-(*   Global Instance biasRefineCostMaxInstance *)
-(*          `(biasAxiomInstance : @BiasAxiomClass _ (projT1 q)) *)
-(*     : @RefineCostMaxClass N (biasType (projT1 q) A) *)
-(*         (biasCostMaxInstance _ _ _ costMaxClass biasAxiomInstance) *)
-(*         (biasCCostMaxInstance _ _). *)
-(*   Proof. *)
-(*     rewrite /RefineCostMaxClass /biasCostMaxInstance /biasCCostMaxInstance *)
-(*             rat_to_Q_plus Dadd_ok /bias_val. *)
-(*     have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q. *)
-(*     { by apply: dyadic_rat_to_Q. } *)
-(*     apply Qplus_le_compat => //.     *)
-(*     apply Qle_refl. *)
-(*   Qed. *)
+  Global Instance biasRefineCostMaxInstance
+         `(biasAxiomInstance : @BiasAxiomClass _ (projT1 q))
+    : @RefineCostMaxClass N (biasType (projT1 q) A)
+        (biasCostMaxInstance _ _ _ costMaxClass biasAxiomInstance)
+        (biasCCostMaxInstance _ _).
+  Proof.
+    rewrite /RefineCostMaxClass /biasCostMaxInstance /biasCCostMaxInstance
+            rat_to_Q_plus Dadd_ok /bias_val.
+    have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
+    { by apply: dyadic_rat_to_Q. }
+    apply Qplus_le_compat => //.
+    apply Qle_refl.
+  Qed.
 
-(*   Global Instance biasCostMaxMaxInstance *)
-(*          `{@BiasAxiomClass rat_realFieldType q} *)
-(*          : @CCostMaxMaxClass N (biasType (projT1 q) A) _ _. *)
-(*   Proof. *)
-(*     split;  *)
-(*     rewrite /CCostMaxMaxClass; *)
-(*     unfold CCostMaxMaxClass in ccostMaxMaxClass; *)
-(*     clear H gameClass; *)
-(*     rename ccostMaxMaxClass into H4; *)
-(*     specialize (H4 i (unwrapBiasTree m)); *)
-(*     rewrite  /ccost_fun *)
-(*               /biasCCostInstance; *)
-(*     rewrite /ccostmax_fun *)
-(*             /biasCCostMaxInstance; *)
-(*     destruct H4; *)
-(*     unfold Dle in *; repeat rewrite Dadd_ok. *)
-(*     + *)
-(*       have: (D_to_Q 0 == 0)%Q => [| ZeroZero] //. *)
-(*       clear -H0 H1 H ZeroZero. *)
-(*       rewrite -> ZeroZero in *. *)
-(*       { *)
-(*         move: H1; *)
-(*         generalize dependent *)
-(*                    (D_to_Q ((ccost) i (unwrapBiasTree (A:=A) (q:=projT1 q) m))). *)
-(*         unfold BiasAxiomClass in H0. *)
-(*         unfold bias_val in *. *)
-(*         have: (0 <= D_to_Q q)%Q => //. *)
-(*         { *)
-(*           apply le_rat_to_Q in H0=> //. *)
-(*           clear -H0. *)
-(*           move: H0. *)
-(*           have->: ((rat_to_Q 0) = 0)%Q => //. *)
-(*           rewrite <- dyadic_rat_to_Q => //. *)
-(*         } *)
-(*         intros H2 q0 H1. *)
-(*         generalize dependent (D_to_Q q). *)
-(*         intros. *)
-(*         unfold Qle in *. *)
-(*         simpl in *. *)
-(*         ring_simplify in H2. *)
-(*         ring_simplify in H1. *)
-(*         ring_simplify. *)
-(*         apply Z.add_nonneg_nonneg; *)
-(*           apply Z.mul_nonneg_nonneg => //. *)
-(*       } *)
-(*       repeat rewrite Dadd_ok. *)
-(*       apply Qplus_le_compat => //. *)
-(*       my_omega. *)
-(*   Qed. *)
+  Global Instance biasCostMaxMaxInstance
+         `{@BiasAxiomClass rat_realFieldType q}
+         : @CCostMaxMaxClass N (biasType (projT1 q) A) _ _.
+  Proof.
+    split;
+    rewrite /CCostMaxMaxClass;
+    unfold CCostMaxMaxClass in ccostMaxMaxClass;
+    clear H gameClass;
+    rename ccostMaxMaxClass into H4;
+    specialize (H4 i (unwrapBiasTree m));
+    rewrite  /ccost_fun
+              /biasCCostInstance;
+    rewrite /ccostmax_fun
+            /biasCCostMaxInstance;
+    destruct H4;
+    unfold Dle in *; repeat rewrite Dadd_ok.
+    +
+      have: (D_to_Q 0 == 0)%Q => [| ZeroZero] //.
+      clear -H0 H1 H ZeroZero.
+      rewrite -> ZeroZero in *.
+      {
+        move: H1;
+        generalize dependent
+                   (D_to_Q ((ccost) i (unwrapBiasTree (A:=A) (q:=projT1 q) m))).
+        unfold BiasAxiomClass in H0.
+        unfold bias_val in *.
+        have: (0 <= D_to_Q q)%Q => //.
+        {
+          apply le_rat_to_Q in H0=> //.
+          clear -H0.
+          move: H0.
+          have->: ((rat_to_Q 0) = 0)%Q => //.
+          rewrite <- dyadic_rat_to_Q => //.
+        }
+        intros H2 q0 H1.
+        generalize dependent (D_to_Q q).
+        intros.
+        unfold Qle in *.
+        simpl in *.
+        ring_simplify in H2.
+        ring_simplify in H1.
+        ring_simplify.
+        apply Z.add_nonneg_nonneg;
+          apply Z.mul_nonneg_nonneg => //.
+      }
+      repeat rewrite Dadd_ok.
+      apply Qplus_le_compat => //.
+      my_omega.
+  Qed.
 
-(*   Global Instance bias_cgame `{@BiasAxiomClass rat_realFieldType q} *)
-(*     : @cgame N (biasType (projT1 q) A) _ _ _ _ _ _ *)
-(*              (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _) *)
-(*              _ _ _ _ _ _ (biasGameInstance _ _ _ _ _). *)
-(* End biasCompilable. *)
+  Global Instance bias_cgame `{@BiasAxiomClass rat_realFieldType q}
+    : @cgame N (biasType (projT1 q) A) _ _ _ _ _ _
+             (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
+             _ _ _ _ _ _ (biasGameInstance _ _ _ _ _).
+End biasCompilable.
 
-(* Module BiasCGameTest. Section biasCGameTest. *)
-(*   Context {A : finType} {N : nat} `{cgame N A} {q : DRat} *)
-(*           `{biasA : @BiasAxiomClass rat_realFieldType q}. *)
-(*   Variable i' : OrdNat.t. *)
-(*   Variable t' : M.t (@biasType rat_realFieldType q A). *)
-(*   Check ccost_fun (N:=N) i' t'. *)
-(* End biasCGameTest. End BiasCGameTest. *)
+Module BiasCGameTest. Section biasCGameTest.
+  Context {A : finType} {N : nat} `{cgame N A} {q : DRat}
+          `{biasA : @BiasAxiomClass rat_realFieldType q}.
+  Variable i' : OrdNat.t.
+  Variable t' : M.t (@biasType rat_realFieldType q A).
+  Check ccost_fun (N:=N) i' t'.
+End biasCGameTest. End BiasCGameTest.
 
-(* (*************************** *)
+(*************************** *)
 (*  Unit Games are compilable  *)
-(*  ***************************) *)
+(*  ***************************)
 
-(* Section unitCompilable. *)
-(*   Variable (N : nat). *)
+Section unitCompilable.
+  Variable (N : nat).
 
-(*   Global Instance unitEnumerableInstance : Enumerable Unit := *)
-(*     [:: mkUnit]. *)
+  Global Instance unitEnumerableInstance : Enumerable Unit :=
+    [:: mkUnit].
 
-(*   Global Program Instance unitRefineTypeAxiomInstance *)
-(*     : @RefineTypeAxiomClass [finType of Unit] _. *)
-(*   Next Obligation. by split => // r; rewrite mem_enum; case: r. Qed. *)
+  Global Program Instance unitRefineTypeAxiomInstance
+    : @RefineTypeAxiomClass [finType of Unit] _.
+  Next Obligation. by split => // r; rewrite mem_enum; case: r. Qed.
 
-(*   Global Instance unitRefineTypeInstance *)
-(*     : @RefineTypeClass [finType of Unit]  _ _. *)
+  Global Instance unitRefineTypeInstance
+    : @RefineTypeClass [finType of Unit]  _ _.
 
-(*   Definition unit_ccost (i : OrdNat.t) (m : M.t Unit) : D := 0. *)
+  Definition unit_ccost (i : OrdNat.t) (m : M.t Unit) : D := 0.
 
-(*   Global Instance unitCCostInstance *)
-(*     : CCostClass N [finType of Unit] := unit_ccost. *)
+  Global Instance unitCCostInstance
+    : CCostClass N [finType of Unit] := unit_ccost.
 
-(*   Global Program Instance unitRefineCostAxiomInstance *)
-(*     : @RefineCostAxiomClass N [finType of Unit] _ _. *)
-(*   Next Obligation. *)
-(*     rewrite /(ccost) /(cost) /unitCostInstance /unitCCostInstance /unit_ccost. *)
-(*     by rewrite DO_to_Q0 rat_to_Q0. *)
-(*   Qed. *)
+  Global Program Instance unitRefineCostAxiomInstance
+    : @RefineCostAxiomClass N [finType of Unit] _ _.
+  Next Obligation.
+    rewrite /(ccost) /(cost) /unitCostInstance /unitCCostInstance /unit_ccost.
+    by rewrite DO_to_Q0 rat_to_Q0.
+  Qed.
     
-(*   Global Instance unitRefineCostInstance *)
-(*     : @RefineCostClass N [finType of Unit] _ _ _. *)
+  Global Instance unitRefineCostInstance
+    : @RefineCostClass N [finType of Unit] _ _ _.
 
-(*   Global Instance unitCCostMaxInstance *)
-(*     : @CCostMaxClass N [finType of Unit] := 0%D. *)
+  Global Instance unitCCostMaxInstance
+    : @CCostMaxClass N [finType of Unit] := 0%D.
 
-(*   Global Instance unitrefineCostMaxInstance *)
-(*     : @RefineCostMaxClass _ _ (@unitCostMaxInstance N _) unitCCostMaxInstance. *)
-(*   Proof. *)
-(*     rewrite /RefineCostMaxClass /unitCostMaxInstance /unitCCostMaxInstance. *)
-(*     rewrite /rat_to_Q => //. *)
-(*   Qed. *)
-(*   Global Instance unitCCostMaxMaxInstance *)
-(*          : @CCostMaxMaxClass N [finType of Unit] _ _. *)
-(*   Proof. *)
-(*     rewrite /CCostMaxMaxClass. *)
-(*     move => i m. *)
-(*     rewrite /ccost_fun /ccostmax_fun /unitCCostInstance *)
-(*             /unit_ccost /unitCCostMaxInstance => //. *)
-(*   Qed. *)
+  Global Instance unitrefineCostMaxInstance
+    : @RefineCostMaxClass _ _ (@unitCostMaxInstance N _) unitCCostMaxInstance.
+  Proof.
+    rewrite /RefineCostMaxClass /unitCostMaxInstance /unitCCostMaxInstance.
+    rewrite /rat_to_Q => //.
+  Qed.
+  Global Instance unitCCostMaxMaxInstance
+         : @CCostMaxMaxClass N [finType of Unit] _ _.
+  Proof.
+    rewrite /CCostMaxMaxClass.
+    move => i m.
+    rewrite /ccost_fun /ccostmax_fun /unitCCostInstance
+            /unit_ccost /unitCCostMaxInstance => //.
+  Qed.
 
-(*   Global Instance unit_cgame : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _ _. *)
-(* End unitCompilable. *)
+  Global Instance unit_cgame : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _ _.
+End unitCompilable.
 
-(* (*************************** *)
+(*************************** *)
 (*  Affine Games are compilable  *)
-(*  ***************************) *)
+(*  ***************************)
 
-(* Section affineCompilable. *)
-(*   Context {A N} *)
-(*           `{scalA : DyadicScalarClass} *)
-(*           `{scalB : DyadicScalarClass} *)
-(*           `{cgame N A} *)
-(*           `{Boolable A} *)
-(*           (eqA : Eq A) (eqDecA : Eq_Dec eqA). *)
+Section affineCompilable.
+  Context {A N}
+          `{scalA : DyadicScalarClass}
+          `{scalB : DyadicScalarClass}
+          `{cgame N A}
+          `{Boolable A}
+          (eqA : Eq A) (eqDecA : Eq_Dec eqA).
 
-(*   Definition affine_preType := *)
-(*     ((@scalarType rat_realFieldType (@dyadic_scalar_val scalA) A) * *)
-(*     (@scalarType rat_realFieldType (@dyadic_scalar_val scalB) (singletonType A)))%type. *)
+  Definition affine_preType :=
+    ((@scalarType rat_realFieldType (@dyadic_scalar_val scalA) A) *
+    (@scalarType rat_realFieldType (@dyadic_scalar_val scalB) (singletonType A)))%type.
 
-(*   Global Instance affineTypePredInstance : *)
-(*     PredClass (affine_preType) := affinePredInstance eqDecA. *)
+  Global Instance affineTypePredInstance :
+    PredClass (affine_preType) := affinePredInstance eqDecA.
 
-(*   Definition affineType := [finType of {x : affine_preType | the_pred x}]. *)
+  Definition affineType := [finType of {x : affine_preType | the_pred x}].
 
-(*   Section affineGameTest. *)
-(*     Variable i' : OrdNat.t. *)
-(*     Variable t' : M.t (affine_preType). *)
+  Section affineGameTest.
+    Variable i' : OrdNat.t.
+    Variable t' : M.t (affine_preType).
 
-(*     Check ccost_fun (N:=N) i' t'. *)
-(*   End affineGameTest. *)
-(* End affineCompilable. *)
+    Check ccost_fun (N:=N) i' t'.
+  End affineGameTest.
+End affineCompilable.
 
 
-(* (* Hints to help automatic instance derivation for typclasses eauto. *) *)
-(*   Hint Extern 4 (RefineTypeAxiomClass ?t)=> *)
-(*   refine (sigmaRefineTypeAxiomInstance _ _ _) : typeclass_instances. *)
+(* Hints to help automatic instance derivation for typclasses eauto. *)
+  Hint Extern 4 (RefineTypeAxiomClass ?t)=>
+  refine (sigmaRefineTypeAxiomInstance _ _ _) : typeclass_instances.
 
-(*   Hint Extern 4 (CostClass ?n ?r ?t) => *)
-(*   refine (sigmaCostInstance _) : typeclass_instances. *)
+  Hint Extern 4 (CostClass ?n ?r ?t) =>
+  refine (sigmaCostInstance _) : typeclass_instances.
 
-(*   Hint Extern 1 (ScalarAxiomClass ?r )=> done : typeclass_instances. *)
+  Hint Extern 1 (ScalarAxiomClass ?r )=> done : typeclass_instances.
 
-(*   Hint Extern 4 (CostAxiomClass ?c) => *)
-(*   refine (sigmaCostAxiomInstance _ _ _ _ _) : typeclass_instances. *)
+  Hint Extern 4 (CostAxiomClass ?c) =>
+  refine (sigmaCostAxiomInstance _ _ _ _ _) : typeclass_instances.
 
-(*   Hint Extern 4 (RefineCostAxiomClass ?c ?a) => *)
-(*   refine (sigmaRefineCostAxiomInstance _ _ _ _ _ _) *)
-(*     : typeclass_instances. *)
+  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
+  refine (sigmaRefineCostAxiomInstance _ _ _ _ _ _)
+    : typeclass_instances.
 
-(*   Hint Extern 4 (RefineCostAxiomClass ?c ?a) => *)
-(*   refine (sigmaCCostInstance _) *)
-(*     : typeclass_instances. *)
+  Hint Extern 4 (RefineCostAxiomClass ?c ?a) =>
+  refine (sigmaCCostInstance _)
+    : typeclass_instances.
 
-(*   Hint Extern 4 (CostMaxAxiomClass ?cc ?cmc) => *)
-(*   refine (sigmaCostMaxAxiomInstance _ _ _ _ _ _ _) *)
-(*     : typeclass_instances. *)
+  Hint Extern 4 (CostMaxAxiomClass ?cc ?cmc) =>
+  refine (sigmaCostMaxAxiomInstance _ _ _ _ _ _ _)
+    : typeclass_instances.
 
-(*   Hint Extern 4 (RefineCostMaxClass ?cc ?cmc) => *)
-(*   compute; (try discriminate) *)
-(*     : typeclass_instances. *)
+  Hint Extern 4 (RefineCostMaxClass ?cc ?cmc) =>
+  compute; (try discriminate)
+    : typeclass_instances.
 
-(*   Hint Extern 4 (RefineTypeClass ?rtac) => *)
-(*   refine  (sigmaRefineTypeInstance _ _ _) *)
-(*     : typeclass_instances. *)
+  Hint Extern 4 (RefineTypeClass ?rtac) =>
+  refine  (sigmaRefineTypeInstance _ _ _)
+    : typeclass_instances.
 
-(*   Hint Extern 4 (RefineCostClass ?rtac) => *)
-(*   refine (sigmaRefineCostInstance _ _) *)
-(*     : typeclass_instances. *)
+  Hint Extern 4 (RefineCostClass ?rtac) =>
+  refine (sigmaRefineCostInstance _ _)
+    : typeclass_instances.
 
-(*   Hint Extern 4 (CCostMaxMaxClass ?rtac ?m) => *)
-(*   refine (scalarCostMaxMaxInstance _ _) *)
-(*     : typeclass_instances. *)
+  Hint Extern 4 (CCostMaxMaxClass ?rtac ?m) =>
+  refine (scalarCostMaxMaxInstance _ _)
+    : typeclass_instances.
 
