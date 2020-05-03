@@ -113,7 +113,7 @@ Section Test1.
 Definition top1 n :=
   match n with
   | O => (0,1)%N
-  | _ => (100, 101)
+  | _ => (100, 101)%N
   end.
 
 Eval compute in (@isSrcSnkPath 1 resource _ 0 1 top1 (mkUnit, RYes)).

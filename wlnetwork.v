@@ -403,6 +403,7 @@ Section weightsLangNetwork.
   Instance wlNetworkHasStep : hasStep wlWorld := wlnetwork_step.
 
   Instance wlNetworkSemantics : @semantics wlWorld _ _ _.
+  Defined.
 
   Definition machineInitState :=
     @mkMachineState A N
@@ -420,6 +421,7 @@ Section weightsLangNetwork.
   Instance machineHasStep : hasStep machine_state := machine_step.
 
   Instance machineSemantics : @semantics machine_state _ _ _.
+  Defined.
 
   Program Instance natOrd : hasOrd nat := lt.
   Program Instance natHasTransOrd : hasTransOrd.
@@ -459,6 +461,7 @@ Section weightsLangNetwork.
   end.
 
 
+  From Hammer Require Import Tactics.
    Lemma wlNetworkMachine_init_diagram :
     forall WORLD,
       init WORLD ->
@@ -472,15 +475,14 @@ Section weightsLangNetwork.
   Qed.
 
 
-    split; eauto.
- (*    { *)
- (* by exists machineInitState. } *)
-    { eexists;
-      crush.
-    }
-Qed.
+(*     split; eauto. *)
+(*  (*    { *) *)
+(*  (* by exists machineInitState. } *) *)
+(*     { eexists; *)
+(*       crush. *)
+(*     } *)
+(* Qed. *)
 
-  Optimize Proof wlNetworkMachine_init_diagram.
 
   Lemma perm_client_packet_exists (w : wlWorld) :
     Permutation [seq origin_of i | i <- rInFlight w]

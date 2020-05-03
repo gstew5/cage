@@ -196,6 +196,7 @@ Set Implicit Arguments.
 
   Instance world_hasSemantics :
     semantics (H1 := World_hasStep).
+  Defined.
 End NetworkSemantics.
 
 Section intermediateSemantics.
@@ -700,6 +701,7 @@ Admitted.
 
   Instance worldINTLow_hasSemantics :
     semantics (H1 := WorldINT_hasStepLow).
+  Defined.
 
   Definition Matches_state (ord : nat) (low high : WorldINT) : Prop :=
     Match_Int_Low low high /\ world_measure low = ord.
@@ -1162,6 +1164,7 @@ Section relationalINTSimulation.
 
   Instance intRel_hasSemantics :
     semantics (X := RWorld) (H1 := RWorld_hasStep).
+  Defined.
 
   Definition unitOrd : unit -> unit -> Prop := fun _ _ => False.
   Instance unitHasOrd  : hasOrd unit := unitOrd.

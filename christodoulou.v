@@ -1,13 +1,16 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
+Generalizable Variables All.
 
 Require Import mathcomp.ssreflect.ssreflect.
 From mathcomp Require Import all_ssreflect.
 From mathcomp Require Import all_algebra.
 
 Import GRing.Theory Num.Theory Num.Def.
-Require Import QArith.
 
+Require Import Lia.
+
+Require Import Lra.
 Require Import games.
 
 Local Open Scope ring_scope.
@@ -46,20 +49,15 @@ Module Christodoulou.
   (*   yz <= y^2 + (1/3)z^2 *)
 
   (* Multiply both sides by 3 *)
-  (* Definition nat_to_Q (n : nat) : Q := *)
-  (*   Qmake (Z.of_nat n) 1. *)
-
-  (* Coercion nat_to_Q : nat >-> Q. *)
-
-
-        (* (R : (Num.RealField.numDomainType rat_realFieldType)) : *)
-
-  
-  Lemma s1 (R : numDomainType) (y z : nat) : 
-    3%:R * y%:R * z%:R <= 3%:R * y%:R ^+ 2 + z%:R ^+ 2 ->
-    y%:R * z%:R <= (3%:R / 3%:R) * y%:R ^+ 2 + (1%:R / 3%:R) * z%:R ^+ 2.
+Lemma s1  (y z : nat) :
+  @ler (Num.RealField.numDomainType rat_realFieldType)
+       (3%:R * y%:R * z%:R)
+  (3%:R * y%:R ^+ 2 + z%:R ^+ 2) ->
+  @ler (Num.RealField.numDomainType rat_realFieldType)(y%:R * z%:R)
+       ((3%:R  / 3%:R) * y%:R ^+ 2 + (1%:R / 3%:R) * z%:R ^+ 2).
   Proof.
-    move => H0. apply ler_mull2 with (z := 3%:Q); auto.
+    move => H0.
+    apply ler_mull2 with (z := 3%:Q); auto.
     rewrite mulrA [3%:~R * (_ + _)] mulrDr mulrA.
     have H1: ((3%:Q / 3%:Q) = 1%:Q) by apply: divff.
     rewrite H1 mulr1 mulrA mulrA mulrA.
@@ -311,11 +309,11 @@ Module Christodoulou.
       apply /leP.
       apply negbT in H.  rewrite -ltnNge in H.
       apply leq_case in H. destruct H.
-      have H1: (z = 2) by omega. rewrite H1 => //.
+      have H1: (z = 2) by lia. rewrite H1 => //.
       apply leq_case in H. destruct H.
-      have H1: (z = S O) by omega. rewrite H1 => //.
+      have H1: (z = S O) by lia. rewrite H1 => //.
       apply leq_case in H. destruct H.
-      have H1: (z = O) by omega. rewrite H1 => //.
+      have H1: (z = O) by lia. rewrite H1 => //.
       rewrite ltn0 in H. congruence. }
     have H1: (5%:Q / 3%:Q = 2%:Q / 3%:Q + 1%:Q) by [].
     rewrite H1 -addrA [1%:~R + _] addrC addrA.

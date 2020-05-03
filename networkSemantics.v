@@ -1049,7 +1049,7 @@ Admitted.
 
   Instance worldINTLow_hasSemantics :
     semantics (H1 := WorldINT_hasStepLow).
-
+  Defined.
 
   Definition Matches_state (ord : nat) (low high : WorldINT) : Prop :=
     Match low high /\ world_measure low = ord.
@@ -1599,6 +1599,7 @@ Program Instance RWorldINT_hasSemantics :
 
   Instance worldINT'Low_hasSemantics :
     semantics (H1 := WorldINT'_hasStepLow).
+  Defined.
 
   Theorem relationalINTSimulation :
     forall WINT WINT' RW,

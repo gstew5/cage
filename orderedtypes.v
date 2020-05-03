@@ -86,14 +86,9 @@ Require Import ccombinators.
 Module OrderedUnit <: MyOrderedType.
   Definition t := Unit.
   Definition t0 := mkUnit.
-  Definition enumerable  : Enumerable t := [::mkUnit].
-
-  Definition cost_instance : forall N, CCostClass N t (* := _. *)
-                                                  .
-                                                  Admitted.
-
-  Definition cost_max : forall N, CCostMaxClass N t.
-  Admitted.
+  Definition enumerable  : Enumerable t := _.
+  Definition cost_instance : forall N, CCostClass N t := _.
+  Definition cost_max : forall N, CCostMaxClass N t := _.
   Definition showable := unitShowable.
   Definition eq u1 u2 := Unit_eq u1 u2 = true.
   Definition lt (u1 u2 : Unit) := False.
@@ -226,10 +221,8 @@ Module OrderedProd (A B : MyOrderedType) <: MyOrderedType.
   Existing Instance B.cost_max.
   Existing Instance A.showable.
   Existing Instance B.showable.
-  Definition cost_instance : forall N, CCostClass N t.
-  Admitted.
-  Definition cost_max : forall N, CCostMaxClass N t.
-  Admitted.
+  Definition cost_instance : forall N, CCostClass N t := _.
+  Definition cost_max : forall N, CCostMaxClass N t := _.
   Definition show_prod (p : A.t*B.t) : string :=
     let s1 := to_string p.1 in
     let s2 := to_string p.2 in
@@ -386,12 +379,9 @@ Module OrderedSigma (T : OrderedPredType) <: MyOrderedType.
   Existing Instance T.cost_instance.
   Existing Instance T.cost_max.
   Existing Instance T.showable.
-  Definition enumerable  : Enumerable t .
-  Admitted.
-  Definition cost_instance : forall N, CCostClass N t.
-  Admitted.
-  Definition cost_max : forall N, CCostMaxClass N t.
-  Admitted.
+  Definition enumerable  : Enumerable t  := _.
+  Definition cost_instance : forall N, CCostClass N t := _.
+  Definition cost_max : forall N, CCostMaxClass N t := _.
   Definition show_sigma (x : t) : string :=
     to_string (projT1 x).
   Instance showable : Showable t := mkShowable show_sigma.
@@ -502,17 +492,15 @@ Module OrderedScalar (T : OrderedScalarType) <: MyOrderedType.
   Definition t := scalar scalar_val T.t.
   Definition t0 := Wrap (Scalar (rty:=rat_realFieldType) scalar_val) T.t0.
   Existing Instance T.showable.
-  Definition enumerable : Enumerable t.
-  Admitted.
-    (* @scalarEnumerableInstance _ T.enumerable scalar_val. *)
-
+  Definition enumerable : Enumerable t :=  
+    (@scalarEnumerableInstance _ T.enumerable _ scalar_val).
   
-  Definition cost_instance (N : nat) :  forall N, CCostClass N t.
-    Admitted.
-    (* scalarCCostInstance T.enumerable (T.cost_instance N) (H1:=T.scal_DyadicScalarInstance). *)
-  Definition cost_max : forall N, CCostMaxClass N t.
-  Admitted.
-    (* scalarCCostMaxInstance (T.cost_max N) dyadic_scalar_val. *)
+  Definition cost_instance (N : nat) :=
+    scalarCCostInstance T.enumerable (T.cost_instance N) (H1:=T.scal_DyadicScalarInstance).
+
+  Definition cost_max (N : nat) := 
+    scalarCCostMaxInstance (@T.cost_max N) dyadic_scalar_val.
+
   Definition show_scalar (x : t) : string :=
     append "Scalar" (to_string (unwrap x)).
   

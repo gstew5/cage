@@ -173,7 +173,8 @@ Module RAffine3Scalar <: OrderedScalarType.
                         (RAffine3.cost_max num_players'))).
   Instance scal_DyadicScalarInstance : DyadicScalarClass := scal.
   Lemma scal_pos : 0 < projT1 scal.
-  Proof. by []. Qed.  
+  Proof.  by []. Qed.
+ 
 End RAffine3Scalar.
 
 (** Normalized game *)
@@ -216,38 +217,41 @@ Module Conf : CONFIG.
   Definition num_rounds : N.t := num_iters.
   Definition epsilon := eps.
   Definition A_cost_instance := A.cost_instance num_players.
-  Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.
+  Instance refineTypeAxiomA : RefineTypeAxiomClass (T := [finType of A.t]) A.enumerable := _.  
 
   Instance ccostMaxInstance : CCostMaxClass num_players [finType of A.t] := _.
 
-  Instance ccostMaxMaxInstance : 
+  Program Instance ccostMaxMaxInstance : 
     @CCostMaxMaxClass num_players [finType of A.t]
                       ccostMaxInstance
     A_cost_instance := _.
-  Proof.
+  Next Obligation.
     refine (sigmaCostMaxMaxInstance _ _).
-  Qed.
+  Defined.
+  
+    Check sigma_cgame.
+  (* Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _ *)
+  (*                        (@Build_game _ num_players _ _ _ _ _) *)
+  (*                        (enumerateClass := A.enumerable) *)
+  (*                        (refineTypeAxiomCl := refineTypeAxiomA)  *)
+  (*                        (ccostMaxClass := ccostMaxInstance). *)
 
-  Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _
-                         (@Build_game _ num_players _ _ _ _ _)
-                         (enumerateClass := A.enumerable)
-                         (refineTypeAxiomCl := refineTypeAxiomA) 
-                         (ccostMaxClass := ccostMaxInstance).
-
+  
   Lemma enum_ok : @Enum_ok [finType of A.t] _.
-  Proof. 
-    apply enum_ok; 
+  Proof.
+    apply enum_ok;
     typeclasses eauto.
   Qed.
 
   Existing Instance A_cost_instance.
   Lemma ccost_ok : forall (p : M.t [finType of A.t]) (player : N),
        (-D1 <= (ccost) player p)%D /\ ((ccost) player p <= 1)%D.
-  Proof. 
+  Proof.
     intros.
     apply ccost_ok_game with (ccostMaxClass := ccostMaxInstance) => //.
     typeclasses eauto.
   Qed.
+
 End Conf.
   
 Module Client := Client_of_CONFIG Conf.

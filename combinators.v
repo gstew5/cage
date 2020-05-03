@@ -203,7 +203,9 @@ Next Obligation.
 Qed.
 
 Instance resourceGame (N : nat) : @game [finType of resource] N _ _ _ _ _ .
-Qed.
+Defined.
+
+
 
 (******************************************
   Resource Games are (5/3, 1/3)-Smooth
@@ -370,10 +372,9 @@ Proof.
   have H1: ((traffic (N:=N) t')%:R * ((traffic (N:=N) t)%:R + 1) <=
             5%:R / 3%:R * (\sum_i (cost) i t') +
             1%:R / 3%:R * (\sum_i (cost) i t)).
-  { by rewrite !Cost_traffic_sq; admit.
-    (* apply: Christodoulou.result. *) }
+  { rewrite !Cost_traffic_sq. apply Christodoulou.result. }
   apply: ler_trans H0 H1.
-Admitted.
+Qed.
 
 Program Instance resourceSmoothAxiomInstance N
   : @SmoothnessAxiomClass [finType of resource] N rat_realFieldType _ _ _
@@ -448,7 +449,7 @@ Global Instance BoolableUnitSingleton (A : Type) `(bA : BoolableUnit A)
 
 Global Program Instance BoolableUnitSingletonAxiom
         (A: Type) `(bA : BoolableUnitAxiom A)
-  : @BoolableUnitAxiom _ _ _(* (BoolableUnitSingleton A _). *).
+  : @BoolableUnitAxiom _ _ (@BoolableUnitSingleton A _ _).
 
 Program Instance eqSingleton (A : Type) (eqA : Eq A) : Eq (singleton A) :=
   fun a b => 
@@ -1137,7 +1138,7 @@ Class ScalarClass (rty : realFieldType)
 Class DyadicScalarClass 
   : Type := dyadic_scalar_val : dyadic_rat.
 
-Instance DyadicScalarInstance `(DyadicScalarClass)
+Global Instance DyadicScalarInstance `(DyadicScalarClass)
   : ScalarClass [realFieldType of rat] :=
   dyadic_scalar_val.  
 
@@ -1198,13 +1199,13 @@ Module ScalarGameTest. Section scalarGameTest.
   Check cost i t.
 End scalarGameTest. End ScalarGameTest.
 
-Instance scalarLambdaInstance
+Global Instance scalarLambdaInstance
          (rty : realFieldType) (A : Type)
          `(scalarA : ScalarClass rty)
          `(lambdaA : LambdaClass A rty)
   : @LambdaClass (scalar scalar_val A) rty | 0 := lambda of A.
 
-Instance scalarLambdaAxiomInstance
+Global Instance scalarLambdaAxiomInstance
          (rty : realFieldType) (A : Type)
         `(scalarA : ScalarClass rty)         
         `(scalarAxiomA : @ScalarAxiomClass rty scalarA)
@@ -1216,13 +1217,13 @@ Instance scalarLambdaAxiomInstance
       (scalarLambdaInstance scalarA lambdaA) | 0
   := @lambda_axiom A rty lambdaA lambdaAxiomA.
 
-Instance scalarMuInstance
+Global Instance scalarMuInstance
          (rty : realFieldType) (A : Type)
          `(scalarA : ScalarClass rty)
          `(lambdaA : MuClass A rty)
   : @MuClass (scalar scalar_val A) rty | 0 := mu of A.
 
-Instance scalarMuAxiomInstance
+Global Instance scalarMuAxiomInstance
         (rty : realFieldType) (A : Type)
         `(scalarA : ScalarAxiomClass rty)
         `(muA : MuClass A rty)        
@@ -1616,7 +1617,8 @@ Global Instance affineBoolableUnit
   : BoolableUnit (affineBoolable boolableUnitA).
 Proof.
   typeclasses eauto.
-Qed.
+Defined.
+
 
 Global Instance affineBoolableUnitAxiom
   (A : Type)
@@ -1624,8 +1626,9 @@ Global Instance affineBoolableUnitAxiom
   (boolableA : Boolable A) (boolableUnitA : BoolableUnit boolableA)
   (bA : BoolableUnitAxiom boolableUnitA)
   : @BoolableUnitAxiom (@affine A _ _) (@affineBoolable A _ _ _ _)
-                       (@affineBoolableUnit A _ _ _ _ _).
-Admitted.  
+                       (@affineBoolableUnit A _ _ _ _ _) := _.
+  
+
 End AffineType.
 
 Section affineGameTest.

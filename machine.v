@@ -1608,6 +1608,7 @@ Section mwuBounds.
   Context `{HSmooth : smooth A N rat_realFieldType}.
 
   Instance gameOf_ : gameOf.
+  Defined.
 
   Variable Hstep : machine_step_plus a0 mwu_cost_vec m m'.
   

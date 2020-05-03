@@ -273,15 +273,15 @@ Module Conf : CONFIG.
   Instance ccostMaxMaxInstance : 
     @CCostMaxMaxClass num_players [finType of A.t]
                       ccostMaxInstance
-    (@A.cost_instance  num_players):= _.
+    (@A.cost_instance  num_players).
   Proof.
     refine (sigmaCostMaxMaxInstance _ _).
   Qed.
 
-  Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _
-                         (@Build_game _ num_players _ _ _ _ _)
-                         (enumerateClass := A.enumerable) 
-                         (refineTypeAxiomCl := refineTypeAxiomA).
+  (* Instance cgame_t : cgame _ (T := [finType of A.t]) _  _ _ *)
+  (*                        (@Build_game _ num_players _ _ _ _ _) *)
+  (*                        (enumerateClass := A.enumerable)  *)
+  (*                        (refineTypeAxiomCl := refineTypeAxiomA). *)
 
   Lemma enum_ok : @Enum_ok [finType of A.t] _.
   Proof. 

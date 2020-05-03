@@ -32,11 +32,11 @@ Program Instance resourceRefineTypeAxiomInstance
   : @RefineTypeAxiomClass [finType of resource] _.
 Next Obligation.
   by split => // r; rewrite mem_enum; case: r. 
-Qed.
+Defined.
 
 Instance resourceRefineTypeInstance
   : @RefineTypeClass [finType of resource] _ _.
-Qed.
+Defined.
 
 Definition ctraffic (N : nat) (m : M.t resource) : N.t :=
   (M.fold (fun i r acc =>
@@ -513,7 +513,7 @@ Qed.
 
 Instance resourceRefineCostInstance N
   : @RefineCostClass N [finType of resource] _ _ _.
-Qed.
+Defined.
 
 Instance resourceCCostMaxInstance N
   : @CCostMaxClass N [finType of resource] :=
@@ -881,6 +881,7 @@ Qed.
 Instance resource_cgame N
   : cgame (N:=N) (T:=[finType of resource]) _ _ _ _
       (resourceGame N).
+Defined.
 
 (** [NOTE Enumerable instances] *)
 (*     ~~~~~~~~~~~~~~~~~~~~~~ *)
@@ -897,7 +898,7 @@ Extraction resources.
 (*   filter *)
 (*     (pred_of_simpl *)
 (*       (pred_of_mem_pred *)
-(*         (mem predPredType (sort_of_simpl_pred pred_of_argType)))) *)
+(*         (mem predPredType (pred_of_simpl pred_of_argType)))) *)
 (*     (Obj.magic Finite.EnumDef.enum *)
 (*       (Finite.clone resource_finType (Finite.coq_class resource_finType))) *)
 Definition resources' : list resource := Eval hnf in enumerate [finType of resource].
@@ -909,6 +910,7 @@ Extraction resources'.
 (********************************************* *)
 (*  Singleton Games are Compilable  *)
 (*  *********************************************)
+
 
 Global Instance singCCostInstance (A : Type) `(Boolable A) N
   : CCostClass N (singleton A)
@@ -942,7 +944,7 @@ Section singletonCompilable.
     move => r.
     apply /mapP.
     case_eq (in_mem r (mem (enum_mem (T:=singletonType A)
-              (mem (sort_of_simpl_pred (pred_of_argType
+              (mem (pred_of_simpl (pred_of_argType
                 (Wrapper Singleton A))))))) => H3; rewrite H3.
     {
       move: H3.
@@ -963,6 +965,7 @@ Section singletonCompilable.
 
   Global Instance singRefineTypeInstance
     : @RefineTypeClass (singletonType A)  _ _.
+  Defined.
 
   Global Program Instance singRefineCostAxiomInstance `(Boolable A)
     : RefineCostAxiomClass _ (singCCostInstance _ N).
@@ -971,17 +974,18 @@ Section singletonCompilable.
     rewrite /ccost_fun /singCCostInstance /ccost_fun.
     rewrite (H2 i pf).
     case: (boolify (s (Ordinal (n := N) (m := i) pf))) => //.
-  Qed.
+  Defined.
   
   Global Instance singRefineCostInstance
     : @RefineCostClass N (singletonType A) _ _ _.
+  Defined.
 
   Global Instance singRefineCostMaxInstance
     : @RefineCostMaxClass N _ (singletonCostMaxInstance _ _) (singCCostMaxInstance N A).
   Proof.
     rewrite /RefineCostMaxClass /resourceCCostMaxInstance
             /singletonCostMaxInstance /singCCostMaxInstance => //.
-  Qed.
+  Defined.
 
   Global Instance singCostMaxMaxInstance
     : CCostMaxMaxClass  (singCCostMaxInstance N A) _.
@@ -994,13 +998,14 @@ Section singletonCompilable.
     case: (M.find (elt:=singleton A) i m); intros;
       [destruct boolify; eauto | ];
           compute; intros; try discriminate.
-  Qed.
+  Defined.
 
   Global Instance sing_cgame
   : @cgame N (singletonType A) _ _ _ (singletonCostInstance H0)
       _
-      _ (singletonCostMaxAxiomInstance _ A _) _
+      _ (@singletonCostMaxAxiomInstance _ A _) _
       _ _ _ _ singRefineCostMaxInstance _.
+  Defined.
 
 End singletonCompilable.
 
@@ -1062,6 +1067,7 @@ Section sigmaCompilable.
            (predInstance : PredClass A)
            `(refineTypeAxiomInstanceA : RefineTypeAxiomClass A)
     : @RefineTypeClass [finType of {x : A | the_pred x}]  _ _.
+  Defined.
 
   Global Instance sigmaCCostInstance
            (A : Type) N
@@ -1087,7 +1093,7 @@ Section sigmaCompilable.
     apply MProps.F.find_mapsto_iff, MProps.F.map_mapsto_iff.
     specialize (H j pf'); apply MProps.F.find_mapsto_iff in H.
     by exists (s (Ordinal (n:=N) (m:=j) pf')); split => //.
-  Qed.
+  Defined.
 
   Global Instance sigmaRefineCostInstance (N : nat) (A : finType)
            (predInstance : PredClass A)
@@ -1095,6 +1101,7 @@ Section sigmaCompilable.
            (ccostA : CCostClass N A)
            (refineA : RefineCostAxiomClass costA ccostA)
     : @RefineCostClass N [finType of {x : A | the_pred x}] _ _ _.
+  Defined.
 
   Global Instance sigmaCostMaxRefineInstance (N : nat) (A : finType)
            (predInstance : PredClass A)
@@ -1107,11 +1114,11 @@ Section sigmaCompilable.
   Proof.
     rewrite /RefineCostMaxClass /sigmaCostMaxInstance
             /sigmaCCostMaxInstance => //.
-  Qed.
+  Defined.
 
   Global Instance sigmaCostMaxMaxInstance (N : nat) (A : finType)
          (ccostA : CCostClass N A)
-         (ccostMaxInstance : CCostMaxClass N A)
+         (ccostMaxInstance' : CCostMaxClass N A)
          (predInstance : PredClass A)
          (ccostMaxInstance : CCostMaxClass N A)
          (ccostMaxMaxInstance : @CCostMaxMaxClass N A _ _ )
@@ -1139,7 +1146,8 @@ Section sigmaCompilable.
     : @cgame N [finType of {x : A | the_pred x}] _ _ _ _ _ _ _ _ _ _ _
              _
              (sigmaCostMaxRefineInstance refineCostMaxInstanceA)
-             (sigmaGameInstance N _ A predInstance gA) .
+             (@sigmaGameInstance N _ A predInstance _ _ _ _  gA) .
+  Defined.
 End sigmaCompilable.
 
 (*************************************** *)
@@ -1172,12 +1180,13 @@ Next Obligation.
       - by rewrite HB0; apply mem_enum. }
     apply list_in_iff in H. by rewrite H. }
     by apply: list_prod_uniq; assumption.
-Qed.
+Defined.
 
 Instance prodRefineTypeInstance (aT bT : finType)
          `(refineTypeAxiomInstanceA : RefineTypeAxiomClass aT)
          `(refineTypeAxiomInstanceB : RefineTypeAxiomClass bT)
   : @RefineTypeClass [finType of aT*bT]  _ _.
+Defined.
 
 Instance prodCCostInstance
        N
@@ -1189,6 +1198,7 @@ Instance prodCCostInstance
     (fun (i : OrdNat.t) (m : M.t (aT*bT)) =>
        (ccost i (map_split m).1 +
          ccost i (map_split m).2))%D.
+
 
 Program Instance prodRefineCostAxiomInstance
         (N : nat) (aT bT : finType)
@@ -1237,6 +1247,7 @@ Instance prodRefineCostInstance (N : nat) (aT bT : finType)
          (refineA : RefineCostAxiomClass costA ccostA)
          (refineB : RefineCostAxiomClass costB ccostB)
   : @RefineCostClass N [finType of aT*bT] _ _ _.
+Defined.
 
 Instance prodCCostMaxInstance (N : nat) (aT bT : Type)
          (ccostMaxA : CCostMaxClass N aT)
@@ -1360,7 +1371,8 @@ Instance prod_cgame (N : nat) (aT bT : finType)
   : @cgame N [finType of aT*bT] _ _ _ _ _ _ _ _ _ _ _
            _
            _
-           (prodGameInstance N _ _ _ gA gB).
+           (@prodGameInstance _ _ _ _ _ _ _ _ gA _ _ _ _ gB).
+Defined.
 
 
 Module ProdCGameTest. Section prodCGameTest.
@@ -1428,7 +1440,7 @@ Section scalarCompilable.
                r (mem
                   (enum_mem
                      (T:=scalarType (rty:=rat_realFieldType) scalar_val A)
-                     (mem (sort_of_simpl_pred (pred_of_argType
+                     (mem (pred_of_simpl (pred_of_argType
               (Wrapper (Scalar (rty:=rat_realFieldType) scalar_val) A)))))))
       => H3; rewrite H3.
     {
@@ -1450,6 +1462,7 @@ Section scalarCompilable.
 
   Global Instance scalarRefineTypeInstance
     : @RefineTypeClass (scalarType scalar_val A)  _ _.
+  Defined.
 
   Lemma unwrapScalarTree_spec i (t : scalarType scalar_val A) m:
     M.find i m = Some t ->
@@ -1515,9 +1528,11 @@ Section scalarCompilable.
     rewrite /unwrap_ffun. rewrite ffunE => //.
   Qed.
 
+
   Global Instance scalarRefineCostInstance
     : @RefineCostClass N (scalarType scalar_val A)
         (@scalarCostInstance N _ A costClass _) _ _.
+  Defined.
 
   Global Instance scalarRefineCostMaxInstance
          `(scalarAxiomInstance : @ScalarAxiomClass _ scalar_val)
@@ -1583,8 +1598,10 @@ Section scalarCompilable.
     : @cgame
         N (scalarType scalar_val A)
         _ _ _ _ _ _ _ _ _ _ _ _ _
-        (scalarGameInstance _ _ _ _ _).
+        (@scalarGameInstance _ _ _ _ _ _ _ _ _ _).
+  Defined.
 End scalarCompilable.
+
 
 Module ScalarCGameTest. Section scalarCGameTest.
   Context {A : finType} {N : nat} `{cgame N A}
@@ -1642,7 +1659,7 @@ Section biasCompilable.
     move => r.
     apply /mapP.
     case_eq (in_mem r (mem (enum_mem (T:=biasType (rty:=rat_realFieldType) q A)
-              (mem (sort_of_simpl_pred (pred_of_argType
+              (mem (pred_of_simpl (pred_of_argType
                 (Wrapper (Bias (rty:=rat_realFieldType) q) A))))))) => H3; rewrite H3.
     {
       move: H3.
@@ -1663,6 +1680,7 @@ Section biasCompilable.
 
   Global Instance biasRefineTypeInstance
     : @RefineTypeClass (biasType (projT1 q) A)  _ _.
+  Defined.
 
   Lemma unwrapBiasTree_spec i (t : biasType (projT1 q) A) m:
     M.find i m = Some t ->
@@ -1723,13 +1741,14 @@ Section biasCompilable.
 
   Global Instance biasRefineCostInstance
     : @RefineCostClass N (biasType (projT1 q) A) (biasCostInstance costClass) _ _.
+  Defined.
 
-  Global Instance biasRefineCostMaxInstance
+  Global Program Instance biasRefineCostMaxInstance
          `(biasAxiomInstance : @BiasAxiomClass _ (projT1 q))
     : @RefineCostMaxClass N (biasType (projT1 q) A)
-        (biasCostMaxInstance _ _ _ costMaxClass biasAxiomInstance)
+        (@biasCostMaxInstance _ _ _ costMaxClass _ biasAxiomInstance)
         (biasCCostMaxInstance _ _).
-  Proof.
+  Next Obligation.
     rewrite /RefineCostMaxClass /biasCostMaxInstance /biasCCostMaxInstance
             rat_to_Q_plus Dadd_ok /bias_val.
     have ->: (D_to_Q q == rat_to_Q (projT1 q))%Q.
@@ -1788,10 +1807,13 @@ Section biasCompilable.
       my_omega.
   Qed.
 
-  Global Instance bias_cgame `{@BiasAxiomClass rat_realFieldType q}
-    : @cgame N (biasType (projT1 q) A) _ _ _ _ _ _
-             (biasCostMaxAxiomInstance _ _ _ _ _ _ _ _)
-             _ _ _ _ _ _ (biasGameInstance _ _ _ _ _).
+ Global Instance bias_cgame
+          `{@BiasAxiomClass rat_realFieldType q}
+     : @cgame N (biasType (projT1 q) A) _ _ _ _ _ 
+     _ (@biasCostMaxAxiomInstance _ rat_realFieldType _ _ _ _ _ _ _)
+              _ _ _ _ _ _ (@biasGameInstance _ _ _ _ _ _ _ _ _ _).
+   Defined.
+
 End biasCompilable.
 
 Module BiasCGameTest. Section biasCGameTest.
@@ -1819,7 +1841,7 @@ Section unitCompilable.
   Global Instance unitRefineTypeInstance
     : @RefineTypeClass [finType of Unit]  _ _.
 
-  Definition unit_ccost (i : OrdNat.t) (m : M.t Unit) : D := 0.
+  Definition unit_ccost (i : OrdNat.t) (m : M.t Unit) : D := 0. Defined.
 
   Global Instance unitCCostInstance
     : CCostClass N [finType of Unit] := unit_ccost.
@@ -1832,7 +1854,7 @@ Section unitCompilable.
   Qed.
     
   Global Instance unitRefineCostInstance
-    : @RefineCostClass N [finType of Unit] _ _ _.
+    : @RefineCostClass N [finType of Unit] _ _ _. Defined.
 
   Global Instance unitCCostMaxInstance
     : @CCostMaxClass N [finType of Unit] := 0%D.
@@ -1853,6 +1875,7 @@ Section unitCompilable.
   Qed.
 
   Global Instance unit_cgame : cgame (N:=N) (T:= [finType of Unit]) _ _ _ _ _.
+  Defined.
 End unitCompilable.
 
 (*************************** *)
@@ -1887,7 +1910,7 @@ End affineCompilable.
 
 (* Hints to help automatic instance derivation for typclasses eauto. *)
   Hint Extern 4 (RefineTypeAxiomClass ?t)=>
-  refine (sigmaRefineTypeAxiomInstance _ _ _) : typeclass_instances.
+  refine (sigmaRefineTypeAxiomInstance _ _) : typeclass_instances.
 
   Hint Extern 4 (CostClass ?n ?r ?t) =>
   refine (sigmaCostInstance _) : typeclass_instances.

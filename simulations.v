@@ -23,7 +23,7 @@ Instance hasTransOrdLex
          {X Y}
          `{hasTransOrd X}
          `{hasTransOrd Y}
-  : hasTransOrd (X:=(X * Y)) := _.
+  : hasTransOrd (X:=(X * Y)).
 Proof.
   intros [x1 x2] [y1 y2] [z1 z2]; unfold ord; simpl.
   intros [A1|[A1 A2]].
@@ -40,7 +40,7 @@ Instance hasWellfoundedOrdLex
          {X Y}
          `{hasWellfoundedOrd X}
          `{hasWellfoundedOrd Y}
-  : hasWellfoundedOrd (X:=(X * Y)) := _.
+  : hasWellfoundedOrd (X:=(X * Y)).
 Proof.
   set (A := X).
   set (B (_ : A) := Y).

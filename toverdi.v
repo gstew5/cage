@@ -544,6 +544,7 @@ Section toVerdi.
          step_async s s' TRACE').
 
   Instance net_hasSemantics : semantics (H1 := net_hasStep).
+  Defined.
   Notation World_hasInit := (@World_hasInit node msg event network_desc).
   Notation World_hasFinal := (@World_hasFinal node msg event network_desc).
   Notation World_hasStep :=

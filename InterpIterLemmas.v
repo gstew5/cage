@@ -242,13 +242,15 @@ Module MWUProofs
       set c := MWU.mwu_recv (MWU.MWUPre.SChan tx)
                         t0.
       clear t.
-      set f :=
-        finfun
-          (fun a : t =>
+      pose f' :=
+            (fun a : t =>
              match M.find a c.1 with
              | None => 0%R (*bogus*)
              | Some q => Q_to_rat (Qred (D_to_Q q))
              end).
+      pose f :=
+        finfun f'.
+      unfold f' in *.
       pose proof (@MWUProof.recv_ok show_instance coracle (MWU.MWUPre.SOracleSt tx) (MWU.MWUPre.SChan tx)) as Hrecv.
       specialize (Hrecv t0) .
       destruct b => //.
@@ -272,14 +274,16 @@ Module MWUProofs
       have Hora: match_oracle_states
                    (weightslang.SOracleSt s) (MWU.MWUPre.SOracleSt tx).
       { by case: H2. }
-      case Hrecv': (MWU.mwu_recv (MWU.MWUPre.SChan tx)
-                                 t0) => [m tx'].
+      destruct MWU.mwu_recv as [m tx'] eqn:Hrecv'.
+      (* case Hrecv': (MWU.mwu_recv (MWU.MWUPre.SChan tx) *)
+      (*                            t0) => [m tx']. *)
       have Hmaps: match_maps f m.
       { rewrite /match_maps/f => a; rewrite ffunE.
         case: (Hrecv a) => q []Hx Hy Hz.
         rewrite /c.
         exists q; rewrite Hx; split => //;
-         [rewrite -Hx Hrecv' => // | by rewrite rat_to_QK1 Qred_idem].
+          [ by rewrite rat_to_QK1 Qred_idem ].
+         (* [rewrite -Hx Hrecv' => // | by rewrite rat_to_QK1 Qred_idem]. *)
       }
       move: H1.
       rename Hp into Hpre; inversion 1; subst; clear H1.
@@ -314,11 +318,15 @@ Module MWUProofs
         have ->: weightslang.SChan s = MWU.MWUPre.SChan tx.
         { by case: H2. }
         by []. }
+      clear -Hrecv' Hora_states Hmaps Hora Hrecv H2 t0.
       inversion H2; subst. simpl in *.
-      rewrite Hrecv' in H0.
-      move: H0; inversion 1; subst; clear H0.
-      by constructor; try solve[auto | constructor; auto]. }
-    { intros s tx; inversion 1; subst; clear H.
+      inversion H0;
+      subst; constructor; auto.
+      constructor; auto.
+      constructor; auto.
+      }
+    { 
+      intros s tx; inversion 1; subst; clear H.
       intros H2.
       exists CSkip.
       have Hora: match_oracle_states (weightslang.SOracleSt s)
@@ -381,15 +389,20 @@ Module MWUProofs
       { rewrite /weights.p_aux_dist.
         simpl.
         move: H4 => H4x.
-        have Hx:
-             [ffun a : t => match M.find (elt:=D) a wc with
+        pose f' :=
+          (fun a : t => match M.find (elt:=D) a wc with
                             | Some q => (Q_to_rat (D_to_Q q) / Q_to_rat
                                                   (MWU.MWUPre.cGamma wc))%R
                         | None => 0%R
-                        end] = weights.p_aux (A:=t) eps [::] w.
+                        end).
+        set f := finfun f'.
+        have Hx:
+             f = weights.p_aux (A:=t) eps [::] w.
         { rewrite /weights.p_aux; apply/ffunP => a; rewrite 2!ffunE.
           move: (match_maps_gamma_cGamma H1) => H1'.
           rewrite /match_maps in H1; case: (H1 a) => y []H3 H4. clear H1.
+          unfold f in *.
+          unfold f' in *.
           rewrite H3 /= H1'; f_equal. clear - H4.
           rewrite rat_to_Q_red in H4.
           have H5: Qeq (D_to_Q y) (rat_to_Q (w a)).
@@ -397,6 +410,7 @@ Module MWUProofs
             by apply: rat_to_QK2. }
         rewrite -Hx.
         apply/ffunP => x; rewrite 2!ffunE /MWU.MWUPre.weights_distr.
+        unfold f' in *.
         case Hy: (M.find _ _) => // [q].
         by rewrite Q_to_rat_div. }
       inversion Hchan; subst => /= //.
