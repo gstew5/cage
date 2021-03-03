@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 Unset Strict Implicit.
-
+ 
 Require Import QArith String.
 Require Import ProofIrrelevance.
 Require Import Coq.Logic.FunctionalExtensionality.
@@ -318,7 +318,7 @@ Eval compute in
   (* Eval compute in (index_enum [finType of ]). *)
 
   Eval compute in (permutations (1::2::3::nil)).
-  
+
   Close Scope nat_scope.
 
   Lemma N_eqP
@@ -370,7 +370,7 @@ Eval compute in
            (i : list A),
       size i = n ->
       (forall elt, In elt i -> In elt l) -> 
-    i \in (choose n l).
+    In i (choose n l).
   Proof.
     clear.
     intros A l n i H H1.
@@ -379,7 +379,6 @@ Eval compute in
     {
       destruct i.
       simpl in *.
-      apply list_in_iff.
       left; auto.
       simpl in *.
       inversion H.
@@ -403,7 +402,6 @@ Eval compute in
           simpl in *.
           rewrite fold_eq.
           simpl in *.
-          apply list_in_iff.
           destruct (list_is_singl H).
           subst.
           specialize (H1 x).
@@ -414,11 +412,9 @@ Eval compute in
           destruct H0.
           {
             subst; auto.
-            left; auto.
           }
           {
             right.
-            apply list_in_iff.
             apply IHl.
             {            
               intros.
@@ -433,10 +429,8 @@ Eval compute in
             (eapply list_is_cons; eauto).
         do 2 destruct H0.
         subst.
-        apply list_in_iff.
         simpl.
         eapply concat_map_in; eauto.
-        apply list_in_iff.
         apply IHn.
         {
           instantiate (1 := x0).
@@ -498,45 +492,30 @@ Eval compute in
 (*       (* (exists i', perm_eq i i' -> In i ((map (fun elt => zip (mkseq N.of_nat n) elt) l))). *) True. *)
 
   Lemma zip_completeish : forall (A : Type) (l : list (list A))
-                           (i : list (N.t * A)) (n : nat),
+                           (i' : list A) (n : nat),
       
-      (* list_is_all_funs l. *)
-      In (map snd i) l ->
-      (forall elt, In elt l -> size elt = n) ->
-      (forall elt, In elt i -> (fst elt) < n)%N ->
-      (* first elements of i are uniq *)
-      (* permutation of i is in the map *)
+      let i := zip (mkseq N.of_nat n) i' in 
+      In i' l ->
       In i (map (fun elt => zip (mkseq N.of_nat n) elt) l).
 Proof.
-Admitted.
-(* (* [seq zip (mkseq N.of_nat n) elt | elt <- l] *) *)
-(*   Proof. *)
-(*     unfold list_is_all_funs. *)
-(*     clear enum_ok. *)
-(*     intros. *)
-(*     induction l; auto. *)
-(*     simpl. *)
-(*     simpl in *. *)
-(*     destruct H; auto. *)
-(*     destruct i; simpl in *; auto. *)
-(*     subst. *)
-(*     { *)
-(*       left. *)
-(*       admit. *)
-(*     } *)
-(*     { *)
-(*       admit. *)
-(*     } *)
-(*   Admitted.     *)
+  intros.
+  unfold i in *.
+  generalize dependent i'.
+  induction l; auto.
+  simpl in *.
+  intros.
+  destruct H; auto.
+  subst; auto.
+Qed.
 
   Lemma all_action_pairs_total
-    : forall (i : list (N.t* A.t)),
+    : forall (i' : list A.t),
+    let i := zip (mkseq N.of_nat Ix.n) i' in 
       (forall (elt : N.t * A.t), In elt i -> fst elt < Ix.n)%N -> 
-      size i = Ix.n -> 
-      i \in (all_action_pairs Ix.n (enumerate A.t)).
+      size i' = Ix.n -> 
+      In i (all_action_pairs Ix.n (enumerate A.t)).
   Proof using enum_ok.
     intros.
-    simpl in *.
     simpl in *.
     unfold all_action_pairs.
     unfold all_actions.
@@ -547,17 +526,20 @@ Admitted.
       intros.
       apply enum_total.
     }
-    assert (size [seq i.2 | i <- i] = NUM_PLAYERS.n)
-      by (rewrite size_map => //).
+    unfold i in *.
+    assert (size [seq i.2 | i <- (zip (mkseq N.of_nat NUM_PLAYERS.n) i') ] = NUM_PLAYERS.n).
+    {
+      rewrite size_map.
+      rewrite size1_zip;
+        rewrite size_mkseq; auto;
+          [ rewrite H0; auto].
+    }
     pose proof (@choose_total ([eqType of A.t]) (enumerate A.t)
                Ix.n (map snd i) H2 H1).
-    apply list_in_iff.
-    apply zip_completeish;
-      try apply list_in_iff; auto.
-    {
-      intros.
-      eapply all_sizeN; eauto.
-    }
+    unfold i in *.
+    clear i.
+    apply zip_completeish; auto.
+    apply choose_total; auto.
   Qed.
 
   (* Lemma mapA_eqP :  *)
@@ -589,13 +571,9 @@ Admitted.
       i \in [seq fun_of_map i | i <- all_action_maps].
   Proof.
     intros.
-    unfold in_mem.
-    unfold mem.
-    simpl.
-    unfold mem_seq.
-    simpl.
+    rewrite list_in_iff.
     unfold all_action_maps.
-    simpl in *.
+    pose proof all_action_pairs_total.
   Admitted.
 
   Lemma action_maps_index_enum_ext :
