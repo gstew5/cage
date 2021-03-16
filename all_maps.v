@@ -364,7 +364,6 @@ Eval compute in
     }
   Qed.
 
-
   Lemma  choose_total :
     forall (A : eqType) (l : list A) (n : nat)
            (i : list A),
@@ -511,8 +510,7 @@ Qed.
   Lemma all_action_pairs_total
     : forall (i' : list A.t),
     let i := zip (mkseq N.of_nat Ix.n) i' in 
-      (forall (elt : N.t * A.t), In elt i -> fst elt < Ix.n)%N -> 
-      size i' = Ix.n -> 
+      size i' = Ix.n ->
       In i (all_action_pairs Ix.n (enumerate A.t)).
   Proof using enum_ok.
     intros.
@@ -532,10 +530,10 @@ Qed.
       rewrite size_map.
       rewrite size1_zip;
         rewrite size_mkseq; auto;
-          [ rewrite H0; auto].
+          [ rewrite H; auto].
     }
     pose proof (@choose_total ([eqType of A.t]) (enumerate A.t)
-               Ix.n (map snd i) H2 H1).
+               Ix.n (map snd i) H1 H0).
     unfold i in *.
     clear i.
     apply zip_completeish; auto.
@@ -566,14 +564,97 @@ Qed.
   
   (* Canonical A_finType := Eval hnf in FinType _ AFinite. *)
 
+  Program Fixpoint depMap (A B : Type) (P : A -> Prop)
+             (f : {x : A & P x} -> B) (l : list A)
+             (pf : forall x, In x l -> P x):
+      list B :=
+      (match l as l' return l = l' -> list B with
+      | [::] => fun _ => [::]
+      | h::t =>  fun peq => (f _) :: @depMap A B P f t _
+      end) Logic.eq_refl .
+    Next Obligation.
+      exists h.
+      apply pf.
+      apply in_eq.
+    Defined.
+    Next Obligation.
+      apply pf.
+      right.
+      auto.
+    Defined.
+
+
+  Definition mkIxSeq (N : nat) : list 'I_N := ord_enum N.
+
+  Program Definition list_of_fun (N : nat)
+    (f : {ffun 'I_N -> A.t})
+     : list (N.t * A.t) :=
+    zip (mkseq (N.of_nat) N) (map f (ord_enum N)).
+  
+  Definition map_of_fun (N : nat)
+    (f : {ffun 'I_N -> A.t}) : M.t A.t :=
+    MProps.of_list (list_of_fun f).
+
+  Lemma map_of_fun_inv : forall (f : {ffun 'I_NUM_PLAYERS.n -> A.t}), 
+      fun_of_map (map_of_fun f) = f.
+  Proof.
+    intros.
+    unfold map_of_fun.
+    unfold fun_of_map.
+    erewrite eq_ffun; eauto.
+    instantiate (1 := f) => //.
+    {
+      rewrite ffunK; auto.
+    }
+    red.
+    intros.
+    assert (exists t,
+       M.find (elt:=A.t) (N_of_Ordinal x) (MProps.of_list (list_of_fun f)) = Some t).
+    {
+      admit.
+    }
+    destruct H.
+    rewrite -> H.
+    
+    
+    
+    admit.
+    
+
+    rewrite -ffunE.
+    apply eq_ffun.        
+    
+           
+    
+
   Lemma mem_all_action_maps :
     forall i : {ffun 'I_NUM_PLAYERS.n -> A.t},
       i \in [seq fun_of_map i | i <- all_action_maps].
   Proof.
     intros.
-    rewrite list_in_iff.
+    rewrite <- (map_of_fun_inv i).
+    apply: map_f.
     unfold all_action_maps.
-    pose proof all_action_pairs_total.
+    unfold map_of_fun.
+    eapply map_f => //.
+    Unshelve.
+    2: {
+      unfold M.key.
+      admit.
+    }
+    unfold all_action_pairs.
+    unfold list_of_fun.
+    apply: map_f.
+    unfold all_actions.
+    apply list_in_iff.
+    apply choose_total => //.
+    {
+      admit.
+    }
+    {
+      intros.
+      apply enum_total.
+    }      
   Admitted.
 
   Lemma action_maps_index_enum_ext :
