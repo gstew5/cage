@@ -34,7 +34,9 @@ About MWU_Type.
 
   Module Ix := MyOrdNatDepProps NUM_PLAYERS.
   Module MW := MWU.
-  
+  Module Import MWFacts := WFacts M.
+  Module Import MFacts := Facts M.
+
   Section WE_NodePkg.
     Existing Instance A.enumerable.
     Variable enum_ok : @Enum_ok A.t _.
@@ -496,16 +498,16 @@ Eval compute in
       let i := zip (mkseq N.of_nat n) i' in 
       In i' l ->
       In i (map (fun elt => zip (mkseq N.of_nat n) elt) l).
-Proof.
-  intros.
-  unfold i in *.
-  generalize dependent i'.
-  induction l; auto.
-  simpl in *.
-  intros.
-  destruct H; auto.
-  subst; auto.
-Qed.
+  Proof.
+    intros.
+    unfold i in *.
+    generalize dependent i'.
+    induction l; auto.
+    simpl in *.
+    intros.
+    destruct H; auto.
+    subst; auto.
+  Qed.
 
   Lemma all_action_pairs_total
     : forall (i' : list A.t),
@@ -595,6 +597,114 @@ Qed.
     (f : {ffun 'I_N -> A.t}) : M.t A.t :=
     MProps.of_list (list_of_fun f).
 
+  Lemma mkseqNoDupA : forall N,
+      NoDupA eq (mkseq N.of_nat N).
+  Proof.
+    intros.
+    assert (uniq (mkseq N.of_nat N)).
+    {
+      apply mkseq_uniq.
+      red.
+      intros.
+      apply Nat2N.inj; auto.
+    }
+    {
+      generalize dependent N.
+      intros N.
+      induction (mkseq N.of_nat N); auto using NoDupA.
+      intros.
+      simpl in H.
+      apply andb_true_iff in H.
+      destruct H.
+      constructor; auto.
+      intros Hnot.
+      assert (InA eq a l -> In a l ).
+      {
+        clear.
+        intros.
+        generalize dependent a.
+        induction l; simpl; auto.
+        inversion 1.
+        intros.
+        inversion H.
+        subst.
+        auto.
+        subst.
+        right; auto.
+      }
+      apply H1 in Hnot.
+      clear H1.
+      rewrite -> bigops.In_mem in Hnot.
+      unfold in_mem in *.
+      unfold is_true in *.
+      rewrite Hnot in H.
+      discriminate.
+    }
+  Qed.
+  Hint Resolve mkseqNoDupA.
+
+  Lemma inAZipIn : forall A B a b l l', 
+    InA (fun p p' : A * B => p.1 = p'.1) (a, b) (zip l l') ->          InA eq a l.
+  Proof.
+    induction l; intros; simpl; auto using InA.
+    {
+      rewrite zip_nil in H.
+      inversion H.
+    }
+    {
+      destruct l'.
+      {
+        simpl in *.
+        inversion H.
+      }
+      {
+        simpl in H.
+        inversion H; subst; auto.
+        right.
+        eapply IHl; eauto.
+      }
+    }
+  Qed.
+
+  Lemma noDupAZipFst : forall A B (l : list A) (l' : list B),
+      NoDupA eq l -> 
+      NoDupA (fun p p' : A * B => p.1 = p'.1)
+       (zip l l').
+  Proof.
+    induction l; intros.
+    simpl.
+    rewrite zip_nil.
+    constructor.
+    {
+      inversion H; subst; auto.
+      destruct l'.
+      {
+        simpl.
+        constructor.
+      }
+      simpl.
+      simpl in IHl.
+      constructor; auto.
+      intros Hnot.
+      apply H2.
+      (* Why are there no lemmas about zip *)
+      eapply inAZipIn; eauto.
+    }
+  Qed.
+
+  Lemma indexZipNoDupKeyEq : forall N A (l : list A), 
+      NoDupA (M.eq_key (elt:=A))
+             (zip (mkseq N.of_nat N) l).
+  Proof.
+    pose proof mkseqNoDupA.
+    intros.
+    unfold M.eq_key.
+    unfold M.Raw.Proofs.PX.eqk.
+    unfold N.eq.
+    apply noDupAZipFst.
+    auto.
+  Qed.
+
   Lemma map_of_fun_inv : forall (f : {ffun 'I_NUM_PLAYERS.n -> A.t}), 
       fun_of_map (map_of_fun f) = f.
   Proof.
@@ -611,21 +721,60 @@ Qed.
     assert (exists t,
        M.find (elt:=A.t) (N_of_Ordinal x) (MProps.of_list (list_of_fun f)) = Some t).
     {
-      admit.
+      unfold list_of_fun.
+      eexists.
+      rewrite <- find_mapsto_iff.
+      apply M.elements_2.
+      rewrite <- MProps.of_list_2.
+      {
+        assert ((mkseq N.of_nat NUM_PLAYERS.n) =
+                map N_of_Ordinal (ord_enum NUM_PLAYERS.n)).
+        admit.
+        rewrite H.
+        clear H.
+        induction (ord_enum NUM_PLAYERS.n).
+        { 
+          (* This case is false. 
+             Need to do something 
+             a little more clever 
+           *)
+          exfalso.
+          admit.
+        }
+        {
+          simpl.
+          right.
+          eauto.
+        }
+      }
+      {
+        apply indexZipNoDupKeyEq.
+      }
     }
     destruct H.
     rewrite -> H.
-    
-    
-    
+    have: M.find (elt:=A.t) (N_of_Ordinal x) (MProps.of_list (list_of_fun f)) <> None
+      by (rewrite H; discriminate).
+    intros.
+    apply in_find_iff in x1.
+    unfold list_of_fun in x1.
+    simpl in *.
     admit.
-    
+    (* rewrite -ffunE. *)
+    (* apply eq_ffun.         *)
+  Admitted.
 
-    rewrite -ffunE.
-    apply eq_ffun.        
-    
-           
-    
+  Require Import Coq.Lists.SetoidList.
+  Definition injectiveA A B (f : list A -> B) eqA := 
+    forall x1 x2 : list A, (f x1) = (f x2) -> NoDupA eqA x1 -> equivlistA Logic.eq x1 x2.
+  
+  Lemma map_inA
+     : forall (A B : eqType) eqA (f : list A -> B) (a : list A) (l : seq (seq A)),
+      injectiveA  f eqA -> In a l -> In (f a) [seq f i | i <- l].
+  Proof.
+    intros.
+    red in H.
+  Admitted.    
 
   Lemma mem_all_action_maps :
     forall i : {ffun 'I_NUM_PLAYERS.n -> A.t},
@@ -636,26 +785,45 @@ Qed.
     apply: map_f.
     unfold all_action_maps.
     unfold map_of_fun.
-    eapply map_f => //.
+    apply list_in_iff.
+    eapply map_inA.
+    red.
+    intros.
+    
+    admit.
+    red.
+    intros.
+    rewrite <- MProps.of_list_3.
+
+    eapply map_in. (* Prove a weaker version of this maybe using equivlist *)
+    {
+      red.
+      intros.
+      
+    (* eapply map_f => //. *)
     Unshelve.
-    2: {
-      unfold M.key.
-      admit.
+    3: {
+      do 2 decide equality.
     }
     unfold all_action_pairs.
     unfold list_of_fun.
     apply: map_f.
     unfold all_actions.
-    apply list_in_iff.
+
     apply choose_total => //.
     {
-      admit.
+      rewrite -enum_ord_enum.
+      pose proof size_enum_ord.
+      rewrite size_map; auto.
+      rewrite H; auto.
     }
     {
       intros.
       apply enum_total.
     }      
-  Admitted.
+    Grab Existential Variables.
+    
+  Qed.
 
   Lemma action_maps_index_enum_ext :
     perm_eq (map fun_of_map all_action_maps)
