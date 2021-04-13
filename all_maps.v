@@ -644,7 +644,8 @@ Eval compute in
   Hint Resolve mkseqNoDupA.
 
   Lemma inAZipIn : forall A B a b l l', 
-    InA (fun p p' : A * B => p.1 = p'.1) (a, b) (zip l l') ->          InA eq a l.
+      InA (fun p p' : A * B => p.1 = p'.1) (a, b) (zip l l') ->
+      InA eq a l.
   Proof.
     induction l; intros; simpl; auto using InA.
     {
@@ -705,6 +706,123 @@ Eval compute in
     auto.
   Qed.
 
+  Definition zero : 'I_NUM_PLAYERS.n.
+    constructor 1 with (m := 0%nat).
+    apply NUM_PLAYERS.n_gt0.
+  Defined.
+
+  Lemma nth_In :
+    forall A (n:nat) (l:list A) (d:A),
+      (n < size l)%nat ->
+      In (nth d l n) l.
+  Proof.
+    intros.
+    generalize dependent n.
+    induction l; auto.
+    intros; exfalso; eauto.
+    {
+      intros.
+      simpl.
+      destruct n.
+      auto.
+      right.
+      simpl in H.
+      apply IHl.
+      apply ltnSE in H.
+      auto.
+    }
+  Qed.
+
+  Lemma nat_of_ordN: forall i, nat_of_bin (N_of_Ordinal i) = nat_of_ord i.
+  Proof.
+    intros.
+    destruct i.
+    simpl in *.
+    rewrite ccombinators.of_bin_N_of_nat => //.
+  Qed.
+
+  Lemma nth_error_InA : forall (l : list (M.key*A.t)) (i : M.key) x,
+      (N.to_nat i < size l)%nat ->
+      (nth (N.zero, A.t0) l i) = x -> 
+      InA (M.eq_key_elt (elt:=A.t)) x l.
+  Proof.
+    intros.
+    rewrite /M.eq_key_elt
+            /M.Raw.Proofs.PX.eqke.
+    unfold N.eq.
+    apply In_InA.    
+    {
+      constructor; eauto.
+      red; auto; intros; intuition; subst; auto.
+      red; auto; intros; intuition; subst; auto.
+      rewrite H3; auto.
+      rewrite H4; auto.
+    }
+    apply nth_In with (d := (N.zero, A.t0)) in H.
+    rewrite <- H0.
+    rewrite nat_of_bin_to_nat.
+    auto.
+  Qed.
+
+  Lemma nth_inj:
+    forall A (l l':list A) (d:A),
+      size l = size l' ->
+     (forall (n:nat),
+      (n < size l)%nat ->
+      nth d l n = nth d l' n) ->
+      l = l'.
+  Proof.
+    induction l.
+    {
+      intros.
+      simpl in *.
+      erewrite <- size0nil; eauto.
+    }
+    {
+      intros.
+      destruct l'.
+      {
+        inversion H.
+      }
+      {
+        assert (a = a0).
+        {
+          specialize (H0 0%nat).
+          assert ((0 < size (a :: l))%N).
+          auto.
+          apply H0 in H1.
+          simpl in H1.
+          auto.
+        }
+        {
+          subst; auto.
+          f_equal.
+          apply IHl with (d := d); eauto.
+          intros.
+          specialize (H0 (S n)).
+          assert ((n.+1 < size (a0 :: l))%N).
+          auto.
+          apply H0 in H2.
+          auto.
+        }
+      }
+    }
+  Qed.
+
+  Hint Resolve size_map.
+
+  Lemma nat_of_ord_helper : 
+                forall i, N_of_Ordinal i = N.of_nat (nat_of_ord i).
+  Proof.
+    intros.
+    clear -i.
+    rewrite <- nat_of_ordN.
+    unfold N_of_Ordinal.
+    destruct i.
+    f_equal.
+    rewrite ccombinators.of_bin_N_of_nat; auto.
+  Qed.
+
   Lemma map_of_fun_inv : forall (f : {ffun 'I_NUM_PLAYERS.n -> A.t}), 
       fun_of_map (map_of_fun f) = f.
   Proof.
@@ -722,47 +840,290 @@ Eval compute in
        M.find (elt:=A.t) (N_of_Ordinal x) (MProps.of_list (list_of_fun f)) = Some t).
     {
       unfold list_of_fun.
-      eexists.
+      exists (f x).
       rewrite <- find_mapsto_iff.
       apply M.elements_2.
       rewrite <- MProps.of_list_2.
       {
         assert ((mkseq N.of_nat NUM_PLAYERS.n) =
                 map N_of_Ordinal (ord_enum NUM_PLAYERS.n)).
-        admit.
+        {
+          rewrite <- enum_ord_enum.
+          assert (forall d i, nth d (mkseq N.of_nat NUM_PLAYERS.n) i =                           nth d ([seq N_of_Ordinal i | i <- enum 'I_NUM_PLAYERS.n]) i).
+          {
+            intros.
+            assert (lt_dec : ({i < NUM_PLAYERS.n} + {i >= NUM_PLAYERS.n})%nat).
+            {
+              assert (0 < NUM_PLAYERS.n)%nat.
+              {
+                apply NUM_PLAYERS.n_gt0.
+              }
+              generalize dependent NUM_PLAYERS.n.
+              intros.
+              clear x f.
+              clear enum_ok d.
+              generalize dependent n.
+              induction i.
+              left => /= //.
+              intros.
+              destruct n; auto.
+              specialize (IHi (S n)).
+              apply IHi in H.
+              destruct H.
+              {
+                assert ({i = n} + {i <> n}).
+                {
+                  decide equality.
+                }
+                destruct H; subst; auto.
+                left.
+                clear IHi.
+                apply ltnSE in i0.
+                assert (i < n)%nat.
+                {
+                  assert (forall i n, (i <= n) ->
+                                      (i < n)%nat \/ i = n)%nat.
+                  {
+                    clear.
+                    intros.
+                    generalize dependent i.
+                    induction n; intros; auto.
+                    {
+                      assert ({i = 0%nat} + {i <> 0%nat}).
+                      decide equality.
+                      destruct H0; auto.
+                      exfalso.
+                      destruct i; auto.
+                    }
+                    {
+                      destruct i; auto.
+                      apply IHn in H.
+                      destruct H; auto.
+                    }
+                  }
+                  apply H in i0.
+                  destruct i0; auto.
+                }
+                {
+                  auto.
+                }
+              }
+              {
+                right; auto.
+              }
+            }
+            destruct lt_dec.
+            {
+              rewrite nth_mkseq; eauto.
+              erewrite -> nth_map with (x1 := zero).
+              pose proof nth_ord_enum.
+              rewrite nat_of_ord_helper.
+              rewrite nth_enum_ord; auto.
+              rewrite <- cardE.
+              rewrite card_ord; auto.
+            }
+            {
+              rewrite nth_default; auto.
+              {
+                rewrite nth_default; auto.
+                rewrite size_map.
+                rewrite <- cardE.
+                rewrite card_ord; auto.
+              }
+              rewrite size_mkseq.
+              auto.
+            }
+          }
+          eapply nth_inj; eauto.
+          rewrite size_map.
+          rewrite <- cardE.
+          rewrite card_ord.
+          rewrite size_mkseq => //.
+        }
         rewrite H.
-        clear H.
-        induction (ord_enum NUM_PLAYERS.n).
-        { 
-          (* This case is false. 
-             Need to do something 
-             a little more clever 
-           *)
-          exfalso.
-          admit.
+        apply nth_error_InA with (i := N_of_Ordinal x).
+        {
+          rewrite <- nat_of_bin_to_nat.
+          rewrite nat_of_ordN.
+          rewrite size1_zip.
+          {
+            rewrite <- enum_ord_enum.
+            rewrite size_map.
+            rewrite <- cardE.
+            rewrite card_ord.
+            auto.
+          }
+          {
+            f_equal.
+            rewrite 2!size_map.
+            auto.
+          }
         }
         {
-          simpl.
-          right.
-          eauto.
+          rewrite <- enum_ord_enum.
+          set l := zip _ _.
+          replace l with ([seq (N_of_Ordinal i, f i) | i <- enum 'I_NUM_PLAYERS.n]) .
+          {
+            rewrite -> nth_map with (x1 := zero).
+            {
+              rewrite nat_of_ordN.
+              rewrite -> nth_ord_enum.
+              reflexivity.
+            }
+            {
+              rewrite nat_of_ordN.
+              rewrite <- cardE.
+              rewrite card_ord => //.
+            }
+          }
+          {
+            unfold l.
+            clear l.
+            apply nth_inj with (d := (N.zero, A.t0)); auto.
+            {
+              rewrite size_map.
+              rewrite size1_zip; auto.
+              {
+                do 2 rewrite size_map; auto.
+              }
+            }
+            {
+              intros.
+              rewrite size_map in H0.
+              rewrite nth_zip; [|
+                   do 2 rewrite size_map; auto].
+              do 3 (erewrite -> nth_map; eauto).
+            }
+          }
         }
       }
       {
         apply indexZipNoDupKeyEq.
       }
     }
-    destruct H.
-    rewrite -> H.
-    have: M.find (elt:=A.t) (N_of_Ordinal x) (MProps.of_list (list_of_fun f)) <> None
+    {
+      destruct H.
+      rewrite -> H.
+      have: M.find (elt:=A.t) (N_of_Ordinal x) (MProps.of_list (list_of_fun f)) <> None
       by (rewrite H; discriminate).
-    intros.
-    apply in_find_iff in x1.
-    unfold list_of_fun in x1.
-    simpl in *.
-    admit.
-    (* rewrite -ffunE. *)
-    (* apply eq_ffun.         *)
-  Admitted.
+      intros.
+      apply in_find_iff in x1.
+      unfold list_of_fun in x1.
+      simpl in *.
+      unfold list_of_fun in H.
+      apply find_mapsto_iff in H.
+      apply elements_in_iff in x1.
+      destruct x1.
+      rewrite <- MProps.of_list_2 in H0;
+        [| apply indexZipNoDupKeyEq].
+      apply elements_mapsto_iff in H.
+      rewrite <- MProps.of_list_2 in H;
+        [| apply indexZipNoDupKeyEq].
+      clear -H.
+      unfold M.eq_key_elt in H.
+      unfold M.Raw.Proofs.PX.eqke in H.
+      unfold N.eq in H.
+      rewrite <- enum_ord_enum in H.
+      assert ((zip (mkseq N.of_nat NUM_PLAYERS.n)
+           [seq f i | i <- enum 'I_NUM_PLAYERS.n]) = 
+              [seq (N_of_Ordinal i, f i) | i <- enum 'I_NUM_PLAYERS.n]).
+      {
+        apply nth_inj with (d := (N.zero, A.t0)); auto.
+        {
+          rewrite size_map.
+          rewrite size1_zip;
+            [| rewrite size_map];
+            rewrite size_mkseq; 
+            rewrite size_enum_ord; auto.
+          }
+          {
+            intros.
+            rewrite size1_zip in H0;
+              [|
+               rewrite size_map;
+               rewrite size_mkseq; 
+               rewrite size_enum_ord; auto].
+            rewrite size_mkseq in H0.
+            rewrite nth_zip;
+              [|
+               rewrite size_map;
+               rewrite size_mkseq; 
+               rewrite size_enum_ord; auto].
+            erewrite -> nth_map with (x2 := A.t0).
+            2: {
+              simpl.
+              rewrite <- cardT.
+              rewrite card_ord => //.
+            }
+            erewrite -> nth_map;
+              [|
+               rewrite <- cardT;
+               rewrite card_ord => //].
+            f_equal.
+            rewrite nth_mkseq; auto.
+            rewrite nat_of_ord_helper.
+            rewrite nth_enum_ord; auto.
+          }
+      }
+      {
+        rewrite H0 in H.
+        clear -H.
+        rewrite <- codomE in H.
+        assert (
+InA (fun p p' : N.t * A.t => p.1 = p'.1 /\ p.2 = p'.2)
+        (N_of_Ordinal x, x0)
+        (codom
+           (fun i : 'I_NUM_PLAYERS.n => (N_of_Ordinal i, f i)))
+            -> 
+            In (N_of_Ordinal x, x0)
+        (codom
+           (fun i : 'I_NUM_PLAYERS.n => (N_of_Ordinal i, f i)))).
+        {
+          clear.
+          generalize (codom (fun i : 'I_NUM_PLAYERS.n => (N_of_Ordinal i, f i))).
+          generalize (N_of_Ordinal x, x0).
+          intros.
+          induction l; auto.
+          {
+            inversion H.
+          }
+          {
+            inversion H; subst; auto.
+            destruct H1; subst; auto.
+            left.
+            destruct a, p; subst; auto.
+            simpl in *.
+            subst; auto.
+            right; auto.
+          }
+        }
+        apply H0 in H.
+        clear -H.
+        apply list_in_iff in H.
+        move: (codomP H).
+        intros.
+        destruct elimT.
+        inversion H0; subst; auto.
+        assert (x1 = x).
+        {
+          clear -H2.
+          destruct x1, x; auto.
+          simpl in *.
+          apply Nat2N.inj_iff in H2.
+          subst; auto.
+          f_equal.
+          apply proof_irrelevance.
+        }
+        {
+          subst; auto.
+        }
+      }
+    }
+    Unshelve.
+    exact N.zero.
+    exact zero.
+    exact zero.
+  Qed.
 
   Require Import Coq.Lists.SetoidList.
   Definition injectiveA A B (f : list A -> B) eqA := 
